@@ -591,7 +591,7 @@ function renderHead(){
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
   $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
   const sel=$("#filter-comp");const cur=sel.value;sel.innerHTML=`<option value="">Toutes les compétitions</option>`+state.comps.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");sel.value=state.comps.find(c=>c.id===cur)?cur:"";
-  const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;if(!hasTeam&&state.view==="rank")state.view="home";
+  const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;if(!hasTeam&&state.view==="rank")state.view="home";const hasPod=state.podRules.some(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));$('[data-view=pod]').hidden=!hasPod;if(!hasPod&&state.view==="pod")state.view="home";
   sel.hidden=state.comps.length<2||state.view==="pod"||state.view==="rank";$("#filters").hidden=state.view==="home";
   document.querySelectorAll("#subnav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===state.view));
   $("#navbar").hidden=state.admin;
