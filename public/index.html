@@ -1,0 +1,891 @@
+<title>Live FAN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Live FAN — thème Alsace (rouge et blanc) aligné sur Classement Clubs · Live.
+   Mobile d'abord : en-tête, barre de navigation collante, une colonne de cartes ; l'admin en étapes numérotées. */
+:root{
+  --red:#c8102e; --red-d:#9f1239; --wine:#881337; --ink:#ffffff; --muted:#f3d3d7; --faint:#d6a5ac;
+  --card:rgba(62,14,24,.86); --card-2:rgba(84,20,32,.92); --card-in:rgba(255,255,255,.07); --line:rgba(255,255,255,.16);
+  --gold:#fcd34d; --silver:#e5e7eb; --bronze:#f0a26b; --ok:#86efac; --warn:#fde68a;
+  --body:"Outfit",system-ui,-apple-system,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:16px; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:120px}
+body{font-family:var(--body);color:var(--ink);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  background-color:#fbf6f6;background-image:linear-gradient(#d7102b 0%,#e03a4c 14%,#ec7b86 30%,#f5b9bf 46%,#fadfe1 60%,#fdf3f4 74%,#fff 100%);background-attachment:fixed;min-height:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wrap{max-width:960px;margin:0 auto;padding-inline:16px}
+[hidden]{display:none!important}
+
+/* en-tête */
+.top{padding-block:18px 14px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{flex:0 0 auto;width:60px;height:40px;border-radius:7px;border:2px solid #fff;background:#fff url("data:image/png;base64,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") center/cover no-repeat;box-shadow:0 8px 24px -8px rgba(120,0,20,.5)}
+.brand-txt{min-width:0}
+.brand-txt .app{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#ffe4e6}
+.brand-txt h1{margin:0;font-size:clamp(20px,5vw,30px);font-weight:700;letter-spacing:-.02em;line-height:1.1;text-shadow:0 2px 12px rgba(120,0,20,.35);text-wrap:balance}
+.brand-txt .meta{font-size:13px;color:#fff1f2;margin-top:3px}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
+/* navigation collante */
+.navbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;padding-block:8px;background:rgba(200,16,46,.92);backdrop-filter:blur(10px);box-shadow:0 6px 18px -10px rgba(80,0,15,.6)}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:1 0 auto;border:0;background:rgba(255,255,255,.14);color:#fff;font-weight:600;font-size:14px;padding:9px 14px;border-radius:10px;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:#fff;color:var(--red-d)}
+.filters{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.filters input,.filters select{flex:1 1 180px;min-width:0;background:#fff;color:#3b0a14;border:0;border-radius:10px;padding:9px 12px;font-size:15px}
+.filters select{flex:0 1 220px}
+.filters input::placeholder{color:#a35a66}
+select option{background:#fff;color:#3b0a14}
+
+main{padding-block:16px 40px}
+
+/* cartes */
+.card,.lane,.prow,.podblock,.detail,.step,.now{background:var(--card);border:1px solid var(--line);border-radius:var(--r);backdrop-filter:blur(12px)}
+.session{margin-top:22px}
+.session:first-child{margin-top:4px}
+.sec-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;margin:0 0 8px;padding:4px 12px;border-radius:99px;background:#fff;width:fit-content;max-width:100%;box-shadow:0 4px 14px -8px rgba(80,0,15,.5)}
+.sec-title h3{margin:0;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--red-d)}
+.sec-title span{font-size:12px;color:#9f5864}
+.list{display:flex;flex-direction:column;gap:8px}
+.empty{padding:18px;text-align:center;color:var(--muted);background:var(--card);border:1px dashed var(--line);border-radius:var(--r)}
+.msg{font-size:13px;color:var(--muted);margin:0}
+.msg.err{color:#fecaca}
+
+/* à suivre */
+.now{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;padding:14px 16px;margin-bottom:6px;border-color:rgba(255,255,255,.4);background:var(--card-2)}
+.now .tag{grid-row:span 2;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:#fff;color:var(--red-d);border-radius:8px;padding:6px 8px;text-align:center;line-height:1.2}
+.now .tag b{display:block;font-family:var(--mono);font-size:16px;letter-spacing:0}
+.now .ev{font-weight:700;font-size:17px}
+.now .nx{font-size:13px;color:var(--muted)}
+
+/* lignes d'épreuve */
+.lane{overflow:hidden}
+.lane.past{opacity:.6}
+.row{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:12px 14px;border:0;background:none;text-align:left}
+.row:hover{background:rgba(255,255,255,.05)}
+.time{font-family:var(--mono);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.time small{display:block;font-size:11px;font-weight:500;color:var(--muted);letter-spacing:0}
+.ev{min-width:0}
+.ev b{display:block;font-weight:600;font-size:16px;line-height:1.25}
+.ev .sub{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:4px;font-size:13px;color:var(--muted)}
+.chev{font-size:12px;color:var(--muted);transition:transform .2s}
+[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.pause{display:grid;grid-template-columns:62px 1fr;gap:12px;padding:10px 14px;border-radius:var(--r);border:1px dashed rgba(253,230,138,.5);background:rgba(62,40,10,.75);color:var(--warn);font-weight:600;font-size:14px}
+.pause .time{color:var(--warn);font-size:15px}
+
+/* badges compétitions */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.badge i{flex:0 0 auto;width:7px;height:7px;border-radius:50%}
+.k1{background:#fff;color:var(--red-d)} .k1 i{background:var(--red)}
+.k2{background:#fde68a;color:#5b2a00} .k2 i{background:#b45309}
+.k3{background:#e9d5ff;color:#4c1d95} .k3 i{background:#7c3aed}
+.k4{background:#bbf7d0;color:#14532d} .k4 i{background:#16a34a}
+
+/* détail d'une épreuve */
+.inner{padding:0 14px 14px;display:grid;gap:14px}
+.heat h4{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.heat h4 .htime{font-family:var(--mono);font-size:14px;letter-spacing:0;color:var(--red-d);background:#fff;border-radius:7px;padding:1px 8px}
+.heat h4 span{font-family:var(--mono);font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint)}
+.tbl{overflow-x:auto;border-radius:12px;background:var(--card-in)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td.num,td.ln,td.rank{font-family:var(--mono);font-variant-numeric:tabular-nums}
+td.ln,td.rank{font-weight:700;width:36px}
+tbody tr:nth-child(1) td.rank{color:var(--gold)}
+td a,.pnm a,.compo a,.podextra a{color:#fff;text-decoration:none;border-bottom:1px dotted rgba(255,255,255,.45)}
+tr.hit td{background:rgba(253,230,138,.16)}
+.club{color:var(--muted);font-size:13px}
+@media (max-width:560px){.hide-s{display:none}}
+
+/* passages */
+.spbtn{margin-left:6px;border:1px solid var(--line);background:rgba(255,255,255,.1);color:#fff;border-radius:6px;font-size:10px;padding:1px 6px;vertical-align:1px}
+.sprow td{padding-top:0}
+tr:has(+ .sprow) td{border-bottom:0;padding-bottom:4px}
+.splits{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px;padding-bottom:4px;white-space:normal;max-width:720px}
+.sp{display:grid;gap:1px;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid var(--line)}
+.spd{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.spc{font-family:var(--mono);font-size:15px;font-weight:700}
+.spl{font-family:var(--mono);font-size:12px;color:#fecdd3}
+.spl::before{content:"tronçon ";font-family:var(--body);font-size:10.5px;color:var(--faint)}
+
+/* participants / clubs */
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;width:100%;padding:12px 14px;text-align:left;color:#fff}
+.prow:hover{background:var(--card-2)}
+.prow b{font-weight:600}
+.prow .sub{grid-column:1;font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.prow .num{grid-row:1/span 2;grid-column:2;font-family:var(--mono);font-size:13px;color:var(--muted);text-align:right}
+.detail{padding:16px;margin-bottom:16px;background:var(--card-2);border-color:rgba(255,255,255,.4)}
+.detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.detail h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.detail .meta{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:4px}
+
+/* podiums */
+.subtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:12px}
+.subtabs button{flex:0 0 auto;border:1px solid rgba(255,255,255,.4);background:var(--card);color:#fff;font-weight:600;font-size:13px;padding:7px 12px;border-radius:99px}
+.subtabs button[aria-selected="true"]{background:#fff;color:var(--red-d)}
+.podgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:10px}
+.podblock{padding:12px 12px 0}
+.podlabel{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.podium{display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:6px;align-items:end;text-align:center}
+.pod{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.medal{font-family:var(--mono);font-weight:700;font-size:12px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#1f1300;margin-bottom:4px}
+.p1 .medal{background:var(--gold)} .p2 .medal{background:var(--silver)} .p3 .medal{background:var(--bronze)}
+.pnm{font-weight:600;font-size:13px;line-height:1.2;overflow-wrap:anywhere}
+.pclub{font-size:11px;color:var(--muted);line-height:1.2;overflow-wrap:anywhere}
+.ptime{font-family:var(--mono);font-weight:700;font-size:13px;margin-top:2px}
+.pod .stepb{width:100%;border-radius:8px 8px 0 0;margin-top:6px;background:#fff;height:28px}
+.p1 .stepb{height:44px;background:var(--gold)} .p3 .stepb{height:18px;background:var(--bronze)}
+.podextra{margin:10px 0 12px;padding-left:22px;font-size:13px;display:grid;gap:3px}
+.podextra .n{font-family:var(--mono);margin-left:8px;color:var(--muted)}
+.tpts{font-family:var(--mono);font-weight:700;font-size:17px;white-space:nowrap}.tpts small{font-size:11px;color:var(--muted)}
+.compo{display:flex;flex-wrap:wrap;gap:6px}
+.compo span{background:var(--card-in);border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:13px}
+.compo small{color:var(--muted);font-family:var(--mono)}
+
+/* boutons et champs */
+.btn{border:0;font-weight:600;color:var(--red-d);background:#fff;padding:10px 16px;border-radius:10px;white-space:nowrap;box-shadow:0 6px 18px -8px rgba(80,0,15,.6)}
+.btn.ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.4);box-shadow:none}
+.btn.small{padding:6px 12px;font-size:13px}
+label{display:grid;gap:4px;font-size:13px;font-weight:500;color:var(--muted)}
+.field{width:100%;min-width:0;background:rgba(255,255,255,.95);color:#3b0a14;border:0;border-radius:10px;padding:9px 12px}
+.inline{display:flex;flex-wrap:wrap;gap:8px}
+.inline .field{flex:1 1 180px}
+.grid2c{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px}
+input[type="checkbox"]{accent-color:var(--red);width:18px;height:18px}
+
+/* admin : étapes */
+.admin-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.admin-head h2{margin:0;font-size:24px;text-shadow:0 2px 12px rgba(120,0,20,.35)}
+.steps{display:grid;gap:12px}
+.step{overflow:hidden}
+.step>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;font-weight:700;font-size:16px}
+.step>summary::-webkit-details-marker{display:none}
+.step>summary .n{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:#fff;color:var(--red-d);display:grid;place-items:center;font-family:var(--mono);font-size:13px}
+.step>summary .hint{margin-left:auto;font-weight:500;font-size:13px;color:var(--muted)}
+.step[open]>summary{border-bottom:1px solid var(--line)}
+.step-body{padding:14px 16px 16px;display:grid;gap:12px}
+.comp{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--card-in);border:1px solid var(--line)}
+.comp small{display:block;font-size:12px;color:var(--muted)}
+.x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px}
+.x:hover{color:#fff}
+.pill{font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px}
+.pill.on{background:#bbf7d0;color:#14532d}.pill.off{background:rgba(255,255,255,.2);color:#fff}
+.switch{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.switch label{display:inline;color:#fff;font-size:14px}
+.sess-admin{display:grid;gap:6px}
+.sess-admin h4{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 0;font-size:15px}
+.order-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.item{display:grid;grid-template-columns:16px 50px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--card-in);border:1px solid var(--line);font-size:14px;cursor:grab}
+.item.pause-it{background:rgba(62,40,10,.6);border-style:dashed;color:var(--warn)}
+.item.pause-it input{width:52px;background:#fff;color:#3b0a14;border:0;border-radius:6px;padding:1px 4px}
+.item.dragging{opacity:.4}.item.over{box-shadow:inset 0 2px 0 #fff}
+.grip{color:var(--faint);user-select:none}
+.item .t{font-family:var(--mono);font-size:13px}
+.item .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv{display:flex;gap:3px}
+.mv button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.1);color:#fff}
+.rule{display:grid;gap:10px;padding:12px;border-radius:12px;background:var(--card-in);border:1px solid var(--line)}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.chk{display:flex;align-items:center;gap:6px}
+
+/* pied de page */
+.foot{margin-top:36px;padding-top:12px;border-top:1px solid rgba(136,19,55,.2);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;font-size:12px;color:var(--wine)}
+.foot p{margin:0;max-width:60ch}
+.adminlink{border:1px solid rgba(136,19,55,.3);background:none;color:var(--wine);border-radius:8px;padding:3px 10px;font-size:11px}
+.clubrow{grid-template-columns:minmax(0,1fr) auto}
+.inprow{background:var(--card-in)}
+.info{padding:14px 16px}
+.info h4{margin:0 0 4px;font-size:16px}
+.info p{margin:0;line-height:1.55}
+.info.imp{background:#fff;color:#3b0a14;border-color:#fff}
+.info.imp p{color:#3b0a14}
+.imptag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--red);color:#fff;border-radius:6px;padding:2px 7px;margin-bottom:6px}
+.day{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
+.reu{padding:14px 16px 16px}
+.reu-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:14px}
+.reu-h b{font-size:16px}.reu-h span{font-size:13px;color:var(--muted)}
+.tl{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);position:relative}
+.tl::before{content:"";position:absolute;left:16.6%;right:16.6%;top:5px;height:2px;background:rgba(255,255,255,.3)}
+.tl li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;position:relative;padding-top:18px}
+.tl li::before{content:"";position:absolute;top:0;width:12px;height:12px;border-radius:50%;background:var(--card);border:2px solid #fff}
+.tl li.mid::before{background:#fff}
+.tl b{font-family:var(--mono);font-size:17px}
+.tl span{font-size:12px;color:var(--muted)}
+.comps{padding:4px 0}
+.comprow{display:grid;grid-template-columns:minmax(0,auto) 1fr auto;gap:10px;align-items:center;padding:10px 16px;color:#fff;text-decoration:none}
+.comprow+.comprow{border-top:1px solid var(--line)}
+.comprow .ext{font-size:13px;font-weight:600;white-space:nowrap}
+textarea.field{resize:vertical;font:inherit;line-height:1.45}
+.board-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;align-items:center;padding:14px 16px;margin-bottom:10px}
+.board-head .lbl{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.bh-ev{font-weight:600;font-size:16px;margin-top:2px}
+.kpi{text-align:right}.kpi b{font-family:var(--mono);font-size:22px}.kpi small{font-size:13px;color:var(--muted)}.kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.prog{grid-column:1/-1;height:6px;border-radius:9px;background:rgba(255,255,255,.15);overflow:hidden}.prog i{display:block;height:100%;background:#fff;border-radius:9px}
+.board-head .btn{grid-column:1/-1;justify-self:start}
+.brow{grid-template-columns:40px minmax(0,1fr) auto}
+.rk{font-family:var(--mono);font-weight:700;font-size:20px;text-align:center}
+.rk.r1{color:var(--gold)}.rk.r2{color:var(--silver)}.rk.r3{color:var(--bronze)}
+.bar{display:block;height:7px;border-radius:9px;background:rgba(255,255,255,.12);margin-top:7px;overflow:hidden}.bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#fecdd3,#fff)}
+.mvt{font-family:var(--mono);font-size:11px;font-weight:700;margin-left:6px;vertical-align:1px}
+.mvt.up{color:var(--ok)}.mvt.down{color:#fca5a5}.mvt.eq{color:var(--faint)}.mvt.new{color:var(--warn)}
+.top3{padding:6px 0}
+.t3{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 16px}
+.t3 b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t3+.t3{border-top:1px solid var(--line)}
+.top3 .more{display:block;padding:10px 16px 8px;border-top:1px solid var(--line);color:#fff;font-weight:600;font-size:14px;text-decoration:none}
+body.tv .top,body.tv .navbar,body.tv .foot{display:none!important}
+body.tv main{max-width:none;padding-inline:4vw}
+body.tv .brow{padding-block:1.2vh}
+body.tv .rk{font-size:clamp(20px,3vw,40px)}body.tv .ev b{font-size:clamp(16px,2.4vw,32px)}body.tv .tpts{font-size:clamp(17px,2.4vw,34px)}
+body.tv .bh-ev{font-size:clamp(16px,2vw,28px)}
+.upd{font-size:12px;color:#ffe4e6;margin-top:2px}
+.sc-status{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:var(--card-in);font-size:13px;font-variant-numeric:tabular-nums}
+tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
+.fft{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:#fde68a;color:#5b2a00;border-radius:5px;padding:1px 5px;opacity:1}
+.lstate{margin:-2px 0 8px 4px;font-size:12px;font-weight:600}
+.lstate{display:inline-block;background:var(--card);color:#fff;border-radius:99px;padding:3px 10px}
+.lstate::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.lstate.prov::before{background:#fde68a}.lstate.def::before{background:#86efac}
+.engban{display:grid;gap:2px;padding:12px 16px;margin-bottom:10px;background:#fde68a;color:#5b2a00;border-color:#fde68a}.engban span{font-size:13px}
+.tnote{margin:0 0 10px;font-size:12px;font-weight:600;color:#fff;background:var(--card);border-radius:99px;padding:3px 10px;width:fit-content}
+.pfree{display:flex;gap:6px;align-items:center;white-space:normal}.ptxt{flex:1;min-width:0;background:#fff;color:#3b0a14;border:0;border-radius:6px;padding:4px 6px}
+.kpis3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px}
+.kpis3>div{background:var(--card-in);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.kpis3 b{display:block;font-family:var(--mono);font-size:24px}.kpis3 span{font-size:12px;color:var(--muted)}
+.live-dot::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok);margin-right:8px;vertical-align:4px}
+.audbox{background:var(--card-in);border:1px solid var(--line);border-radius:12px;padding:12px}
+.aurow{display:grid;grid-template-columns:120px 1fr 44px;gap:8px;align-items:center;font-size:13px;margin-top:6px}.aurow .bar{margin:0}.aurow b{font-family:var(--mono);text-align:right}
+.dash{padding:14px 16px;display:grid;gap:12px;margin-bottom:6px}
+.dash-top{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between}
+.dash-phase{display:flex;align-items:center;gap:8px;color:#fff;font-weight:600}.dash-phase .field{width:auto}
+.grp{margin:24px 0 10px;width:fit-content;padding:5px 14px;border-radius:99px;background:var(--red);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fff;box-shadow:0 4px 14px -8px rgba(80,0,15,.6)}
+.rsprog{display:grid;gap:6px;font-size:13px}
+.cdot{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;vertical-align:-2px}.cdot i{width:8px;height:8px;border-radius:50%}
+.k1 i,.cdot.k1 i{background:var(--red)}
+.login{max-width:380px;margin:40px auto;padding:20px;display:grid;gap:12px}.login h2{margin:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><div class="logo" role="img" aria-label="Drapeau de l'Alsace"></div>
+      <div class="brand-txt"><div class="app">Live FAN · Natation</div><h1 id="pub-title"></h1><div class="meta" id="pub-meta"></div><div class="upd" id="upd"></div></div></div>
+    <div class="legend" id="pub-legend"></div>
+  </div>
+</header>
+
+<div class="navbar" id="navbar">
+  <div class="wrap">
+    <nav class="tabs" id="subnav" aria-label="Sections">
+      <button data-view="home" aria-selected="true">Accueil</button>
+      <button data-view="prog" aria-selected="false">Programme</button>
+      <button data-view="res" aria-selected="false">Résultats</button>
+      <button data-view="pod" aria-selected="false">Podiums</button>
+      <button data-view="rank" aria-selected="false" hidden>Classement</button>
+      <button data-view="part" aria-selected="false">Nageurs & clubs</button>
+    </nav>
+    <div class="filters" id="filters">
+      <input id="search" type="search" placeholder="Rechercher un nageur ou un club" aria-label="Rechercher un nageur ou un club">
+      <select id="filter-comp" aria-label="Filtrer par compétition"></select>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section id="view-public">
+    <div id="pub-body"></div>
+    <p class="empty" id="pub-unpub" hidden>Aucun événement en ligne pour le moment.</p>
+  </section>
+
+  <section id="view-login" hidden>
+    <form class="card login" id="login-form">
+      <h2>Administration</h2>
+      <label for="login-pw">Mot de passe<input class="field" type="password" id="login-pw" autocomplete="current-password"></label>
+      <p class="msg" id="login-msg"></p>
+      <div class="inline"><button class="btn" type="submit">Se connecter</button><button class="btn ghost" type="button" id="login-cancel">Retour</button></div>
+    </form>
+  </section>
+  <section id="view-admin" hidden>
+    <div class="admin-head"><h2>Administration</h2><button class="btn small" id="back-public">Voir la page publique</button></div>
+
+    <div class="card dash">
+      <div class="dash-top">
+        <div class="switch"><input type="checkbox" id="ev-pub"><label for="ev-pub">Page publique en ligne</label><span class="pill" id="pub-pill"></span></div>
+        <span class="dash-phase" id="phase-txt"></span><span class="msg" id="save-state"></span>
+      </div>
+      <div class="kpis3" id="dash-kpis"></div>
+      <div class="sc-status"><span id="sc-text"></span><button class="btn small" id="sc-now">Actualiser maintenant</button></div>
+      <div id="delay-box" class="grid2c"></div>
+    </div>
+
+    <h3 class="grp">Préparer la compétition</h3>
+    <div class="steps">
+      <details class="step" open>
+        <summary><span class="n">1</span>Compétitions<span class="hint" id="h1"></span></summary>
+        <div class="step-body">
+          <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
+          <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button></div>
+          <p class="msg" id="link-msg">Ajoute autant de compétitions que nécessaire.</p>
+          <div id="comp-list" style="display:grid;gap:6px"></div>
+        </div>
+      </details>
+      <details class="step">
+        <summary><span class="n">2</span>Programme et horaires<span class="hint" id="h2"></span></summary>
+        <div class="step-body">
+          <label for="timing">Chronométrage<select class="field" id="timing"><option value="elec">Électronique · les horaires se recalent seuls sur les résultats</option><option value="manual">Manuel · horaires théoriques, retard saisi à la main</option></select></label>
+          <div class="grid2c" id="sess-starts"></div>
+          <label for="s-heat">Battement entre deux départs (secondes)<input class="field" type="number" id="s-heat" min="0" step="5"><span class="msg" style="font-weight:400">Le même temps entre deux séries et entre deux épreuves.</span></label>
+          <p class="msg">Ordre du bassin : glisse-dépose les épreuves, ou utilise les flèches sur téléphone. « + Ligne libre » ajoute le texte de ton choix (pause, remise des médailles…) avec une durée, 0 si elle ne prend pas de temps.</p>
+          <div id="order"></div>
+        </div>
+      </details>
+      <details class="step">
+        <summary><span class="n">3</span>Classements et podiums<span class="hint" id="h4"></span></summary>
+        <div class="step-body">
+          <p class="msg">Course par course ou par équipes (filles et garçons séparés). Cocher plusieurs compétitions fait un classement commun des épreuves de même nom.</p>
+          <div id="pod-rules" style="display:grid;gap:10px"></div>
+          <div><button class="btn small ghost" id="pod-add">+ Ajouter un classement</button></div>
+        </div>
+      </details>
+      <details class="step">
+        <summary><span class="n">4</span>Informations de l'accueil<span class="hint" id="h1b"></span></summary>
+        <div class="step-body">
+          <p class="msg">Affichées sur l'accueil, dans cet ordre. « Important » les met en avant.</p>
+          <div id="info-list" style="display:grid;gap:10px"></div>
+          <div><button class="btn small ghost" id="info-add">+ Ajouter une information</button></div>
+        </div>
+      </details>
+    </div>
+
+    <h3 class="grp">Suivre la compétition</h3>
+    <div class="steps">
+      <details class="step">
+        <summary><span class="n">5</span>Actualisation des données<span class="hint" id="h0"></span></summary>
+        <div class="step-body">
+          <label for="sc-every">Récupérer les données du Live FFN
+            <select class="field" id="sc-every">
+              <option value="1">toutes les minutes</option><option value="2">toutes les 2 minutes</option><option value="5">toutes les 5 minutes</option>
+              <option value="10">toutes les 10 minutes</option><option value="15">toutes les 15 minutes</option><option value="30">toutes les 30 minutes</option><option value="0">manuellement uniquement</option>
+            </select></label>
+          <label class="chk" style="color:#fff"><input type="checkbox" id="sc-live">Seulement pendant les réunions (de l'ouverture des portes à la fin estimée)</label>
+          <p class="msg">Une minute est le délai le plus court possible avec Cloudflare.</p>
+          <div class="rule" id="rs-box">
+            <b>Tout récupérer à nouveau</b>
+            <p class="msg">Si une récupération a mal fonctionné : efface les données lues sur le Live FFN et les relit entièrement. Tes réglages (ordre du programme, lignes libres, classements, informations) sont conservés.</p>
+            <div class="grid2c"><label for="rs-scope">Périmètre<select class="field" id="rs-scope"></select></label>
+            <label for="rs-what">Données<select class="field" id="rs-what"><option value="all">Programme, séries et résultats</option><option value="start">Séries uniquement</option><option value="res">Résultats uniquement</option></select></label></div>
+            <div id="rs-act"><button class="btn small" id="rs-go">Tout récupérer à nouveau…</button></div>
+          </div>
+        </div>
+      </details>
+      <details class="step">
+        <summary><span class="n">6</span>Audience<span class="hint" id="h-aud"></span></summary>
+        <div class="step-body" id="aud"></div>
+      </details>
+    </div>
+
+  </section>
+
+  <footer class="foot"><p>Live FAN · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a> avec l'accord de la FFN. Seuls les résultats publiés sur ffnatation.fr font foi.</p><button id="admin-btn" class="adminlink">Admin</button></footer>
+</main>
+
+<script>
+/* ---------- données (lues sur /api/state, alimentées par le Live FFN) ---------- */
+function fmt(sec){if(sec==null)return"—";const m=Math.floor(sec/60),s=sec%60;return String(m).padStart(2,"0")+":"+s.toFixed(2).padStart(5,"0")}
+const state={view:"home",open:{},sp:{},sel:null,admin:false,rankSex:"F",podRule:null,rankRule:null,
+  name:"",published:false,heatGap:40,eventGap:40,comps:[],order:{},lines:{},starts:{},timing:"elec",delay:{},phase:"start",
+  scrape:{every:2,onlyLive:true},doors:{},infos:[],podRules:[],lastOk:null,error:null,queue:0,loaded:false};
+let EVENTS={},SWIMMERS={},RAW=null,ADMIN_KEY=null;
+try{ADMIN_KEY=sessionStorage.getItem("lf-key")}catch(_){}
+const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+const swId=(name,year)=>norm(name)+"|"+(year||"");
+const hToSec=t=>{const m=String(t||"").match(/(\d{1,2})[h:](\d{2})/);return m?(+m[1]*3600+ +m[2]*60):null};
+const secToHHMM=s=>{s=Math.round(s/60);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
+function parisSec(ms){const p=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ms)).map(x=>[x.type,x.value]));return +p.hour*3600+ +p.minute*60+ +p.second}
+function defaultDur(name){const d=parseInt(name)||100;return {25:25,50:45,100:95,200:200,400:400,800:800,1500:1500}[d]||d}
+function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m[2]):parseInt(name)}
+
+function build(cfg,data){
+  state.name=cfg.name||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
+  state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.lines=cfg.lines||{};
+  state.scrape=cfg.scrape||state.scrape;state.lastOk=data.lastOk||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
+  EVENTS={};SWIMMERS={};state.comps=[];
+  const byReu={};let anyLane=false;
+  (cfg.comps||[]).forEach((id,i)=>{
+    const c=data.comps&&data.comps[id];
+    const meta=(c&&c.meta)||{};
+    state.comps.push({id,k:(i%4)+1,name:meta.name||("Compétition "+id),city:meta.city||"",bassin:meta.pool||"",date:meta.date||"",splits:true,loading:!c||!c.meta});
+    if(!c||!c.reunions)return;
+    for(const r of c.reunions){
+      (byReu[r.n]=byReu[r.n]||{doors:r.doors,keys:[]});if(!byReu[r.n].doors)byReu[r.n].doors=r.doors;
+      for(const it of r.items){if(it.kind!=="event")continue;
+        const key=id+"-"+it.epr,st=(c.events||{})[it.epr]||{};const relay=/^\d+x/i.test(it.name);const sex=/Dames/.test(it.name)?"F":/Messieurs/.test(it.name)?"M":"X";
+        const heats=st.heats||[];if(heats.some(h=>h.lanes.some(l=>l.lane>0)))anyLane=true;
+        const res=(st.results&&st.results.rows)||[];
+        const out=new Set(res.filter(x=>x.status&&/forf|dns|np|abs/i.test(x.status+" "+(x.reason||""))).map(x=>swId(x.name,x.year)));
+        const series=(heats.length?heats:Array.from({length:it.nSeries||1},(_,j)=>({n:j+1,lanes:[]}))).map((h,j)=>{
+          const sw=h.lanes.map(l=>{const team=relay?(l.club||l.name):null;const id2=relay?null:swId(l.name,l.year);
+            return{lane:l.lane,heat:j+1,name:relay?team:l.name,year:relay?"":l.year,club:relay?team:l.club,time:l.entry,iuf:id2,relay,members:l.members||null,dns:!relay&&out.has(id2)}});
+          const tms=sw.map(x=>x.time).filter(x=>x!=null);
+          return{n:h.n||j+1,swimmers:sw.sort((a,b)=>a.lane-b.lane),slowest:tms.length?Math.max(...tms):defaultDur(it.name)}});
+        const entries=series.flatMap(s=>s.swimmers);
+        const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
+          res:x.time,dsq:!!x.status,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
+          splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap}))}));
+        EVENTS[key]={key,comp:id,num:it.epr,name:it.name,round:it.round,ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
+          doneAt:st.doneAt||null,nPart:it.nPart,relay,sex,type:"event"};
+        byReu[r.n].keys.push(key);
+        // fichier des nageurs
+        for(const w of entries)if(w.iuf){const s=SWIMMERS[w.iuf]=SWIMMERS[w.iuf]||{iuf:w.iuf,name:w.name,year:w.year,club:w.club,sex,comp:id};}
+        for(const w of results)if(w.iuf&&!SWIMMERS[w.iuf])SWIMMERS[w.iuf]={iuf:w.iuf,name:w.name,year:w.year,club:w.club,sex,comp:id};
+      }
+    }
+  });
+  // équipes (Interclubs) : composition des relais
+  for(const ev of Object.values(EVENTS)){if(!ev.relay)continue;
+    const teams=[...ev.results.map(r=>({team:r.name,m:r.members})),...ev.entries.map(e=>({team:e.name,m:e.members}))];
+    for(const t of teams)for(const m of (t.m||[])){const s=SWIMMERS[swId(m.name,m.year)];if(s&&!s.team)s.team=t.team}}
+  for(const s of Object.values(SWIMMERS))if(!s.team)s.team=s.club;
+  for(const ev of Object.values(EVENTS))for(const w of [...ev.entries,...ev.results])if(w.iuf&&SWIMMERS[w.iuf])w.team=SWIMMERS[w.iuf].team;
+  state.phase=anyLane||!Object.keys(EVENTS).length?"start":"eng";
+  // ordre du programme : celui de l'admin, complété par les nouvelles épreuves rangées à leur heure FFN
+  const order={};
+  for(const n of Object.keys(byReu)){
+    const saved=((cfg.order||{})[n]||[]).filter(k=>EVENTS[k]||state.lines[k]);
+    const fresh=byReu[n].keys.filter(k=>!saved.includes(k)).sort((a,b)=>(EVENTS[a].ffnSec??0)-(EVENTS[b].ffnSec??0));
+    const list=[...saved];
+    for(const k of fresh){const t=EVENTS[k].ffnSec??0;let i=list.findIndex(x=>EVENTS[x]&&(EVENTS[x].ffnSec??0)>t);if(i<0)i=list.length;list.splice(i,0,k)}
+    order[n]=list;
+    const first=Math.min(...byReu[n].keys.map(k=>EVENTS[k].ffnSec??1e9));
+    state.starts[n]=(cfg.starts||{})[n]||(first<1e9?secToHHMM(first):"10:00");
+  }
+  for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0};
+  state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));
+  if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
+  state.loaded=true;
+}
+function toConfig(){
+  const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
+  return{name:state.name,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
+    rankings:state.podRules,infos:state.infos,published:state.published,scrape:state.scrape};
+}
+let pauseId=Date.now();
+
+/* ---------- calculs ---------- */
+function toMin(hm){const[h,m]=hm.split(":").map(Number);return h*60+m}
+function hm(sec){sec=Math.round(sec);const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return String(h).padStart(2,"0")+"h"+String(m).padStart(2,"0")}
+function duration(ev){return ev.series.reduce((a,s)=>a+s.slowest+state.heatGap,0)-state.heatGap}
+function allKeys(){return Object.keys(state.order).flatMap(s=>state.order[s]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event")}
+// épreuve terminée : tous les résultats sont publiés, ou une épreuve suivante de la réunion a déjà des résultats
+function doneSet(){
+  const done=new Set();if(state.phase==="eng")return done;
+  for(const s of Object.keys(state.order)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");
+    let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(ev.doneAt||(ev.results.length&&later))done.add(ks[i]);if(ev.results.length)later=true}}
+  return done;
+}
+function schedule(){
+  const out={};const doneNow=doneSet();
+  for(const s of Object.keys(state.order)){
+    let t=toMin(state.starts[s]||"10:00")*60;let first=true;let delayed=false;
+    for(const key of state.order[s]){
+      const ev=EVENTS[key];if(!ev)continue;
+      if(!first)t+=state.eventGap;first=false;
+      if(ev.type==="pause"){out[key]={start:t};t+=ev.min*60;continue}
+      if(state.timing==="manual"&&!delayed&&!doneNow.has(key)){t+=(state.delay[s]||0)*60;delayed=true}
+      out[key]={start:t};t+=duration(ev);out[key].end=t;
+      // chronométrage électronique : on se recale sur l'heure réelle d'arrivée des résultats
+      if(state.timing==="elec"&&doneNow.has(key)&&ev.doneAt){const real=parisSec(ev.doneAt);if(Math.abs(real-t)<4*3600){t=real;out[key].end=t}}
+    }
+  }
+  return out;
+}
+function splitsHtml(ev,w){const sp=w.splits||[];if(sp.length<2)return"";
+  return`<div class="splits">${sp.map(x=>`<div class="sp"><span class="spd">${x.dist} m</span><span class="spc">${fmt(x.cum).replace(/^00:/,"")}</span><span class="spl">${fmt(x.lap).replace(/^00:/,"")}</span></div>`).join("")}</div>`}
+function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test(x.status)))}
+
+/* ---------- échanges avec le serveur ---------- */
+async function api(path,opt={}){
+  const headers={"content-type":"application/json"};if(ADMIN_KEY)headers["x-admin-key"]=ADMIN_KEY;
+  const r=await fetch(path,{...opt,headers});const j=await r.json().catch(()=>({error:"Réponse illisible du serveur."}));
+  if(!r.ok)throw Object.assign(new Error(j.error||("Erreur "+r.status)),{status:r.status});return j;
+}
+async function loadPublic(){
+  try{const j=await api("/api/state");if(!j.published){state.published=false;state.loaded=true;if(!state.admin)render();return}
+    RAW=j;build(j.config,j.data);if(!state.admin)render();}
+  catch(e){$("#pub-body").innerHTML=`<p class="empty">Impossible de charger les données. Nouvel essai dans quelques secondes.</p>`}
+}
+async function loadAdmin(){const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render()}
+let lastSaved="",saveTimer=null;
+function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,700)}
+async function saveNow(){const c=JSON.stringify(toConfig());if(c===lastSaved)return;const el=$("#save-state");
+  try{if(el)el.textContent="Enregistrement…";await api("/api/config",{method:"PUT",body:c});lastSaved=c;if(el)el.textContent="Enregistré à "+hhmm(new Date())}
+  catch(e){if(el)el.textContent="Échec de l'enregistrement : "+e.message}}
+
+/* ---------- rendu public ---------- */
+const $=s=>document.querySelector(s);
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function comp(id){return state.comps.find(x=>x.id===id)}
+function compBadge(id){const c=comp(id);return`<span class="badge k${c.k}"><i></i>${esc(c.name)}</span>`}
+function renderHead(){
+  $("#pub-title").textContent=state.name;
+  const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
+  $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
+  const sel=$("#filter-comp");const cur=sel.value;sel.innerHTML=`<option value="">Toutes les compétitions</option>`+state.comps.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");sel.value=state.comps.find(c=>c.id===cur)?cur:"";
+  const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;if(!hasTeam&&state.view==="rank")state.view="home";
+  sel.hidden=state.comps.length<2||state.view==="pod"||state.view==="rank";$("#filters").hidden=state.view==="home";
+  document.querySelectorAll("#subnav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===state.view));
+  $("#navbar").hidden=state.admin;
+  $("#search").placeholder={rank:"Rechercher une équipe",home:"",prog:"Rechercher un nageur ou un club",pod:"Rechercher un nageur ou un club",res:"Rechercher un nageur ou un club",part:"Rechercher un nageur ou un club",club:"Rechercher un club"}[state.view];
+}
+function renderPublic(){
+  renderHead();$("#pub-unpub").hidden=state.published;
+  if(!state.published){$("#pub-body").innerHTML="";return}
+  ({rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,part:renderPart,club:renderClub})[state.view]();
+}
+function nl(t){return esc(t).replace(/\n/g,"<br>")}
+function teamRules(){return state.podRules.filter(r=>r.type==="team"&&r.comps.some(c=>comp(c)))}
+function ruleKeys(rule){return allKeys().filter(k=>rule.comps.includes(EVENTS[k].comp))}
+function teamBoard(rule,sex){
+  const done=doneSet(),ks=ruleKeys(rule).filter(k=>!sex||(sex==="F")===/Dames/.test(EVENTS[k].name)),doneKs=ks.filter(k=>done.has(k)),last=doneKs[doneKs.length-1];
+  const now=teamRanking(rule,done,sex);let prev=null;
+  if(doneKs.length>1){const d2=new Set(done);d2.delete(last);prev={};teamRanking(rule,d2,sex).forEach(t=>prev[t.club]=t.rank)}
+  return{now,prev,last,nDone:doneKs.length,nAll:ks.length};
+}
+function moveHtml(t,prev){if(!prev)return"";const p=prev[t.club];if(p==null)return`<span class="mvt new">nouv.</span>`;const d=p-t.rank;return d>0?`<span class="mvt up">▲${d}</span>`:d<0?`<span class="mvt down">▼${-d}</span>`:`<span class="mvt eq">=</span>`}
+function renderRank(){
+  const rules=teamRules();if(!rules.find(r=>r.id===state.rankRule))state.rankRule=rules[0]&&rules[0].id;
+  const rule=rules.find(r=>r.id===state.rankRule);const q=getQ();
+  let html=rules.length>1?`<div class="subtabs">${rules.map(r=>`<button data-rr="${r.id}" aria-selected="${r.id===state.rankRule}">${esc(r.name)}</button>`).join("")}</div>`:"";
+  if(!rule){$("#pub-body").innerHTML=`<p class="empty">Aucun classement par équipes.</p>`;return}
+  const sex=state.rankSex||"F";
+  if(true)html+=`<div class="subtabs">${[["F","Filles"],["M","Garçons"]].map(([v,l])=>`<button data-rsex="${v}" aria-selected="${sex===v}">${l}</button>`).join("")}</div>`;
+  const b=teamBoard(rule,sex);const max=b.now[0]?b.now[0].total:1;
+  html+=`<div class="card board-head"><div><div class="lbl">${esc(rule.name)}${sex?" · "+(sex==="F"?"Filles":"Garçons"):""}</div><div class="bh-ev">${b.last?"Après "+esc(EVENTS[b.last].name):"En attente des premiers résultats"}</div></div><div class="kpi"><b>${b.nDone}<small>/${b.nAll}</small></b><span>épreuves</span></div><div class="prog"><i style="width:${b.nAll?Math.round(100*b.nDone/b.nAll):0}%"></i></div><button class="btn small ghost" id="tv-btn">Plein écran</button></div>`;
+  const rows=b.now.filter(t=>!q||t.club.toLowerCase().includes(q));
+  html+=`<div class="list board">${rows.map(t=>{const open=state.open["t"+t.club];return`<div class="lane"><button class="row brow" data-open="t${esc(t.club)}" aria-expanded="${!!open}"><span class="rk r${t.rank}">${t.rank}</span><span class="ev"><b>${esc(t.club)} ${moveHtml(t,b.prev)}</b><span class="bar"><i style="width:${Math.max(4,Math.round(100*t.total/max))}%"></i></span></span><span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></button>${open?teamDetail(t,rule,sex):""}</div>`}).join("")||`<p class="empty">${q?"Aucune équipe ne correspond.":"Le classement démarrera après la première épreuve."}</p>`}</div>`;
+  $("#pub-body").innerHTML=html;
+  const tv=$("#tv-btn");if(tv)tv.onclick=()=>{document.body.classList.toggle("tv");tv.textContent=document.body.classList.contains("tv")?"Quitter le plein écran":"Plein écran";try{document.body.classList.contains("tv")?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}};
+}
+function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`}
+function renderHome(){
+  const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k));let html=engBanner();
+  if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
+  else if(ks.length)html+=`<div class="now"><div class="tag">Terminé</div><div class="ev">Toutes les épreuves sont terminées</div><div class="nx"><a href="#" data-go="res" style="color:#fff">voir les résultats ›</a></div></div>`;
+  for(const r of teamRules())for(const sx of ["F","M"]){const b=teamBoard(r,sx);if(!b.now.length)continue;
+    html+=`<div class="session">${secTitle(esc(r.name)+(sx?" · "+(sx==="F"?"Filles":"Garçons"):""),"en direct · "+b.nDone+"/"+b.nAll+" épreuves")}<div class="card top3">${b.now.slice(0,3).map(t=>`<div class="t3"><span class="rk r${t.rank}">${t.rank}</span><b>${esc(t.club)}</b>${moveHtml(t,b.prev)}<span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></div>`).join("")}<a href="#" class="more" data-go="rank" data-rr2="${r.id}" data-sx2="${sx||""}">Classement complet ›</a></div></div>`}
+  const infos=state.infos.filter(i=>i.title||i.text);
+  html+=`<div class="session">${secTitle("Informations")}<div class="list">${infos.map(i=>`<div class="card info${i.important?" imp":""}">${i.important?`<span class="imptag">Important</span>`:""}${i.title?`<h4>${esc(i.title)}</h4>`:""}<p>${nl(i.text)}</p></div>`).join("")||`<p class="empty">Aucune information pour le moment.</p>`}</div></div>`;
+  html+=`<div class="session">${secTitle("La journée")}<div class="day">${Object.keys(state.order).map(s=>{const sm={doors:state.doors[s]};const keys=state.order[s].filter(k=>EVENTS[k].type==="event");const last=keys[keys.length-1];
+    return`<div class="card reu"><div class="reu-h"><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}</span></div><ol class="tl"><li><b>${sm?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol></div>`}).join("")}</div></div>`;
+  html+=`<div class="session">${secTitle("Compétitions")}<div class="card comps">${state.comps.map(c=>`<a class="comprow" href="https://www.liveffn.com/cgi-bin/index.php?competition=${c.id}&langue=fra" target="_blank" rel="noopener">${compBadge(c.id)}<span class="msg">${plural(Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length,"épreuve")}</span><span class="ext">Live FFN ↗</span></a>`).join("")}</div></div>`;
+  $("#pub-body").innerHTML=html;
+}
+function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCase().includes(q))}
+function getQ(){return $("#search").value.trim().toLowerCase()}
+function secTitle(t,sub){return`<div class="sec-title"><h3>${t}</h3>${sub?`<span>${sub}</span>`:""}</div>`}
+function plural(n,w){return n+" "+w+(n>1?"s":"")}
+function engBanner(){return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
+function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries.filter(x=>!x.dns).slice().sort((a,b)=>a.time-b.time);
+  return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
+function renderProg(){
+  const sch=schedule(),done=doneSet(),q=getQ(),fc=$("#filter-comp").value,eng=state.phase==="eng";let html=engBanner();
+  if(!eng)html+=`<p class="tnote">${state.timing==="elec"?"Horaires recalculés en direct à partir des résultats":"Horaires estimés, ajustés par l'organisation"+(Object.values(state.delay).some(v=>v)?" · retard pris en compte":"")}</p>`;
+  // carte « à suivre » : première épreuve non terminée
+  const nextKey=allKeys().find(k=>!done.has(k));
+  if(nextKey&&!q&&!fc){const ev=EVENTS[nextKey];const after=allKeys()[allKeys().indexOf(nextKey)+1];
+    html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")}${after?` · puis ${esc(EVENTS[after].name)} à ${hm(sch[after].start)}`:""}</div></div>`}
+  for(const s of Object.keys(state.order)){
+    const sm={doors:state.doors[s]};let rows="";
+    for(const key of state.order[s]){
+      const ev=EVENTS[key],t=sch[key];
+      if(ev.type==="pause"){if(!q&&!fc)rows+=`<div class="pause"><span class="time">${hm(t.start)}</span><span>${esc(ev.name||"Pause")}${ev.min?" · "+ev.min+" min":""}</span></div>`;continue}
+      if(fc&&ev.comp!==fc)continue;const match=q&&evMatches(ev,q);if(q&&!match)continue;
+      const open=state.open[key]||match;
+      rows+=`<div class="lane${done.has(key)?" past":""}"><button class="row" data-open="${key}" aria-expanded="${!!open}">
+        <span class="time">${eng?"~":""}${hm(t.start)}<small>${done.has(key)?"terminée":eng?"provisoire":"fin ~"+hm(t.end)}</small></span>
+        <span class="ev"><b>${esc(ev.name)}</b><span class="sub">${state.comps.length>1?compBadge(ev.comp):""}<span>${eng?plural(ev.entries.filter(x=>!x.dns).length,"engagé")+" · ~"+plural(ev.series.length,"série"):plural(ev.series.length,"série")}</span></span></span>
+        <span class="chev" aria-hidden="true">▼</span></button>${open?(eng?renderEngages(ev,q):renderSeries(ev,q)):""}</div>`;
+    }
+    const started=state.order[s].some(k=>done.has(k));
+    html+=`<div class="session">${secTitle("Réunion "+s,`portes ${sm?sm.doors:"—"} · début ${(state.starts[s]||"").replace(":","h")}`)}<p class="lstate ${started?"def":"prov"}">${eng?"Engagements en cours · liste des engagés":started?"Liste de départ définitive":"Liste de départ provisoire · peut encore changer jusqu'au début de la réunion"}</p><div class="list">${rows||`<p class="empty">Aucune épreuve ne correspond.</p>`}</div></div>`;
+  }
+  $("#pub-body").innerHTML=html;
+}
+function hit(w,q){return q&&(w.name+" "+w.club).toLowerCase().includes(q)?"hit":""}
+function nameCell(w){return w.iuf?`<a href="#" data-swimmer="${w.iuf}">${esc(w.name)}</a>`:esc(w.name)}
+function renderSeries(ev,q){
+  const relay=/^4x/i.test(ev.name);
+  const st=(schedule()[ev.key]||{}).start||0;let acc=st;const starts=ev.series.map(se=>{const t=acc;acc+=se.slowest+state.heatGap;return t});
+  return`<div class="inner">${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>Série ${se.n} / ${ev.series.length}</h4>
+   <div class="tbl"><table><thead><tr><th>Ligne</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>
+   ${se.swimmers.map(w=>`<tr class="${hit(w,q)}${w.dns?" dns":""}"><td class="ln">${w.lane}</td><td>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}
+   </tbody></table></div></div>`).join("")}</div>`;
+}
+function renderRanking(ev,q){
+  const relay=/^4x/i.test(ev.name),sp=comp(ev.comp).splits;
+  return`<div class="inner"><div class="tbl"><table><thead><tr><th>Pl.</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Temps</th><th>Pts</th></tr></thead><tbody>
+  ${ranking(ev).map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k];
+    return`<tr class="${hit(w,q)}"><td class="rank">${w.rank??"DSQ"}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num"><b>${w.dsq?"—":fmt(w.res)}</b>${!w.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${w.dsq?"—":(w.points??"—")}</td></tr>${!w.dsq&&sp&&o?`<tr class="sprow ${hit(w,q)}"><td></td><td colspan="${relay?3:5}">${splitsHtml(ev,w)}</td></tr>`:""}`}).join("")}
+  </tbody></table></div></div>`;
+}
+function renderRes(){
+  const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();
+  let html="";
+  for(const s of Object.keys(state.order)){
+    const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&done.has(k)&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q))).reverse();
+    if(!keys.length)continue;
+    html+=`<div class="session">${secTitle("Réunion "+s,plural(keys.length,"épreuve"))}<div class="list">${keys.map(k=>{const ev=EVENTS[k],open=state.open["r"+k]||(q&&evMatches(ev,q));const win=ranking(ev)[0];
+     return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm(sch[k].start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${state.comps.length>1?compBadge(ev.comp):""}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
+  }
+  $("#pub-body").innerHTML=html||`<p class="empty">${state.phase==="eng"?"Les résultats apparaîtront ici pendant la compétition.":"Aucun résultat pour le moment."}</p>`;
+}
+function podCard(list,label,places){
+  const ranked=list.filter(x=>x.rank!=null);if(!ranked.length)return"";
+  const top=ranked.slice(0,3),order=[top[1],top[0],top[2]],extra=ranked.slice(3,places);
+  return`<div class="podblock"><div class="podlabel">${esc(label)}</div><div class="podium">${order.map((w,i)=>{if(!w)return`<div></div>`;const pl=[2,1,3][i];
+    return`<div class="pod p${pl}"><div class="medal">${pl}</div><div class="pnm">${nameCell(w)}</div><div class="pclub">${esc(w.club||"")}${w.year?" · "+w.year:""}</div><div class="ptime">${fmt(w.res)}</div><div class="stepb"></div></div>`}).join("")}</div>
+    ${extra.length?`<ol class="podextra" start="4">${extra.map(w=>`<li>${nameCell(w)}<span class="n">10</span></li>`).join("")}</ol>`:""}</div>`;
+}
+function parseGroups(txt){return txt.split(/[,;]/).map(x=>x.trim()).filter(Boolean).map(g=>{const m=g.match(/(\d{4})\s*(?:[-–à]\s*(\d{4}))?/);if(!m)return null;const a=+m[1],b=+(m[2]||m[1]);return{lo:Math.min(a,b),hi:Math.max(a,b),label:a===b?"Né(e)s en "+a:"Né(e)s "+Math.min(a,b)+"–"+Math.max(a,b)}}).filter(Boolean)}
+function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map((w,i)=>({...w,rank:i+1}))}
+function teamRanking(rule,done,sex){
+  done=done||doneSet();const clubs={};
+  for(const k of allKeys()){const ev=EVENTS[k];if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
+    if(sex&&(sex==='F')!==/Dames/.test(ev.name))continue;
+    const per={};
+    for(const w of ranking(ev)){if(w.dsq)continue;const c=w.team||w.club||w.name;const p=w.points||0;(per[c]=per[c]||[]).push({ev,w,p})}
+    for(const c in per){let l=per[c].sort((a,b)=>b.p-a.p);if(rule.perEvent>0)l=l.slice(0,rule.perEvent);(clubs[c]=clubs[c]||{club:c,total:0,items:[],comp:ev.comp});l.forEach(x=>{clubs[c].total+=x.p;clubs[c].items.push(x)})}}
+  return Object.values(clubs).sort((a,b)=>b.total-a.total).map((c,i)=>({...c,rank:i+1}));
+}
+function renderTeam(rule,html){
+  const tr=teamRanking(rule);const top=tr.slice(0,3),order=[top[1],top[0],top[2]];
+  html+=`<div class="session">${secTitle("Classement des équipes",plural(tr.length,"équipe")+" · points FFN additionnés")}`;
+  if(!tr.length){$("#pub-body").innerHTML=html+`<p class="empty">Aucun résultat pour le moment.</p></div>`;return}
+  html+=`<div class="podblock" style="max-width:520px;margin-bottom:10px"><div class="podium">${order.map((c,i)=>{if(!c)return"<div></div>";const pl=[2,1,3][i];return`<div class="pod p${pl}"><div class="medal">${pl}</div><div class="pnm">${esc(c.club)}</div><div class="ptime">${c.total.toLocaleString("fr-FR")} pts</div><div class="stepb"></div></div>`}).join("")}</div></div>
+  <div class="list">${tr.map(c=>{const open=state.open["t"+c.club];return`<div class="lane"><button class="row" data-open="t${esc(c.club)}" aria-expanded="${!!open}"><span class="time">${c.rank}</span><span class="ev"><b>${esc(c.club)}</b><span class="sub">${plural(c.items.length,"performance")}</span></span><span class="tpts">${c.total.toLocaleString("fr-FR")} <small>pts</small></span></button>
+   ${open?`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points obtenus</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur / équipe</th><th>Temps</th><th>Points</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`:""}</div>`}).join("")}</div>
+  </div>`;
+  $("#pub-body").innerHTML=html;
+}
+function renderPod(){
+  const done=doneSet(),q=getQ(),sch=schedule();
+  const rules=state.podRules.filter(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));
+  if(!rules.find(r=>r.id===state.podRule)&&rules[0])state.podRule=rules[0].id;
+  const rule=rules.find(r=>r.id===state.podRule);
+  let html=rules.length>1?`<div class="subtabs">${rules.map(r=>`<button data-pr="${r.id}" aria-selected="${r.id===state.podRule}">${esc(r.name)}</button>`).join("")}</div>`:"";
+  if(!rule){$("#pub-body").innerHTML=html+`<p class="empty">Aucun podium paramétré.</p>`;return}
+  // regroupe les épreuves terminées du même nom sur les compétitions de la règle
+  const groups=[];const byName={};
+  for(const k of allKeys()){const ev=EVENTS[k];if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
+    if(!byName[ev.name]){byName[ev.name]={name:ev.name,keys:[],start:sch[k].start};groups.push(byName[ev.name])}byName[ev.name].keys.push(k)}
+  const list=groups.filter(g=>!q||g.keys.some(k=>evMatches(EVENTS[k],q))).reverse();
+  html+=list.map(g=>{const relay=/^4x/i.test(g.name);
+    const all=rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
+    if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places);
+    else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(rerank(all.filter(w=>w.year===y)),"Né(e)s en "+y,rule.places)).join("")}
+    else{const gs=parseGroups(rule.groups);blocks=gs.map(gr=>podCard(rerank(all.filter(w=>+w.year>=gr.lo&&+w.year<=gr.hi)),gr.label,rule.places)).join("")||`<p class="empty">Aucune catégorie définie pour ce classement.</p>`}
+    const merged=g.keys.length>1;
+    return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`;
+  $("#pub-body").innerHTML=html;
+}
+function participants(){
+  const map={};
+  for(const k of allKeys()){const ev=EVENTS[k];for(const w of ev.entries){if(!w.iuf)continue;(map[w.iuf]=map[w.iuf]||{sw:SWIMMERS[w.iuf],items:[]}).items.push({ev,w})}}
+  return map;
+}
+function renderPart(){
+  const q=getQ(),fc=$("#filter-comp").value,P=participants();const clubs={};
+  for(const p of Object.values(P)){if(fc&&p.sw.comp!==fc)continue;(clubs[p.sw.club]=clubs[p.sw.club]||{name:p.sw.club,sw:[],eng:0});clubs[p.sw.club].sw.push(p);clubs[p.sw.club].eng+=p.items.length}
+  let html=state.sel&&P[state.sel]?swimmerDetail(P[state.sel]):"";
+  const list=Object.values(clubs).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{
+    const clubHit=q&&c.name.toLowerCase().includes(q);
+    const sw=c.sw.filter(p=>!q||clubHit||p.sw.name.toLowerCase().includes(q)).sort((a,b)=>a.sw.name.localeCompare(b.sw.name));
+    return{...c,shown:sw,open:!!q||state.open["c"+c.name]};
+  }).filter(c=>c.shown.length);
+  const nSw=list.reduce((a,c)=>a+c.shown.length,0);
+  html+=`<div class="session">${secTitle(q?"Recherche":"Clubs",plural(list.length,"club")+" · "+plural(nSw,"nageur"))}<div class="list">
+   ${list.map(c=>`<div class="lane"><button class="row clubrow" data-open="c${esc(c.name)}" aria-expanded="${c.open}"><span class="ev"><b>${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</span></span><span class="chev" aria-hidden="true">▼</span></button>
+     ${c.open?`<div class="inner"><div class="list">${c.shown.map(p=>`<button class="prow inprow" data-swimmer="${p.sw.iuf}"><b>${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")} ›</span></button>`).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
+  $("#pub-body").innerHTML=html;
+}
+function swimmerDetail(p){
+  const sch=schedule(),done=doneSet();
+  const items=p.items.sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
+  return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><button class="btn small ghost" data-close="1">Fermer</button></div>
+  <div class="tbl"><table><thead><tr><th>Heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Pl.</th></tr></thead><tbody>
+  ${items.map(({ev,w})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>x.iuf===w.iuf):null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
+    return`<tr><td class="num">${hm(sch[ev.key].start)}</td><td>${esc(ev.name)}</td><td class="num">${state.phase==="eng"?"—":"S"+w.heat+" · L"+w.lane}</td><td class="num">${fmt(w.time)}</td><td class="num"><b>${w.dns?"Forfait":isDone?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="5">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
+  </tbody></table></div></div>`;
+}
+function renderClub(){
+  const q=getQ(),fc=$("#filter-comp").value,P=participants();const clubs={};
+  for(const p of Object.values(P)){if(fc&&p.sw.comp!==fc)continue;(clubs[p.sw.club]=clubs[p.sw.club]||{name:p.sw.club,sw:[],eng:0});clubs[p.sw.club].sw.push(p);clubs[p.sw.club].eng+=p.items.length}
+  const list=Object.values(clubs).filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  let html="";
+  if(state.sel&&clubs[state.sel]){const c=clubs[state.sel];
+    html=`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(c.name)}</h3><div class="meta">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</div></div><button class="btn small ghost" data-close="1">Fermer</button></div><div class="list">
+    ${c.sw.sort((a,b)=>a.sw.name.localeCompare(b.sw.name)).map(p=>`<button class="prow" data-swimmer="${p.sw.iuf}"><b>${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")}</span></button>`).join("")}</div></div>`}
+  html+=`<div class="session">${secTitle("Clubs",plural(list.length,"club"))}<div class="list">
+   ${list.map(c=>`<button class="prow" data-club="${esc(c.name)}"><b>${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")}</span><span class="num">${plural(c.eng,"engagement")}</span></button>`).join("")||`<p class="empty">Aucun club ne correspond.</p>`}</div></div>`;
+  $("#pub-body").innerHTML=html;
+}
+
+/* ---------- rendu admin ---------- */
+function renderAudience(){
+  $("#aud").innerHTML=`<p class="msg">La fréquentation est mesurée par <b>Cloudflare Web Analytics</b> (gratuit, sans cookie). Une fois activé sur le site, tu y verras visiteurs, pages vues et appareils.</p><div><a class="btn small" href="https://dash.cloudflare.com/?to=/:account/web-analytics" target="_blank" rel="noopener">Ouvrir les statistiques ↗</a></div>`;$("#h-aud").textContent="Cloudflare";return;
+  const hours=[8,9,10,11,12,13,14,15,16,17],vis=[12,48,156,212,94,61,188,241,203,97];const now=state.phase==="eng"?3:37,peak=Math.max(...vis);
+  const pages=[["Programme",46],["Nageurs & clubs",24],["Résultats",14],["Classement",9],["Accueil",5],["Podiums",2]];
+  const srch=["DAUPHINS DE ST-LOUIS","SR COLMAR","MULLER","KAYSERSBERG","100 papillon"];
+  const W=320,H=110,bw=W/hours.length;
+  $("#aud").innerHTML=`<p class="msg">Exemple de tableau de bord : dans la version finale, les chiffres viendront d'un compteur de visites respectueux de la vie privée (sans cookie ni donnée personnelle).</p>
+  <div class="kpis3"><div><b class="live-dot">${now}</b><span>connectés maintenant</span></div><div><b>1 312</b><span>visiteurs aujourd'hui</span></div><div><b>${peak}</b><span>pic · 15h</span></div><div><b>4,8</b><span>pages par visite</span></div></div>
+  <div class="audbox"><div class="podlabel">Visiteurs par heure</div><svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Visiteurs par heure">${vis.map((v,i)=>{const h=Math.round(H*v/peak);return`<rect x="${i*bw+4}" y="${H-h}" width="${bw-8}" height="${h}" rx="3" fill="${v===peak?"#ffffff":"rgba(255,255,255,.45)"}"/><text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle" font-size="9" fill="#f3d3d7" font-family="JetBrains Mono,monospace">${hours[i]}h</text>`}).join("")}</svg></div>
+  <div class="grid2c"><div class="audbox"><div class="podlabel">Pages les plus vues</div>${pages.map(([n,v])=>`<div class="aurow"><span>${n}</span><span class="bar"><i style="width:${Math.round(100*v/pages[0][1])}%"></i></span><b>${v} %</b></div>`).join("")}</div>
+  <div class="audbox"><div class="podlabel">Recherches fréquentes</div><ol class="podextra" style="margin:0">${srch.map(x=>`<li>${esc(x)}</li>`).join("")}</ol><div class="podlabel" style="margin-top:12px">Appareils</div><div class="aurow"><span>Téléphone</span><span class="bar"><i style="width:86%"></i></span><b>86 %</b></div><div class="aurow"><span>Ordinateur</span><span class="bar"><i style="width:14%"></i></span><b>14 %</b></div></div></div>`;
+  $("#h-aud").textContent=now+" connectés";
+}
+
+function renderAdmin(){
+  $("#ev-name").value=state.name;$("#ev-pub").checked=state.published;
+  const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
+  $("#s-heat").value=state.heatGap;
+  $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
+  $("#sess-starts").innerHTML=Object.keys(state.order).map(s=>`<label for="st-${s}">Début réunion ${s}<input class="field" type="time" id="st-${s}" data-start="${s}" value="${state.starts[s]}"></label>`).join("");
+  const sch=schedule();
+  $("#order").innerHTML=Object.keys(state.order).map(s=>`<div class="sess-admin"><h4>Réunion ${s}<button class="btn small ghost" data-addpause="${s}">+ Ligne libre</button></h4><ul class="order-list" data-sess="${s}">
+   ${state.order[s].map(key=>{const ev=EVENTS[key];const t=sch[key];
+     if(ev.type==="pause")return`<li class="item pause-it" draggable="true" data-key="${key}"><span class="grip">⋮⋮</span><span class="t">${hm(t.start)}</span><span class="name pfree"><input class="ptxt" value="${esc(ev.name)}" data-ptxt="${key}" placeholder="Texte libre (pause, remise des médailles…)" aria-label="Texte"> <input type="number" min="0" value="${ev.min}" data-pmin="${key}" aria-label="Durée de la pause en minutes"> min</span><span class="mv"><button data-mv="${key}" data-d="-1" aria-label="Monter">↑</button><button data-mv="${key}" data-d="1" aria-label="Descendre">↓</button><button data-del="${key}" aria-label="Supprimer la pause">×</button></span></li>`;
+     return`<li class="item" draggable="true" data-key="${key}"><span class="grip">⋮⋮</span><span class="t">${hm(t.start)}</span><span class="name"><span class="cdot k${comp(ev.comp).k}"><i></i></span> ${esc(ev.name)} <span class="msg">· ${ev.series.length} sér.</span></span><span class="mv"><button data-mv="${key}" data-d="-1" aria-label="Monter">↑</button><button data-mv="${key}" data-d="1" aria-label="Descendre">↓</button></span></li>`}).join("")}
+  </ul></div>`).join("");
+  $("#pod-rules").innerHTML=state.podRules.map(r=>`<div class="rule">
+    <div class="inline"><input class="field" data-rf="name" data-rid="${r.id}" value="${esc(r.name)}" aria-label="Nom du podium"><button class="x" data-rdel="${r.id}" aria-label="Supprimer ce podium">×</button></div>
+    <div class="checks">${state.comps.map(c=>`<label class="chk"><input type="checkbox" data-rc="${c.id}" data-rid="${r.id}" ${r.comps.includes(c.id)?"checked":""}><span class="badge k${c.k}"><i></i>${esc(c.name)}</span></label>`).join("")}</div>
+    <label>Type de classement<select class="field" data-rf="type" data-rid="${r.id}"><option value="race" ${r.type!=="team"?"selected":""}>Course par course (podiums par épreuve)</option><option value="team" ${r.type==="team"?"selected":""}>Équipes : addition des points FFN</option></select></label>
+    ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label>`:`<div class="grid2c">
+      <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="groups" ${r.mode==="groups"?"selected":""}>Catégories personnalisées</option></select></label>
+      <label>Places affichées<input class="field" type="number" min="1" max="10" data-rf="places" data-rid="${r.id}" value="${r.places}"></label>
+    </div>`}
+    ${r.type!=="team"&&r.mode==="groups"?`<label>Catégories (années)<input class="field" data-rf="groups" data-rid="${r.id}" value="${esc(r.groups)}" placeholder="ex : 2013-2014, 2011-2012, 2010"></label>`:""}
+  </div>`).join("")||`<p class="msg">Aucun classement.</p>`;
+  $("#info-list").innerHTML=state.infos.map((i,ix)=>`<div class="rule">
+    <div class="inline"><input class="field" data-if="title" data-iid="${i.id}" value="${esc(i.title)}" placeholder="Titre" aria-label="Titre de l'information"><span class="mv"><button data-imv="${i.id}" data-d="-1" aria-label="Monter">↑</button><button data-imv="${i.id}" data-d="1" aria-label="Descendre">↓</button></span><button class="x" data-idel="${i.id}" aria-label="Supprimer">×</button></div>
+    <textarea class="field" rows="3" data-if="text" data-iid="${i.id}" placeholder="Texte de l'information" aria-label="Texte de l'information">${esc(i.text)}</textarea>
+    <label class="chk" style="color:#fff"><input type="checkbox" data-if="important" data-iid="${i.id}" ${i.important?"checked":""}>Important</label></div>`).join("")||`<p class="msg">Aucune information.</p>`;
+  $("#h1b").textContent=plural(state.infos.length,"information");
+  renderAudience();rsScopeOpts();$("#phase-txt").textContent=state.phase==="eng"?"Phase : engagements en cours":"Phase : liste de départ publiée";
+  {const sch2=schedule(),dn=doneSet(),ks=allKeys(),nk=ks.find(k=>!dn.has(k));
+   $("#dash-kpis").innerHTML=`<div><b>${nk?hm(sch2[nk].start):"—"}</b><span>${nk?"prochaine : "+esc(EVENTS[nk].name):"tout est terminé"}</span></div><div><b>${dn.size}<small style="font-size:14px;color:var(--muted)">/${ks.length}</small></b><span>épreuves terminées</span></div><div><b class="${state.error?"":"live-dot"}">${state.lastOk?hhmm(new Date(state.lastOk)):"—"}</b><span>${state.error?"Erreur Live FFN : "+esc(state.error):"dernière lecture du Live FFN"}</span></div>`}$("#timing").value=state.timing;
+  $("#delay-box").innerHTML=state.timing==="manual"?Object.keys(state.order).map(s=>`<label for="dl-${s}">Retard réunion ${s} (minutes)<input class="field" type="number" step="1" id="dl-${s}" data-delay="${s}" value="${state.delay[s]||0}"></label>`).join("")+`<p class="msg" style="grid-column:1/-1">Le retard s'applique aux épreuves pas encore nagées. Mets une valeur négative si la réunion est en avance.</p>`:"";
+  $("#sc-every").value=String(state.scrape.every);$("#sc-live").checked=state.scrape.onlyLive;scTick();
+  const nEv=allKeys().length;$("#h1").textContent=plural(state.comps.length,"compétition");
+  $("#h2").textContent=plural(nEv,"épreuve")+" · "+(state.timing==="manual"?"manuel":"électronique");
+  $("#h4").textContent=plural(state.podRules.length,"classement");
+}
+function render(){$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
+
+/* ---------- interactions ---------- */
+$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.sel=null;state.admin=false;$("#search").value="";render()});
+$("#admin-btn").onclick=()=>openAdmin();
+async function openAdmin(){
+  if(ADMIN_KEY){try{state.admin=true;await loadAdmin();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
+  $("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-login").hidden=false;$("#login-pw").focus()}
+function alertLogin(m){$("#login-msg").textContent=m;$("#login-msg").className="msg err"}
+$("#login-form").addEventListener("submit",async e=>{e.preventDefault();ADMIN_KEY=$("#login-pw").value;
+  try{state.admin=true;await loadAdmin();try{sessionStorage.setItem("lf-key",ADMIN_KEY)}catch(_){};$("#login-pw").value=""}
+  catch(err){state.admin=false;ADMIN_KEY=null;alertLogin(err.message)}});
+$("#login-cancel").onclick=()=>{state.admin=false;render()};
+$("#back-public").onclick=async()=>{await saveNow();state.admin=false;await loadPublic();render()};
+$("#pub-body").addEventListener("click",e=>{
+  const rs=e.target.closest("[data-rsex]");if(rs){state.rankSex=rs.dataset.rsex;state.open={};renderPublic();return}
+  const rr=e.target.closest("[data-rr]");if(rr){state.rankRule=rr.dataset.rr;renderPublic();return}
+  const go=e.target.closest("[data-go]");if(go){e.preventDefault();if(go.dataset.rr2)state.rankRule=go.dataset.rr2;if(go.dataset.sx2)state.rankSex=go.dataset.sx2;state.view=go.dataset.go;state.sel=null;render();window.scrollTo(0,0);return}
+  const pr=e.target.closest("[data-pr]");if(pr){state.podRule=pr.dataset.pr;renderPublic();return}
+  const spb=e.target.closest("[data-sp]");if(spb){const k=spb.dataset.sp.replace(/&amp;/g,"&");state.sp[k]=!state.sp[k];renderPublic();return}
+  const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();state.view="part";state.sel=sw.dataset.swimmer;$("#search").value="";render();window.scrollTo(0,0);return}
+  
+  if(e.target.closest("[data-close]")){state.sel=null;renderPublic();return}
+  const b=e.target.closest("[data-open]");if(b){const k=b.dataset.open;state.open[k]=!state.open[k];renderPublic()}
+});
+$("#search").oninput=renderPublic;$("#filter-comp").onchange=renderPublic;
+$("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
+$("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
+$("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};
+
+$("#link-add").onclick=async()=>{
+  const v=$("#link-in").value.trim();const m=v.match(/competition=(\d+)/)||v.match(/^(\d{4,6})$/);const msg=$("#link-msg");
+  if(!m){msg.className="msg err";msg.textContent="Ce lien ne ressemble pas à un Live FFN. Il doit contenir liveffn.com et competition=…";return}
+  const id=m[1];
+  if(state.comps.find(c=>c.id===id)){msg.className="msg err";msg.textContent="Cette compétition est déjà dans l'événement.";return}
+  state.comps.push({id,k:(state.comps.length%4)+1,name:"Compétition "+id,loading:true});$("#link-in").value="";
+  msg.className="msg";msg.textContent="Compétition ajoutée, lecture du programme sur le Live FFN…";
+  await saveNow();setTimeout(async()=>{await loadAdmin();const c=state.comps.find(x=>x.id===id);msg.textContent=c&&!c.loading?c.name+" ajoutée.":"Lecture en cours, la compétition apparaîtra d'ici une minute."},6000)};
+document.addEventListener("click",e=>{
+  const t=e.target;
+  if(t.dataset.rm){const id=t.dataset.rm;state.comps=state.comps.filter(c=>c.id!==id);for(const k of Object.keys(state.order))state.order[k]=state.order[k].filter(x=>!EVENTS[x]||EVENTS[x].comp!==id);for(const r of state.podRules)r.comps=r.comps.filter(c=>c!==id);$("#link-msg").className="msg";$("#link-msg").textContent="Compétition retirée. Recolle son lien pour la remettre.";render()}
+  if(t.dataset.mv){const k=t.dataset.mv,d=+t.dataset.d;for(const s in state.order){const a=state.order[s];const i=a.indexOf(k);if(i<0)continue;const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];render();return}}
+  if(t.dataset.addpause){const s=t.dataset.addpause;const key="p"+(++pauseId);EVENTS[key]={key,type:"pause",name:"",min:10};state.order[s].push(key);render()}
+  if(t.dataset.del){const k=t.dataset.del;for(const s in state.order)state.order[s]=state.order[s].filter(x=>x!==k);render()}
+});
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.dataset.start){state.starts[t.dataset.start]=t.value||state.starts[t.dataset.start];render()}
+  if(t.dataset.pmin){EVENTS[t.dataset.pmin].min=Math.max(0,+t.value||0);render()}
+  if(t.dataset.ptxt){EVENTS[t.dataset.ptxt].name=t.value;scheduleSave()}});
+let dragKey=null;
+document.addEventListener("dragstart",e=>{const li=e.target.closest&&e.target.closest(".item");if(!li)return;dragKey=li.dataset.key;li.classList.add("dragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",dragKey)}catch(_){}});
+document.addEventListener("dragend",()=>{dragKey=null;document.querySelectorAll(".item").forEach(x=>x.classList.remove("dragging","over"))});
+document.addEventListener("dragover",e=>{const li=e.target.closest&&e.target.closest(".item");if(!li||!dragKey)return;e.preventDefault();document.querySelectorAll(".item.over").forEach(x=>x.classList.remove("over"));li.classList.add("over")});
+document.addEventListener("drop",e=>{const li=e.target.closest&&e.target.closest(".item");if(!li||!dragKey)return;e.preventDefault();
+  const target=li.dataset.key,ts=li.closest(".order-list").dataset.sess;
+  for(const s in state.order)state.order[s]=state.order[s].filter(k=>k!==dragKey);
+  const a=state.order[ts];a.splice(a.indexOf(target),0,dragKey);dragKey=null;render()});
+function hhmm(d){return d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}).replace(":","h")}
+function scTick(){const sc=state.scrape,el=$("#sc-text"),h=$("#h0"),up=$("#upd");
+  const lbl=sc.every?`toutes les ${sc.every===1?"minutes":sc.every+" min"}`:"manuel";if(h)h.textContent=lbl;
+  if(up)up.textContent=state.lastOk?"Mis à jour à "+hhmm(new Date(state.lastOk)):"";
+  if(!el)return;el.textContent=(state.lastOk?"Dernière lecture réussie à "+hhmm(new Date(state.lastOk)):"Aucune lecture pour l'instant")+(state.queue?` · ${state.queue} pages en attente`:"")+(state.error?" · ⚠ "+state.error:"")}
+$("#sc-every").onchange=e=>{state.scrape.every=+e.target.value;scTick();scheduleSave()};
+$("#sc-live").onchange=e=>{state.scrape.onlyLive=e.target.checked;scheduleSave()};
+$("#sc-now").onclick=async()=>{const b=$("#sc-now");b.disabled=true;b.textContent="Lecture en cours…";
+  try{await saveNow();const r=await api("/api/refresh",{method:"POST"});await loadAdmin();b.textContent=r.ok?"Données à jour":"Live FFN en erreur"}catch(e){b.textContent="Échec : "+e.message}
+  setTimeout(()=>{b.disabled=false;b.textContent="Actualiser maintenant"},2500)};
+function rsScopeOpts(){const sel=$("#rs-scope");if(!sel)return;const cur=sel.value;
+  sel.innerHTML=`<option value="all">Tout l'événement</option>`+Object.keys(state.order).map(s=>`<option value="r${s}">Réunion ${s} uniquement</option>`).join("")+(state.comps.length>1?state.comps.map(c=>`<option value="c${c.id}">${esc(c.name)} uniquement</option>`).join(""):"");
+  sel.value=[...sel.options].some(o=>o.value===cur)?cur:"all"}
+function rsLabel(){const sc=$("#rs-scope"),wh=$("#rs-what");return sc.options[sc.selectedIndex].text.toLowerCase()+" · "+wh.options[wh.selectedIndex].text.toLowerCase()}
+$("#rs-box").addEventListener("click",e=>{const id=e.target.id,box=$("#rs-act");
+  if(id==="rs-go")box.innerHTML=`<p class="msg" style="color:#fff">Effacer puis relire : <b>${esc(rsLabel())}</b> ?</p><div class="inline"><button class="btn small" id="rs-yes">Oui, tout récupérer</button><button class="btn small ghost" id="rs-no">Annuler</button></div>`;
+  if(id==="rs-no")box.innerHTML=`<button class="btn small" id="rs-go">Tout récupérer à nouveau…</button>`;
+  if(id==="rs-yes"){const label=rsLabel();box.innerHTML=`<div class="rsprog"><span id="rs-txt">Effacement et première lecture…</span><span class="prog"><i id="rs-bar" style="width:5%"></i></span></div>`;
+    (async()=>{try{await saveNow();const r=await api("/api/rescrape",{method:"POST",body:JSON.stringify({scope:$("#rs-scope").value,what:$("#rs-what").value})});
+      let left=r.remaining,total=r.total||1;
+      while(left>0){$("#rs-txt").textContent=`Lecture du Live FFN… ${total-left} / ${total} pages`;$("#rs-bar").style.width=Math.round(100*(total-left)/total)+"%";
+        const x=await api("/api/refresh",{method:"POST"});if(x.queue>=left&&x.error)throw new Error(x.error);left=x.queue}
+      await loadAdmin();$("#rs-act").innerHTML=`<p class="msg" style="color:var(--ok)">Récupération terminée à ${hhmm(new Date())} : ${esc(label)}.</p><button class="btn small ghost" id="rs-go">Recommencer…</button>`}
+    catch(e){$("#rs-act").innerHTML=`<p class="msg err">Échec : ${esc(e.message)}. Les pages restantes seront lues aux prochains passages automatiques.</p><button class="btn small ghost" id="rs-go">Recommencer…</button>`}})()}
+});
+$("#info-add").onclick=()=>{state.infos.push({id:"i"+Date.now(),title:"",text:"",important:false});render()};
+document.addEventListener("change",e=>{const t=e.target;const i=t.dataset.iid&&state.infos.find(x=>x.id===t.dataset.iid);if(!i)return;i[t.dataset.if]=t.type==="checkbox"?t.checked:t.value;$("#h1b").textContent=plural(state.infos.length,"information");scheduleSave()});
+document.addEventListener("click",e=>{const t=e.target;if(t.dataset.idel){state.infos=state.infos.filter(x=>x.id!==t.dataset.idel);render()}
+  if(t.dataset.imv){const a=state.infos,i=a.findIndex(x=>x.id===t.dataset.imv),j=i+ +t.dataset.d;if(j>=0&&j<a.length){[a[i],a[j]]=[a[j],a[i]];render()}}});
+$("#pod-add").onclick=()=>{const id="r"+Date.now();state.podRules.push({id,name:"Nouveau classement",type:"race",perEvent:0,comps:state.comps.map(c=>c.id),mode:"scratch",groups:"",places:3});render()};
+document.addEventListener("change",e=>{const t=e.target;const r=t.dataset.rid&&state.podRules.find(x=>x.id===t.dataset.rid);if(!r)return;
+  if(t.dataset.rc){r.comps=t.checked?[...new Set([...r.comps,t.dataset.rc])]:r.comps.filter(c=>c!==t.dataset.rc)}
+  else if(t.dataset.rf==="places")r.places=Math.min(10,Math.max(1,+t.value||3));
+  else if(t.dataset.rf==="split")r.split=t.checked;
+  else if(t.dataset.rf==="perEvent")r.perEvent=Math.max(0,+t.value||0);
+  else r[t.dataset.rf]=t.value;
+  render()});
+document.addEventListener("click",e=>{const d=e.target.dataset&&e.target.dataset.rdel;if(d){state.podRules=state.podRules.filter(r=>r.id!==d);render()}});
+$("#timing").onchange=e=>{state.timing=e.target.value;render()};
+document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.dataset.delay;if(d){state.delay[d]=+e.target.value||0;render()}});
+if(location.hash==="#admin")openAdmin();
+loadPublic().then(()=>{scTick()});setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
+</script>

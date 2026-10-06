@@ -1,0 +1,21 @@
+name = "live-fan"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+# Site public et admin (fichiers statiques), l'API passe par le Worker
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+# Stockage des données et des réglages (créé automatiquement au premier déploiement)
+[[kv_namespaces]]
+binding = "KV"
+
+# Récupération du Live FFN : le Worker se réveille chaque minute et respecte la fréquence choisie dans l'admin
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
