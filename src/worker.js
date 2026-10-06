@@ -1,4 +1,4 @@
-// Live FAN — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
+// Schwimme Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 import { get, urls, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 
 const BUDGET = 15;            // pages Live FFN lues au maximum par passage (le reste attend le passage suivant)

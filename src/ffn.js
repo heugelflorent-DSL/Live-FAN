@@ -178,7 +178,7 @@ export function parseResults(html) {
 }
 
 // --- Récupération polie : une requête à la fois, délai entre deux pages, recul en cas d'erreur ---
-export const UA = "LiveFAN/1.0";
+export const UA = "SchwimmeDirect/1.0";
 export async function get(url, { delay = 400, tries = 3 } = {}) {
   let wait = 2000;
   for (let i = 0; i < tries; i++) {

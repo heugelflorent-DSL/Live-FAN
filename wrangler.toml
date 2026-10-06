@@ -1,4 +1,4 @@
-name = "live-fan"
+name = "schwimme-direct"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
 
@@ -12,6 +12,7 @@ run_worker_first = ["/api/*"]
 # Stockage des données et des réglages (créé automatiquement au premier déploiement)
 [[kv_namespaces]]
 binding = "KV"
+id = "ccd13ef8e59b48a78992c71d83150b42"
 
 # Récupération du Live FFN : le Worker se réveille chaque minute et respecte la fréquence choisie dans l'admin
 [triggers]
