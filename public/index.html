@@ -719,7 +719,7 @@ function keyDates(){const out=[];const today=new Date();today.setHours(0,0,0,0);
   if(state.engEnd){const d=new Date(state.engEnd+"T12:00");out.push(d<today?`Engagements clos depuis le ${frDate(d)}`:`Fin des engagements : <b>${frDate(d)}</b>`)}
   else if(state.comps.some(c=>c.entriesOpen))out.push("Engagements en cours");
   if(auto){const d=new Date(auto.entryList+"T12:00");out.push(d<today?"Liste des engagés attendue d'un jour à l'autre":`Liste des engagés publiée le <b>${frDate(d)}</b>`)}
-  let p=state.progDate?new Date(state.progDate+"T12:00"):null;const c=compStartDate();if(!p&&c){p=new Date(c);p.setDate(p.getDate()-3)}
+  let p=state.progDate?new Date(state.progDate+"T12:00"):null;const c=compStartDate();if(!p&&c){p=new Date(c);p.setDate(p.getDate()-3);const a=state.comps.find(x=>x.entryList);if(a){const e=new Date(a.entryList+"T12:00");if(e>=p){p=null;out.push("Programme détaillé publié après la réunion technique")}}}
   if(p)out.push(p<today?"Programme attendu d'un jour à l'autre":`Programme détaillé prévu vers le <b>${frDate(p)}</b>`);
   return out}
 function engBanner(){if(Object.values(EVENTS).some(e=>e.provisional)){const k=keyDates();return`<div class="card engban"><b>Programme provisoire</b><span>Le Live FFN n'a publié que la liste des courses. Les horaires, séries et engagés apparaîtront ici dès leur publication.</span>${k.length?`<span class="kd">${k.join(" · ")}</span>`:""}</div>`}
