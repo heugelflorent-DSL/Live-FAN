@@ -318,6 +318,11 @@ a[data-swimmer]{color:inherit;text-decoration:none}a[data-swimmer]:hover{text-de
 .sptab tr:last-child td{border-bottom:0}
 @media (max-width:480px){.rk-row{grid-template-columns:30px minmax(0,1fr) auto;}.rk-row .spbtn{grid-column:2/-1;justify-self:start}}
 .catmed{display:inline-block;vertical-align:2px;margin-left:4px;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:99px;color:#1f1300;white-space:nowrap}.catmed.c1{background:var(--gold)}.catmed.c2{background:var(--silver)}.catmed.c3{background:var(--bronze)}
+.ln-row{grid-template-columns:34px minmax(0,1fr) auto}
+.lane-n{font-family:var(--mono);font-weight:700;font-size:14px;width:28px;height:28px;line-height:26px;text-align:center;border-radius:8px;border:1.5px solid rgba(255,255,255,.45)}
+.rk-row.dns .rk-who b a{text-decoration:line-through}.rk-row.dns{opacity:.6}
+.rk-res b{font-size:15px}
+td a[data-swimmer],.pnm a[data-swimmer]{border-bottom:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -678,10 +683,12 @@ function renderSeries(ev,q){
   const relay=/^4x/i.test(ev.name);
   const st=(schedule()[ev.key]||{}).start||0;let acc=st;const starts=ev.series.map(se=>{const t=acc;acc+=se.slowest+state.heatGap;return t});
   return`<div class="inner">${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>Série ${se.n} / ${ev.series.length}</h4>
-   <div class="tbl"><table><thead><tr><th>Ligne</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>
-   ${se.swimmers.map(w=>`<tr class="${hit(w,q)}${w.dns?" dns":""}"><td class="ln">${w.lane}</td><td>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}
-   </tbody></table></div></div>`).join("")}</div>`;
+   <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${hit(w,q)}${w.dns?" dns":""}">
+     <span class="lane-n">${w.lane||"—"}</span>
+     <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+esc(w.club||"")}</small></span>
+     <span class="rk-res"><b>${w.time!=null?fmt(w.time):"—"}</b><small>engag.</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
 }
+
 // médailles par catégorie : selon le classement « course par course » paramétré pour la compétition
 function catMedals(ev){
   const out={};if(/^\d+x/i.test(ev.name))return out;

@@ -115,7 +115,7 @@ export function parseHeats(html) {
     if (!cur || cs.length < 5) continue;
     const lane = +((cs[0].html.match(/ico_plot_(\d+)/) || [])[1] || 0);
     const timeCell = cs.find((c) => c.cls.includes("temps"));
-    const club = one((cs[4].html.match(/<span class="tooltip">([^<]*)/) || [])[1] || cs[4].html);
+    const club = one((cs[4].html.match(/<nobr>([\s\S]*?)<\/nobr>/) || [])[1] || (cs[4].html.match(/<span class="tooltip">([^<]*)/) || [])[1] || cs[4].html);
     const entryTxt = timeCell ? one(timeCell.html.replace(/<b[\s\S]*?<\/b>/, "")) : "";
     const sw = { lane, name: one(cs[1].html), year: one(cs[2].html), nat: one(cs[3].html), club, entry: toSec(entryTxt), entryTxt };
     // Relais : les relayeurs suivent la ligne de l'équipe, sans ligne d'eau ni club
