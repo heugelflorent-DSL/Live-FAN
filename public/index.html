@@ -444,7 +444,7 @@ function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m
 function build(cfg,data){
   state.name=cfg.name||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.lines=cfg.lines||{};
-  state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
+  state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
   const byReu={};let anyLane=false;
   (cfg.comps||[]).forEach((id,i)=>{
@@ -903,9 +903,9 @@ document.addEventListener("drop",e=>{const li=e.target.closest&&e.target.closest
   const a=state.order[ts];a.splice(a.indexOf(target),0,dragKey);dragKey=null;render()});
 function hhmm(d){return d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}).replace(":","h")}
 function scTick(){const sc=state.scrape,el=$("#sc-text"),h=$("#h0"),up=$("#upd");
-  const lbl=sc.every?`toutes les ${sc.every===1?"minutes":sc.every+" min"}`:"manuel";if(h)h.textContent=lbl;
+  const lbl=state.finished?"arrêtée (terminé)":sc.every?`toutes les ${sc.every===1?"minutes":sc.every+" min"}`:"manuel";if(h)h.textContent=lbl;
   if(up)up.textContent=state.lastOk?"Mis à jour à "+hhmm(new Date(state.lastOk)):"";
-  if(!el)return;el.textContent=(state.lastOk?"Dernière lecture réussie à "+hhmm(new Date(state.lastOk)):"Aucune lecture pour l'instant")+(state.queue?` · ${state.queue} pages en attente`:"")+(state.error?" · ⚠ "+state.error:"")}
+  if(!el)return;el.textContent=(state.lastOk?"Dernière lecture réussie à "+hhmm(new Date(state.lastOk)):"Aucune lecture pour l'instant")+(state.queue?` · ${state.queue} pages en attente`:"")+(state.error?" · ⚠ "+state.error:"")+(state.finished?" · Compétitions terminées : synchronisation automatique arrêtée (le bouton « Actualiser maintenant » reste disponible)":"")}
 $("#sc-every").onchange=e=>{state.scrape.every=+e.target.value;scTick();scheduleSave()};
 $("#sc-live").onchange=e=>{state.scrape.onlyLive=e.target.checked;scheduleSave()};
 $("#sc-now").onclick=async()=>{const b=$("#sc-now");b.disabled=true;b.textContent="Lecture en cours…";

@@ -64,6 +64,19 @@ function windowOpen(cfg, data, now) {
   return false;
 }
 
+// Compétitions terminées : toutes les épreuves ont leurs résultats, ou la journée est passée depuis plus de 3 h
+function finished(cfg, data, now) {
+  if (!cfg.comps.length) return false;
+  return cfg.comps.every((id) => {
+    const c = data.comps[id]; if (!c || !c.reunions) return false;
+    const evs = eventsOf(c); if (!evs.length) return false;
+    if (evs.every((e) => c.events?.[e.epr]?.doneAt)) return true;
+    const dt = compDate(c.meta); if (!dt) return false;
+    const last = Math.max(...evs.map((e) => hToMin(e.time) ?? 0));
+    return now > parisEpoch(dt.y, dt.m, dt.d) + (last + 180) * 60e3;
+  });
+}
+
 function plan(cfg, data, now, live) {
   const tasks = [];
   for (const id of cfg.comps) {
@@ -121,7 +134,13 @@ export async function cycle(env, { force = false } = {}) {
     if (!config.comps.length) return;
     if (!every) return; // récupération manuelle uniquement
     if (data.lastRun && now - data.lastRun < every - 5e3) return;
+    // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
+    if (finished(config, data, now) && !(data.queue || []).length) {
+      if (!data.finished) { data.finished = now; await saveData(env, data, JSON.stringify({})); }
+      return;
+    }
   }
+  if (data.finished && !finished(config, data, now)) data.finished = null;
   const live = force || windowOpen(config, data, now);
   data.queue = data.queue || [];
   let errors = 0, used = 0;
