@@ -17,5 +17,9 @@ binding = "KV"
 [triggers]
 crons = ["* * * * *"]
 
+# Compte Cloudflare (identifiant public, utilisé pour lire les statistiques de fréquentation)
+[vars]
+CF_ACCOUNT_ID = "dc49e1d2f63a584f4af2bf4ad3297546"
+
 [observability]
 enabled = true

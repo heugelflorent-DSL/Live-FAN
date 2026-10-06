@@ -231,6 +231,7 @@ export default {
       const { data } = await load(env);
       return json({ ok: true, total: n, remaining: (data.queue || []).length, error: data.error });
     }
+    if (p === "/api/admin/audience") return audience(env, url);
     return json({ error: "Route inconnue" }, 404);
   },
 
@@ -238,3 +239,31 @@ export default {
     ctx.waitUntil(cycle(env));
   },
 };
+
+// ---------- audience (Cloudflare Web Analytics, lecture seule) ----------
+async function audience(env, url) {
+  if (!env.CF_API_TOKEN) return json({ setup: true });
+  const days = Math.min(30, Math.max(1, +(url.searchParams.get("days") || 1)));
+  const host = url.hostname;
+  const now = new Date();
+  const start = days === 1 ? new Date(parisEpoch(...Object.values(parisParts(now)).slice(0, 3))) : new Date(now.getTime() - days * 864e5);
+  const filter = `{datetime_geq: "${start.toISOString()}", datetime_leq: "${now.toISOString()}", requestHost: "${host}"}`;
+  const block = (alias, dim, order) => `${alias}: rumPageloadEventsAdaptiveGroups(limit: 200, filter: ${filter}, orderBy: [${order}]) { count sum { visits } dimensions { ${dim} } }`;
+  const query = `query { viewer { accounts(filter: {accountTag: "${env.CF_ACCOUNT_ID}"}) {
+    ${block("total", "date", "date_ASC")}
+    ${block("hours", "datetimeHour", "datetimeHour_ASC")}
+    ${block("devices", "deviceType", "count_DESC")}
+    ${block("countries", "countryName", "count_DESC")}
+    ${block("browsers", "userAgentBrowser", "count_DESC")}
+    ${block("referers", "refererHost", "count_DESC")}
+  } } }`;
+  const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { Authorization: `Bearer ${env.CF_API_TOKEN}`, "content-type": "application/json" }, body: JSON.stringify({ query }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.errors?.length) return json({ error: (j.errors && j.errors[0]?.message) || `Cloudflare a répondu ${r.status}` }, 502);
+  const a = j.data?.viewer?.accounts?.[0] || {};
+  const pick = (rows, key) => (rows || []).map((x) => ({ k: x.dimensions[key] || "—", views: x.count, visits: x.sum?.visits || 0 }));
+  const tot = (a.total || []).reduce((t, x) => ({ views: t.views + x.count, visits: t.visits + (x.sum?.visits || 0) }), { views: 0, visits: 0 });
+  return json({ days, from: start.toISOString(), ...tot,
+    hours: pick(a.hours, "datetimeHour"), devices: pick(a.devices, "deviceType"), countries: pick(a.countries, "countryName"),
+    browsers: pick(a.browsers, "userAgentBrowser"), referers: pick(a.referers, "refererHost") });
+}

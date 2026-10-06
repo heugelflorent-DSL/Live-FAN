@@ -268,7 +268,7 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .kpis3 b{display:block;font-family:var(--mono);font-size:24px}.kpis3 span{font-size:12px;color:var(--muted)}
 .live-dot::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok);margin-right:8px;vertical-align:4px}
 .audbox{background:var(--card-in);border:1px solid var(--line);border-radius:12px;padding:12px}
-.aurow{display:grid;grid-template-columns:120px 1fr 44px;gap:8px;align-items:center;font-size:13px;margin-top:6px}.aurow .bar{margin:0}.aurow b{font-family:var(--mono);text-align:right}
+.aurow{display:grid;grid-template-columns:minmax(0,120px) 1fr 44px;gap:8px;align-items:center;font-size:13px;margin-top:6px}.aurow .bar{margin:0}.aurow b{font-family:var(--mono);text-align:right}
 .dash{padding:14px 16px;display:grid;gap:12px;margin-bottom:6px}
 .dash-top{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between}
 .dash-phase{display:flex;align-items:center;gap:8px;color:#fff;font-weight:600}.dash-phase .field{width:auto}
@@ -772,20 +772,33 @@ function renderClub(){
 }
 
 /* ---------- rendu admin ---------- */
+let AUD={days:1,data:null,loading:false,err:null};
 function renderAudience(){
-  $("#aud").innerHTML=`<p class="msg">La fréquentation est mesurée par <b>Cloudflare Web Analytics</b> (gratuit, sans cookie). Une fois activé sur le site, tu y verras visiteurs, pages vues et appareils.</p><div><a class="btn small" href="https://dash.cloudflare.com/?to=/:account/web-analytics" target="_blank" rel="noopener">Ouvrir les statistiques ↗</a></div>`;$("#h-aud").textContent="Cloudflare";return;
-  const hours=[8,9,10,11,12,13,14,15,16,17],vis=[12,48,156,212,94,61,188,241,203,97];const now=state.phase==="eng"?3:37,peak=Math.max(...vis);
-  const pages=[["Programme",46],["Nageurs & clubs",24],["Résultats",14],["Classement",9],["Accueil",5],["Podiums",2]];
-  const srch=["DAUPHINS DE ST-LOUIS","SR COLMAR","MULLER","KAYSERSBERG","100 papillon"];
-  const W=320,H=110,bw=W/hours.length;
-  $("#aud").innerHTML=`<p class="msg">Exemple de tableau de bord : dans la version finale, les chiffres viendront d'un compteur de visites respectueux de la vie privée (sans cookie ni donnée personnelle).</p>
-  <div class="kpis3"><div><b class="live-dot">${now}</b><span>connectés maintenant</span></div><div><b>1 312</b><span>visiteurs aujourd'hui</span></div><div><b>${peak}</b><span>pic · 15h</span></div><div><b>4,8</b><span>pages par visite</span></div></div>
-  <div class="audbox"><div class="podlabel">Visiteurs par heure</div><svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Visiteurs par heure">${vis.map((v,i)=>{const h=Math.round(H*v/peak);return`<rect x="${i*bw+4}" y="${H-h}" width="${bw-8}" height="${h}" rx="3" fill="${v===peak?"#ffffff":"rgba(255,255,255,.45)"}"/><text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle" font-size="9" fill="#f3d3d7" font-family="JetBrains Mono,monospace">${hours[i]}h</text>`}).join("")}</svg></div>
-  <div class="grid2c"><div class="audbox"><div class="podlabel">Pages les plus vues</div>${pages.map(([n,v])=>`<div class="aurow"><span>${n}</span><span class="bar"><i style="width:${Math.round(100*v/pages[0][1])}%"></i></span><b>${v} %</b></div>`).join("")}</div>
-  <div class="audbox"><div class="podlabel">Recherches fréquentes</div><ol class="podextra" style="margin:0">${srch.map(x=>`<li>${esc(x)}</li>`).join("")}</ol><div class="podlabel" style="margin-top:12px">Appareils</div><div class="aurow"><span>Téléphone</span><span class="bar"><i style="width:86%"></i></span><b>86 %</b></div><div class="aurow"><span>Ordinateur</span><span class="bar"><i style="width:14%"></i></span><b>14 %</b></div></div></div>`;
-  $("#h-aud").textContent=now+" connectés";
+  const box=$("#aud");if(!box)return;
+  const d=AUD.data;
+  const tabs=`<div class="subtabs" style="margin:0">${[[1,"Aujourd'hui"],[7,"7 jours"],[30,"30 jours"]].map(([v,l])=>`<button data-aud="${v}" aria-selected="${AUD.days===v}">${l}</button>`).join("")}</div>`;
+  if(d&&d.setup){box.innerHTML=`<p class="msg">Dernière étape : créer le jeton de lecture des statistiques Cloudflare et l'enregistrer comme secret <b>CF_API_TOKEN</b> du Worker. Ensuite les chiffres s'affichent ici.</p>`;$("#h-aud").textContent="à configurer";return}
+  if(AUD.err){box.innerHTML=tabs+`<p class="msg err">Statistiques indisponibles : ${esc(AUD.err)}</p>`;return}
+  if(!d){box.innerHTML=tabs+`<p class="msg">${AUD.loading?"Chargement des statistiques…":""}</p>`;if(!AUD.loading)loadAudience();return}
+  for(const k of ["hours","devices","countries","browsers","referers"])d[k]=d[k]||[];d.visits=d.visits||0;d.views=d.views||0;d.days=d.days||AUD.days;
+  const hours=d.hours||[];const max=Math.max(1,...hours.map(h=>h.visits));
+  const W=Math.max(320,hours.length*14),H=110,bw=W/Math.max(1,hours.length);
+  const lab=h=>{const t=new Date(h.k);return d.days===1?t.toLocaleTimeString("fr-FR",{hour:"2-digit",timeZone:"Europe/Paris"}).replace(/\D/g,"")+"h":t.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",timeZone:"Europe/Paris"})};
+  const step=Math.ceil(hours.length/12);
+  const bars=hours.length?`<svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Visites par heure">${hours.map((h,i)=>{const hh=Math.max(2,Math.round(H*h.visits/max));return`<rect x="${i*bw+2}" y="${H-hh}" width="${Math.max(2,bw-4)}" height="${hh}" rx="2" fill="${h.visits===max?"#ffffff":"rgba(255,255,255,.45)"}"><title>${lab(h)} · ${h.visits} visites</title></rect>${i%step===0?`<text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle" font-size="9" fill="#f3d3d7" font-family="JetBrains Mono,monospace">${lab(h)}</text>`:""}`}).join("")}</svg>`:`<p class="msg">Pas encore de visite sur la période.</p>`;
+  const list=(rows,n=5)=>{const t=rows.reduce((a,x)=>a+x.views,0)||1;return rows.slice(0,n).map(x=>`<div class="aurow"><span>${esc(x.k)}</span><span class="bar"><i style="width:${Math.round(100*x.views/t)}%"></i></span><b>${Math.round(100*x.views/t)} %</b></div>`).join("")||`<p class="msg">—</p>`};
+  const peak=hours.reduce((m,h)=>h.visits>(m?m.visits:-1)?h:m,null);
+  box.innerHTML=tabs+`<div class="kpis3"><div><b>${d.visits.toLocaleString("fr-FR")}</b><span>visites</span></div><div><b>${d.views.toLocaleString("fr-FR")}</b><span>pages vues</span></div><div><b>${peak&&peak.visits?lab(peak):"—"}</b><span>pic d'affluence${peak&&peak.visits?" · "+peak.visits+" visites":""}</span></div></div>
+   <div class="audbox"><div class="podlabel">${d.days===1?"Visites par heure":"Visites"}</div>${bars}</div>
+   <div class="grid2c"><div class="audbox"><div class="podlabel">Appareils</div>${list(d.devices)}</div><div class="audbox"><div class="podlabel">Pays</div>${list(d.countries)}</div>
+   <div class="audbox"><div class="podlabel">Navigateurs</div>${list(d.browsers)}</div><div class="audbox"><div class="podlabel">Venus depuis</div>${list(d.referers.filter(x=>x.k&&x.k!=="—"&&!/natation-alsace/.test(x.k)))}</div></div>
+   <p class="msg">Source : Cloudflare Web Analytics, sans cookie. Les chiffres arrivent avec quelques minutes de décalage.</p>`;
+  $("#h-aud").textContent=d.visits+" visites "+(d.days===1?"aujourd'hui":"sur "+d.days+" jours");
 }
-
+async function loadAudience(){AUD.loading=true;AUD.err=null;
+  try{AUD.data=await api("/api/admin/audience?days="+AUD.days)}catch(e){AUD.err=e.message}
+  AUD.loading=false;renderAudience()}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-aud]");if(!b)return;AUD.days=+b.dataset.aud;AUD.data=null;renderAudience()});
 function renderAdmin(){
   $("#ev-name").value=state.name;$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
@@ -938,5 +951,6 @@ document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.datase
 if(location.hash==="#admin")openAdmin();
 loadPublic().then(()=>{scTick()});setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
 </script>
+<!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
 </body>
 </html>
