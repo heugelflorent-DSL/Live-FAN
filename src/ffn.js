@@ -209,5 +209,16 @@ export const urls = {
   programme: (c) => `${BASE}/programme.php?competition=${c}&langue=fra`,
   heats: (c, e) => `${BASE}/programme.php?competition=${c}&langue=fra&cat_id=${e.cat}&epr_id=${e.epr}&typ_id=${e.typ}&num_epreuve=${e.num}`,
   results: (c, epr) => `${BASE}/resultats.php?competition=${c}&langue=fra&go=epreuve&epreuve=${epr}`,
+  entries: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra`,
   home: (c) => `${BASE}/index.php?competition=${c}&langue=fra`,
 };
+
+// "Il reste 37 jours avant la publication de la liste d'entrée !" -> nombre de jours
+export function parseEntries(html) {
+  const t = text(html);
+  const m = t.match(/reste\s+(\d+)\s+jours?\s+avant\s+la\s+publication\s+de\s+la\s+liste/i);
+  if (m) return { days: +m[1], open: true };
+  if (/demain/i.test(t) && /publication de la liste/i.test(t)) return { days: 1, open: true };
+  if (/propositions des engagements sont en cours/i.test(t)) return { days: null, open: true };
+  return { days: null, open: false };
+}

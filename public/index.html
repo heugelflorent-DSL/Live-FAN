@@ -537,7 +537,7 @@ function build(cfg,data){
   (cfg.comps||[]).forEach((id,i)=>{
     const c=data.comps&&data.comps[id];
     const meta=(c&&c.meta)||{};
-    state.comps.push({id,k:(i%4)+1,name:meta.name||("Compétition "+id),city:meta.city||"",bassin:meta.pool||"",date:meta.date||"",splits:true,loading:!c||!c.meta});
+    state.comps.push({id,k:(i%4)+1,name:meta.name||("Compétition "+id),city:meta.city||"",bassin:meta.pool||"",date:meta.date||"",entryList:(c&&c.entryList)||"",entriesOpen:!!(c&&c.entriesOpen),splits:true,loading:!c||!c.meta});
     if(!c||!c.reunions)return;
     for(const r of c.reunions){
       (byReu[r.n]=byReu[r.n]||{doors:r.doors,keys:[]});if(!byReu[r.n].doors)byReu[r.n].doors=r.doors;
@@ -715,7 +715,10 @@ const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","
 function frDate(d){return JOURS[d.getDay()]+" "+d.getDate()+" "+MOIS[d.getMonth()]}
 function compStartDate(){for(const c of state.comps){const m=(c.date||"").toLowerCase().match(/(\d{1,2})\s+([a-zéèûô]+)\s+(\d{4})/);if(m){const i=MOIS.indexOf(m[2]);if(i>=0)return new Date(+m[3],i,+m[1])}}return null}
 function keyDates(){const out=[];const today=new Date();today.setHours(0,0,0,0);
+  const auto=state.comps.find(c=>c.entryList);
   if(state.engEnd){const d=new Date(state.engEnd+"T12:00");out.push(d<today?`Engagements clos depuis le ${frDate(d)}`:`Fin des engagements : <b>${frDate(d)}</b>`)}
+  else if(state.comps.some(c=>c.entriesOpen))out.push("Engagements en cours");
+  if(auto){const d=new Date(auto.entryList+"T12:00");out.push(d<today?"Liste des engagés attendue d'un jour à l'autre":`Liste des engagés publiée le <b>${frDate(d)}</b>`)}
   let p=state.progDate?new Date(state.progDate+"T12:00"):null;const c=compStartDate();if(!p&&c){p=new Date(c);p.setDate(p.getDate()-3)}
   if(p)out.push(p<today?"Programme attendu d'un jour à l'autre":`Programme détaillé prévu vers le <b>${frDate(p)}</b>`);
   return out}

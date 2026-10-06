@@ -1,5 +1,5 @@
 // Schwimme Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
-import { get, urls, parseProgramme, parseHeats, parseResults } from "./ffn.js";
+import { get, urls, parseEntries, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 
 const BUDGET = 15;            // pages Live FFN lues au maximum par passage (le reste attend le passage suivant)
 const PROG_EVERY = 30 * 60e3; // programme relu toutes les 30 min
@@ -118,7 +118,15 @@ async function runTask(task, data, now) {
   if (task.t === "prog") {
     const p = parseProgramme(await get(urls.programme(task.c)));
     if (!p.reunions.length) throw new Error(`Programme vide pour la compétition ${task.c}`);
-    c.meta = p.meta; c.reunions = p.reunions; c.progAt = now; return;
+    c.meta = p.meta; c.reunions = p.reunions; c.progAt = now;
+    if (p.reunions.some((r) => (r.items || []).some((i) => i.provisional))) {
+      try {
+        const e = parseEntries(await get(urls.entries(task.c)));
+        if (e.days != null) c.entryList = new Date(now + e.days * 864e5).toISOString().slice(0, 10);
+        c.entriesOpen = e.open;
+      } catch {}
+    } else { delete c.entriesOpen; }
+    return;
   }
   const ev = eventsOf(c).find((e) => e.epr === task.epr);
   if (!ev) return;
