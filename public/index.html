@@ -298,6 +298,24 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 #save-btn:disabled{opacity:.5;cursor:default}
 .compline{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .forcomp{margin:0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rk-list{list-style:none;margin:0;padding:0;border-radius:12px;background:var(--card-in);overflow:hidden}
+.rk-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;gap:4px 12px;align-items:center;padding:10px 12px}
+.rk-row+.rk-row{border-top:1px solid var(--line)}
+.rk-row.dsq{opacity:.65}
+.rk-pl{font-family:var(--mono);font-weight:700;font-size:15px;text-align:center;width:28px;height:28px;line-height:28px;border-radius:50%}
+.rk-pl.m1{background:var(--gold);color:#1f1300}.rk-pl.m2{background:var(--silver);color:#1f1300}.rk-pl.m3{background:var(--bronze);color:#1f1300}
+.rk-who{min-width:0;display:grid;gap:1px}.rk-who b{font-weight:600;font-size:15px;line-height:1.25}.rk-who b a{border-bottom:0}
+.rk-who small{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk-res{display:grid;justify-items:end;gap:1px}.rk-res b{font-family:var(--mono);font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.rk-res small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rk-row .spbtn{margin:0;font-size:11.5px;padding:4px 8px;border-radius:8px}
+.rk-sp{grid-column:2/-1;padding-top:4px}
+.sptab{border-collapse:collapse;font-size:13px;width:auto;min-width:220px}
+.sptab th{font-size:10.5px;padding:4px 14px 4px 0;text-align:left;color:var(--muted);border-bottom:1px solid var(--line)}
+.sptab td{padding:4px 14px 4px 0;font-family:var(--mono);font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)}
+.sptab td:first-child{font-family:var(--body);color:var(--muted)}.sptab td:nth-child(2){font-weight:700}
+.sptab tr:last-child td{border-bottom:0}
+@media (max-width:480px){.rk-row{grid-template-columns:30px minmax(0,1fr) auto;}.rk-row .spbtn{grid-column:2/-1;justify-self:start}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -429,7 +447,7 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 
 <script>
 /* ---------- données (lues sur /api/state, alimentées par le Live FFN) ---------- */
-function fmt(sec){if(sec==null)return"—";const m=Math.floor(sec/60),s=sec%60;return String(m).padStart(2,"0")+":"+s.toFixed(2).padStart(5,"0")}
+function fmt(sec){if(sec==null)return"—";const m=Math.floor(sec/60),s=sec%60;return m?m+":"+s.toFixed(2).padStart(5,"0"):s.toFixed(2)}
 const state={view:"home",open:{},sp:{},sel:null,admin:false,rankSex:"F",podRule:null,rankRule:null,
   name:"",published:false,heatGap:40,eventGap:40,comps:[],order:{},lines:{},starts:{},timing:"elec",delay:{},phase:"start",
   scrape:{every:2,onlyLive:true},doors:{},infos:[],podRules:[],lastOk:null,error:null,queue:0,loaded:false};
@@ -538,7 +556,7 @@ function schedule(){
   return out;
 }
 function splitsHtml(ev,w){const sp=w.splits||[];if(sp.length<2)return"";
-  return`<div class="splits">${sp.map(x=>`<div class="sp"><span class="spd">${x.dist} m</span><span class="spc">${fmt(x.cum).replace(/^00:/,"")}</span><span class="spl">${fmt(x.lap).replace(/^00:/,"")}</span></div>`).join("")}</div>`}
+  return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.dist} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
 function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test(x.status)))}
 
 /* ---------- échanges avec le serveur ---------- */
@@ -664,11 +682,19 @@ function renderSeries(ev,q){
 }
 function renderRanking(ev,q){
   const relay=/^4x/i.test(ev.name),sp=comp(ev.comp).splits;
-  return`<div class="inner"><p class="forcomp">Résultats ${esc(comp(ev.comp).name)}</p><div class="tbl"><table><thead><tr><th>Pl.</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th class=\"hide-s\">Année</th><th class=\"hide-s\">Club</th>"}<th>Temps</th><th>Pts</th></tr></thead><tbody>
-  ${ranking(ev).map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k];
-    return`<tr class="${hit(w,q)}"><td class="rank">${w.rank??"DSQ"}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num hide-s">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num"><b>${w.dsq?"—":fmt(w.res)}</b>${!w.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${w.dsq?"—":(w.points??"—")}</td></tr>${!w.dsq&&sp&&o?`<tr class="sprow ${hit(w,q)}"><td></td><td colspan="${relay?3:5}">${splitsHtml(ev,w)}</td></tr>`:""}`}).join("")}
-  </tbody></table></div></div>`;
+  const rows=ranking(ev);
+  return`<div class="inner"><p class="forcomp">Résultats ${esc(comp(ev.comp).name)}</p><ol class="rk-list">
+  ${rows.map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k],has=!w.dsq&&sp&&(w.splits||[]).length>1;
+    return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}">
+      <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}">${w.rank??"—"}</span>
+      <span class="rk-who"><b>${nameCell(w)}</b><small>${relay?"":(w.year?w.year+" · ":"")}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
+      <span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):(w.points?w.points+" pts":"")}</small></span>
+      ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
+      ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w)}</div>`:""}
+    </li>`}).join("")}
+  </ol></div>`;
 }
+
 function renderRes(){
   const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();
   let html="";
