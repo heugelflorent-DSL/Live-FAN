@@ -290,6 +290,7 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .pw b a{border-bottom:0}.pw small{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pr .ptime{font-family:var(--mono);font-weight:700;font-size:14px;margin:0}
 .pr.r1 .pw b{font-size:15px}
+.evpick{display:flex;align-items:center;gap:10px;margin-bottom:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;color:#fff;font-weight:600}.evpick .field{flex:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -707,7 +708,9 @@ function renderPod(){
   const groups=[];const byName={};
   for(const k of allKeys()){const ev=EVENTS[k];if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
     if(!byName[ev.name]){byName[ev.name]={name:ev.name,keys:[],start:sch[k].start};groups.push(byName[ev.name])}byName[ev.name].keys.push(k)}
-  const list=groups.filter(g=>!q||g.keys.some(k=>evMatches(EVENTS[k],q)));
+  if(state.podEv&&!groups.some(g=>g.name===state.podEv))state.podEv="";
+  if(groups.length>1)html+=`<label class="evpick" for="pod-ev"><span>Épreuve</span><select class="field" id="pod-ev"><option value="">Toutes les épreuves (${groups.length})</option>${groups.map(g=>`<option value="${esc(g.name)}" ${state.podEv===g.name?"selected":""}>${hm(g.start)} · ${esc(g.name)}</option>`).join("")}</select></label>`;
+  const list=groups.filter(g=>(!state.podEv||g.name===state.podEv)&&(!q||g.keys.some(k=>evMatches(EVENTS[k],q))));
   html+=list.map(g=>{const relay=/^4x/i.test(g.name);
     const all=rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
     if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places);
@@ -841,7 +844,8 @@ $("#pub-body").addEventListener("click",e=>{
   if(e.target.closest("[data-close]")){state.sel=null;renderPublic();return}
   const b=e.target.closest("[data-open]");if(b){const k=b.dataset.open;state.open[k]=!state.open[k];renderPublic()}
 });
-$("#search").oninput=renderPublic;$("#filter-comp").onchange=renderPublic;
+$("#search").oninput=renderPublic;
+$("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
 $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
 $("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
 $("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};
