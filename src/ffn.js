@@ -97,6 +97,21 @@ export function parseProgramme(html) {
     }
     reunions.push(r);
   }
+  // programme provisoire (avant la réunion technique) : liste des courses sans horaires ni séries
+  if (!reunions.length) {
+    for (const fs of html.split(/<fieldset class="programme">/).slice(1)) {
+      const head = one((fs.match(/<legend>([\s\S]*?)<\/legend>/) || [])[1]);
+      const n = +((head.match(/R[ée]union\s*N\D*(\d+)/i) || [])[1] || reunions.length + 1);
+      const r = { n, day: (head.split(":")[1] || "").trim(), doors: null, items: [], provisional: true };
+      (fs.match(/<li[^>]*>[\s\S]*?<\/li>/g) || []).forEach((li, i) => {
+        const full = one(li);
+        const rm = full.match(/^(.*?)\s+(S[ée]ries|Finales?|Demi-finales?|Barrages?)\b\s*(.*)$/i);
+        r.items.push({ kind: "event", epr: `p${n}-${i + 1}`, provisional: true, time: null,
+          name: rm ? rm[1] : full, round: rm ? rm[2] : "", category: rm ? rm[3] : "", nSeries: null, nPart: null });
+      });
+      reunions.push(r);
+    }
+  }
   return { meta, reunions };
 }
 

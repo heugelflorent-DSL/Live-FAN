@@ -553,7 +553,7 @@ function build(cfg,data){
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
           res:x.time,dsq:!!x.status,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
           splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap}))}));
-        EVENTS[key]={key,comp:id,num:it.epr,name:it.name,round:it.round,ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
+        EVENTS[key]={key,comp:id,num:it.epr,name:it.name,round:it.round,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
           doneAt:st.doneAt||null,nPart:it.nPart,relay,sex,type:"event"};
         byReu[r.n].keys.push(key);
         // fichier des nageurs
@@ -708,7 +708,7 @@ function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCa
 function getQ(){return $("#search").value.trim().toLowerCase()}
 function secTitle(t,sub){return`<div class="sec-title"><h3>${t}</h3>${sub?`<span>${sub}</span>`:""}</div>`}
 function plural(n,w){return n+" "+w+(n>1?"s":"")}
-function engBanner(){return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
+function engBanner(){if(Object.values(EVENTS).some(e=>e.provisional))return`<div class="card engban"><b>Programme provisoire</b><span>Le Live FFN n'a publié que la liste des courses. Les horaires, séries et engagés apparaîtront ici dès leur publication (en général après la réunion technique).</span></div>`;return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
 function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries.filter(x=>!x.dns).slice().sort((a,b)=>a.time-b.time);
   return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
 // réunion affichée : celle en cours (première avec une épreuve non terminée), sinon la dernière ; « tout » sur demande ou en recherche
@@ -733,7 +733,7 @@ function renderProg(){
       if(fc&&ev.comp!==fc)continue;const match=q&&evMatches(ev,q);if(q&&!match)continue;
       const open=state.open[key]||match;
       rows+=`<div class="lane${done.has(key)?" past":""}"><button class="row" data-open="${key}" aria-expanded="${!!open}">
-        <span class="time">${eng?"~":""}${hm(t.start)}<small>${done.has(key)?"terminée":eng?"provisoire":"fin ~"+hm(t.end)}</small></span>
+        <span class="time">${ev.provisional?"—":(eng?"~":"")+hm(t.start)}<small>${ev.provisional?"à venir":done.has(key)?"terminée":eng?"provisoire":"fin ~"+hm(t.end)}</small></span>
         <span class="ev"><b>${esc(ev.name)}</b><span class="sub">${state.comps.length>1?compBadge(ev.comp):""}<span>${eng?plural(ev.entries.filter(x=>!x.dns).length,"engagé")+" · ~"+plural(ev.series.length,"série"):plural(ev.series.length,"série")}</span></span></span>
         <span class="chev" aria-hidden="true">▼</span></button>${open?(eng?renderEngages(ev,q):renderSeries(ev,q)):""}</div>`;
     }

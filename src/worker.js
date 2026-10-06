@@ -87,11 +87,13 @@ function plan(cfg, data, now, live) {
       const evs = r.items.filter((i) => i.kind === "event");
       const started = evs.some((e) => c.events?.[e.epr]?.results?.rows?.length);
       for (const e of evs) {
+        if (e.provisional) continue; // programme provisoire : rien d'autre à lire pour l'instant
         const st = c.events?.[e.epr] || {};
         if (!st.heatsAt || (!started && now - st.heatsAt > HEATS_EVERY)) tasks.push({ t: "heats", c: id, epr: e.epr });
       }
       if (!live) continue;
       // épreuves en cours : la première non terminée de la réunion et la suivante
+      if (evs.some((e) => e.provisional)) continue;
       const idx = evs.findIndex((e) => !c.events?.[e.epr]?.doneAt);
       if (idx >= 0) for (const e of evs.slice(Math.max(0, idx - 1), idx + 2)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
@@ -193,7 +195,7 @@ async function rescrape(env, scope, what) {
     if (what === "all" && !reu) { data.comps[id] = { events: {} }; tasks.push({ t: "prog", c: id }); }
     else if (!c) tasks.push({ t: "prog", c: id });
     const evs = c ? eventsOf(c).filter((e) => !reu || e.reunion === reu) : [];
-    for (const e of evs) {
+    for (const e of evs.filter((x) => !x.provisional)) {
       const st = c.events?.[e.epr];
       if (st && (what === "all" || what === "start")) { delete st.heats; delete st.heatsAt; }
       if (st && (what === "all" || what === "res")) { delete st.results; delete st.resultsAt; delete st.doneAt; delete st.nRows; }
