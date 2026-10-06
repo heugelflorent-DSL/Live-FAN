@@ -380,6 +380,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
 .savebar.dirty #save-state{color:#a16207}
 .aurow b{color:var(--ink)}
 .admin-head h2{color:#fff}
+.engban .kd{margin-top:4px;font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -443,6 +444,8 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
         <summary><span class="n">1</span>Compétitions<span class="hint" id="h1"></span></summary>
         <div class="step-body">
           <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
+          <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
+          <label for="ev-progdate">Publication du programme prévue le<input class="field" type="date" id="ev-progdate"><span class="msg" style="font-weight:400">Vide = 3 jours avant la compétition</span></label></div>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button></div>
           <p class="msg" id="link-msg">Ajoute autant de compétitions que nécessaire.</p>
           <div id="comp-list" style="display:grid;gap:6px"></div>
@@ -526,7 +529,7 @@ function defaultDur(name){const d=parseInt(name)||100;return {25:25,50:45,100:95
 function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m[2]):parseInt(name)}
 
 function build(cfg,data){
-  state.name=cfg.name||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
+  state.name=cfg.name||"";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
@@ -587,7 +590,7 @@ function build(cfg,data){
 }
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
-  return{name:state.name,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
+  return{name:state.name,engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
     rankings:state.podRules,infos:state.infos,published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -691,7 +694,7 @@ function renderRank(){
 }
 function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`}
 function renderHome(){
-  const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k));let html="",top=engBanner(),teams="";
+  const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k)&&!EVENTS[k].provisional);let html="",top=engBanner(),teams="";
   if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
   else if(ks.length)html+=`<div class="now"><div class="tag">Terminé</div><div class="ev">Toutes les épreuves sont terminées</div><div class="nx"><a href="#" data-go="res" style="color:#fff">voir les résultats ›</a></div></div>`;
   for(const r of teamRules())for(const sx of ["F","M"]){const b=teamBoard(r,sx);if(!b.now.length)continue;
@@ -699,7 +702,7 @@ function renderHome(){
   const infos=state.infos.filter(i=>i.title||i.text);
   top+=`<div class="session" style="margin-top:4px">${secTitle("Informations")}<div class="list">${infos.map(i=>`<div class="card info${i.important?" imp":""}">${i.important?`<span class="imptag">Important</span>`:""}${i.title?`<h4>${esc(i.title)}</h4>`:""}<p>${nl(i.text)}</p></div>`).join("")||`<p class="empty">Aucune information pour le moment.</p>`}</div></div>`;
   html+=`<div class="session">${secTitle("La journée")}<div class="day">${Object.keys(state.order).map(s=>{const sm={doors:state.doors[s]};const keys=state.order[s].filter(k=>EVENTS[k].type==="event");const last=keys[keys.length-1];
-    return`<div class="card reu"><div class="reu-h"><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}</span></div><ol class="tl"><li><b>${sm?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol></div>`}).join("")}</div></div>`;
+    return`<div class="card reu"><div class="reu-h"><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}</span></div><ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol></div>`}).join("")}</div></div>`;
   html+=teams;
   html+=`<div class="session">${secTitle("Compétitions")}<div class="card comps">${state.comps.map(c=>`<a class="comprow" href="https://www.liveffn.com/cgi-bin/index.php?competition=${c.id}&langue=fra" target="_blank" rel="noopener">${compBadge(c.id)}<span class="msg">${plural(Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length,"épreuve")}</span><span class="ext">Live FFN ↗</span></a>`).join("")}</div></div>`;
   $("#pub-body").innerHTML=top+html;
@@ -708,7 +711,16 @@ function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCa
 function getQ(){return $("#search").value.trim().toLowerCase()}
 function secTitle(t,sub){return`<div class="sec-title"><h3>${t}</h3>${sub?`<span>${sub}</span>`:""}</div>`}
 function plural(n,w){return n+" "+w+(n>1?"s":"")}
-function engBanner(){if(Object.values(EVENTS).some(e=>e.provisional))return`<div class="card engban"><b>Programme provisoire</b><span>Le Live FFN n'a publié que la liste des courses. Les horaires, séries et engagés apparaîtront ici dès leur publication (en général après la réunion technique).</span></div>`;return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
+const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],JOURS=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+function frDate(d){return JOURS[d.getDay()]+" "+d.getDate()+" "+MOIS[d.getMonth()]}
+function compStartDate(){for(const c of state.comps){const m=(c.date||"").toLowerCase().match(/(\d{1,2})\s+([a-zéèûô]+)\s+(\d{4})/);if(m){const i=MOIS.indexOf(m[2]);if(i>=0)return new Date(+m[3],i,+m[1])}}return null}
+function keyDates(){const out=[];const today=new Date();today.setHours(0,0,0,0);
+  if(state.engEnd){const d=new Date(state.engEnd+"T12:00");out.push(d<today?`Engagements clos depuis le ${frDate(d)}`:`Fin des engagements : <b>${frDate(d)}</b>`)}
+  let p=state.progDate?new Date(state.progDate+"T12:00"):null;const c=compStartDate();if(!p&&c){p=new Date(c);p.setDate(p.getDate()-3)}
+  if(p)out.push(p<today?"Programme attendu d'un jour à l'autre":`Programme détaillé prévu vers le <b>${frDate(p)}</b>`);
+  return out}
+function engBanner(){if(Object.values(EVENTS).some(e=>e.provisional)){const k=keyDates();return`<div class="card engban"><b>Programme provisoire</b><span>Le Live FFN n'a publié que la liste des courses. Les horaires, séries et engagés apparaîtront ici dès leur publication.</span>${k.length?`<span class="kd">${k.join(" · ")}</span>`:""}</div>`}
+return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
 function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries.filter(x=>!x.dns).slice().sort((a,b)=>a.time-b.time);
   return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
 // réunion affichée : celle en cours (première avec une épreuve non terminée), sinon la dernière ; « tout » sur demande ou en recherche
@@ -721,7 +733,7 @@ function renderProg(){
   const sch=schedule(),done=doneSet(),q=getQ(),fc=$("#filter-comp").value,eng=state.phase==="eng";let html=engBanner();
   if(!eng)html+=`<p class="tnote">${state.timing==="elec"?"Horaires recalculés en direct à partir des résultats":"Horaires estimés, ajustés par l'organisation"+(Object.values(state.delay).some(v=>v)?" · retard pris en compte":"")}</p>`;
   // carte « à suivre » : première épreuve non terminée
-  const nextKey=allKeys().find(k=>!done.has(k));
+  const nextKey=allKeys().find(k=>!done.has(k)&&!EVENTS[k].provisional);
   if(nextKey&&!q&&!fc){const ev=EVENTS[nextKey];const after=allKeys()[allKeys().indexOf(nextKey)+1];
     html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")}${after?` · puis ${esc(EVENTS[after].name)} à ${hm(sch[after].start)}`:""}</div></div>`}
   html+=reuChips(done);
@@ -738,7 +750,7 @@ function renderProg(){
         <span class="chev" aria-hidden="true">▼</span></button>${open?(eng?renderEngages(ev,q):renderSeries(ev,q)):""}</div>`;
     }
     const started=state.order[s].some(k=>done.has(k));
-    html+=`<div class="session">${secTitle("Réunion "+s,`portes ${sm?sm.doors:"—"} · début ${(state.starts[s]||"").replace(":","h")}`)}<p class="lstate ${started?"def":"prov"}">${eng?"Engagements en cours · liste des engagés":started?"Liste de départ définitive":"Liste de départ provisoire · peut encore changer jusqu'au début de la réunion"}</p><div class="list">${rows||`<p class="empty">Aucune épreuve ne correspond.</p>`}</div></div>`;
+    html+=`<div class="session">${secTitle("Réunion "+s,(Object.values(EVENTS).some(e=>e.provisional&&e.sess==s)?"horaires à venir":`portes ${sm&&sm.doors?sm.doors:"—"} · début ${(state.starts[s]||"").replace(":","h")}`))}<p class="lstate ${started?"def":"prov"}" ${Object.values(EVENTS).some(e=>e.provisional&&e.sess==s)?"hidden":""}>${eng?"Engagements en cours · liste des engagés":started?"Liste de départ définitive":"Liste de départ provisoire · peut encore changer jusqu'au début de la réunion"}</p><div class="list">${rows||`<p class="empty">Aucune épreuve ne correspond.</p>`}</div></div>`;
   }
   $("#pub-body").innerHTML=html;
 }
@@ -914,7 +926,7 @@ async function loadAudience(){AUD.loading=true;AUD.err=null;
   AUD.loading=false;renderAudience()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-aud]");if(!b)return;AUD.days=+b.dataset.aud;AUD.data=null;renderAudience()});
 function renderAdmin(){
-  $("#ev-name").value=state.name;$("#ev-pub").checked=state.published;
+  $("#ev-name").value=state.name;$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
@@ -986,6 +998,8 @@ $("#pub-body").addEventListener("click",e=>{
 $("#search").oninput=renderPublic;
 $("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
 $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
+$("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
+$("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
 $("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
 $("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};
 
