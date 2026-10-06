@@ -72,7 +72,7 @@ main{padding-block:16px 40px}
 
 /* lignes d'épreuve */
 .lane{overflow:hidden}
-.lane.past{opacity:.6}
+.lane.past>.row{opacity:.6}
 .row{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:12px 14px;border:0;background:none;text-align:left}
 .row:hover{background:rgba(255,255,255,.05)}
 .time{font-family:var(--mono);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
@@ -639,9 +639,9 @@ function renderSeries(ev,q){
 }
 function renderRanking(ev,q){
   const relay=/^4x/i.test(ev.name),sp=comp(ev.comp).splits;
-  return`<div class="inner"><div class="tbl"><table><thead><tr><th>Pl.</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Temps</th><th>Pts</th></tr></thead><tbody>
+  return`<div class="inner"><div class="tbl"><table><thead><tr><th>Pl.</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th class=\"hide-s\">Année</th><th class=\"hide-s\">Club</th>"}<th>Temps</th><th>Pts</th></tr></thead><tbody>
   ${ranking(ev).map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k];
-    return`<tr class="${hit(w,q)}"><td class="rank">${w.rank??"DSQ"}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num"><b>${w.dsq?"—":fmt(w.res)}</b>${!w.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${w.dsq?"—":(w.points??"—")}</td></tr>${!w.dsq&&sp&&o?`<tr class="sprow ${hit(w,q)}"><td></td><td colspan="${relay?3:5}">${splitsHtml(ev,w)}</td></tr>`:""}`}).join("")}
+    return`<tr class="${hit(w,q)}"><td class="rank">${w.rank??"DSQ"}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num hide-s">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num"><b>${w.dsq?"—":fmt(w.res)}</b>${!w.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${w.dsq?"—":(w.points??"—")}</td></tr>${!w.dsq&&sp&&o?`<tr class="sprow ${hit(w,q)}"><td></td><td colspan="${relay?3:5}">${splitsHtml(ev,w)}</td></tr>`:""}`}).join("")}
   </tbody></table></div></div>`;
 }
 function renderRes(){
