@@ -77,11 +77,20 @@ function finished(cfg, data, now) {
   });
 }
 
+// Fréquence de relecture du programme : le programme officiel sort en général 3 à 4 jours avant
+function progEvery(c, now) {
+  const dt = c && compDate(c.meta); if (!dt) return PROG_EVERY;
+  const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
+  if (days > 5) return 24 * 3600e3;   // plus de 5 jours avant : une fois par jour
+  if (days > 1) return 3 * 3600e3;    // de 5 jours à la veille : toutes les 3 h
+  return PROG_EVERY;                  // veille et jour J : toutes les 30 min
+}
+
 function plan(cfg, data, now, live) {
   const tasks = [];
   for (const id of cfg.comps) {
     const c = data.comps[id];
-    if (!c || !c.progAt || now - c.progAt > PROG_EVERY) tasks.push({ t: "prog", c: id });
+    if (!c || !c.progAt || now - c.progAt > progEvery(c, now)) tasks.push({ t: "prog", c: id });
     if (!c) continue;
     for (const r of c.reunions || []) {
       const evs = r.items.filter((i) => i.kind === "event");
