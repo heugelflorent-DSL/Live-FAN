@@ -317,6 +317,7 @@ a[data-swimmer]{color:inherit;text-decoration:none}a[data-swimmer]:hover{text-de
 .sptab td:first-child{font-family:var(--body);color:var(--muted)}.sptab td:nth-child(2){font-weight:700}
 .sptab tr:last-child td{border-bottom:0}
 @media (max-width:480px){.rk-row{grid-template-columns:30px minmax(0,1fr) auto;}.rk-row .spbtn{grid-column:2/-1;justify-self:start}}
+.catmed{display:inline-block;vertical-align:2px;margin-left:4px;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:99px;color:#1f1300;white-space:nowrap}.catmed.c1{background:var(--gold)}.catmed.c2{background:var(--silver)}.catmed.c3{background:var(--bronze)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -681,14 +682,25 @@ function renderSeries(ev,q){
    ${se.swimmers.map(w=>`<tr class="${hit(w,q)}${w.dns?" dns":""}"><td class="ln">${w.lane}</td><td>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}
    </tbody></table></div></div>`).join("")}</div>`;
 }
+// médailles par catégorie : selon le classement « course par course » paramétré pour la compétition
+function catMedals(ev){
+  const out={};if(/^\d+x/i.test(ev.name))return out;
+  const rule=state.podRules.find(r=>r.type!=="team"&&r.comps.includes(ev.comp)&&(r.mode==="age"||r.mode==="year"));if(!rule)return out;
+  const ok=ev.results.filter(w=>w.rank!=null&&w.res!=null).sort((a,b)=>a.res-b.res);
+  let groups=[];
+  if(rule.mode==="year")groups=[...new Set(ok.map(w=>w.year))].map(y=>({name:y,list:ok.filter(w=>w.year===y)}));
+  else{const ref=+rule.refYear||refYearDefault();groups=(rule.cats||[]).map(c=>({name:c.name||`${c.min}-${c.max} ans`,list:ok.filter(w=>{const a=ref-(+w.year);return w.year&&a>=(+c.min||0)&&a<=(c.max===""||c.max==null?999:+c.max)})}))}
+  for(const g of groups)g.list.slice(0,3).forEach((w,i)=>{(out[w.iuf||w.name]=out[w.iuf||w.name]||[]).push({cat:g.name,place:i+1})});
+  return out;
+}
 function renderRanking(ev,q){
   const relay=/^4x/i.test(ev.name),sp=comp(ev.comp).splits;
-  const rows=ranking(ev);
+  const rows=ranking(ev);const meds=catMedals(ev);
   return`<div class="inner"><p class="forcomp">Résultats ${esc(comp(ev.comp).name)}</p><ol class="rk-list">
   ${rows.map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k],has=!w.dsq&&sp&&(w.splits||[]).length>1;
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}">${w.rank??"—"}</span>
-      <span class="rk-who"><b>${nameCell(w)}</b><small>${relay?"":(w.year?w.year+" · ":"")}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
+      <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
       <span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):(w.points?w.points+" pts":"")}</small></span>
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
       ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w)}</div>`:""}
