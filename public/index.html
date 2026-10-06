@@ -541,7 +541,8 @@ function build(cfg,data){
       for(const it of r.items){if(it.kind!=="event")continue;
         const key=id+"-"+it.epr,st=(c.events||{})[it.epr]||{};const relay=/^\d+x/i.test(it.name);const sex=/Dames/.test(it.name)?"F":/Messieurs/.test(it.name)?"M":"X";
         const heats=st.heats||[];if(heats.some(h=>h.lanes.some(l=>l.lane>0)))anyLane=true;
-        const res=(st.results&&st.results.rows)||[];
+        const nrmT=x=>norm(x).toLowerCase();const okTitle=st.results&&st.results.title&&nrmT(st.results.title).startsWith(nrmT(it.name));
+        const res=(okTitle&&st.results.rows)||[];if(!okTitle)st.doneAt=null;
         const out=new Set(res.filter(x=>x.status&&/forf|dns|np|abs/i.test(x.status+" "+(x.reason||""))).map(x=>swId(x.name,x.year)));
         const series=(heats.length?heats:Array.from({length:it.nSeries||1},(_,j)=>({n:j+1,lanes:[]}))).map((h,j)=>{
           const sw=h.lanes.map(l=>{const team=relay?(l.club||l.name):null;const id2=relay?null:swId(l.name,l.year);

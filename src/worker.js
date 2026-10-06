@@ -117,6 +117,9 @@ async function runTask(task, data, now) {
   }
   if (task.t === "res") {
     const r = parseResults(await get(urls.results(task.c, task.epr)));
+    // le Live FFN peut renvoyer une autre page quand l'épreuve n'a pas encore de résultats : on vérifie le titre
+    const nrm = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (!r.title || !nrm(r.title).startsWith(nrm(ev.name))) { r.rows = []; delete st.doneAt; }
     const n = r.rows.length;
     if (n !== st.nRows) st.changedAt = now;
     st.results = r; st.resultsAt = now; st.nRows = n;
