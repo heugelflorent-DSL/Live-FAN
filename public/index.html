@@ -648,7 +648,7 @@ function renderRes(){
   const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();
   let html="";
   for(const s of Object.keys(state.order)){
-    const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&done.has(k)&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q))).reverse();
+    const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&done.has(k)&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
     if(!keys.length)continue;
     html+=`<div class="session">${secTitle("Réunion "+s,plural(keys.length,"épreuve"))}<div class="list">${keys.map(k=>{const ev=EVENTS[k],open=state.open["r"+k]||(q&&evMatches(ev,q));const win=ranking(ev)[0];
      return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm(sch[k].start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${state.comps.length>1?compBadge(ev.comp):""}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
@@ -694,7 +694,7 @@ function renderPod(){
   const groups=[];const byName={};
   for(const k of allKeys()){const ev=EVENTS[k];if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
     if(!byName[ev.name]){byName[ev.name]={name:ev.name,keys:[],start:sch[k].start};groups.push(byName[ev.name])}byName[ev.name].keys.push(k)}
-  const list=groups.filter(g=>!q||g.keys.some(k=>evMatches(EVENTS[k],q))).reverse();
+  const list=groups.filter(g=>!q||g.keys.some(k=>evMatches(EVENTS[k],q)));
   html+=list.map(g=>{const relay=/^4x/i.test(g.name);
     const all=rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
     if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places);
