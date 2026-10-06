@@ -291,6 +291,9 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .pr .ptime{font-family:var(--mono);font-weight:700;font-size:14px;margin:0}
 .pr.r1 .pw b{font-size:15px}
 .evpick{display:flex;align-items:center;gap:10px;margin-bottom:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;color:#fff;font-weight:600}.evpick .field{flex:1}
+.savebar{position:sticky;bottom:0;margin-top:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:rgba(62,14,24,.95);border:1px solid var(--line);border-radius:16px 16px 0 0;backdrop-filter:blur(12px);z-index:15;font-size:14px}
+.savebar.dirty{border-color:var(--warn)}.savebar.dirty #save-state{color:var(--warn);font-weight:600}
+#save-btn:disabled{opacity:.5;cursor:default}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -341,7 +344,7 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
     <div class="card dash">
       <div class="dash-top">
         <div class="switch"><input type="checkbox" id="ev-pub"><label for="ev-pub">Page publique en ligne</label><span class="pill" id="pub-pill"></span></div>
-        <span class="dash-phase" id="phase-txt"></span><span class="msg" id="save-state"></span>
+        <span class="dash-phase" id="phase-txt"></span>
       </div>
       <div class="kpis3" id="dash-kpis"></div>
       <div class="sc-status"><span id="sc-text"></span><button class="btn small" id="sc-now">Actualiser maintenant</button></div>
@@ -414,6 +417,7 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
       </details>
     </div>
 
+    <div class="savebar" id="savebar"><span id="save-state">Tout est enregistré</span><div class="inline"><button class="btn small ghost" id="back-public2" type="button">Page publique</button><button class="btn" id="save-btn" type="button" disabled>Enregistrer</button></div></div>
   </section>
 
   <footer class="foot"><p>Live FAN · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
@@ -546,9 +550,11 @@ async function loadPublic(){
 }
 async function loadAdmin(){const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render()}
 let lastSaved="",saveTimer=null;
-function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(saveNow,700)}
-async function saveNow(){const c=JSON.stringify(toConfig());if(c===lastSaved)return;const el=$("#save-state");
-  try{if(el)el.textContent="Enregistrement…";await api("/api/config",{method:"PUT",body:c});lastSaved=c;if(el)el.textContent="Enregistré à "+hhmm(new Date())}
+function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(markDirty,150)}
+function markDirty(){const dirty=JSON.stringify(toConfig())!==lastSaved;const el=$("#save-state"),b=$("#save-btn"),bar=$("#savebar");
+  if(bar)bar.classList.toggle("dirty",dirty);if(b)b.disabled=!dirty;if(el&&dirty)el.textContent="Modifications non enregistrées"}
+async function saveNow(){const c=JSON.stringify(toConfig());if(c===lastSaved){markDirty();return}const el=$("#save-state");
+  try{if(el)el.textContent="Enregistrement…";await api("/api/config",{method:"PUT",body:c});lastSaved=c;if(el)el.textContent="Tout est enregistré · "+hhmm(new Date());markDirty()}
   catch(e){if(el)el.textContent="Échec de l'enregistrement : "+e.message}}
 
 /* ---------- rendu public ---------- */
@@ -832,6 +838,9 @@ $("#login-form").addEventListener("submit",async e=>{e.preventDefault();ADMIN_KE
   try{state.admin=true;await loadAdmin();try{sessionStorage.setItem("lf-key",ADMIN_KEY)}catch(_){};$("#login-pw").value=""}
   catch(err){state.admin=false;ADMIN_KEY=null;alertLogin(err.message)}});
 $("#login-cancel").onclick=()=>{state.admin=false;render()};
+$("#save-btn").onclick=()=>saveNow();
+$("#back-public2").onclick=()=>$("#back-public").click();
+window.addEventListener("beforeunload",e=>{if(state.admin&&JSON.stringify(toConfig())!==lastSaved){e.preventDefault();e.returnValue=""}});
 $("#back-public").onclick=async()=>{await saveNow();state.admin=false;await loadPublic();render()};
 $("#pub-body").addEventListener("click",e=>{
   const rs=e.target.closest("[data-rsex]");if(rs){state.rankSex=rs.dataset.rsex;state.open={};renderPublic();return}
