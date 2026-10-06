@@ -323,6 +323,63 @@ a[data-swimmer]{color:inherit;text-decoration:none}a[data-swimmer]:hover{text-de
 .rk-row.dns .rk-who b a{text-decoration:line-through}.rk-row.dns{opacity:.6}
 .rk-res b{font-size:15px}
 td a[data-swimmer],.pnm a[data-swimmer]{border-bottom:0}
+.reuchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 12px;padding:2px}
+.reuchips button{flex:0 0 auto;border:1px solid rgba(120,20,40,.18);background:#fff;color:var(--red-d);font-weight:700;font-size:14px;padding:7px 14px;border-radius:99px;display:inline-flex;align-items:center;gap:6px}
+.reuchips button[aria-selected="true"]{background:var(--red);border-color:var(--red);color:#fff}
+.livedot{width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block}
+/* ===== Thème clair pour la lisibilité : cartes blanches, texte sombre, accents rouges ===== */
+:root{--card:#ffffff;--card-2:#ffffff;--card-in:#fbf6f7;--line:rgba(120,20,40,.12);--muted:#6e4c55;--faint:#9c7f87;--ink:#2a0d14}
+main{color:var(--ink)}
+main .card,main .lane,main .prow,main .podblock,main .detail,main .step,main .now{box-shadow:0 6px 20px -14px rgba(80,0,15,.45);backdrop-filter:none}
+main .lane,main .prow,main .podblock,main .detail,main .step{border-color:rgba(120,20,40,.10)}
+.row{color:var(--ink)}.row:hover,.prow:hover{background:#fdf7f8}
+.time{color:var(--ink)}.time small{color:var(--muted)}
+.ev .sub,.chev{color:var(--muted)}
+a[data-swimmer]{color:inherit}
+td a,.pnm a,.compo a,.podextra a{color:var(--ink);border-bottom-color:rgba(120,20,40,.3)}
+.now{background:var(--red);border-color:var(--red);color:#fff}.now .nx{color:#ffe4e6}.now a{color:#fff}
+.lane.past>.row{opacity:.55}
+.pause{background:#fff8e1;border-color:#f3d27a;color:#7a5200}.pause .time{color:#7a5200}
+.heat h4{color:var(--muted)}.heat h4 .htime{background:var(--red);color:#fff}
+.lane-n{border-color:rgba(120,20,40,.35);color:var(--red-d)}
+.rk-pl{color:var(--ink)}
+.rk-list{background:var(--card-in)}
+.spbtn{background:#fff;border-color:rgba(120,20,40,.25);color:var(--red-d)}
+.sptab th{color:var(--muted)}.sptab td:first-child{color:var(--muted)}
+.forcomp,.podlabel,.reu-h span{color:var(--muted)}
+.compo span{background:var(--card-in)}
+.tpts{color:var(--ink)}.tpts small{color:var(--muted)}
+.bar{background:rgba(120,20,40,.08)}.bar i{background:linear-gradient(90deg,#f7a1ad,var(--red))}
+.mvt.up{color:#15803d}.mvt.down{color:#b91c1c}.mvt.eq{color:var(--faint)}.mvt.new{color:#a16207}
+.rk.r1{color:#b45309}.rk.r2{color:#6b7280}.rk.r3{color:#b45f2a}
+.board-head .lbl{color:var(--muted)}.kpi small,.kpi span{color:var(--muted)}.prog{background:rgba(120,20,40,.1)}.prog i{background:var(--red)}
+.top3 .more,.t3 b{color:var(--ink)}.top3 .more{color:var(--red-d)}
+.tl::before{background:rgba(120,20,40,.2)}.tl li::before{background:#fff;border-color:var(--red)}.tl li.mid::before{background:var(--red)}.tl span{color:var(--muted)}
+.comprow{color:var(--ink)}.comprow .ext{color:var(--red-d)}
+.info.imp{background:#fff;color:var(--ink);border:2px solid var(--red)}.info.imp p{color:var(--ink)}
+.k1{background:#fde4e8;color:var(--red-d)}.k2{background:#fdecc0;color:#6b3d00}
+.lstate,.tnote{background:#fff;color:var(--red-d);box-shadow:0 4px 14px -10px rgba(80,0,15,.5)}
+.subtabs button{background:#fff;color:var(--red-d);border-color:rgba(120,20,40,.18)}.subtabs button[aria-selected="true"]{background:var(--red);color:#fff;border-color:var(--red)}
+.evpick{color:var(--ink)}
+.empty{background:#fff;color:var(--muted);border-color:rgba(120,20,40,.18)}
+.pw small,.pclub{color:var(--muted)}.m0{background:rgba(120,20,40,.08);color:var(--ink)}
+.medal{color:#1f1300}
+tr.hit td,.rk-row.hit{background:#fff3c4}
+.dsq .rk-res small{color:var(--muted)}
+/* admin */
+.field{background:#fff;border:1px solid rgba(120,20,40,.22)}
+.btn{background:var(--red);color:#fff;box-shadow:0 6px 18px -10px rgba(120,20,40,.6)}.btn.ghost{background:#fff;color:var(--red-d);border:1px solid rgba(120,20,40,.3)}
+.step>summary .n{background:var(--red);color:#fff}.step>summary .hint{color:var(--muted)}
+.comp,.rule,.item,.audbox,.kpis3>div,.sc-status,.agebox{background:var(--card-in);border-color:rgba(120,20,40,.12)}
+.item .t{color:var(--red-d)}.mv button{background:#fff;color:var(--red-d);border-color:rgba(120,20,40,.25)}
+.item.pause-it{background:#fff8e1;color:#7a5200}
+.switch label,.chk,.dash-phase{color:var(--ink)!important}
+.x{color:var(--muted)}.x:hover{color:var(--red)}
+.pill.off{background:rgba(120,20,40,.08);color:var(--muted)}
+.savebar{background:#fff;color:var(--ink);border-color:rgba(120,20,40,.18);box-shadow:0 -8px 24px -16px rgba(80,0,15,.5)}
+.savebar.dirty #save-state{color:#a16207}
+.aurow b{color:var(--ink)}
+.admin-head h2{color:#fff}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -653,6 +710,12 @@ function plural(n,w){return n+" "+w+(n>1?"s":"")}
 function engBanner(){return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
 function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries.filter(x=>!x.dns).slice().sort((a,b)=>a.time-b.time);
   return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
+// réunion affichée : celle en cours (première avec une épreuve non terminée), sinon la dernière ; « tout » sur demande ou en recherche
+function reuList(){return Object.keys(state.order)}
+function currentReu(done){const rs=reuList();for(const r of rs)if(state.order[r].some(k=>EVENTS[k]&&EVENTS[k].type==="event"&&!done.has(k)))return r;return rs[rs.length-1]}
+function reuShown(done){const rs=reuList();if(rs.length<2||getQ())return rs;const v=state.reu||currentReu(done);return v==="all"?rs:rs.includes(v)?[v]:rs}
+function reuChips(done){const rs=reuList();if(rs.length<2||getQ())return"";const v=state.reu||currentReu(done),cur=currentReu(done);
+  return`<div class="reuchips" role="tablist">${rs.map(r=>`<button data-reu="${r}" aria-selected="${v===r}">R${r}${r===cur&&state.phase!=="eng"&&state.order[r].some(k=>EVENTS[k]&&EVENTS[k].type==="event"&&!done.has(k))?' <i class="livedot"></i>':""}</button>`).join("")}<button data-reu="all" aria-selected="${v==="all"}">Tout</button></div>`}
 function renderProg(){
   const sch=schedule(),done=doneSet(),q=getQ(),fc=$("#filter-comp").value,eng=state.phase==="eng";let html=engBanner();
   if(!eng)html+=`<p class="tnote">${state.timing==="elec"?"Horaires recalculés en direct à partir des résultats":"Horaires estimés, ajustés par l'organisation"+(Object.values(state.delay).some(v=>v)?" · retard pris en compte":"")}</p>`;
@@ -660,7 +723,8 @@ function renderProg(){
   const nextKey=allKeys().find(k=>!done.has(k));
   if(nextKey&&!q&&!fc){const ev=EVENTS[nextKey];const after=allKeys()[allKeys().indexOf(nextKey)+1];
     html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")}${after?` · puis ${esc(EVENTS[after].name)} à ${hm(sch[after].start)}`:""}</div></div>`}
-  for(const s of Object.keys(state.order)){
+  html+=reuChips(done);
+  for(const s of reuShown(done)){
     const sm={doors:state.doors[s]};let rows="";
     for(const key of state.order[s]){
       const ev=EVENTS[key],t=sch[key];
@@ -717,8 +781,8 @@ function renderRanking(ev,q){
 
 function renderRes(){
   const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();
-  let html="";
-  for(const s of Object.keys(state.order)){
+  let html=reuChips(done);
+  for(const s of reuShown(done)){
     const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&done.has(k)&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
     if(!keys.length)continue;
     html+=`<div class="session">${secTitle("Réunion "+s,plural(keys.length,"épreuve"))}<div class="list">${keys.map(k=>{const ev=EVENTS[k],open=state.open["r"+k]||(q&&evMatches(ev,q));const win=ranking(ev)[0];
@@ -892,7 +956,7 @@ function renderAdmin(){
 function render(){$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
-$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.sel=null;state.admin=false;$("#search").value="";render()});
+$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render()});
 $("#admin-btn").onclick=()=>openAdmin();
 async function openAdmin(){
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
@@ -907,6 +971,7 @@ $("#back-public2").onclick=()=>$("#back-public").click();
 window.addEventListener("beforeunload",e=>{if(state.admin&&JSON.stringify(toConfig())!==lastSaved){e.preventDefault();e.returnValue=""}});
 $("#back-public").onclick=async()=>{await saveNow();state.admin=false;await loadPublic();render()};
 $("#pub-body").addEventListener("click",e=>{
+  const ru=e.target.closest("[data-reu]");if(ru){state.reu=ru.dataset.reu;renderPublic();window.scrollTo(0,0);return}
   const rs=e.target.closest("[data-rsex]");if(rs){state.rankSex=rs.dataset.rsex;state.open={};renderPublic();return}
   const rr=e.target.closest("[data-rr]");if(rr){state.rankRule=rr.dataset.rr;renderPublic();return}
   const go=e.target.closest("[data-go]");if(go){e.preventDefault();if(go.dataset.rr2)state.rankRule=go.dataset.rr2;if(go.dataset.sx2)state.rankSex=go.dataset.sx2;state.view=go.dataset.go;state.sel=null;render();window.scrollTo(0,0);return}
