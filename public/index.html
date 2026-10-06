@@ -277,6 +277,8 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .cdot{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;vertical-align:-2px}.cdot i{width:8px;height:8px;border-radius:50%}
 .k1 i,.cdot.k1 i{background:var(--red)}
 .login{max-width:380px;margin:40px auto;padding:20px;display:grid;gap:12px}.login h2{margin:0}
+.agebox{display:grid;gap:10px;padding:12px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid var(--line)}
+.catgrid{display:grid;grid-template-columns:minmax(0,1fr) 72px 72px 32px;gap:6px;align-items:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -402,7 +404,7 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 
   </section>
 
-  <footer class="foot"><p>Live FAN · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.</p><button id="admin-btn" class="adminlink">Admin</button></footer>
+  <footer class="foot"><p>Live FAN · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
 </main>
 
 <script>
@@ -424,7 +426,7 @@ function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m
 function build(cfg,data){
   state.name=cfg.name||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.lines=cfg.lines||{};
-  state.scrape=cfg.scrape||state.scrape;state.lastOk=data.lastOk||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
+  state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
   const byReu={};let anyLane=false;
   (cfg.comps||[]).forEach((id,i)=>{
@@ -662,6 +664,8 @@ function podCard(list,label,places){
     return`<div class="pod p${pl}"><div class="medal">${pl}</div><div class="pnm">${nameCell(w)}</div><div class="pclub">${esc(w.club||"")}${w.year?" · "+w.year:""}</div><div class="ptime">${fmt(w.res)}</div><div class="stepb"></div></div>`}).join("")}</div>
     ${extra.length?`<ol class="podextra" start="4">${extra.map(w=>`<li>${nameCell(w)}<span class="n">10</span></li>`).join("")}</ol>`:""}</div>`;
 }
+function refYearDefault(){const c=state.comps.find(x=>x.date);const m=c&&c.date.match(/(\d{4})/);return m?+m[1]:new Date().getFullYear()}
+const FFN_CATS=[{name:"Avenirs",min:0,max:10},{name:"Benjamins",min:11,max:12},{name:"Juniors",min:13,max:17},{name:"Seniors",min:18,max:""}];
 function parseGroups(txt){return txt.split(/[,;]/).map(x=>x.trim()).filter(Boolean).map(g=>{const m=g.match(/(\d{4})\s*(?:[-–à]\s*(\d{4}))?/);if(!m)return null;const a=+m[1],b=+(m[2]||m[1]);return{lo:Math.min(a,b),hi:Math.max(a,b),label:a===b?"Né(e)s en "+a:"Né(e)s "+Math.min(a,b)+"–"+Math.max(a,b)}}).filter(Boolean)}
 function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map((w,i)=>({...w,rank:i+1}))}
 function teamRanking(rule,done,sex){
@@ -699,7 +703,8 @@ function renderPod(){
     const all=rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
     if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places);
     else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(rerank(all.filter(w=>w.year===y)),"Né(e)s en "+y,rule.places)).join("")}
-    else{const gs=parseGroups(rule.groups);blocks=gs.map(gr=>podCard(rerank(all.filter(w=>+w.year>=gr.lo&&+w.year<=gr.hi)),gr.label,rule.places)).join("")||`<p class="empty">Aucune catégorie définie pour ce classement.</p>`}
+    else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
+      blocks=cats.map(c=>podCard(rerank(all.filter(w=>{const a=ref-(+w.year);return w.year&&a>=(+c.min||0)&&a<=(c.max===""||c.max==null?999:+c.max)})),c.name||`${c.min}-${c.max} ans`,rule.places)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
     const merged=g.keys.length>1;
     return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`;
   $("#pub-body").innerHTML=html;
@@ -778,10 +783,15 @@ function renderAdmin(){
     <div class="checks">${state.comps.map(c=>`<label class="chk"><input type="checkbox" data-rc="${c.id}" data-rid="${r.id}" ${r.comps.includes(c.id)?"checked":""}><span class="badge k${c.k}"><i></i>${esc(c.name)}</span></label>`).join("")}</div>
     <label>Type de classement<select class="field" data-rf="type" data-rid="${r.id}"><option value="race" ${r.type!=="team"?"selected":""}>Course par course (podiums par épreuve)</option><option value="team" ${r.type==="team"?"selected":""}>Équipes : addition des points FFN</option></select></label>
     ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label>`:`<div class="grid2c">
-      <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="groups" ${r.mode==="groups"?"selected":""}>Catégories personnalisées</option></select></label>
+      <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="age" ${r.mode==="age"?"selected":""}>Catégories d'âge</option></select></label>
       <label>Places affichées<input class="field" type="number" min="1" max="10" data-rf="places" data-rid="${r.id}" value="${r.places}"></label>
     </div>`}
-    ${r.type!=="team"&&r.mode==="groups"?`<label>Catégories (années)<input class="field" data-rf="groups" data-rid="${r.id}" value="${esc(r.groups)}" placeholder="ex : 2013-2014, 2011-2012, 2010"></label>`:""}
+    ${r.type!=="team"&&r.mode==="age"?`<div class="agebox"><b>Catégories d'âge</b>
+      <p class="msg">Âge = année de référence − année de naissance. Par défaut, l'année de la compétition (saisons FFN en année civile). Les relais ne comptent pas dans les classements par âge.</p>
+      <label>Année de référence<input class="field" type="number" data-rf="refYear" data-rid="${r.id}" value="${r.refYear||refYearDefault()}" style="max-width:160px"></label>
+      <div class="catgrid"><span class="msg">Nom</span><span class="msg">Âge min</span><span class="msg">Âge max</span><span></span>
+      ${(r.cats||[]).map((c,i)=>`<input class="field" data-cat="name" data-ci="${i}" data-rid="${r.id}" value="${esc(c.name)}" aria-label="Nom de la catégorie"><input class="field" type="number" min="0" data-cat="min" data-ci="${i}" data-rid="${r.id}" value="${c.min}" aria-label="Âge minimum"><input class="field" type="number" min="0" data-cat="max" data-ci="${i}" data-rid="${r.id}" value="${c.max}" placeholder="—" aria-label="Âge maximum"><button class="x" data-catdel="${i}" data-rid="${r.id}" aria-label="Supprimer la catégorie">×</button>`).join("")}</div>
+      <div class="inline"><button class="btn small ghost" data-catadd="${r.id}">+ Ajouter</button><button class="btn small ghost" data-catffn="${r.id}">Rétablir Avenirs / Benjamins / Juniors / Seniors</button></div></div>`:""}
   </div>`).join("")||`<p class="msg">Aucun classement.</p>`;
   $("#info-list").innerHTML=state.infos.map((i,ix)=>`<div class="rule">
     <div class="inline"><input class="field" data-if="title" data-iid="${i.id}" value="${esc(i.title)}" placeholder="Titre" aria-label="Titre de l'information"><span class="mv"><button data-imv="${i.id}" data-d="-1" aria-label="Monter">↑</button><button data-imv="${i.id}" data-d="1" aria-label="Descendre">↓</button></span><button class="x" data-idel="${i.id}" aria-label="Supprimer">×</button></div>
@@ -883,17 +893,24 @@ $("#info-add").onclick=()=>{state.infos.push({id:"i"+Date.now(),title:"",text:""
 document.addEventListener("change",e=>{const t=e.target;const i=t.dataset.iid&&state.infos.find(x=>x.id===t.dataset.iid);if(!i)return;i[t.dataset.if]=t.type==="checkbox"?t.checked:t.value;$("#h1b").textContent=plural(state.infos.length,"information");scheduleSave()});
 document.addEventListener("click",e=>{const t=e.target;if(t.dataset.idel){state.infos=state.infos.filter(x=>x.id!==t.dataset.idel);render()}
   if(t.dataset.imv){const a=state.infos,i=a.findIndex(x=>x.id===t.dataset.imv),j=i+ +t.dataset.d;if(j>=0&&j<a.length){[a[i],a[j]]=[a[j],a[i]];render()}}});
+document.addEventListener("click",e=>{const t=e.target,d=t.dataset||{};const rid=d.rid||d.catadd||d.catffn;const r=rid&&state.podRules.find(x=>x.id===rid);if(!r)return;
+  if(d.catadd){(r.cats=r.cats||[]).push({name:"",min:"",max:""});render()}
+  if(d.catdel!=null&&d.catdel!==undefined&&t.matches("[data-catdel]")){r.cats.splice(+d.catdel,1);render()}
+  if(d.catffn){r.cats=FFN_CATS.map(c=>({...c}));render()}});
 $("#pod-add").onclick=()=>{const id="r"+Date.now();state.podRules.push({id,name:"Nouveau classement",type:"race",perEvent:0,comps:state.comps.map(c=>c.id),mode:"scratch",groups:"",places:3});render()};
 document.addEventListener("change",e=>{const t=e.target;const r=t.dataset.rid&&state.podRules.find(x=>x.id===t.dataset.rid);if(!r)return;
   if(t.dataset.rc){r.comps=t.checked?[...new Set([...r.comps,t.dataset.rc])]:r.comps.filter(c=>c!==t.dataset.rc)}
   else if(t.dataset.rf==="places")r.places=Math.min(10,Math.max(1,+t.value||3));
   else if(t.dataset.rf==="split")r.split=t.checked;
   else if(t.dataset.rf==="perEvent")r.perEvent=Math.max(0,+t.value||0);
-  else r[t.dataset.rf]=t.value;
+  else if(t.dataset.cat){const c=r.cats[+t.dataset.ci];c[t.dataset.cat]=t.dataset.cat==="name"?t.value:(t.value===""?"":+t.value)}
+  else if(t.dataset.rf==="refYear")r.refYear=+t.value||refYearDefault();
+  else{r[t.dataset.rf]=t.value;if(t.dataset.rf==="mode"&&t.value==="age"&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}
   render()});
 document.addEventListener("click",e=>{const d=e.target.dataset&&e.target.dataset.rdel;if(d){state.podRules=state.podRules.filter(r=>r.id!==d);render()}});
 $("#timing").onchange=e=>{state.timing=e.target.value;render()};
 document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.dataset.delay;if(d){state.delay[d]=+e.target.value||0;render()}});
+{const y=document.getElementById("yr");if(y)y.textContent=new Date().getFullYear()}
 if(location.hash==="#admin")openAdmin();
 loadPublic().then(()=>{scTick()});setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
 </script>
