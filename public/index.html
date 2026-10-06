@@ -279,6 +279,17 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .login{max-width:380px;margin:40px auto;padding:20px;display:grid;gap:12px}.login h2{margin:0}
 .agebox{display:grid;gap:10px;padding:12px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid var(--line)}
 .catgrid{display:grid;grid-template-columns:minmax(0,1fr) 72px 72px 32px;gap:6px;align-items:center}
+.podgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:10px}
+.podblock{padding:12px 14px 10px}
+.podlist{list-style:none;margin:0;padding:0;display:grid}
+.pr{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0}
+.pr+.pr{border-top:1px solid var(--line)}
+.pr .medal{width:26px;height:26px;margin:0;font-size:12px}
+.m0{background:rgba(255,255,255,.12);color:#fff}.m1{background:var(--gold)}.m2{background:var(--silver)}.m3{background:var(--bronze)}
+.pw{min-width:0;display:grid}.pw b{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pw b a{border-bottom:0}.pw small{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr .ptime{font-family:var(--mono);font-weight:700;font-size:14px;margin:0}
+.pr.r1 .pw b{font-size:15px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -659,10 +670,8 @@ function renderRes(){
 }
 function podCard(list,label,places){
   const ranked=list.filter(x=>x.rank!=null);if(!ranked.length)return"";
-  const top=ranked.slice(0,3),order=[top[1],top[0],top[2]],extra=ranked.slice(3,places);
-  return`<div class="podblock"><div class="podlabel">${esc(label)}</div><div class="podium">${order.map((w,i)=>{if(!w)return`<div></div>`;const pl=[2,1,3][i];
-    return`<div class="pod p${pl}"><div class="medal">${pl}</div><div class="pnm">${nameCell(w)}</div><div class="pclub">${esc(w.club||"")}${w.year?" · "+w.year:""}</div><div class="ptime">${fmt(w.res)}</div><div class="stepb"></div></div>`}).join("")}</div>
-    ${extra.length?`<ol class="podextra" start="4">${extra.map(w=>`<li>${nameCell(w)}<span class="n">10</span></li>`).join("")}</ol>`:""}</div>`;
+  const rows=ranked.slice(0,Math.max(3,places||3));
+  return`<div class="podblock"><div class="podlabel">${esc(label)}</div><ol class="podlist">${rows.map(w=>`<li class="pr r${w.rank}"><span class="medal m${w.rank<=3?w.rank:0}">${w.rank}</span><span class="pw"><b>${nameCell(w)}</b><small>${esc(w.club||"")}${w.year?" · "+w.year:""}</small></span><span class="ptime">${fmt(w.res).replace(/^00:/,"")}</span></li>`).join("")}</ol></div>`;
 }
 function refYearDefault(){const c=state.comps.find(x=>x.date);const m=c&&c.date.match(/(\d{4})/);return m?+m[1]:new Date().getFullYear()}
 const FFN_CATS=[{name:"Avenirs",min:0,max:10},{name:"Benjamins",min:11,max:12},{name:"Juniors",min:13,max:17},{name:"Seniors",min:18,max:""}];
