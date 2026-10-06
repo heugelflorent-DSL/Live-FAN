@@ -294,6 +294,8 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .savebar{position:sticky;bottom:0;margin-top:20px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:rgba(62,14,24,.95);border:1px solid var(--line);border-radius:16px 16px 0 0;backdrop-filter:blur(12px);z-index:15;font-size:14px}
 .savebar.dirty{border-color:var(--warn)}.savebar.dirty #save-state{color:var(--warn);font-weight:600}
 #save-btn:disabled{opacity:.5;cursor:default}
+.compline{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.forcomp{margin:0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -596,7 +598,7 @@ function renderRank(){
   const sex=state.rankSex||"F";
   if(true)html+=`<div class="subtabs">${[["F","Filles"],["M","Garçons"]].map(([v,l])=>`<button data-rsex="${v}" aria-selected="${sex===v}">${l}</button>`).join("")}</div>`;
   const b=teamBoard(rule,sex);const max=b.now[0]?b.now[0].total:1;
-  html+=`<div class="card board-head"><div><div class="lbl">${esc(rule.name)}${sex?" · "+(sex==="F"?"Filles":"Garçons"):""}</div><div class="bh-ev">${b.last?"Après "+esc(EVENTS[b.last].name):"En attente des premiers résultats"}</div></div><div class="kpi"><b>${b.nDone}<small>/${b.nAll}</small></b><span>épreuves</span></div><div class="prog"><i style="width:${b.nAll?Math.round(100*b.nDone/b.nAll):0}%"></i></div><button class="btn small ghost" id="tv-btn">Plein écran</button></div>`;
+  html+=`<div class="card board-head"><div><div class="lbl">${esc(rule.name)}${sex?" · "+(sex==="F"?"Filles":"Garçons"):""}</div><div class="compline">${rule.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="bh-ev">${b.last?"Après "+esc(EVENTS[b.last].name):"En attente des premiers résultats"}</div></div><div class="kpi"><b>${b.nDone}<small>/${b.nAll}</small></b><span>épreuves</span></div><div class="prog"><i style="width:${b.nAll?Math.round(100*b.nDone/b.nAll):0}%"></i></div><button class="btn small ghost" id="tv-btn">Plein écran</button></div>`;
   const rows=b.now.filter(t=>!q||t.club.toLowerCase().includes(q));
   html+=`<div class="list board">${rows.map(t=>{const open=state.open["t"+t.club];return`<div class="lane"><button class="row brow" data-open="t${esc(t.club)}" aria-expanded="${!!open}"><span class="rk r${t.rank}">${t.rank}</span><span class="ev"><b>${esc(t.club)} ${moveHtml(t,b.prev)}</b><span class="bar"><i style="width:${Math.max(4,Math.round(100*t.total/max))}%"></i></span></span><span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></button>${open?teamDetail(t,rule,sex):""}</div>`}).join("")||`<p class="empty">${q?"Aucune équipe ne correspond.":"Le classement démarrera après la première épreuve."}</p>`}</div>`;
   $("#pub-body").innerHTML=html;
@@ -608,7 +610,7 @@ function renderHome(){
   if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
   else if(ks.length)html+=`<div class="now"><div class="tag">Terminé</div><div class="ev">Toutes les épreuves sont terminées</div><div class="nx"><a href="#" data-go="res" style="color:#fff">voir les résultats ›</a></div></div>`;
   for(const r of teamRules())for(const sx of ["F","M"]){const b=teamBoard(r,sx);if(!b.now.length)continue;
-    html+=`<div class="session">${secTitle(esc(r.name)+(sx?" · "+(sx==="F"?"Filles":"Garçons"):""),"en direct · "+b.nDone+"/"+b.nAll+" épreuves")}<div class="card top3">${b.now.slice(0,3).map(t=>`<div class="t3"><span class="rk r${t.rank}">${t.rank}</span><b>${esc(t.club)}</b>${moveHtml(t,b.prev)}<span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></div>`).join("")}<a href="#" class="more" data-go="rank" data-rr2="${r.id}" data-sx2="${sx||""}">Classement complet ›</a></div></div>`}
+    html+=`<div class="session">${secTitle(esc(r.name)+(sx?" · "+(sx==="F"?"Filles":"Garçons"):""),"en direct · "+b.nDone+"/"+b.nAll+" épreuves")}<div class="compline" style="margin:-2px 0 8px">${r.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="card top3">${b.now.slice(0,3).map(t=>`<div class="t3"><span class="rk r${t.rank}">${t.rank}</span><b>${esc(t.club)}</b>${moveHtml(t,b.prev)}<span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></div>`).join("")}<a href="#" class="more" data-go="rank" data-rr2="${r.id}" data-sx2="${sx||""}">Classement complet ›</a></div></div>`}
   const infos=state.infos.filter(i=>i.title||i.text);
   html+=`<div class="session">${secTitle("Informations")}<div class="list">${infos.map(i=>`<div class="card info${i.important?" imp":""}">${i.important?`<span class="imptag">Important</span>`:""}${i.title?`<h4>${esc(i.title)}</h4>`:""}<p>${nl(i.text)}</p></div>`).join("")||`<p class="empty">Aucune information pour le moment.</p>`}</div></div>`;
   html+=`<div class="session">${secTitle("La journée")}<div class="day">${Object.keys(state.order).map(s=>{const sm={doors:state.doors[s]};const keys=state.order[s].filter(k=>EVENTS[k].type==="event");const last=keys[keys.length-1];
@@ -659,7 +661,7 @@ function renderSeries(ev,q){
 }
 function renderRanking(ev,q){
   const relay=/^4x/i.test(ev.name),sp=comp(ev.comp).splits;
-  return`<div class="inner"><div class="tbl"><table><thead><tr><th>Pl.</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th class=\"hide-s\">Année</th><th class=\"hide-s\">Club</th>"}<th>Temps</th><th>Pts</th></tr></thead><tbody>
+  return`<div class="inner"><p class="forcomp">Résultats ${esc(comp(ev.comp).name)}</p><div class="tbl"><table><thead><tr><th>Pl.</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th class=\"hide-s\">Année</th><th class=\"hide-s\">Club</th>"}<th>Temps</th><th>Pts</th></tr></thead><tbody>
   ${ranking(ev).map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k];
     return`<tr class="${hit(w,q)}"><td class="rank">${w.rank??"DSQ"}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num hide-s">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num"><b>${w.dsq?"—":fmt(w.res)}</b>${!w.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${w.dsq?"—":(w.points??"—")}</td></tr>${!w.dsq&&sp&&o?`<tr class="sprow ${hit(w,q)}"><td></td><td colspan="${relay?3:5}">${splitsHtml(ev,w)}</td></tr>`:""}`}).join("")}
   </tbody></table></div></div>`;
@@ -671,7 +673,7 @@ function renderRes(){
     const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&done.has(k)&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
     if(!keys.length)continue;
     html+=`<div class="session">${secTitle("Réunion "+s,plural(keys.length,"épreuve"))}<div class="list">${keys.map(k=>{const ev=EVENTS[k],open=state.open["r"+k]||(q&&evMatches(ev,q));const win=ranking(ev)[0];
-     return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm(sch[k].start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${state.comps.length>1?compBadge(ev.comp):""}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
+     return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm(sch[k].start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
   }
   $("#pub-body").innerHTML=html||`<p class="empty">${state.phase==="eng"?"Les résultats apparaîtront ici pendant la compétition.":"Aucun résultat pour le moment."}</p>`;
 }
@@ -724,7 +726,7 @@ function renderPod(){
     else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
       blocks=cats.map(c=>podCard(rerank(all.filter(w=>{const a=ref-(+w.year);return w.year&&a>=(+c.min||0)&&a<=(c.max===""||c.max==null?999:+c.max)})),c.name||`${c.min}-${c.max} ans`,rule.places)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
     const merged=g.keys.length>1;
-    return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`;
+    return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`;
   $("#pub-body").innerHTML=html;
 }
 function participants(){
