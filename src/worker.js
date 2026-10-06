@@ -243,12 +243,28 @@ export default {
       return res;
     }
 
+    if (p === "/api/logos" && req.method === "GET") {
+      const logos = (await env.KV.get("logos", "json")) || {};
+      return json(logos, 200, { "cache-control": "public, max-age=300" });
+    }
+
     if (!authed(req, env)) return json({ error: env.ADMIN_PASSWORD ? "Mot de passe incorrect." : "Le mot de passe admin n'est pas encore configuré dans Cloudflare (variable ADMIN_PASSWORD)." }, 401);
     const purge = () => caches.default.delete(new Request(url.origin + "/api/state"));
 
     if (p === "/api/admin/state") {
       const { config, data } = await load(env);
       return json({ config, data, now: Date.now() });
+    }
+    if (p === "/api/logo" && req.method === "PUT") {
+      const { club, data } = await req.json();
+      if (!club || typeof club !== "string" || club.length > 120) return json({ error: "Club invalide." }, 400);
+      if (data != null && (typeof data !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(data) || data.length > 40000))
+        return json({ error: "Image invalide ou trop lourde." }, 400);
+      const logos = (await env.KV.get("logos", "json")) || {};
+      if (data) logos[club] = data; else delete logos[club];
+      await env.KV.put("logos", JSON.stringify(logos));
+      await caches.default.delete(new Request(url.origin + "/api/logos"));
+      return json({ ok: true });
     }
     if (p === "/api/config" && req.method === "PUT") {
       const body = await req.json();

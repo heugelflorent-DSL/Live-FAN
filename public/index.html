@@ -111,6 +111,8 @@ tbody tr:nth-child(1) td.rank{color:var(--gold)}
 td a,.pnm a,.compo a,.podextra a{color:#fff;text-decoration:none;border-bottom:1px dotted rgba(255,255,255,.45)}
 tr.hit td{background:rgba(253,230,138,.16)}
 .club{color:var(--muted);font-size:13px}
+.clogo{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;background:#fff}.clogo.big{width:44px;height:44px}
+.logorow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line,#e5e1db)}.logorow .lbox{width:44px;height:44px;display:grid;place-items:center;background:#f4f2ef;border-radius:8px;font-size:11px;color:var(--muted)}.logorow b{flex:1;font-weight:600}
 @media (max-width:560px){.hide-s{display:none}}
 
 /* passages */
@@ -477,6 +479,13 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
           <div><button class="btn small ghost" id="info-add">+ Ajouter une information</button></div>
         </div>
       </details>
+      <details class="step">
+        <summary><span class="n">5</span>Logos des clubs<span class="hint" id="h-logos"></span></summary>
+        <div class="step-body">
+          <p class="msg">Choisis une image pour chaque club (PNG, JPG ou WebP). Elle est réduite automatiquement et enregistrée tout de suite, sans passer par « Enregistrer ». Les clubs apparaissent ici dès que les engagés sont connus.</p>
+          <div id="logo-list"></div>
+        </div>
+      </details>
     </div>
 
     <h3 class="grp">Suivre la compétition</h3>
@@ -651,6 +660,10 @@ async function saveNow(){const c=JSON.stringify(toConfig());if(c===lastSaved){ma
 const $=s=>document.querySelector(s);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function comp(id){return state.comps.find(x=>x.id===id)}
+let LOGOS={};
+function clubKey(c){return String(c||"").replace(/\s+\d+$/,"").trim()}
+function logo(c,big){const d=LOGOS[c]||LOGOS[clubKey(c)];return d?`<img class="clogo${big?" big":""}" src="${d}" alt="">`:""}
+async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){LOGOS=await r.json();render()}}catch(_){}}
 function compBadge(id){const c=comp(id);return`<span class="badge k${c.k}"><i></i>${esc(c.name)}</span>`}
 function renderHead(){
   $("#pub-title").textContent=state.name;
@@ -688,7 +701,7 @@ function renderRank(){
   const b=teamBoard(rule,sex);const max=b.now[0]?b.now[0].total:1;
   html+=`<div class="card board-head"><div><div class="lbl">${esc(rule.name)}${sex?" · "+(sex==="F"?"Filles":"Garçons"):""}</div><div class="compline">${rule.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="bh-ev">${b.last?"Après "+esc(EVENTS[b.last].name):"En attente des premiers résultats"}</div></div><div class="kpi"><b>${b.nDone}<small>/${b.nAll}</small></b><span>épreuves</span></div><div class="prog"><i style="width:${b.nAll?Math.round(100*b.nDone/b.nAll):0}%"></i></div><button class="btn small ghost" id="tv-btn">Plein écran</button></div>`;
   const rows=b.now.filter(t=>!q||t.club.toLowerCase().includes(q));
-  html+=`<div class="list board">${rows.map(t=>{const open=state.open["t"+t.club];return`<div class="lane"><button class="row brow" data-open="t${esc(t.club)}" aria-expanded="${!!open}"><span class="rk r${t.rank}">${t.rank}</span><span class="ev"><b>${esc(t.club)} ${moveHtml(t,b.prev)}</b><span class="bar"><i style="width:${Math.max(4,Math.round(100*t.total/max))}%"></i></span></span><span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></button>${open?teamDetail(t,rule,sex):""}</div>`}).join("")||`<p class="empty">${q?"Aucune équipe ne correspond.":"Le classement démarrera après la première épreuve."}</p>`}</div>`;
+  html+=`<div class="list board">${rows.map(t=>{const open=state.open["t"+t.club];return`<div class="lane"><button class="row brow" data-open="t${esc(t.club)}" aria-expanded="${!!open}"><span class="rk r${t.rank}">${t.rank}</span><span class="ev"><b>${logo(t.club)}${esc(t.club)} ${moveHtml(t,b.prev)}</b><span class="bar"><i style="width:${Math.max(4,Math.round(100*t.total/max))}%"></i></span></span><span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></button>${open?teamDetail(t,rule,sex):""}</div>`}).join("")||`<p class="empty">${q?"Aucune équipe ne correspond.":"Le classement démarrera après la première épreuve."}</p>`}</div>`;
   $("#pub-body").innerHTML=html;
   const tv=$("#tv-btn");if(tv)tv.onclick=()=>{document.body.classList.toggle("tv");tv.textContent=document.body.classList.contains("tv")?"Quitter le plein écran":"Plein écran";try{document.body.classList.contains("tv")?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}};
 }
@@ -725,7 +738,7 @@ function keyDates(){const out=[];const today=new Date();today.setHours(0,0,0,0);
 function engBanner(){if(Object.values(EVENTS).some(e=>e.provisional)){const k=keyDates();return`<div class="card engban"><b>Programme provisoire</b><span>Le Live FFN n'a publié que la liste des courses. Les horaires, séries et engagés apparaîtront ici dès leur publication.</span>${k.length?`<span class="kd">${k.join(" · ")}</span>`:""}</div>`}
 return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
 function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries.filter(x=>!x.dns).slice().sort((a,b)=>a.time-b.time);
-  return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
+  return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${logo(w.club)}${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
 // réunion affichée : celle en cours (première avec une épreuve non terminée), sinon la dernière ; « tout » sur demande ou en recherche
 function reuList(){return Object.keys(state.order)}
 function currentReu(done){const rs=reuList();for(const r of rs)if(state.order[r].some(k=>EVENTS[k]&&EVENTS[k].type==="event"&&!done.has(k)))return r;return rs[rs.length-1]}
@@ -765,7 +778,7 @@ function renderSeries(ev,q){
   return`<div class="inner">${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>Série ${se.n} / ${ev.series.length}</h4>
    <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${hit(w,q)}${w.dns?" dns":""}">
      <span class="lane-n">${w.lane||"—"}</span>
-     <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+esc(w.club||"")}</small></span>
+     <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+logo(w.club)+esc(w.club||"")}</small></span>
      <span class="rk-res"><b>${w.time!=null?fmt(w.time):"—"}</b><small>engag.</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
 }
 
@@ -809,7 +822,7 @@ function renderRes(){
 function podCard(list,label,places){
   const ranked=list.filter(x=>x.rank!=null);if(!ranked.length)return"";
   const rows=ranked.slice(0,Math.max(3,places||3));
-  return`<div class="podblock"><div class="podlabel">${esc(label)}</div><ol class="podlist">${rows.map(w=>`<li class="pr r${w.rank}"><span class="medal m${w.rank<=3?w.rank:0}">${w.rank}</span><span class="pw"><b>${nameCell(w)}</b><small>${esc(w.club||"")}${w.year?" · "+w.year:""}</small></span><span class="ptime">${fmt(w.res).replace(/^00:/,"")}</span></li>`).join("")}</ol></div>`;
+  return`<div class="podblock"><div class="podlabel">${esc(label)}</div><ol class="podlist">${rows.map(w=>`<li class="pr r${w.rank}"><span class="medal m${w.rank<=3?w.rank:0}">${w.rank}</span><span class="pw"><b>${nameCell(w)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+w.year:""}</small></span><span class="ptime">${fmt(w.res).replace(/^00:/,"")}</span></li>`).join("")}</ol></div>`;
 }
 function refYearDefault(){const c=state.comps.find(x=>x.date);const m=c&&c.date.match(/(\d{4})/);return m?+m[1]:new Date().getFullYear()}
 const FFN_CATS=[{name:"Avenirs",min:0,max:10},{name:"Benjamins",min:11,max:12},{name:"Juniors",min:13,max:17},{name:"Seniors",min:18,max:""}];
@@ -828,8 +841,8 @@ function renderTeam(rule,html){
   const tr=teamRanking(rule);const top=tr.slice(0,3),order=[top[1],top[0],top[2]];
   html+=`<div class="session">${secTitle("Classement des équipes",plural(tr.length,"équipe")+" · points FFN additionnés")}`;
   if(!tr.length){$("#pub-body").innerHTML=html+`<p class="empty">Aucun résultat pour le moment.</p></div>`;return}
-  html+=`<div class="podblock" style="max-width:520px;margin-bottom:10px"><div class="podium">${order.map((c,i)=>{if(!c)return"<div></div>";const pl=[2,1,3][i];return`<div class="pod p${pl}"><div class="medal">${pl}</div><div class="pnm">${esc(c.club)}</div><div class="ptime">${c.total.toLocaleString("fr-FR")} pts</div><div class="stepb"></div></div>`}).join("")}</div></div>
-  <div class="list">${tr.map(c=>{const open=state.open["t"+c.club];return`<div class="lane"><button class="row" data-open="t${esc(c.club)}" aria-expanded="${!!open}"><span class="time">${c.rank}</span><span class="ev"><b>${esc(c.club)}</b><span class="sub">${plural(c.items.length,"performance")}</span></span><span class="tpts">${c.total.toLocaleString("fr-FR")} <small>pts</small></span></button>
+  html+=`<div class="podblock" style="max-width:520px;margin-bottom:10px"><div class="podium">${order.map((c,i)=>{if(!c)return"<div></div>";const pl=[2,1,3][i];return`<div class="pod p${pl}"><div class="medal">${pl}</div><div class="pnm">${logo(c.club,1)}<br>${esc(c.club)}</div><div class="ptime">${c.total.toLocaleString("fr-FR")} pts</div><div class="stepb"></div></div>`}).join("")}</div></div>
+  <div class="list">${tr.map(c=>{const open=state.open["t"+c.club];return`<div class="lane"><button class="row" data-open="t${esc(c.club)}" aria-expanded="${!!open}"><span class="time">${c.rank}</span><span class="ev"><b>${logo(c.club)}${esc(c.club)}</b><span class="sub">${plural(c.items.length,"performance")}</span></span><span class="tpts">${c.total.toLocaleString("fr-FR")} <small>pts</small></span></button>
    ${open?`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points obtenus</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur / équipe</th><th>Temps</th><th>Points</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`:""}</div>`}).join("")}</div>
   </div>`;
   $("#pub-body").innerHTML=html;
@@ -874,7 +887,7 @@ function renderPart(){
   }).filter(c=>c.shown.length);
   const nSw=list.reduce((a,c)=>a+c.shown.length,0);
   html+=`<div class="session">${secTitle(q?"Recherche":"Clubs",plural(list.length,"club")+" · "+plural(nSw,"nageur"))}<div class="list">
-   ${list.map(c=>`<div class="lane"><button class="row clubrow" data-open="c${esc(c.name)}" aria-expanded="${c.open}"><span class="ev"><b>${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</span></span><span class="chev" aria-hidden="true">▼</span></button>
+   ${list.map(c=>`<div class="lane"><button class="row clubrow" data-open="c${esc(c.name)}" aria-expanded="${c.open}"><span class="ev"><b>${logo(c.name)}${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</span></span><span class="chev" aria-hidden="true">▼</span></button>
      ${c.open?`<div class="inner"><div class="list">${c.shown.map(p=>`<button class="prow inprow" data-swimmer="${p.sw.iuf}"><b>${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")} ›</span></button>`).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
   $("#pub-body").innerHTML=html;
 }
@@ -893,7 +906,7 @@ function renderClub(){
   const list=Object.values(clubs).filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
   let html="";
   if(state.sel&&clubs[state.sel]){const c=clubs[state.sel];
-    html=`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(c.name)}</h3><div class="meta">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</div></div><button class="btn small ghost" data-close="1">Fermer</button></div><div class="list">
+    html=`<div class="detail" id="detail"><div class="detail-head"><div><h3>${logo(c.name,1)}${esc(c.name)}</h3><div class="meta">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</div></div><button class="btn small ghost" data-close="1">Fermer</button></div><div class="list">
     ${c.sw.sort((a,b)=>a.sw.name.localeCompare(b.sw.name)).map(p=>`<button class="prow" data-swimmer="${p.sw.iuf}"><b>${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")}</span></button>`).join("")}</div></div>`}
   html+=`<div class="session">${secTitle("Clubs",plural(list.length,"club"))}<div class="list">
    ${list.map(c=>`<button class="prow" data-club="${esc(c.name)}"><b>${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")}</span><span class="num">${plural(c.eng,"engagement")}</span></button>`).join("")||`<p class="empty">Aucun club ne correspond.</p>`}</div></div>`;
@@ -928,7 +941,14 @@ async function loadAudience(){AUD.loading=true;AUD.err=null;
   try{AUD.data=await api("/api/admin/audience?days="+AUD.days)}catch(e){AUD.err=e.message}
   AUD.loading=false;renderAudience()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-aud]");if(!b)return;AUD.days=+b.dataset.aud;AUD.data=null;renderAudience()});
-function renderAdmin(){
+function allClubs(){const set=new Set();for(const s of Object.values(SWIMMERS))if(s.club)set.add(clubKey(s.club));for(const ev of Object.values(EVENTS))for(const w of (ev.entries||[]).concat(ev.results||[]))if(w.club)set.add(clubKey(w.club));for(const k of Object.keys(LOGOS))set.add(k);return[...set].sort((a,b)=>a.localeCompare(b))}
+function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs();const n=cl.filter(c=>LOGOS[c]).length;$("#h-logos").textContent=cl.length?n+"/"+cl.length:"";
+  el.innerHTML=cl.length?cl.map((c,i)=>`<div class="logorow"><span class="lbox">${LOGOS[c]?`<img class="clogo big" style="margin:0" src="${LOGOS[c]}" alt="">`:"aucun"}</span><b>${esc(c)}</b><label class="btn small ghost">${LOGOS[c]?"Changer":"Ajouter"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-logo="${i}" hidden></label>${LOGOS[c]?`<button class="btn small ghost" data-logorm="${i}">Retirer</button>`:""}</div>`).join(""):`<p class="empty">Aucun club pour l'instant.</p>`;
+  el.querySelectorAll("[data-logo]").forEach(inp=>inp.onchange=async()=>{const f=inp.files[0];if(!f)return;try{const d=await shrink(f);await api("/api/logo",{method:"PUT",body:JSON.stringify({club:cl[+inp.dataset.logo],data:d})});LOGOS[cl[+inp.dataset.logo]]=d;renderLogos();render()}catch(e){alertMsg(e.message)}});
+  el.querySelectorAll("[data-logorm]").forEach(b=>b.onclick=async()=>{const c=cl[+b.dataset.logorm];try{await api("/api/logo",{method:"PUT",body:JSON.stringify({club:c,data:null})});delete LOGOS[c];renderLogos();render()}catch(e){alertMsg(e.message)}})}
+function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
+function shrink(file){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const S=96,r=Math.min(S/img.width,S/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>40000?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
+function renderAdmin(){renderLogos();
   $("#ev-name").value=state.name;$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
@@ -1081,7 +1101,7 @@ $("#timing").onchange=e=>{state.timing=e.target.value;render()};
 document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.dataset.delay;if(d){state.delay[d]=+e.target.value||0;render()}});
 {const y=document.getElementById("yr");if(y)y.textContent=new Date().getFullYear()}
 if(location.hash==="#admin")openAdmin();
-loadPublic().then(()=>{scTick()});setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
+loadLogos();loadPublic().then(()=>{scTick()});setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
 </script>
 <!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
 </body>
