@@ -1,4 +1,4 @@
-const {JSDOM}=require('jsdom');const fs=require('fs');const fx=require('./fixture.js');
+const {JSDOM}=require('jsdom');const fs=require('fs');const fx=require('./fixture.cjs');
 const html=fs.readFileSync(__dirname+'/../public/index.html','utf8');
 const d=new JSDOM(html,{runScripts:'dangerously',pretendToBeVisual:true,url:'https://live-fan.test/',beforeParse(w){
   w.scrollTo=()=>{};w.fetch=async(u,o={})=>{const ok=(b)=>({ok:true,status:200,json:async()=>b});
