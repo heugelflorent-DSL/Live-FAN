@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#c8102e">
 <title>Live FAN</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -273,6 +279,8 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .login{max-width:380px;margin:40px auto;padding:20px;display:grid;gap:12px}.login h2{margin:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+</head>
+<body>
 
 <header class="top">
   <div class="wrap">
@@ -889,3 +897,5 @@ document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.datase
 if(location.hash==="#admin")openAdmin();
 loadPublic().then(()=>{scTick()});setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
 </script>
+</body>
+</html>
