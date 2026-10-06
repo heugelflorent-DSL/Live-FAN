@@ -15,7 +15,7 @@ function check(tag){const t=q('main').textContent+q('header').textContent;for(co
   for(const v of ['home','prog','res','pod','rank','part']){const b=q('[data-view='+v+']');if(!b||b.hidden){console.log('hidden',v);continue}b.click();
     qa('#pub-body [data-open]').map(x=>x.dataset.open).slice(0,6).forEach(k=>{const e=q('[data-open="'+k+'"]');e&&e.click()});
     qa('#pub-body [data-sp]').slice(0,2).forEach(x=>x.click());qa('[data-rsex]').forEach(x=>x.click());
-    const s=q('#pub-body [data-swimmer]');s&&s.click();check(v);console.log(v,q('#pub-body').textContent.replace(/\s+/g,' ').slice(0,160))}
+    const s=q('#pub-body [data-swimmer]');s&&s.click();check(v);if(v==='res')console.log('DIFS',w.diffHtml(61.5,62.74),w.diffHtml(63,62.7),qa('#pub-body .rk-res').length,qa('#pub-body .dif').map(x=>x.textContent).slice(0,5));console.log(v,q('#pub-body').textContent.replace(/\s+/g,' ').slice(0,160))}
   q('#admin-btn').click();await tick();q('#login-pw').value='bad';q('#login-form').dispatchEvent(new w.Event('submit'));await tick();console.log('login bad:',q('#login-msg').textContent);
   q('#login-pw').value='pw';q('#login-form').dispatchEvent(new w.Event('submit'));await tick();await tick();check('admin');
   console.log('admin order items',qa('.item').length,'h2',q('#h2').textContent,'| kpis',q('#dash-kpis').textContent.replace(/\s+/g,' '));

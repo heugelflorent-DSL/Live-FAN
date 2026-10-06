@@ -111,6 +111,7 @@ tbody tr:nth-child(1) td.rank{color:var(--gold)}
 td a,.pnm a,.compo a,.podextra a{color:#fff;text-decoration:none;border-bottom:1px dotted rgba(255,255,255,.45)}
 tr.hit td{background:rgba(253,230,138,.16)}
 .club{color:var(--muted);font-size:13px}
+.dif{font-variant-numeric:tabular-nums;font-weight:600}.dif.dn{color:#0f7a3d}.dif.up{color:#8a6d3b}
 .clogo{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;background:#fff}.clogo.big{width:44px;height:44px}
 .logorow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line,#e5e1db)}.logorow .lbox{width:44px;height:44px;display:grid;place-items:center;background:#f4f2ef;border-radius:8px;font-size:11px;color:var(--muted)}.logorow b{flex:1;font-weight:600}
 @media (max-width:560px){.hide-s{display:none}}
@@ -634,6 +635,7 @@ function schedule(){
 }
 function splitsHtml(ev,w){const sp=w.splits||[];if(sp.length<2)return"";
   return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.dist} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
+function diffHtml(res,entry){if(!res||!entry)return"";const d=Math.round((res-entry)*100)/100;if(!isFinite(d))return"";const t=Math.abs(d).toFixed(2).replace(".",",");return d<0?`<span class="dif dn" title="Plus rapide que le temps d'engagement">−${t}</span>`:d>0?`<span class="dif up" title="Plus lent que le temps d'engagement">+${t}</span>`:`<span class="dif">=</span>`}
 function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test(x.status)))}
 
 /* ---------- échanges avec le serveur ---------- */
@@ -795,13 +797,13 @@ function catMedals(ev){
 }
 function renderRanking(ev,q){
   const relay=/^4x/i.test(ev.name),sp=comp(ev.comp).splits;
-  const rows=ranking(ev);const meds=catMedals(ev);
+  const rows=ranking(ev);const meds=catMedals(ev);const ent={};for(const e of ev.entries||[])if(e.time)ent[e.iuf||e.name]=e.time;
   return`<div class="inner"><p class="forcomp">Résultats ${esc(comp(ev.comp).name)}</p><ol class="rk-list">
   ${rows.map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k],has=!w.dsq&&sp&&(w.splits||[]).length>1;
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}">${w.rank??"—"}</span>
-      <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
-      <span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):(w.points?w.points+" pts":"")}</small></span>
+      <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
+      <span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",diffHtml(w.res,ent[w.iuf||w.name])].filter(Boolean).join(" · ")}</small></span>
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
       ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w)}</div>`:""}
     </li>`}).join("")}
