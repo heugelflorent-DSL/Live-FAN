@@ -554,7 +554,7 @@ function renderHead(){
   $("#search").placeholder={rank:"Rechercher une équipe",home:"",prog:"Rechercher un nageur ou un club",pod:"Rechercher un nageur ou un club",res:"Rechercher un nageur ou un club",part:"Rechercher un nageur ou un club",club:"Rechercher un club"}[state.view];
 }
 function renderPublic(){
-  renderHead();$("#pub-unpub").hidden=state.published;
+  renderHead();$("#pub-unpub").hidden=state.published;$("#navbar").hidden=!state.published;$(".legend").hidden=!state.published;
   if(!state.published){$("#pub-body").innerHTML="";return}
   ({rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,part:renderPart,club:renderClub})[state.view]();
 }
