@@ -31,13 +31,17 @@ function compDate(meta) {
 const hToMin = (t) => { const m = String(t || "").match(/(\d{1,2})h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
 
 // ---------- stockage ----------
-async function load(env) {
-  const [c, d] = await Promise.all([env.KV.get("config", "json"), env.KV.get("data", "json")]);
+// Plusieurs événements : « main » garde les clés historiques, les autres ont leurs propres clés
+export const kk = (base, ev) => (ev && ev !== "main" ? `${base}:${ev}` : base);
+const EV_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
+async function listEvents(env) { return (await env.KV.get("events", "json")) || []; }
+async function load(env, ev = "main") {
+  const [c, d] = await Promise.all([env.KV.get(kk("config", ev), "json"), env.KV.get(kk("data", ev), "json")]);
   return { config: { ...DEFAULT_CONFIG, ...(c || {}) }, data: d || { comps: {}, queue: [], log: [] } };
 }
-async function saveData(env, data, before) {
+async function saveData(env, data, before, ev = "main") {
   const s = JSON.stringify(data);
-  if (s !== before) await env.KV.put("data", s);
+  if (s !== before) await env.KV.put(kk("data", ev), s);
 }
 
 // ---------- récupération ----------
@@ -148,19 +152,19 @@ async function runTask(task, data, now) {
   }
 }
 
-export async function cycle(env, { force = false } = {}) {
-  const { config, data } = await load(env);
+export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
+  const { config, data } = await load(env, ev);
   const before = JSON.stringify(data);
   const now = Date.now();
   const every = (config.scrape?.every ?? 2) * 60e3;
   if (!force) {
-    if (!config.comps.length) return;
-    if (!every) return; // récupération manuelle uniquement
-    if (data.lastRun && now - data.lastRun < every - 5e3) return;
+    if (!config.comps.length) return 0;
+    if (!every) return 0; // récupération manuelle uniquement
+    if (data.lastRun && now - data.lastRun < every - 5e3) return 0;
     // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
     if (finished(config, data, now) && !(data.queue || []).length) {
-      if (!data.finished) { data.finished = now; await saveData(env, data, JSON.stringify({})); }
-      return;
+      if (!data.finished) { data.finished = now; await saveData(env, data, JSON.stringify({}), ev); }
+      return 0;
     }
   }
   if (data.finished && !finished(config, data, now)) data.finished = null;
@@ -169,11 +173,11 @@ export async function cycle(env, { force = false } = {}) {
   let errors = 0, used = 0;
   const seen = new Set();
   // deux tours : le programme lu au premier tour permet de planifier les séries et résultats au second
-  for (let round = 0; round < 2 && used < BUDGET && !errors; round++) {
+  for (let round = 0; round < 2 && used < budget && !errors; round++) {
     const fromQueue = data.queue.length > 0;
     const tasks = (fromQueue ? data.queue : plan(config, data, now, live)).filter((t) => !seen.has(JSON.stringify(t)));
     if (!tasks.length) break;
-    const todo = tasks.slice(0, BUDGET - used);
+    const todo = tasks.slice(0, budget - used);
     if (fromQueue) data.queue = data.queue.slice(todo.length);
     for (const t of todo) {
       seen.add(JSON.stringify(t)); used++;
@@ -181,14 +185,15 @@ export async function cycle(env, { force = false } = {}) {
       catch (e) { errors++; data.error = String(e.message || e); data.errorAt = now; if (/indisponible/.test(data.error)) break; }
     }
   }
-  if (!used) return;
+  if (!used) return 0;
   data.lastRun = now;
   if (!errors) { data.lastOk = now; data.error = null; }
   // les horodatages seuls ne justifient pas une écriture KV (1 000 écritures/jour en gratuit) : on écrit si le contenu a changé
   const strip = (s) => s.replace(/"(lastRun|lastOk|progAt|heatsAt|resultsAt)":\d+,?/g, "");
   if (strip(JSON.stringify(data)) !== strip(before) || !data.savedAt || now - data.savedAt > 10 * 60e3) {
-    data.savedAt = now; await saveData(env, data, before);
+    data.savedAt = now; await saveData(env, data, before, ev);
   }
+  return used;
 }
 
 // ---------- API ----------
@@ -202,8 +207,8 @@ function authed(req, env) {
 }
 function publicConfig(cfg) { const { scrape, ...rest } = cfg; return rest; }
 
-async function rescrape(env, scope, what) {
-  const { config, data } = await load(env);
+async function rescrape(env, scope, what, ev = "main") {
+  const { config, data } = await load(env, ev);
   const before = JSON.stringify(data);
   const comps = scope?.startsWith("c") ? [scope.slice(1)] : config.comps;
   const reu = scope?.startsWith("r") ? +scope.slice(1) : null;
@@ -222,7 +227,7 @@ async function rescrape(env, scope, what) {
     }
   }
   data.queue = tasks; data.savedAt = 0;
-  await saveData(env, data, before);
+  await saveData(env, data, before, ev);
   return tasks.length;
 }
 
@@ -231,11 +236,23 @@ export default {
     const url = new URL(req.url);
     const p = url.pathname;
     if (!p.startsWith("/api/")) return env.ASSETS.fetch(req);
+    const ev = url.searchParams.get("e") || "main";
+    if (!EV_RE.test(ev)) return json({ error: "Événement inconnu." }, 404);
+    if (ev !== "main" && p !== "/api/admin/events" && !(await listEvents(env)).some((x) => x.id === ev)) return json({ error: "Événement inconnu." }, 404);
+    const ckey = (path) => new Request(url.origin + path + (path.includes("?") ? "&" : "?") + "e=" + ev);
+
+    // liste publique des événements (pour l'accueil et le partage)
+    if (p === "/api/events" && req.method === "GET") {
+      const all = [{ id: "main" }, ...(await listEvents(env))];
+      const out = [];
+      for (const x of all) { const c = await env.KV.get(kk("config", x.id), "json"); if (c && c.published) out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main" }); }
+      return json(out, 200, { "cache-control": "public, max-age=60" });
+    }
 
     if (p === "/api/state" && req.method === "GET") {
-      const cache = caches.default; const key = new Request(url.origin + "/api/state");
+      const cache = caches.default; const key = ckey("/api/state");
       const hit = await cache.match(key); if (hit) return hit;
-      const { config, data } = await load(env);
+      const { config, data } = await load(env, ev);
       const body = config.published
         ? { published: true, config: publicConfig(config), data: { comps: data.comps, lastOk: data.lastOk }, now: Date.now() }
         : { published: false, now: Date.now() };
@@ -246,8 +263,8 @@ export default {
 
     // Direct « Bassin » (Quantum) : salle temps réel. Le relais envoie les événements avec le mot de passe admin.
     if (p.startsWith("/api/pool/")) {
-      const { config } = await load(env);
-      const room = env.POOL.get(env.POOL.idFromName("bassin"));
+      const { config } = await load(env, ev);
+      const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));
       if (p === "/api/pool/event") {
         if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
@@ -261,7 +278,7 @@ export default {
     // Direct « Live FFN » : dernière série publiée et série suivante, relues au plus toutes les 30 s (cache)
     if (p === "/api/live" && req.method === "GET") {
       const c = url.searchParams.get("c") || "";
-      const { config } = await load(env);
+      const { config } = await load(env, ev);
       if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !authed(req, env))) return json({ error: "Direct non activé." }, 404);
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
@@ -279,10 +296,39 @@ export default {
     }
 
     if (!authed(req, env)) return json({ error: env.ADMIN_PASSWORD ? "Mot de passe incorrect." : "Le mot de passe admin n'est pas encore configuré dans Cloudflare (variable ADMIN_PASSWORD)." }, 401);
-    const purge = () => caches.default.delete(new Request(url.origin + "/api/state"));
+    const purge = () => Promise.all([caches.default.delete(ckey("/api/state")), caches.default.delete(new Request(url.origin + "/api/events"))]);
+
+    // gestion des événements (créer / renommer / supprimer)
+    if (p === "/api/admin/events") {
+      const list = await listEvents(env);
+      if (req.method === "GET") {
+        const out = [];
+        for (const x of [{ id: "main", name: "Événement principal" }, ...list]) { const c = await env.KV.get(kk("config", x.id), "json"); out.push({ id: x.id, name: (c && c.name) || x.name || "", published: !!(c && c.published), comps: (c && c.comps) || [] }); }
+        return json(out);
+      }
+      if (req.method === "POST") {
+        const { name = "", comps = [] } = await req.json();
+        let base = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "evenement";
+        let id = base, i = 2; while (id === "main" || list.some((x) => x.id === id)) id = `${base}-${i++}`;
+        list.push({ id, name: String(name).slice(0, 120), createdAt: Date.now() });
+        await env.KV.put("events", JSON.stringify(list));
+        const cfg = { ...DEFAULT_CONFIG, name: String(name).slice(0, 120), comps: comps.filter((c) => /^\d{3,7}$/.test(String(c))).map(String) };
+        await env.KV.put(kk("config", id), JSON.stringify(cfg));
+        if (cfg.comps.length) ctx.waitUntil(cycle(env, { force: true, ev: id }));
+        await caches.default.delete(new Request(url.origin + "/api/events"));
+        return json({ ok: true, id });
+      }
+      if (req.method === "DELETE") {
+        if (ev === "main") return json({ error: "L'événement principal ne peut pas être supprimé." }, 400);
+        await env.KV.put("events", JSON.stringify(list.filter((x) => x.id !== ev)));
+        await Promise.all([env.KV.delete(kk("config", ev)), env.KV.delete(kk("data", ev))]);
+        await purge();
+        return json({ ok: true });
+      }
+    }
 
     if (p === "/api/admin/state") {
-      const { config, data } = await load(env);
+      const { config, data } = await load(env, ev);
       return json({ config, data, now: Date.now() });
     }
     if (p === "/api/logo" && req.method === "PUT") {
@@ -299,23 +345,23 @@ export default {
     if (p === "/api/config" && req.method === "PUT") {
       const body = await req.json();
       const cfg = { ...DEFAULT_CONFIG, ...body };
-      await env.KV.put("config", JSON.stringify(cfg));
+      await env.KV.put(kk("config", ev), JSON.stringify(cfg));
       await purge();
       // nouvelle compétition : on lance tout de suite la lecture de son programme
-      const { data } = await load(env);
-      if (cfg.comps.some((id) => !data.comps[id])) ctx.waitUntil(cycle(env, { force: true }).then(purge));
+      const { data } = await load(env, ev);
+      if (cfg.comps.some((id) => !data.comps[id])) ctx.waitUntil(cycle(env, { force: true, ev }).then(purge));
       return json({ ok: true });
     }
     if (p === "/api/refresh" && req.method === "POST") {
-      await cycle(env, { force: true }); await purge();
-      const { data } = await load(env);
+      await cycle(env, { force: true, ev }); await purge();
+      const { data } = await load(env, ev);
       return json({ ok: !data.error, lastOk: data.lastOk, error: data.error, queue: (data.queue || []).length });
     }
     if (p === "/api/rescrape" && req.method === "POST") {
       const { scope = "all", what = "all" } = await req.json();
-      const n = await rescrape(env, scope, what);
-      await cycle(env, { force: true }); await purge();
-      const { data } = await load(env);
+      const n = await rescrape(env, scope, what, ev);
+      await cycle(env, { force: true, ev }); await purge();
+      const { data } = await load(env, ev);
       return json({ ok: true, total: n, remaining: (data.queue || []).length, error: data.error });
     }
     if (p === "/api/admin/audience") return audience(env, url);
@@ -323,7 +369,16 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(cycle(env));
+    // chaque minute : tous les événements à tour de rôle, dans la limite de 45 pages (50 sous-requêtes max en gratuit)
+    ctx.waitUntil((async () => {
+      const ids = ["main", ...(await listEvents(env)).map((x) => x.id)];
+      const start = Math.floor(Date.now() / 60e3) % ids.length;
+      let left = 45;
+      for (let i = 0; i < ids.length && left > 0; i++) {
+        const ev = ids[(start + i) % ids.length];
+        try { left -= (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; } catch (e) { /* un événement en erreur ne bloque pas les autres */ }
+      }
+    })());
   },
 };
 
