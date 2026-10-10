@@ -723,28 +723,46 @@ function compRange(c){const t=(c.date||"").toLowerCase();const ends=[...t.matchA
 function liveOn(){if(state.live!=="ffn")return false;const d=new Date();d.setHours(12,0,0,0);return state.comps.some(c=>{const r=compRange(c);if(!r)return false;const a=new Date(r.start),b=new Date(r.end);a.setHours(0,0,0,0);b.setHours(23,59,0,0);return d>=a&&d<=b})}
 async function loadLive(){if(!liveOn())return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch("/api/live?c="+c.id,{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok)return;const j=await r.json();const old=LIVE[c.id];const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j}catch(_){}}));if(state.view==="live"&&!state.admin)render()}
 function lvSplits(w){const sp=w.splits||[];if(sp.length<2)return"";return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.d} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
+function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=null;
+  for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||ev.comp!==id)continue;const n=norm(ev.name+" "+(ev.round||""));if(t===n||t.startsWith(norm(ev.name)+" ")&&(!best||n.length>norm(best.name+" "+(best.round||"")).length))best=ev;if(t===n)return ev}
+  return best}
+function lvRows(rows,id,title){return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1;
+  return`<li class="rk-row"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
+  <span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
+  <span class="rk-res"><b>${esc(w.timeTxt||"—")}</b><small>${w.rank?esc(w.rank)+" au provisoire":""}</small></span>
+  ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
+  ${has&&o?`<div class="rk-sp">${lvSplits(w)}</div>`:""}</li>`}).join("")}</ol>`}
+function lvLanes(lanes){return`<ol class="rk-list">${lanes.map(w=>`<li class="rk-row ln-row"><span class="lane-n">${w.lane||"—"}</span><span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+esc(w.year):""}</small></span><span class="rk-res"><b>${w.entry!=null?fmt(w.entry):"—"}</b><small>engagement</small></span></li>`).join("")}</ol>`}
 function renderLive(){
-  let html="";const ids=state.comps.map(c=>c.id).filter(id=>LIVE[id]);
-  if(!ids.length){$("#pub-body").innerHTML=`<p class="empty">Connexion au direct du Live FFN…</p>`;return}
-  for(const id of ids){const L=LIVE[id],c=comp(id);
-    html+=`<div class="session">${secTitle(state.comps.length>1?esc(c.name):"En direct",esc(L.reunion||""))}`;
-    if(L.error){html+=`<p class="empty">Le direct du Live FFN ne répond pas pour le moment. Nouvel essai automatique.</p></div>`;continue}
-    const since=L.changedAt?Math.round((Date.now()-L.changedAt)/60000):null;
-    html+=`<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
-    if(since!=null&&since>=8)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
-    const cur=L.cur,nx=L.next;
-    if(cur&&cur.rows.length){html+=`<div class="card lv-card"><span class="lv-tag">Dernière série terminée</span><h3>${esc(cur.event)}</h3><div class="sub">Série ${cur.heat||"?"} / ${cur.of||"?"}</div>
-      <ol class="rk-list">${cur.rows.map(w=>{const k="L|"+id+"|"+cur.title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1;
-        return`<li class="rk-row"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
-        <span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
-        <span class="rk-res"><b>${esc(w.timeTxt||"—")}</b><small>${w.rank?esc(w.rank)+" au provisoire":""}</small></span>
-        ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
-        ${has&&o?`<div class="rk-sp">${lvSplits(w)}</div>`:""}</li>`}).join("")}</ol></div>`}
-    if(nx&&nx.lanes.length){html+=`<div class="card lv-card"><span class="lv-tag">Série suivante${nx.hm?" · vers "+esc(nx.hm.replace(":","h")):""}</span><h3>${esc(nx.event)}</h3><div class="sub">Série ${nx.heat||"?"} / ${nx.of||"?"}</div>
-      <ol class="rk-list">${nx.lanes.map(w=>`<li class="rk-row ln-row"><span class="lane-n">${w.lane||"—"}</span><span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span><span class="rk-res"><b>${w.entry?fmt(w.entry):"—"}</b><small>engagement</small></span></li>`).join("")}</ol></div>`}
-    if(L.prog&&L.prog.length)html+=`<div class="card lv-card"><span class="lv-tag">Programme de la réunion</span><ul class="lv-prog">${L.prog.map(p=>`<li class="${p.state}">${p.state==="live"?`<span class="lv-badge">EN COURS</span>`:p.state==="done"?"✓":""}<span>${esc(p.text)}</span></li>`).join("")}</ul></div>`;
-    html+=`</div>`}
-  html+=`<p class="msg" style="text-align:center">Données du direct Live FFN, publiées série par série. Seuls les résultats publiés sur ffnatation.fr font foi.</p>`;
+  const ids=state.comps.map(c=>c.id).filter(id=>LIVE[id]&&!LIVE[id].error);
+  if(!ids.length){$("#pub-body").innerHTML=`<p class="empty">${state.comps.some(c=>LIVE[c.id])?"Le direct du Live FFN ne répond pas pour le moment. Nouvel essai automatique.":"Connexion au direct du Live FFN…"}</p>`;return}
+  const order=allKeys(),pos=k=>order.indexOf(k);
+  // épreuve en cours de chaque compétition, replacée dans le programme fusionné
+  const cand=ids.map(id=>{const L=LIVE[id];const ev=L.cur&&liveMatch(id,L.cur.event);return{id,L,ev,p:ev?pos(ev.key):-1}}).filter(x=>x.L.cur&&x.L.cur.rows.length);
+  const cur=cand.filter(x=>x.p>=0).sort((a,b)=>b.p-a.p||(b.L.changedAt||0)-(a.L.changedAt||0))[0]||cand[0];
+  let html="";const multi=state.comps.length>1;
+  if(!cur){$("#pub-body").innerHTML=`<p class="empty">Aucune série publiée pour le moment sur le direct du Live FFN.</p>`;return}
+  const L=cur.L,since=Math.min(...ids.map(id=>LIVE[id].changedAt?Math.round((Date.now()-LIVE[id].changedAt)/60000):0));
+  html+=`<div class="session">${secTitle("En direct",esc(L.reunion||""))}<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
+  if(since>=8)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
+  html+=`<div class="card lv-card"><span class="lv-tag">Dernière série terminée</span><h3>${esc(cur.ev?cur.ev.name:L.cur.event)}</h3><div class="sub">${multi?compBadge(cur.id)+" · ":""}Série ${L.cur.heat||"?"} / ${L.cur.of||"?"}</div>${lvRows(L.cur.rows,cur.id,L.cur.title)}</div>`;
+  // série suivante selon le programme fusionné
+  let nx=null;
+  if(L.cur.heat&&L.cur.of&&L.cur.heat<L.cur.of&&L.next&&L.next.lanes.length)nx={comp:cur.id,name:cur.ev?cur.ev.name:L.next.event,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes};
+  else if(cur.p>=0){const sch=schedule(),done=doneSet();const k=order.slice(cur.p+1).find(k=>!done.has(k)&&!EVENTS[k].provisional);
+    if(k){const ev=EVENTS[k],L2=LIVE[ev.comp];const m2=L2&&L2.next&&liveMatch(ev.comp,L2.next.event);
+      if(m2&&m2.key===k&&L2.next.lanes.length)nx={comp:ev.comp,name:ev.name,heat:L2.next.heat,of:L2.next.of,hm:L2.next.hm?L2.next.hm.replace(":","h"):null,lanes:L2.next.lanes};
+      else{const se=ev.series[0]||{n:1,swimmers:[]};nx={comp:ev.comp,name:ev.name,heat:se.n,of:ev.series.length,hm:sch[k]?"~"+hm(sch[k].start):null,lanes:se.swimmers.map(w=>({lane:w.lane,name:w.name,club:w.club,year:w.year,entry:w.time}))}}}}
+  else if(L.next&&L.next.lanes.length)nx={comp:cur.id,name:L.next.event,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes};
+  if(nx)html+=`<div class="card lv-card"><span class="lv-tag">Série suivante${nx.hm?" · vers "+esc(nx.hm):""}</span><h3>${esc(nx.name)}</h3><div class="sub">${multi?compBadge(nx.comp)+" · ":""}Série ${nx.heat||"?"} / ${nx.of||"?"}</div>${nx.lanes.length?lvLanes(nx.lanes):`<p class="msg">Composition pas encore publiée.</p>`}</div>`;
+  // programme fusionné de la réunion
+  if(cur.ev){const s=cur.ev.sess,sch=schedule(),done=doneSet();const ks=(state.order[s]||[]).filter(k=>EVENTS[k]);
+    html+=`<div class="card lv-card"><span class="lv-tag">Programme de la réunion</span><ul class="lv-prog">${ks.map(k=>{const ev=EVENTS[k];
+      if(ev.type==="pause")return`<li class="note"><span>${sch[k]?hm(sch[k].start)+" · ":""}${esc(ev.name||"Pause")}</span></li>`;
+      const st=k===cur.ev.key?"live":(done.has(k)||pos(k)<cur.p)?"done":"todo";
+      return`<li class="${st}">${st==="live"?`<span class="lv-badge">EN COURS</span>`:st==="done"?"✓":`<span>${sch[k]?hm(sch[k].start):""}</span>`}<span>${esc(ev.name)}${multi?" "+compBadge(ev.comp):""}</span></li>`}).join("")}</ul></div>`}
+  else if(L.prog&&L.prog.length)html+=`<div class="card lv-card"><span class="lv-tag">Programme de la réunion</span><ul class="lv-prog">${L.prog.map(p=>`<li class="${p.state}">${p.state==="live"?`<span class="lv-badge">EN COURS</span>`:p.state==="done"?"✓":""}<span>${esc(p.text)}</span></li>`).join("")}</ul></div>`;
+  html+=`</div><p class="msg" style="text-align:center">Données du direct Live FFN, publiées série par série${multi?", replacées dans le programme fusionné":""}. Seuls les résultats publiés sur ffnatation.fr font foi.</p>`;
   $("#pub-body").innerHTML=html;
 }
 function renderHome(){
