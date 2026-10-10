@@ -4,7 +4,20 @@ Le relais écoute la sortie série du Quantum (protocole **OSM6**) et transmet e
 série prête, départ, temps de réaction, passages, arrivées et fin officielle.
 **Il ne fait qu'écouter** : rien n'est jamais envoyé vers le chronométrage.
 
-## Matériel
+## Sans aucun matériel (à essayer en premier)
+
+Le logiciel Quantum tourne sur un PC Windows : on peut lui faire envoyer la sortie OSM6 **dans un port série virtuel**
+et lire ce port avec le relais, sur le même PC. Aucun câble, aucun adaptateur.
+
+1. Sur le PC du Quantum, installer **com0com** (gratuit, « Null-modem emulator ») : il crée une paire de ports reliés, par ex. `COM20 ↔ COM21`.
+2. Dans Quantum, onglet **I/Os** : ajouter une ligne **« DH OSM6 »** et choisir **COM20** comme port.
+3. Lancer le relais sur le même PC : `python schwimme_relais.py --port COM21`
+4. Le PC doit avoir internet (wifi de la piscine ou partage de connexion d'un téléphone).
+
+Si Quantum propose une sortie **réseau** (UDP/TCP) au lieu d'un port série, le relais sait aussi l'écouter :
+`python schwimme_relais.py --reseau udp:4000` (ou `tcp:4000`, ou `tcp:IP:PORT`).
+
+## Matériel (si le PC du Quantum ne peut pas être utilisé)
 
 | Élément | Détail |
 |---|---|

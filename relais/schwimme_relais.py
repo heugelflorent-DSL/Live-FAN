@@ -131,6 +131,30 @@ def serial_source(port, settings):
         except Exception as e:
             log(f"✗ Port {port} : {e}. Nouvel essai dans 5 s"); time.sleep(5)
 
+def net_source(spec):
+    """Réception réseau : 'udp:26801' (écoute UDP) ou 'tcp:26800' (écoute TCP) ou 'tcp:192.168.1.10:4000' (connexion)."""
+    import socket
+    kind, *rest = spec.split(":")
+    if kind == "udp":
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("0.0.0.0", int(rest[-1]))); log(f"Écoute UDP sur le port {rest[-1]}…")
+        while True:
+            d, _ = s.recvfrom(4096); yield d, time.time()
+    while True:
+        try:
+            if len(rest) == 2:
+                c = socket.create_connection((rest[0], int(rest[1])), timeout=10); log(f"Connecté à {rest[0]}:{rest[1]}")
+            else:
+                srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind(("0.0.0.0", int(rest[0]))); srv.listen(1)
+                log(f"En attente d'une connexion TCP sur le port {rest[0]}…"); c, addr = srv.accept(); log(f"Connexion de {addr[0]}")
+            c.settimeout(None)
+            while True:
+                d = c.recv(4096)
+                if not d: raise ConnectionError("connexion fermée")
+                yield d, time.time()
+        except Exception as e:
+            log(f"✗ Réseau : {e}. Nouvel essai dans 5 s"); time.sleep(5)
+
 def replay_source(path, speed):
     rows = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
     t0, r0 = time.time(), rows[0]["ts"] if rows else 0
@@ -165,6 +189,7 @@ def demo_source(event=1, heat=1, lanes=(1, 2, 3, 4, 5, 6, 7, 8), laps=4):
 def main():
     ap = argparse.ArgumentParser(description="Relais Schwimme Direct pour Quantum (OSM6)")
     ap.add_argument("--port"); ap.add_argument("--reglages", default="9600,7,N,1", help="vitesse,bits,parité,arrêt (défaut 9600,7,N,1)")
+    ap.add_argument("--reseau", help="au lieu d'un port série : udp:PORT, tcp:PORT (écoute) ou tcp:IP:PORT")
     ap.add_argument("--site", default=SITE); ap.add_argument("--ports", action="store_true", help="liste les ports série")
     ap.add_argument("--demo", action="store_true"); ap.add_argument("--replay"); ap.add_argument("--vitesse", type=float, default=1.0)
     ap.add_argument("--capture", action="store_true", help="enregistre seulement, sans rien envoyer au site")
@@ -174,16 +199,16 @@ def main():
         from serial.tools import list_ports
         for p in list_ports.comports(): print(p.device, "—", p.description)
         return
-    if not (a.port or a.demo or a.replay): ap.print_help(); return
+    if not (a.port or a.reseau or a.demo or a.replay): ap.print_help(); return
     sender = None
     if not a.capture:
         key = os.environ.get("SCHWIMME_CLE") or getpass.getpass("Mot de passe admin du site : ")
         sender = Sender(a.site, key); sender.start()
     journal = None
-    if a.port:
+    if a.port or a.reseau:
         name = a.journal or datetime.now().strftime("journal-%Y%m%d-%H%M.jsonl")
         journal = open(name, "a", encoding="utf-8"); log(f"Journal brut : {os.path.abspath(name)}")
-    src = demo_source() if a.demo else replay_source(a.replay, a.vitesse) if a.replay else serial_source(a.port, a.reglages)
+    src = demo_source() if a.demo else replay_source(a.replay, a.vitesse) if a.replay else net_source(a.reseau) if a.reseau else serial_source(a.port, a.reglages)
     try: run(src, sender, journal)
     except KeyboardInterrupt: pass
     if sender:
