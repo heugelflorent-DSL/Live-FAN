@@ -111,6 +111,12 @@ tbody tr:nth-child(1) td.rank{color:var(--gold)}
 td a,.pnm a,.compo a,.podextra a{color:#fff;text-decoration:none;border-bottom:1px dotted rgba(255,255,255,.45)}
 tr.hit td{background:rgba(253,230,138,.16)}
 .club{color:var(--muted);font-size:13px}
+.livedot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d0202f;margin-right:6px;vertical-align:middle;animation:lp 1.6s infinite}@keyframes lp{50%{opacity:.25}}
+.lv-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;margin:4px 0 10px}.lv-head small{color:var(--muted)}
+.lv-warn{background:#fff4e5;border:1px solid #f0c27a;color:#7a4b00;border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:14px}
+.lv-card{margin-bottom:14px}.lv-card h3{margin:0 0 2px;font-size:20px}.lv-tag{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--red-d,#b3121f)}
+.lv-prog{list-style:none;margin:0;padding:0;font-size:14px}.lv-prog li{display:flex;gap:10px;padding:6px 2px;border-top:1px solid var(--line)}.lv-prog li.done{color:var(--muted)}.lv-prog li.live{font-weight:700}.lv-prog li.note{color:var(--muted);font-style:italic}
+.lv-badge{background:#d0202f;color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:700;letter-spacing:.5px}
 .dif{font-variant-numeric:tabular-nums;font-weight:600}.dif.dn{color:#0f7a3d}.dif.up{color:#8a6d3b}
 .clogo{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;background:#fff}.clogo.big{width:44px;height:44px}
 .logorow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line,#e5e1db)}.logorow .lbox{width:44px;height:44px;display:grid;place-items:center;background:#f4f2ef;border-radius:8px;font-size:11px;color:var(--muted)}.logorow b{flex:1;font-weight:600}
@@ -402,6 +408,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
   <div class="wrap">
     <nav class="tabs" id="subnav" aria-label="Sections">
       <button data-view="home" aria-selected="true">Accueil</button>
+      <button data-view="live" aria-selected="false" hidden><span class="livedot"></span>Direct</button>
       <button data-view="prog" aria-selected="false">Programme</button>
       <button data-view="res" aria-selected="false">Résultats</button>
       <button data-view="pod" aria-selected="false">Podiums</button>
@@ -450,6 +457,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
           <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <label for="ev-progdate">Publication du programme prévue le<input class="field" type="date" id="ev-progdate"><span class="msg" style="font-weight:400">Vide = 3 jours avant la compétition</span></label></div>
+          <label for="ev-live">Direct pendant la compétition<select class="field" id="ev-live"><option value="off">Désactivé</option><option value="ffn">Live FFN : série par série, sans matériel</option><option value="bassin" disabled>Bassin : branché sur le Quantum (bientôt)</option></select><span class="msg" style="font-weight:400">L'onglet « Direct » apparaît les jours de compétition.</span></label>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button></div>
           <p class="msg" id="link-msg">Ajoute autant de compétitions que nécessaire.</p>
           <div id="comp-list" style="display:grid;gap:6px"></div>
@@ -540,7 +548,7 @@ function defaultDur(name){const d=parseInt(name)||100;return {25:25,50:45,100:95
 function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m[2]):parseInt(name)}
 
 function build(cfg,data){
-  state.name=cfg.name||"";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
+  state.name=cfg.name||"";state.live=cfg.live||"off";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
@@ -601,7 +609,7 @@ function build(cfg,data){
 }
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
-  return{name:state.name,engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
+  return{name:state.name,live:state.live||"off",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
     rankings:state.podRules,infos:state.infos,published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -673,7 +681,7 @@ function renderHead(){
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
   $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
   const sel=$("#filter-comp");const cur=sel.value;sel.innerHTML=`<option value="">Toutes les compétitions</option>`+state.comps.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");sel.value=state.comps.find(c=>c.id===cur)?cur:"";
-  const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;if(!hasTeam&&state.view==="rank")state.view="home";const hasPod=state.podRules.some(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));$('[data-view=pod]').hidden=!hasPod;if(!hasPod&&state.view==="pod")state.view="home";
+  const hasLive=liveOn();$('[data-view=live]').hidden=!hasLive;if(!hasLive&&state.view==="live")state.view="home";const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;if(!hasTeam&&state.view==="rank")state.view="home";const hasPod=state.podRules.some(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));$('[data-view=pod]').hidden=!hasPod;if(!hasPod&&state.view==="pod")state.view="home";
   sel.hidden=state.comps.length<2||state.view==="pod"||state.view==="rank";$("#filters").hidden=state.view==="home";
   document.querySelectorAll("#subnav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===state.view));
   $("#navbar").hidden=state.admin;
@@ -682,7 +690,7 @@ function renderHead(){
 function renderPublic(){
   renderHead();$("#pub-unpub").hidden=state.published;$("#navbar").hidden=!state.published;$(".legend").hidden=!state.published;
   if(!state.published){$("#pub-body").innerHTML="";return}
-  ({rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,part:renderPart,club:renderClub})[state.view]();
+  ({live:renderLive,rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,part:renderPart,club:renderClub})[state.view]();
 }
 function nl(t){return esc(t).replace(/\n/g,"<br>")}
 function teamRules(){return state.podRules.filter(r=>r.type==="team"&&r.comps.some(c=>comp(c)))}
@@ -709,6 +717,36 @@ function renderRank(){
   const tv=$("#tv-btn");if(tv)tv.onclick=()=>{document.body.classList.toggle("tv");tv.textContent=document.body.classList.contains("tv")?"Quitter le plein écran":"Plein écran";try{document.body.classList.contains("tv")?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}};
 }
 function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`}
+/* ---------- Direct (Live FFN, série par série) ---------- */
+let LIVE={};
+function compRange(c){const t=(c.date||"").toLowerCase();const ends=[...t.matchAll(/(\d{1,2})\s+([a-zéûô]+)\s+(\d{4})/g)].filter(m=>MOIS.includes(m[2]));if(!ends.length)return null;const e=ends[ends.length-1];const end=new Date(+e[3],MOIS.indexOf(e[2]),+e[1]);const f=t.match(/\b(\d{1,2})\b/);let start=new Date(end);if(f&&+f[1]!==+e[1]){const st=ends.length>1?ends[0]:null;start=st?new Date(+st[3],MOIS.indexOf(st[2]),+st[1]):new Date(end.getFullYear(),end.getMonth(),+f[1]);if(start>end)start.setMonth(start.getMonth()-1)}return{start,end}}
+function liveOn(){if(state.live!=="ffn")return false;const d=new Date();d.setHours(12,0,0,0);return state.comps.some(c=>{const r=compRange(c);if(!r)return false;const a=new Date(r.start),b=new Date(r.end);a.setHours(0,0,0,0);b.setHours(23,59,0,0);return d>=a&&d<=b})}
+async function loadLive(){if(!liveOn())return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch("/api/live?c="+c.id,{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok)return;const j=await r.json();const old=LIVE[c.id];const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j}catch(_){}}));if(state.view==="live"&&!state.admin)render()}
+function lvSplits(w){const sp=w.splits||[];if(sp.length<2)return"";return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.d} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
+function renderLive(){
+  let html="";const ids=state.comps.map(c=>c.id).filter(id=>LIVE[id]);
+  if(!ids.length){$("#pub-body").innerHTML=`<p class="empty">Connexion au direct du Live FFN…</p>`;return}
+  for(const id of ids){const L=LIVE[id],c=comp(id);
+    html+=`<div class="session">${secTitle(state.comps.length>1?esc(c.name):"En direct",esc(L.reunion||""))}`;
+    if(L.error){html+=`<p class="empty">Le direct du Live FFN ne répond pas pour le moment. Nouvel essai automatique.</p></div>`;continue}
+    const since=L.changedAt?Math.round((Date.now()-L.changedAt)/60000):null;
+    html+=`<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
+    if(since!=null&&since>=8)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
+    const cur=L.cur,nx=L.next;
+    if(cur&&cur.rows.length){html+=`<div class="card lv-card"><span class="lv-tag">Dernière série terminée</span><h3>${esc(cur.event)}</h3><div class="sub">Série ${cur.heat||"?"} / ${cur.of||"?"}</div>
+      <ol class="rk-list">${cur.rows.map(w=>{const k="L|"+id+"|"+cur.title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1;
+        return`<li class="rk-row"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
+        <span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
+        <span class="rk-res"><b>${esc(w.timeTxt||"—")}</b><small>${w.rank?esc(w.rank)+" au provisoire":""}</small></span>
+        ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
+        ${has&&o?`<div class="rk-sp">${lvSplits(w)}</div>`:""}</li>`}).join("")}</ol></div>`}
+    if(nx&&nx.lanes.length){html+=`<div class="card lv-card"><span class="lv-tag">Série suivante${nx.hm?" · vers "+esc(nx.hm.replace(":","h")):""}</span><h3>${esc(nx.event)}</h3><div class="sub">Série ${nx.heat||"?"} / ${nx.of||"?"}</div>
+      <ol class="rk-list">${nx.lanes.map(w=>`<li class="rk-row ln-row"><span class="lane-n">${w.lane||"—"}</span><span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span><span class="rk-res"><b>${w.entry?fmt(w.entry):"—"}</b><small>engagement</small></span></li>`).join("")}</ol></div>`}
+    if(L.prog&&L.prog.length)html+=`<div class="card lv-card"><span class="lv-tag">Programme de la réunion</span><ul class="lv-prog">${L.prog.map(p=>`<li class="${p.state}">${p.state==="live"?`<span class="lv-badge">EN COURS</span>`:p.state==="done"?"✓":""}<span>${esc(p.text)}</span></li>`).join("")}</ul></div>`;
+    html+=`</div>`}
+  html+=`<p class="msg" style="text-align:center">Données du direct Live FFN, publiées série par série. Seuls les résultats publiés sur ffnatation.fr font foi.</p>`;
+  $("#pub-body").innerHTML=html;
+}
 function renderHome(){
   const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k)&&!EVENTS[k].provisional);let html="",top=engBanner(),teams="";
   if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
@@ -952,7 +990,7 @@ function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs(
 function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
 function shrink(file){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const S=96,r=Math.min(S/img.width,S/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>40000?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
 function renderAdmin(){renderLogos();
-  $("#ev-name").value=state.name;$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
+  $("#ev-name").value=state.name;$("#ev-live").value=state.live||"off";$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
@@ -995,7 +1033,7 @@ function renderAdmin(){renderLogos();
 function render(){$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
-$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render()});
+$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live")loadLive()});
 $("#admin-btn").onclick=()=>openAdmin();
 async function openAdmin(){
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
@@ -1026,6 +1064,7 @@ $("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.po
 $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
 $("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
 $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
+$("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
 $("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
 $("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};
 
@@ -1104,7 +1143,7 @@ $("#timing").onchange=e=>{state.timing=e.target.value;render()};
 document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.dataset.delay;if(d){state.delay[d]=+e.target.value||0;render()}});
 {const y=document.getElementById("yr");if(y)y.textContent=new Date().getFullYear()}
 if(location.hash==="#admin")openAdmin();
-loadLogos();loadPublic().then(()=>{scTick()});setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
+loadLogos();loadPublic().then(()=>{scTick();loadLive()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
 </script>
 <!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
 </body>

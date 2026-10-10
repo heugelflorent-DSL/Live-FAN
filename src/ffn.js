@@ -209,6 +209,7 @@ export const urls = {
   programme: (c) => `${BASE}/programme.php?competition=${c}&langue=fra`,
   heats: (c, e) => `${BASE}/programme.php?competition=${c}&langue=fra&cat_id=${e.cat}&epr_id=${e.epr}&typ_id=${e.typ}&num_epreuve=${e.num}`,
   results: (c, epr) => `${BASE}/resultats.php?competition=${c}&langue=fra&go=epreuve&epreuve=${epr}`,
+  live: (c) => `${BASE}/live.php?competition=${c}&langue=fra`,
   entries: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra`,
   home: (c) => `${BASE}/index.php?competition=${c}&langue=fra`,
 };
@@ -221,4 +222,64 @@ export function parseEntries(html) {
   if (/demain/i.test(t) && /publication de la liste/i.test(t)) return { days: 1, open: true };
   if (/propositions des engagements sont en cours/i.test(t)) return { days: null, open: true };
   return { days: null, open: false };
+}
+
+// --- Onglet « En direct » du Live FFN (live.php) : dernière série publiée, série suivante, programme ---
+function fullName(h) {
+  const n = (h.match(/<nobr>([\s\S]*?)<\/nobr>/) || [])[1];
+  if (n) return one(n).replace(/^Consultez l'ensemble des résultats de\s*/i, "").replace(/\s*Consultez les résultats des nageurs$/i, "").trim();
+  return one(h);
+}
+function liveSplits(h) {
+  const tb = (h.match(/<table class="split2?">([\s\S]*?)<\/table>/) || [])[1]; if (!tb) return [];
+  return rows(tb).map((tr) => {
+    const g = (c) => one((tr.match(new RegExp(`<td class="${c}">([\\s\\S]*?)</td>`)) || [])[1]);
+    const d = parseInt(g("distance")); const cum = toSec(g("split")); const lap = toSec(g("lap").replace(/[()]/g, ""));
+    return d && cum ? { d, cum, lap } : null;
+  }).filter(Boolean);
+}
+function block(html, from, to) {
+  const i = html.indexOf(from); if (i < 0) return "";
+  const j = to ? html.indexOf(to, i) : -1; return html.slice(i, j > 0 ? j : undefined);
+}
+export function parseLive(html) {
+  html = strip(html);
+  const out = { reunion: one((html.match(/class="liveReunionDate">([\s\S]*?)<\/div>/) || [])[1]), cur: null, next: null, prog: [] };
+  const cur = block(html, 'class="ResultatsCourseEnCours"', 'class="ResultatsCourseSuivante"') || block(html, 'class="ResultatsCourseEnCours"', 'class="programmeLive"');
+  if (cur) {
+    const t = one((cur.match(/<td[^>]*class="epreuve"[^>]*>([\s\S]*?)<\/td>/) || [])[1]).replace(/Survolez.*$/i, "").trim();
+    const m = t.match(/^(.*?)\s*\((\d+)\/(\d+)\)/);
+    const rws = [];
+    for (const tr of rows(cur)) {
+      if (!/class="survol"/.test(tr.slice(0, 40))) continue;
+      const cs = cells(tr); if (cs.length < 6) continue;
+      const tc = cs.find((c) => /^temps/.test(c.cls));
+      const timeTxt = tc ? one(tc.html.replace(/<b[\s\S]*<\/b>/, "")) : "";
+      rws.push({
+        place: parseInt(one(cs[0].html)) || null, name: fullName(cs[1].html), year: one(cs[2].html), nat: one(cs[3].html),
+        club: fullName(cs[4].html), time: toSec(timeTxt), timeTxt, splits: tc ? liveSplits(tc.html) : [],
+        rank: one((cs.find((c) => c.cls === "placeClassementPro") || { html: "" }).html.replace(/<b[\s\S]*?<\/b>/, "")),
+      });
+    }
+    out.cur = { title: t, event: m ? m[1].trim() : t, heat: m ? +m[2] : null, of: m ? +m[3] : null, rows: rws };
+  }
+  const nx = block(html, 'class="ResultatsCourseSuivante"', 'class="programmeLive"');
+  if (nx) {
+    const t = one((nx.match(/<td[^>]*class="epreuve"[^>]*>([\s\S]*?)<\/td>/) || [])[1]);
+    const m = t.match(/^(\d{1,2})h(\d{2})\s*-\s*(.*?)\s*\((\d+)\/(\d+)\)/);
+    const lanes = [];
+    for (const tr of rows(nx)) {
+      if (!/class="survol"/.test(tr.slice(0, 40))) continue;
+      const cs = cells(tr); if (cs.length < 7) continue;
+      lanes.push({ lane: +((cs[1].html.match(/ico_plot_(\d+)/) || [])[1] || 0) || null, name: fullName(cs[2].html), year: one(cs[3].html), nat: one(cs[4].html), club: fullName(cs[5].html), entry: toSec(one(cs[6].html)) });
+    }
+    out.next = { title: t, hm: m ? `${m[1].padStart(2, "0")}:${m[2]}` : null, event: m ? m[3] : t, heat: m ? +m[4] : null, of: m ? +m[5] : null, lanes };
+  }
+  const pg = block(html, 'class="programmeLive"', 'class="liveColRight"');
+  for (const m of pg.matchAll(/<td class="(prg[^"]*)"[^>]*>([\s\S]*?)<\/td>/g)) {
+    const t = one(m[2]); if (!t) continue;
+    const c = m[1], sport = !/NonSportif/.test(c);
+    out.prog.push({ text: t.replace(/\s*\(En cours\)/i, ""), sport, state: /EnCours/i.test(c) || /En cours/i.test(t) ? "live" : !sport ? "note" : /NonNage/.test(c) ? "todo" : "done" });
+  }
+  return out;
 }

@@ -1,5 +1,5 @@
 // Schwimme Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
-import { get, urls, parseEntries, parseProgramme, parseHeats, parseResults } from "./ffn.js";
+import { get, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 
 const BUDGET = 15;            // pages Live FFN lues au maximum par passage (le reste attend le passage suivant)
 const PROG_EVERY = 30 * 60e3; // programme relu toutes les 30 min
@@ -7,7 +7,7 @@ const HEATS_EVERY = 10 * 60e3; // séries relues toutes les 10 min tant que la r
 
 export const DEFAULT_CONFIG = {
   name: "", comps: [], order: {}, lines: {}, starts: {}, gap: 40, timing: "elec", delay: {},
-  rankings: [], infos: [], published: false, scrape: { every: 2, onlyLive: true },
+  rankings: [], infos: [], published: false, live: "off", scrape: { every: 2, onlyLive: true },
 };
 
 // ---------- heure de Paris ----------
@@ -239,6 +239,21 @@ export default {
         ? { published: true, config: publicConfig(config), data: { comps: data.comps, lastOk: data.lastOk }, now: Date.now() }
         : { published: false, now: Date.now() };
       const res = json(body, 200, { "cache-control": "public, max-age=15" });
+      ctx.waitUntil(cache.put(key, res.clone()));
+      return res;
+    }
+
+    // Direct « Live FFN » : dernière série publiée et série suivante, relues au plus toutes les 30 s (cache)
+    if (p === "/api/live" && req.method === "GET") {
+      const c = url.searchParams.get("c") || "";
+      const { config } = await load(env);
+      if (config.live !== "ffn" || !config.comps.includes(c) || (!config.published && !authed(req, env))) return json({ error: "Direct non activé." }, 404);
+      const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
+      const hit = await cache.match(key); if (hit) return hit;
+      let body;
+      try { body = { at: Date.now(), ...parseLive(await get(urls.live(c), { delay: 0, tries: 1 })) }; }
+      catch (e) { body = { at: Date.now(), error: String(e.message || e) }; }
+      const res = json(body, 200, { "cache-control": "public, max-age=30" });
       ctx.waitUntil(cache.put(key, res.clone()));
       return res;
     }
