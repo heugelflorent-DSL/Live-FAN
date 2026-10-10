@@ -1,4 +1,5 @@
 // Schwimme Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
+export { PoolRoom } from "./pool.js";
 import { get, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 
 const BUDGET = 15;            // pages Live FFN lues au maximum par passage (le reste attend le passage suivant)
@@ -243,11 +244,25 @@ export default {
       return res;
     }
 
+    // Direct « Bassin » (Quantum) : salle temps réel. Le relais envoie les événements avec le mot de passe admin.
+    if (p.startsWith("/api/pool/")) {
+      const { config } = await load(env);
+      const room = env.POOL.get(env.POOL.idFromName("bassin"));
+      if (p === "/api/pool/event") {
+        if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
+        return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
+      }
+      if (config.live !== "bassin" && !authed(req, env)) return json({ error: "Direct bassin non activé." }, 404);
+      if (p === "/api/pool/ws") return room.fetch(new Request("https://pool/ws", req));
+      if (p === "/api/pool/state") return room.fetch(new Request("https://pool/state"));
+      return json({ error: "Inconnu" }, 404);
+    }
+
     // Direct « Live FFN » : dernière série publiée et série suivante, relues au plus toutes les 30 s (cache)
     if (p === "/api/live" && req.method === "GET") {
       const c = url.searchParams.get("c") || "";
       const { config } = await load(env);
-      if (config.live !== "ffn" || !config.comps.includes(c) || (!config.published && !authed(req, env))) return json({ error: "Direct non activé." }, 404);
+      if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !authed(req, env))) return json({ error: "Direct non activé." }, 404);
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
       let body;

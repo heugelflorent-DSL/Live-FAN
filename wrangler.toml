@@ -24,3 +24,12 @@ CF_ACCOUNT_ID = "dc49e1d2f63a584f4af2bf4ad3297546"
 
 [observability]
 enabled = true
+
+# Direct « Bassin » : salle temps réel alimentée par le relais branché sur le Quantum (offre gratuite : stockage SQLite)
+[[durable_objects.bindings]]
+name = "POOL"
+class_name = "PoolRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PoolRoom"]

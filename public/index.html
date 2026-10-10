@@ -116,6 +116,11 @@ tr.hit td{background:rgba(253,230,138,.16)}
 .lv-warn{background:#fff4e5;border:1px solid #f0c27a;color:#7a4b00;border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:14px}
 .lv-card{margin-bottom:14px}.lv-card h3{margin:0 0 2px;font-size:20px}.lv-tag{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--red-d,#b3121f)}
 .lv-prog{list-style:none;margin:0;padding:0;font-size:14px}.lv-prog li{display:flex;gap:10px;padding:6px 2px;border-top:1px solid var(--line)}.lv-prog li.done{color:var(--muted)}.lv-prog li.live{font-weight:700}.lv-prog li.note{color:var(--muted);font-style:italic}
+.pool{border:2px solid #d0202f}.pool .ptop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.pool .pclock{font-family:var(--mono);font-size:40px;font-weight:700;letter-spacing:1px}.pool .pst{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+.pool .pst.run{color:#d0202f}.pool .prow{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:8px 4px;border-top:1px solid var(--line);background:none;border-radius:0;border-left:0;border-right:0;border-bottom:0}
+.pool .prow.fin b.t{color:#0f7a3d}.pool .prow small{color:var(--muted)}.pool .pres{text-align:right;font-family:var(--mono)}.pool .rkb{display:inline-block;min-width:22px;text-align:center;border-radius:6px;background:#eee;font-size:12px;font-weight:700;margin-left:6px}
+.pool .rkb.r1{background:#f5c542}.pool .rkb.r2{background:#cfd4da}.pool .rkb.r3{background:#e0a46a}
 .lv-badge{background:#d0202f;color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:700;letter-spacing:.5px}
 .dif{font-variant-numeric:tabular-nums;font-weight:600}.dif.dn{color:#0f7a3d}.dif.up{color:#8a6d3b}
 .clogo{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;background:#fff}.clogo.big{width:44px;height:44px}
@@ -457,7 +462,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
           <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <label for="ev-progdate">Publication du programme prévue le<input class="field" type="date" id="ev-progdate"><span class="msg" style="font-weight:400">Vide = 3 jours avant la compétition</span></label></div>
-          <label for="ev-live">Direct pendant la compétition<select class="field" id="ev-live"><option value="off">Désactivé</option><option value="ffn">Live FFN : série par série, sans matériel</option><option value="bassin" disabled>Bassin : branché sur le Quantum (bientôt)</option></select><span class="msg" style="font-weight:400">L'onglet « Direct » apparaît les jours de compétition.</span></label>
+          <label for="ev-live">Direct pendant la compétition<select class="field" id="ev-live"><option value="off">Désactivé</option><option value="ffn">Live FFN : série par série, sans matériel</option><option value="bassin">Bassin : chrono en direct depuis le Quantum (relais au bord du bassin) + Live FFN</option></select><span class="msg" style="font-weight:400">L'onglet « Direct » apparaît les jours de compétition.</span></label>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button></div>
           <p class="msg" id="link-msg">Ajoute autant de compétitions que nécessaire.</p>
           <div id="comp-list" style="display:grid;gap:6px"></div>
@@ -575,7 +580,7 @@ function build(cfg,data){
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
           res:x.time,dsq:!!x.status,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
           splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap}))}));
-        EVENTS[key]={key,comp:id,num:it.epr,name:it.name,round:it.round,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
+        EVENTS[key]={key,comp:id,num:it.epr,numEp:it.num,name:it.name,round:it.round,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
           doneAt:st.doneAt||null,nPart:it.nPart,relay,sex,type:"event"};
         byReu[r.n].keys.push(key);
         // fichier des nageurs
@@ -717,13 +722,38 @@ function renderRank(){
   const tv=$("#tv-btn");if(tv)tv.onclick=()=>{document.body.classList.toggle("tv");tv.textContent=document.body.classList.contains("tv")?"Quitter le plein écran":"Plein écran";try{document.body.classList.contains("tv")?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}};
 }
 function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`}
+/* ---------- Direct « Bassin » (Quantum → relais → site, temps réel) ---------- */
+let POOL=null,poolWs=null,poolOff=0,poolRetry=1000,poolTimer=null;
+function poolConnect(){if(poolWs||state.live!=="bassin"||!liveToday())return;
+  try{poolWs=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/api/pool/ws")}catch(_){return}
+  poolWs.onmessage=e=>{if(e.data==="pong")return;try{const m=JSON.parse(e.data);if(m.type==="state"){poolOff=m.now-Date.now();POOL=m;poolRetry=1000;if(state.view==="live"&&!state.admin)render()}}catch(_){}};
+  poolWs.onclose=()=>{poolWs=null;setTimeout(poolConnect,poolRetry);poolRetry=Math.min(poolRetry*2,30000)};
+  poolWs.onerror=()=>{try{poolWs.close()}catch(_){}}}
+setInterval(()=>{if(poolWs&&poolWs.readyState===1)poolWs.send("ping")},25000);
+function poolEvent(h){if(!h)return null;const c=Object.values(EVENTS).filter(e=>e.type==="event"&&+e.numEp===+h.event);if(!c.length)return null;const done=doneSet();return c.find(e=>!done.has(e.key))||c[0]}
+function poolLen(){const c=state.comps[0];const m=(c&&c.bassin||"").match(/(\d+)/);return m?+m[1]:25}
+function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.status!=="running"||!h.start)return;poolTimer=setInterval(()=>{const el=document.getElementById("pclock");if(!el||state.view!=="live"){clearInterval(poolTimer);return}const t=(Date.now()+poolOff-h.start)/1000;el.textContent=t>0?fmtClock(t):"0.0"},100)}
+function fmtClock(t){const m=Math.floor(t/60),s=t-m*60;return(m?m+":"+s.toFixed(1).padStart(4,"0"):s.toFixed(1))}
+function poolHtml(){
+  if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000)return"";
+  const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1];const who=n=>se&&se.swimmers.find(w=>+w.lane===+n);
+  const used=new Set([...Object.keys(h.lanes||{}),...(se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
+  if(h.status==="done")lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
+  const st=h.status==="running"?`<span class="pst run"><span class="livedot"></span>En course</span>`:h.status==="ready"?`<span class="pst">Au départ</span>`:`<span class="pst">Arrivée · résultats officiels à suivre sur le Live FFN</span>`;
+  const clock=h.status==="running"&&h.start?`<span class="pclock" id="pclock">0.0</span>`:"";
+  const rows=lanes.map(n=>{const L=h.lanes[n]||{},w=who(n),last=L.last?L.laps[L.last]:null;
+    const res=L.fin?`<b class="t">${fmt(L.fin.t)}</b>${L.fin.rank?`<span class="rkb r${L.fin.rank}">${L.fin.rank}</span>`:""}`:last?`${fmt(last.t)}<small> · ${L.last*len} m</small>${last.rank?`<span class="rkb">${last.rank}</span>`:""}`:(L.rt!=null?`<small>réaction ${L.rt.toFixed(2)}</small>`:"");
+    return`<div class="prow${L.fin?" fin":""}"><span class="lane-n">${n}</span><span><b>${w?esc(w.name):"Couloir "+n}</b>${w?`<br><small>${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small>`:""}</span><span class="pres">${res}</span></div>`}).join("");
+  const title=ev?esc(ev.name):"Épreuve "+h.event;
+  return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}<div class="card lv-card pool"><div class="ptop"><div><span class="lv-tag">${st}</span><h3>${title}</h3><div class="sub">${ev&&state.comps.length>1?compBadge(ev.comp)+" · ":""}Série ${h.heat}${ev?" / "+ev.series.length:""}</div></div>${clock}</div>${rows||`<p class="msg">En attente des nageurs…</p>`}</div><p class="msg">Temps provisoires, transmis en direct par le chronométrage. Les résultats officiels sont ceux du Live FFN.</p></div>`}
+
 /* ---------- Direct (Live FFN, série par série) ---------- */
 let LIVE={};
 function compRange(c){const t=(c.date||"").toLowerCase();const ends=[...t.matchAll(/(\d{1,2})\s+([a-zéûô]+)\s+(\d{4})/g)].filter(m=>MOIS.includes(m[2]));if(!ends.length)return null;const e=ends[ends.length-1];const end=new Date(+e[3],MOIS.indexOf(e[2]),+e[1]);const f=t.match(/\b(\d{1,2})\b/);let start=new Date(end);if(f&&+f[1]!==+e[1]){const st=ends.length>1?ends[0]:null;start=st?new Date(+st[3],MOIS.indexOf(st[2]),+st[1]):new Date(end.getFullYear(),end.getMonth(),+f[1]);if(start>end)start.setMonth(start.getMonth()-1)}return{start,end}}
 function liveToday(){const d=new Date();d.setHours(12,0,0,0);return state.comps.some(c=>{const r=compRange(c);if(!r)return false;const a=new Date(r.start),b=new Date(r.end);a.setHours(0,0,0,0);b.setHours(23,59,0,0);return d>=a&&d<=b})}
 function liveUpcoming(){const t=new Date();t.setHours(0,0,0,0);const rs=state.comps.map(compRange).filter(Boolean).filter(r=>r.end>=t).sort((a,b)=>a.start-b.start);return rs[0]||null}
 // onglet visible dès que le programme définitif est publié, jusqu'à la fin de la compétition
-function liveOn(){if(state.live!=="ffn")return false;if(liveToday())return true;return !!liveUpcoming()&&Object.values(EVENTS).some(e=>e.type==="event"&&!e.provisional)}
+function liveOn(){if(state.live!=="ffn"&&state.live!=="bassin")return false;if(liveToday())return true;return !!liveUpcoming()&&Object.values(EVENTS).some(e=>e.type==="event"&&!e.provisional)}
 async function loadLive(){if(!liveOn()||!liveToday())return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch("/api/live?c="+c.id,{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok)return;const j=await r.json();const old=LIVE[c.id];const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j}catch(_){}}));if(state.view==="live"&&!state.admin)render()}
 function lvSplits(w){const sp=w.splits||[];if(sp.length<2)return"";return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.d} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
 function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=null;
@@ -736,7 +766,8 @@ function lvRows(rows,id,title){return`<ol class="rk-list">${rows.map(w=>{const k
   ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
   ${has&&o?`<div class="rk-sp">${lvSplits(w)}</div>`:""}</li>`}).join("")}</ol>`}
 function lvLanes(lanes){return`<ol class="rk-list">${lanes.map(w=>`<li class="rk-row ln-row"><span class="lane-n">${w.lane||"—"}</span><span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+esc(w.year):""}</small></span><span class="rk-res"><b>${w.entry!=null?fmt(w.entry):"—"}</b><small>engagement</small></span></li>`).join("")}</ol>`}
-function renderLive(){
+function renderLive(){renderLiveFfn();if(state.live==="bassin"&&liveToday()){const h=poolHtml();if(h){const b=$("#pub-body");if(/Connexion au direct|ne répond pas|Aucune série publiée/.test(b.textContent))b.innerHTML="";b.insertAdjacentHTML("afterbegin",h)}poolTick()}}
+function renderLiveFfn(){
   if(!liveToday()){const r=liveUpcoming();const s0=Object.keys(state.order).sort((a,b)=>a-b)[0];const ks=(state.order[s0]||[]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event");const sch=schedule();const first=ks[0]&&sch[ks[0]];
     $("#pub-body").innerHTML=`<div class="session">${secTitle("En direct","")}<div class="card lv-card"><span class="lv-tag">Bientôt</span><h3>Le direct commencera ${r?"le "+frDate(r.start):"le jour de la compétition"}${first?" vers "+hm(first.start):""}</h3><p class="msg">Dernière série terminée avec les passages, série suivante avec ses couloirs et programme de la réunion, mis à jour automatiquement pendant la compétition. En attendant, le programme détaillé est dans l'onglet Programme.</p><p><a href="#" data-go="prog">Voir le programme ›</a></p></div></div>`;return}
   const ids=state.comps.map(c=>c.id).filter(id=>LIVE[id]&&!LIVE[id].error);
@@ -1056,7 +1087,7 @@ function renderAdmin(){renderLogos();
 function render(){$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
-$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live")loadLive()});
+$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}});
 $("#admin-btn").onclick=()=>openAdmin();
 async function openAdmin(){
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
@@ -1166,7 +1197,7 @@ $("#timing").onchange=e=>{state.timing=e.target.value;render()};
 document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.dataset.delay;if(d){state.delay[d]=+e.target.value||0;render()}});
 {const y=document.getElementById("yr");if(y)y.textContent=new Date().getFullYear()}
 if(location.hash==="#admin")openAdmin();
-loadLogos();loadPublic().then(()=>{scTick();loadLive()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
+loadLogos();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
 </script>
 <!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
 </body>
