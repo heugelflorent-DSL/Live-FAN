@@ -136,10 +136,19 @@ def net_source(spec):
     import socket
     kind, *rest = spec.split(":")
     if kind == "udp":
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(("0.0.0.0", int(rest[-1]))); log(f"Écoute UDP sur le port {rest[-1]}…")
+        import select
+        socks = []
+        for port in rest[-1].split(","):
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try: s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            except OSError: pass
+            s.bind(("0.0.0.0", int(port))); socks.append(s)
+        log(f"Écoute UDP sur le(s) port(s) {rest[-1]}…")
         while True:
-            d, _ = s.recvfrom(4096); yield d, time.time()
+            for s in select.select(socks, [], [])[0]:
+                d, addr = s.recvfrom(65535)
+                log(f"UDP {addr[0]} → port {s.getsockname()[1]} : {len(d)} octets · {d[:60]!r}")
+                yield d, time.time()
     while True:
         try:
             if len(rest) == 2:
