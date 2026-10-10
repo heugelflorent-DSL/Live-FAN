@@ -111,6 +111,9 @@ tbody tr:nth-child(1) td.rank{color:var(--gold)}
 td a,.pnm a,.compo a,.podextra a{color:#fff;text-decoration:none;border-bottom:1px dotted rgba(255,255,255,.45)}
 tr.hit td{background:rgba(253,230,138,.16)}
 .club{color:var(--muted);font-size:13px}
+.favbtn{border:1.5px solid #e0b100;background:#fff;color:#7a5c00;border-radius:99px;padding:5px 12px;font-weight:700;font-size:13px;cursor:pointer}.favbtn.on{background:#ffd23f;border-color:#e0b100;color:#3b2c00}
+.rk-row.fav,.prow.fav,.pool .prow.fav{background:#fff6cf}.favstar{color:#c99700;margin-right:4px}
+.myswim .ms{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 2px;border-top:1px solid var(--line)}.myswim .ms small{color:var(--muted)}.myswim .ms .t{font-family:var(--mono);text-align:right}
 .livedot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d0202f;margin-right:6px;vertical-align:middle;animation:lp 1.6s infinite}@keyframes lp{50%{opacity:.25}}
 .lv-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:space-between;margin:4px 0 10px}.lv-head small{color:var(--muted)}
 .lv-warn{background:#fff4e5;border:1px solid #f0c27a;color:#7a4b00;border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:14px}
@@ -677,6 +680,15 @@ const $=s=>document.querySelector(s);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function comp(id){return state.comps.find(x=>x.id===id)}
 let LOGOS={};
+/* ---------- Mes nageurs (favoris enregistrés sur le téléphone) ---------- */
+let FAV={sw:{},cl:{}};try{const f=JSON.parse(localStorage.getItem("sd-fav")||"null");if(f&&f.sw&&f.cl)FAV=f}catch(_){}
+function favSave(){try{localStorage.setItem("sd-fav",JSON.stringify(FAV))}catch(_){}}
+function favCount(){return Object.keys(FAV.sw).length+Object.keys(FAV.cl).length}
+function isFavSw(id){return!!id&&!!FAV.sw[id]}
+function isFavName(name){if(!name)return false;const n=norm(name);return Object.values(FAV.sw).some(x=>norm(x)===n)}
+function isFavClub(c){return!!c&&!!(FAV.cl[c]||FAV.cl[clubKey(c)])}
+function isFav(w){return!!w&&(isFavSw(w.iuf)||isFavClub(w.club)||isFavClub(w.team)||(!w.iuf&&!w.relay&&isFavName(w.name)))}
+function favBtn(kind,key,label){const on=kind==="s"?isFavSw(key):isFavClub(key);return`<button class="favbtn${on?" on":""}" data-fav="${kind}" data-favkey="${esc(key)}" data-favname="${esc(label||key)}" aria-pressed="${on}">${on?"★ Suivi":"☆ Suivre"}</button>`}
 function clubKey(c){return String(c||"").replace(/\s+\d+$/,"").trim()}
 function logo(c,big){const d=LOGOS[c]||LOGOS[clubKey(c)];return d?`<img class="clogo${big?" big":""}" src="${d}" alt="">`:""}
 async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){LOGOS=await r.json();render()}}catch(_){}}
@@ -743,7 +755,7 @@ function poolHtml(){
   const clock=h.status==="running"&&h.start?`<span class="pclock" id="pclock">0.0</span>`:"";
   const rows=lanes.map(n=>{const L=h.lanes[n]||{},w=who(n),last=L.last?L.laps[L.last]:null;
     const res=L.fin?`<b class="t">${fmt(L.fin.t)}</b>${L.fin.rank?`<span class="rkb r${L.fin.rank}">${L.fin.rank}</span>`:""}`:last?`${fmt(last.t)}<small> · ${L.last*len} m</small>${last.rank?`<span class="rkb">${last.rank}</span>`:""}`:(L.rt!=null?`<small>réaction ${L.rt.toFixed(2)}</small>`:"");
-    return`<div class="prow${L.fin?" fin":""}"><span class="lane-n">${n}</span><span><b>${w?esc(w.name):"Couloir "+n}</b>${w?`<br><small>${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small>`:""}</span><span class="pres">${res}</span></div>`}).join("");
+    return`<div class="prow${L.fin?" fin":""}${w&&isFav(w)?" fav":""}"><span class="lane-n">${n}</span><span><b>${w?esc(w.name):"Couloir "+n}</b>${w?`<br><small>${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small>`:""}</span><span class="pres">${res}</span></div>`}).join("");
   const title=ev?esc(ev.name):"Épreuve "+h.event;
   return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}<div class="card lv-card pool"><div class="ptop"><div><span class="lv-tag">${st}</span><h3>${title}</h3><div class="sub">${ev&&state.comps.length>1?compBadge(ev.comp)+" · ":""}Série ${h.heat}${ev?" / "+ev.series.length:""}</div></div>${clock}</div>${rows||`<p class="msg">En attente des nageurs…</p>`}</div><p class="msg">Temps provisoires, transmis en direct par le chronométrage. Les résultats officiels sont ceux du Live FFN.</p></div>`}
 
@@ -760,13 +772,13 @@ function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=
   for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||ev.comp!==id)continue;const n=norm(ev.name+" "+(ev.round||""));if(t===n||t.startsWith(norm(ev.name)+" ")&&(!best||n.length>norm(best.name+" "+(best.round||"")).length))best=ev;if(t===n)return ev}
   return best}
 function lvRows(rows,id,title){return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1;
-  return`<li class="rk-row"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
+  return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
   <span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
   <span class="rk-res"><b>${esc(w.timeTxt||"—")}</b><small>${w.rank?esc(w.rank)+" au provisoire":""}</small></span>
   ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
   ${has&&o?`<div class="rk-sp">${lvSplits(w)}</div>`:""}</li>`}).join("")}</ol>`}
-function lvLanes(lanes){return`<ol class="rk-list">${lanes.map(w=>`<li class="rk-row ln-row"><span class="lane-n">${w.lane||"—"}</span><span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+esc(w.year):""}</small></span><span class="rk-res"><b>${w.entry!=null?fmt(w.entry):"—"}</b><small>engagement</small></span></li>`).join("")}</ol>`}
-function renderLive(){renderLiveFfn();if(state.live==="bassin"&&liveToday()){const h=poolHtml();if(h){const b=$("#pub-body");if(/Connexion au direct|ne répond pas|Aucune série publiée/.test(b.textContent))b.innerHTML="";b.insertAdjacentHTML("afterbegin",h)}poolTick()}}
+function lvLanes(lanes){return`<ol class="rk-list">${lanes.map(w=>`<li class="rk-row ln-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}"><span class="lane-n">${w.lane||"—"}</span><span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+esc(w.year):""}</small></span><span class="rk-res"><b>${w.entry!=null?fmt(w.entry):"—"}</b><small>engagement</small></span></li>`).join("")}</ol>`}
+function renderLive(){renderLiveFfn();if(liveToday()){const m=mySwimmers(true);if(m)$("#pub-body").insertAdjacentHTML("afterbegin",m)}if(state.live==="bassin"&&liveToday()){const h=poolHtml();if(h){const b=$("#pub-body");if(/Connexion au direct|ne répond pas|Aucune série publiée/.test(b.textContent))b.innerHTML="";b.insertAdjacentHTML("afterbegin",h)}poolTick()}}
 function renderLiveFfn(){
   if(!liveToday()){const r=liveUpcoming();const s0=Object.keys(state.order).sort((a,b)=>a-b)[0];const ks=(state.order[s0]||[]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event");const sch=schedule();const first=ks[0]&&sch[ks[0]];
     $("#pub-body").innerHTML=`<div class="session">${secTitle("En direct","")}<div class="card lv-card"><span class="lv-tag">Bientôt</span><h3>Le direct commencera ${r?"le "+frDate(r.start):"le jour de la compétition"}${first?" vers "+hm(first.start):""}</h3><p class="msg">Dernière série terminée avec les passages, série suivante avec ses couloirs et programme de la réunion, mis à jour automatiquement pendant la compétition. En attendant, le programme détaillé est dans l'onglet Programme.</p><p><a href="#" data-go="prog">Voir le programme ›</a></p></div></div>`;return}
@@ -801,6 +813,19 @@ function renderLiveFfn(){
   html+=`</div><p class="msg" style="text-align:center">Données du direct Live FFN, publiées série par série${multi?", replacées dans le programme fusionné":""}. Seuls les résultats publiés sur ffnatation.fr font foi.</p>`;
   $("#pub-body").innerHTML=html;
 }
+function mySwimmers(compact){
+  if(!favCount())return"";const P=participants(),sch=schedule(),done=doneSet();
+  const ids=Object.keys(P).filter(id=>isFavSw(id)||isFavClub(P[id].sw.club));
+  if(!ids.length)return compact?"":`<div class="card lv-card myswim"><span class="lv-tag">★ Mes nageurs</span><p class="msg">Tes nageurs suivis ne sont pas engagés sur cette compétition.</p></div>`;
+  const rows=ids.map(id=>{const p=P[id];const its=p.items.filter(x=>sch[x.ev.key]).sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
+    const nx=its.find(x=>!done.has(x.ev.key)&&!x.w.dns);const last=[...its].reverse().find(x=>done.has(x.ev.key));
+    let info="",t="",sort=1e9;
+    if(nx){sort=sch[nx.ev.key].start;info=`${esc(nx.ev.name)}${state.phase==="eng"||nx.ev.provisional?"":` · série ${nx.w.heat}, couloir ${nx.w.lane}`}`;t=nx.ev.provisional?"à venir":"~"+hm(sch[nx.ev.key].start)}
+    else if(last){const r=ranking(last.ev).find(x=>x.iuf===id);info=`${esc(last.ev.name)} · terminé`;t=r?(r.dsq?"DSQ":fmt(r.res)+(r.rank?` (${r.rank}e)`:"")):"—";sort=1e9+1}
+    else return null;
+    return{sort,html:`<div class="ms"><span><b><a href="#" data-swimmer="${id}">${esc(p.sw.name)}</a></b><br><small>${info}</small></span><span class="t">${t}</span></div>`}}).filter(Boolean).sort((a,b)=>a.sort-b.sort);
+  const list=compact?rows.slice(0,6):rows;
+  return`<div class="card lv-card myswim"><span class="lv-tag">★ Mes nageurs</span>${list.map(r=>r.html).join("")||`<p class="msg">Plus de course à venir pour tes nageurs suivis.</p>`}${compact&&rows.length>6?`<p class="msg">+ ${rows.length-6} autres · <a href="#" data-go="home">voir tout</a></p>`:""}</div>`}
 function renderHome(){
   const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k)&&!EVENTS[k].provisional);let html="",top=engBanner(),teams="";
   if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
@@ -813,7 +838,7 @@ function renderHome(){
     return`<div class="card reu"><div class="reu-h"><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}</span></div><ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol></div>`}).join("")}</div></div>`;
   html+=teams;
   html+=`<div class="session">${secTitle("Compétitions")}<div class="card comps">${state.comps.map(c=>`<a class="comprow" href="https://www.liveffn.com/cgi-bin/index.php?competition=${c.id}&langue=fra" target="_blank" rel="noopener">${compBadge(c.id)}<span class="msg">${plural(Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length,"épreuve")}</span><span class="ext">Live FFN ↗</span></a>`).join("")}</div></div>`;
-  $("#pub-body").innerHTML=top+html;
+  $("#pub-body").innerHTML=top+mySwimmers(false)+html;
 }
 function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCase().includes(q))}
 function getQ(){return $("#search").value.trim().toLowerCase()}
@@ -871,7 +896,7 @@ function renderSeries(ev,q){
   const relay=/^4x/i.test(ev.name);
   const st=(schedule()[ev.key]||{}).start||0;let acc=st;const starts=ev.series.map(se=>{const t=acc;acc+=se.slowest+state.heatGap;return t});
   return`<div class="inner">${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>Série ${se.n} / ${ev.series.length}</h4>
-   <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${hit(w,q)}${w.dns?" dns":""}">
+   <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${isFav(w)?"fav ":""}${hit(w,q)}${w.dns?" dns":""}">
      <span class="lane-n">${w.lane||"—"}</span>
      <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+logo(w.club)+esc(w.club||"")}</small></span>
      <span class="rk-res"><b>${w.time!=null?fmt(w.time):"—"}</b><small>engag.</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
@@ -893,7 +918,7 @@ function renderRanking(ev,q){
   const rows=ranking(ev);const meds=catMedals(ev);const ent={};for(const e of ev.entries||[])if(e.time)ent[e.iuf||e.name]=e.time;
   return`<div class="inner"><p class="forcomp">Résultats ${esc(comp(ev.comp).name)}</p><ol class="rk-list">
   ${rows.map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k],has=!w.dsq&&sp&&(w.splits||[]).length>1;
-    return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}">
+    return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}${isFav(w)?" fav":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}">${w.rank??"—"}</span>
       <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
       <span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",diffHtml(w.res,ent[w.iuf||w.name])].filter(Boolean).join(" · ")}</small></span>
@@ -983,13 +1008,13 @@ function renderPart(){
   const nSw=list.reduce((a,c)=>a+c.shown.length,0);
   html+=`<div class="session">${secTitle(q?"Recherche":"Clubs",plural(list.length,"club")+" · "+plural(nSw,"nageur"))}<div class="list">
    ${list.map(c=>`<div class="lane"><button class="row clubrow" data-open="c${esc(c.name)}" aria-expanded="${c.open}"><span class="ev"><b>${logo(c.name)}${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</span></span><span class="chev" aria-hidden="true">▼</span></button>
-     ${c.open?`<div class="inner"><div class="list">${c.shown.map(p=>`<button class="prow inprow" data-swimmer="${p.sw.iuf}"><b>${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")} ›</span></button>`).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
+     ${c.open?`<div class="inner"><div style="padding:6px 4px">${favBtn("c",clubKey(c.name),c.name)}</div><div class="list">${c.shown.map(p=>`<button class="prow inprow${isFav(p.sw)?" fav":""}" data-swimmer="${p.sw.iuf}"><b>${isFav(p.sw)?'<span class="favstar">★</span>':""}${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")} ›</span></button>`).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
   $("#pub-body").innerHTML=html;
 }
 function swimmerDetail(p){
   const sch=schedule(),done=doneSet();
   const items=p.items.sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
-  return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><button class="btn small ghost" data-close="1">Fermer</button></div>
+  return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><div style="display:flex;gap:8px;align-items:center">${favBtn("s",p.sw.iuf,p.sw.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div>
   <div class="tbl"><table><thead><tr><th>Heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Pl.</th></tr></thead><tbody>
   ${items.map(({ev,w})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>x.iuf===w.iuf):null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
     return`<tr><td class="num">${hm(sch[ev.key].start)}</td><td>${esc(ev.name)}</td><td class="num">${state.phase==="eng"?"—":"S"+w.heat+" · L"+w.lane}</td><td class="num">${fmt(w.time)}</td><td class="num"><b>${w.dns?"Forfait":isDone?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="5">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
@@ -1001,7 +1026,7 @@ function renderClub(){
   const list=Object.values(clubs).filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
   let html="";
   if(state.sel&&clubs[state.sel]){const c=clubs[state.sel];
-    html=`<div class="detail" id="detail"><div class="detail-head"><div><h3>${logo(c.name,1)}${esc(c.name)}</h3><div class="meta">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</div></div><button class="btn small ghost" data-close="1">Fermer</button></div><div class="list">
+    html=`<div class="detail" id="detail"><div class="detail-head"><div><h3>${logo(c.name,1)}${esc(c.name)}</h3><div class="meta">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</div></div><div style="display:flex;gap:8px;align-items:center">${favBtn("c",clubKey(c.name),c.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div><div class="list">
     ${c.sw.sort((a,b)=>a.sw.name.localeCompare(b.sw.name)).map(p=>`<button class="prow" data-swimmer="${p.sw.iuf}"><b>${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")}</span></button>`).join("")}</div></div>`}
   html+=`<div class="session">${secTitle("Clubs",plural(list.length,"club"))}<div class="list">
    ${list.map(c=>`<button class="prow" data-club="${esc(c.name)}"><b>${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")}</span><span class="num">${plural(c.eng,"engagement")}</span></button>`).join("")||`<p class="empty">Aucun club ne correspond.</p>`}</div></div>`;
@@ -1108,6 +1133,7 @@ $("#pub-body").addEventListener("click",e=>{
   const go=e.target.closest("[data-go]");if(go){e.preventDefault();if(go.dataset.rr2)state.rankRule=go.dataset.rr2;if(go.dataset.sx2)state.rankSex=go.dataset.sx2;state.view=go.dataset.go;state.sel=null;render();window.scrollTo(0,0);return}
   const pr=e.target.closest("[data-pr]");if(pr){state.podRule=pr.dataset.pr;renderPublic();return}
   const spb=e.target.closest("[data-sp]");if(spb){const k=spb.dataset.sp.replace(/&amp;/g,"&");state.sp[k]=!state.sp[k];renderPublic();return}
+  const fb=e.target.closest("[data-fav]");if(fb){e.preventDefault();const k=fb.dataset.favkey,n=fb.dataset.favname;const box=fb.dataset.fav==="s"?FAV.sw:FAV.cl;if(box[k])delete box[k];else box[k]=n;favSave();render();return}
   const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();state.view="part";state.sel=sw.dataset.swimmer;$("#search").value="";render();window.scrollTo(0,0);return}
   
   if(e.target.closest("[data-close]")){state.sel=null;renderPublic();return}
