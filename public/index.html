@@ -466,7 +466,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <label for="ev-progdate">Publication du programme prévue le<input class="field" type="date" id="ev-progdate"><span class="msg" style="font-weight:400">Vide = 3 jours avant la compétition</span></label></div>
           <label for="ev-live">Direct pendant la compétition<select class="field" id="ev-live"><option value="off">Désactivé</option><option value="ffn">Live FFN : série par série, sans matériel</option><option value="bassin">Bassin : chrono en direct depuis le Quantum (relais au bord du bassin) + Live FFN</option></select><span class="msg" style="font-weight:400">L'onglet « Direct » apparaît les jours de compétition.</span></label>
-          <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button></div>
+          <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button><button class="btn ghost" id="link-replace" title="Retire les autres compétitions et suit uniquement celle-ci">Remplacer tout</button></div>
           <p class="msg" id="link-msg">Ajoute autant de compétitions que nécessaire.</p>
           <div id="comp-list" style="display:grid;gap:6px"></div>
         </div>
@@ -694,7 +694,7 @@ function logo(c,big){const d=LOGOS[c]||LOGOS[clubKey(c)];return d?`<img class="c
 async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){LOGOS=await r.json();render()}}catch(_){}}
 function compBadge(id){const c=comp(id);return`<span class="badge k${c.k}"><i></i>${esc(c.name)}</span>`}
 function renderHead(){
-  $("#pub-title").textContent=state.name;
+  $("#pub-title").textContent=state.name||(state.comps[0]&&!state.comps[0].loading?state.comps[0].name:"Schwimme Direct");
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
   $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
   const sel=$("#filter-comp");const cur=sel.value;sel.innerHTML=`<option value="">Toutes les compétitions</option>`+state.comps.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");sel.value=state.comps.find(c=>c.id===cur)?cur:"";
@@ -1148,6 +1148,14 @@ $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
 $("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
 $("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};
 
+$("#link-replace").onclick=async()=>{
+  const v=$("#link-in").value.trim();const m=v.match(/competition=(\d+)/)||v.match(/^(\d{4,6})$/);const msg=$("#link-msg");
+  if(!m){msg.className="msg err";msg.textContent="Colle d'abord le lien Live FFN de la compétition à suivre, puis « Remplacer tout ».";return}
+  if(!confirm("Suivre uniquement cette compétition ? Les autres compétitions, l'ordre du programme et les classements par équipes seront retirés (les informations de l'accueil sont gardées)."))return;
+  const id=m[1];state.comps=[{id,k:1,name:"Compétition "+id,loading:true}];state.order={};state.lines={};state.starts={};state.delay={};state.name="";state.engEnd="";state.progDate="";
+  state.podRules=state.podRules.filter(r=>r.type!=="team").map(r=>({...r,comps:[id]}));$("#link-in").value="";
+  msg.className="msg";msg.textContent="Compétition remplacée, lecture du programme sur le Live FFN…";
+  await saveNow();setTimeout(async()=>{await loadAdmin();const c=state.comps.find(x=>x.id===id);msg.textContent=c&&!c.loading?"Le site suit maintenant : "+c.name+".":"Lecture en cours, la compétition apparaîtra d'ici une minute."},6000)};
 $("#link-add").onclick=async()=>{
   const v=$("#link-in").value.trim();const m=v.match(/competition=(\d+)/)||v.match(/^(\d{4,6})$/);const msg=$("#link-msg");
   if(!m){msg.className="msg err";msg.textContent="Ce lien ne ressemble pas à un Live FFN. Il doit contenir liveffn.com et competition=…";return}
