@@ -150,7 +150,9 @@ def run(source, sender, journal):
     dec = Decoder()
     for data, ts in source:
         if journal: journal.write(json.dumps({"ts": ts, "hex": data.hex()}) + "\n"); journal.flush()
-        for ev in dec.feed(data, ts):
+        try: evs = dec.feed(data, ts)
+        except Exception as e: log(f"✗ Message illisible ignoré : {e}"); dec = Decoder(); continue
+        for ev in evs:
             if ev["k"] != "clock": log(describe(ev))
             if sender: sender.q.put(ev)
 
@@ -195,7 +197,7 @@ def net_source(spec):
             else:
                 srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind(("0.0.0.0", int(rest[0]))); srv.listen(1)
                 log(f"En attente d'une connexion TCP sur le port {rest[0]}…"); c, addr = srv.accept(); log(f"Connexion de {addr[0]}")
-            c.settimeout(None)
+            c.settimeout(20)  # le Quantum envoie un signe de vie chaque seconde : 20 s de silence = on se reconnecte
             while True:
                 d = c.recv(4096)
                 if not d: raise ConnectionError("connexion fermée")

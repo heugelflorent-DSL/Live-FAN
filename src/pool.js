@@ -25,7 +25,10 @@ export class PoolRoom {
         break;
       case "start": { if (s.heat && s.heat.status === "done") { s.prev = s.heat; s.heat = null; } const h = ensure(); h.start = ev.srv || (ev.ts && ev.sent ? t - Math.max(0, ev.sent - ev.ts) : ev.ts || t); h.status = "running"; h.lanes = {}; break; }
       case "clock": { // temps de course du Quantum : recale l'heure de départ (sans retour en arrière visible de plus de 0,3 s)
-        const h = s.heat; if (!h || h.status !== "running" || !ev.rt) return false;
+        if (!ev.rt) return false;
+        // départ manqué (relais redémarré en pleine course) : le temps de course suffit pour reprendre le direct
+        if (!s.heat || s.heat.status === "ready" || (s.heat.status === "done" && ev.rt < 30)) { if (s.heat && s.heat.status === "done") { s.prev = s.heat; s.heat = null; } const h0 = ensure(); h0.status = "running"; h0.start = null; }
+        const h = s.heat; if (h.status !== "running") return false;
         const st = (ev.srv || t - Math.max(0, (ev.sent || ev.ts) - ev.ts)) - ev.rt * 1000;
         if (!h.start || Math.abs(st - h.start) > 100) h.start = Math.round(st); else return false;
         break;
