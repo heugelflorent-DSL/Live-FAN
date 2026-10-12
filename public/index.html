@@ -563,6 +563,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
         <div class="step-body">
           <p class="msg">Envoie une course au direct bassin de <b>cet événement</b>, comme le ferait le Quantum : série au départ, chrono, passages, arrivées, validation. Si la série a déjà des résultats sur le Live FFN, ses vrais temps sont rejoués. Garde cette page ouverte pendant la course, et regarde le résultat sur la page publique (onglet Direct), idéalement sur un téléphone.</p>
           <label for="sim-heat">Série à simuler<select class="field" id="sim-heat"></select></label>
+          <label for="sim-chain">Nombre de séries à enchaîner<select class="field" id="sim-chain"><option value="1">1 série</option><option value="2">2 séries d'affilée</option><option value="3">3 séries d'affilée</option><option value="5">5 séries d'affilée</option><option value="10">10 séries d'affilée</option></select></label>
           <div class="simact"><button class="btn" id="sim-go">▶ Lancer la course</button><button class="btn ghost" id="sim-stop">■ Arrêter</button><button class="btn ghost" id="sim-clear">Vider le direct</button><a class="btn ghost" id="sim-open" target="_blank" rel="noopener">Ouvrir le direct ↗</a></div>
           <div class="simstat" id="sim-msg">Prêt.</div>
           <div class="simboard" id="sim-board" hidden></div>
@@ -773,7 +774,7 @@ function simDraw(){const el=$("#sim-board");if(!el||!SB)return;el.hidden=false;c
   const rows=[...SB.sw].sort((a,b)=>SB.done?(a.rank||99)-(b.rank||99):a.lane-b.lane).map(w=>`<tr class="${w.fin!=null?"fin":""}"><td class="ln">${w.lane}</td><td class="nm">${esc(w.name)}</td>${Array.from({length:cols},(_,i)=>`<td>${w.got[i]!=null?fmt(w.got[i])+(i?`<small>${fmt(w.got[i]-w.got[i-1])}</small>`:""):""}</td>`).join("")}<td class="rk">${w.rank||""}</td></tr>`).join("");
   el.innerHTML=`<div class="sbhead"><span>${esc(SB.title)} · série ${SB.heat}</span><b class="sbclock">${SB.start?fmtClock(t):"Au départ"}</b></div><div class="sbwrap"><table><thead><tr><th>Ln</th><th>Nageur</th>${Array.from({length:cols},(_,i)=>`<th>${(i+1)*SB.step} m</th>`).join("")}<th>Rg</th></tr></thead><tbody>${rows}</tbody></table></div>${SB.done?`<p class="msg">Série validée.</p>`:""}`}
 function simStop(){SIM.forEach(clearTimeout);SIM=[];clearInterval(SBT);if(SB&&SB.start&&SB.end==null){SB.end=(Date.now()-SB.start)/1000;simDraw()}}
-function simRun(){simStop();const hs=simHeats(),pick=hs[+$("#sim-heat").value];const ev=pick?EVENTS[pick.key]:null;const se=ev&&ev.series[pick.heat-1];
+function simRun(idx,chain){if(idx==null){simStop();idx=+$("#sim-heat").value;chain=+($("#sim-chain")||{}).value||1}const hs=simHeats(),pick=hs[idx];const ev=pick?EVENTS[pick.key]:null;const se=ev&&ev.series[pick.heat-1];
   const name=ev?ev.name:"100 Nage Libre Messieurs",dist=parseInt(name)||100,relay=/^\d+x/.test(name),total=relay?(+name.match(/^(\d+)x(\d+)/)[1])*(+name.match(/^(\d+)x(\d+)/)[2]):dist;
   let sw=(se&&se.swimmers.length?se.swimmers:[]).map(w=>({lane:+w.lane,name:w.name,club:w.club||"",born:w.year||"",entry:w.time||null}));
   if(!sw.length)sw=[3,4,5,6].map((l,i)=>({lane:l,name:"NAGEUR "+(i+1),club:"CLUB TEST",born:"",entry:null}));
@@ -794,7 +795,9 @@ function simRun(){simStop();const hs=simHeats(),pick=hs[+$("#sim-heat").value];c
   const last=Math.max(...sw.map(w=>w.splits.at(-1)));for(let t=2;t<last;t+=2)at(5+t,()=>simSend([{k:"clock",ts:Date.now(),rt:t}]));
   for(let i=0;i<laps;i++){const order=[...sw].sort((a,b)=>a.splits[i]-b.splits[i]);order.forEach((w,r)=>at(5+w.splits[i],()=>{const B=SB.sw.find(x=>x.lane===w.lane);B.got[i]=w.splits[i];if(i===laps-1){B.fin=w.splits[i];B.rank=r+1;if(SB.sw.every(x=>x.fin!=null)){SB.end=Math.max(...SB.sw.map(x=>x.fin));clearInterval(SBT)}}else B.rank=r+1;simDraw();simSend([{k:i===laps-1?"finish":"split",lane:w.lane,lap:i+1,dist:(i+1)*step,t:w.splits[i],rank:r+1}]);$("#sim-msg").textContent=(i===laps-1?`Arrivée ${r+1}/${sw.length} : `:`${(i+1)*step} m · ${r+1}e : `)+`couloir ${w.lane} ${w.name} en ${fmt(w.splits[i])}`+(i===laps-1&&r===sw.length-1?" · validation dans 15 s":"")}))}
   const fin=[...sw].sort((a,b)=>a.splits.at(-1)-b.splits.at(-1));
-  at(5+last+15,()=>{simSend([{...head,stat:"O",lanes:fin.map((w,r)=>({...lanes.find(l=>l.lane===w.lane),time:w.splits.at(-1),rank:r+1}))}]);$("#sim-msg").textContent="Série validée · course terminée";SB.done=true;simDraw()})}
+  at(5+last+15,()=>{simSend([{...head,stat:"O",lanes:fin.map((w,r)=>({...lanes.find(l=>l.lane===w.lane),time:w.splits.at(-1),rank:r+1}))}]);SB.done=true;simDraw();
+    if(chain>1&&hs[idx+1]){$("#sim-msg").textContent=`Série validée · prochaine série dans 40 s (${chain-1} restante${chain>2?"s":""})`;const s2=$("#sim-heat");if(s2)s2.value=String(idx+1);at(40,()=>simRun(idx+1,chain-1))}
+    else $("#sim-msg").textContent="Série validée · simulation terminée"})}
 
 /* ---------- rendu public ---------- */
 const $=s=>document.querySelector(s);
