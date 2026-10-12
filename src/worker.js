@@ -154,6 +154,10 @@ async function runTask(task, data, now) {
 
 export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
   const { config, data } = await load(env, ev);
+  // compétitions retirées de l'événement : leurs données ne servent plus et alourdissent chaque lecture
+  let pruned = false;
+  for (const id of Object.keys(data.comps || {})) if (!config.comps.includes(id)) { delete data.comps[id]; pruned = true; }
+  if (pruned) await saveData(env, data, "", ev);
   const before = JSON.stringify(data);
   const now = Date.now();
   const every = (config.scrape?.every ?? 2) * 60e3;
@@ -209,6 +213,10 @@ function publicConfig(cfg) { const { scrape, ...rest } = cfg; return rest; }
 
 async function rescrape(env, scope, what, ev = "main") {
   const { config, data } = await load(env, ev);
+  // compétitions retirées de l'événement : leurs données ne servent plus et alourdissent chaque lecture
+  let pruned = false;
+  for (const id of Object.keys(data.comps || {})) if (!config.comps.includes(id)) { delete data.comps[id]; pruned = true; }
+  if (pruned) await saveData(env, data, "", ev);
   const before = JSON.stringify(data);
   const comps = scope?.startsWith("c") ? [scope.slice(1)] : config.comps;
   const reu = scope?.startsWith("r") ? +scope.slice(1) : null;
@@ -382,9 +390,10 @@ export default {
     // chaque minute : tous les événements à tour de rôle, dans la limite de 45 pages (50 sous-requêtes max en gratuit)
     ctx.waitUntil((async () => {
       const ids = ["main", ...(await listEvents(env)).map((x) => x.id)];
+      // un seul événement par minute, à tour de rôle : le temps de calcul gratuit (10 ms) est limité par exécution
       const start = Math.floor(Date.now() / 60e3) % ids.length;
-      let left = 45;
-      for (let i = 0; i < ids.length && left > 0; i++) {
+      let left = BUDGET;
+      for (let i = 0; i < 1 && left > 0; i++) {
         const ev = ids[(start + i) % ids.length];
         try { left -= (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; } catch (e) { /* un événement en erreur ne bloque pas les autres */ }
       }
