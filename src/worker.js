@@ -263,8 +263,13 @@ export default {
 
     // Direct « Bassin » (Quantum) : salle temps réel. Le relais envoie les événements avec le mot de passe admin.
     if (p.startsWith("/api/pool/")) {
-      const { config } = await load(env, ev);
-      const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));
+      let rid = ev;
+      // le relais sans « --evenement » : le chrono va à l'événement réglé en mode « Bassin » dans l'admin
+      if (p === "/api/pool/event" && !url.searchParams.get("e")) {
+        for (const x of [{ id: "main" }, ...(await listEvents(env))]) { const c = await env.KV.get(kk("config", x.id), "json"); if (c && c.live === "bassin") { rid = x.id; break; } }
+      }
+      const { config } = await load(env, rid);
+      const room = env.POOL.get(env.POOL.idFromName(rid === "main" ? "bassin" : "bassin:" + rid));
       if (p === "/api/pool/event") {
         if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
