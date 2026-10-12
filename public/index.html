@@ -777,7 +777,7 @@ function poolHtml(){
 /* ---------- Direct (Live FFN, série par série) ---------- */
 let LIVE={};
 function compRange(c){const t=(c.date||"").toLowerCase();const ends=[...t.matchAll(/(\d{1,2})\s+([a-zéûô]+)\s+(\d{4})/g)].filter(m=>MOIS.includes(m[2]));if(!ends.length)return null;const e=ends[ends.length-1];const end=new Date(+e[3],MOIS.indexOf(e[2]),+e[1]);const f=t.match(/\b(\d{1,2})\b/);let start=new Date(end);if(f&&+f[1]!==+e[1]){const st=ends.length>1?ends[0]:null;start=st?new Date(+st[3],MOIS.indexOf(st[2]),+st[1]):new Date(end.getFullYear(),end.getMonth(),+f[1]);if(start>end)start.setMonth(start.getMonth()-1)}return{start,end}}
-function liveToday(){const d=new Date();d.setHours(12,0,0,0);return state.comps.some(c=>{const r=compRange(c);if(!r)return false;const a=new Date(r.start),b=new Date(r.end);a.setHours(0,0,0,0);b.setHours(23,59,0,0);return d>=a&&d<=b})}
+function liveToday(){if(state.live==="bassin")return true;const d=new Date();d.setHours(12,0,0,0);return state.comps.some(c=>{const r=compRange(c);if(!r)return false;const a=new Date(r.start),b=new Date(r.end);a.setHours(0,0,0,0);b.setHours(23,59,0,0);return d>=a&&d<=b})}
 function liveUpcoming(){const t=new Date();t.setHours(0,0,0,0);const rs=state.comps.map(compRange).filter(Boolean).filter(r=>r.end>=t).sort((a,b)=>a.start-b.start);return rs[0]||null}
 // onglet visible dès que le programme définitif est publié, jusqu'à la fin de la compétition
 function liveOn(){if(state.live!=="ffn"&&state.live!=="bassin")return false;if(liveToday())return true;return !!liveUpcoming()&&Object.values(EVENTS).some(e=>e.type==="event"&&!e.provisional)}
