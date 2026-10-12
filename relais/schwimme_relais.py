@@ -104,7 +104,7 @@ class Decoder:
 class Sender(threading.Thread):
     """Envoie les événements au site, groupés, avec nouvelles tentatives si la connexion coupe."""
     def __init__(self, site, key):
-        super().__init__(daemon=True); self.q = queue.Queue(); self.site = site.rstrip("/"); self.key = key
+        super().__init__(daemon=True); self.q = queue.Queue(); self.site = site.rstrip("/"); self.key = key; self.ev = None
     def run(self):
         while True:
             batch = [self.q.get()]
@@ -113,7 +113,7 @@ class Sender(threading.Thread):
             delay = 1
             while True:
                 try:
-                    req = urllib.request.Request(self.site + "/api/pool/event", data=json.dumps(batch).encode(), method="POST",
+                    req = urllib.request.Request(self.site + "/api/pool/event" + (("?e=" + self.ev) if self.ev else ""), data=json.dumps(batch).encode(), method="POST",
                                                  headers={"content-type": "application/json", "x-admin-key": self.key, "user-agent": "SchwimmeRelais/1.0"})
                     with urllib.request.urlopen(req, timeout=8) as r: res = json.loads(r.read() or b"{}")
                     log(f"→ site : {len(batch)} événement(s) envoyé(s) · {res.get('spectators', 0)} spectateur(s) connecté(s)"); break
@@ -226,7 +226,7 @@ def main():
     ap = argparse.ArgumentParser(description="Relais Schwimme Direct pour Quantum (OSM6)")
     ap.add_argument("--port"); ap.add_argument("--reglages", default="9600,7,N,1", help="vitesse,bits,parité,arrêt (défaut 9600,7,N,1)")
     ap.add_argument("--reseau", help="au lieu d'un port série : udp:PORT, tcp:PORT (écoute) ou tcp:IP:PORT")
-    ap.add_argument("--site", default=SITE); ap.add_argument("--ports", action="store_true", help="liste les ports série")
+    ap.add_argument("--site", default=SITE); ap.add_argument("--evenement", help="identifiant de l'événement (ex. test), sinon l'événement principal"); ap.add_argument("--ports", action="store_true", help="liste les ports série")
     ap.add_argument("--demo", action="store_true"); ap.add_argument("--replay"); ap.add_argument("--vitesse", type=float, default=1.0)
     ap.add_argument("--capture", action="store_true", help="enregistre seulement, sans rien envoyer au site")
     ap.add_argument("--journal", default=None, help="fichier du journal brut (défaut : journal-AAAAMMJJ-HHMM.jsonl)")
@@ -239,7 +239,7 @@ def main():
     sender = None
     if not a.capture:
         key = os.environ.get("SCHWIMME_CLE") or getpass.getpass("Mot de passe admin du site : ")
-        sender = Sender(a.site, key); sender.start()
+        sender = Sender(a.site, key); sender.ev = a.evenement; sender.start()
     journal = None
     if a.port or a.reseau:
         name = a.journal or datetime.now().strftime("journal-%Y%m%d-%H%M.jsonl")
