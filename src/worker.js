@@ -204,12 +204,12 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
 // ---------- records personnels (FFN Extranat) ----------
 // La veille et pendant la compétition, quelques nageurs par minute : nom + année → licence → meilleures perfs (avec passages).
 const mppKey = (name, year) => String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim() + "|" + (year || "");
-async function mppStep(env, ev, max = 2) {
+async function mppStep(env, ev, max = 2, force = false) {
   const { config, data } = await load(env, ev); const now = Date.now();
   const want = new Map(); // clé nageur → { name, year, pool, events:Set }
   for (const id of config.comps) {
     const c = data.comps[id]; if (!c) continue; const dt = compDate(c.meta); if (!dt) continue;
-    const day = parisEpoch(dt.y, dt.m, dt.d); if (now < day - 5 * 864e5 || now > day + 2 * 864e5) continue;
+    const day = parisEpoch(dt.y, dt.m, dt.d); if (!force && (now < day - 5 * 864e5 || now > day + 2 * 864e5)) continue;
     const pool = +((c.meta?.pool || "").match(/\d+/) || [25])[0] === 50 ? 50 : 25;
     for (const e of eventsOf(c)) {
       const ek = normEvent(e.name); if (!ek) continue;
@@ -342,7 +342,7 @@ export default {
 
     if (p === "/api/admin/mpp" && req.method === "POST") {
       if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
-      const used = await mppStep(env, ev, 6); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+      const used = await mppStep(env, ev, 6, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
       const all = Object.values(store.sw); return json({ ok: true, used, total: all.length, found: all.filter((x) => x.iuf).length, withBest: all.filter((x) => x.b && Object.keys(x.b).length).length });
     }
     if (p === "/api/mpp" && req.method === "GET") {
