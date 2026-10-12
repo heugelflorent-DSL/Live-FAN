@@ -350,7 +350,11 @@ export default {
     if (p === "/api/config" && req.method === "PUT") {
       const body = await req.json();
       const cfg = { ...DEFAULT_CONFIG, ...body };
+      const prev = await env.KV.get(kk("config", ev), "json");
       await env.KV.put(kk("config", ev), JSON.stringify(cfg));
+      // passage en mode « Bassin » : on repart d'un direct vide (les tests chrono d'avant ne s'affichent pas)
+      if (cfg.live === "bassin" && (!prev || prev.live !== "bassin"))
+        await env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev)).fetch(new Request("https://pool/event", { method: "POST", body: JSON.stringify([{ k: "clear" }]) }));
       await purge();
       // nouvelle compétition : on lance tout de suite la lecture de son programme
       const { data } = await load(env, ev);
