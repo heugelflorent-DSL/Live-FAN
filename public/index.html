@@ -639,8 +639,10 @@ function doneSet(){
     let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(ev.doneAt||(ev.results.length&&later))done.add(ks[i]);if(ev.results.length)later=true}}
   return done;
 }
+function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3)return null;const ev=poolEvent(h);if(!ev)return null;
+  return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
 function schedule(){
-  const out={};const doneNow=doneSet();
+  const out={};const doneNow=doneSet();const pa=poolAnchor();let anchored=false;
   for(const s of Object.keys(state.order)){
     let t=toMin(state.starts[s]||"10:00")*60;let first=true;let delayed=false;
     for(const key of state.order[s]){
@@ -648,9 +650,12 @@ function schedule(){
       if(!first)t+=state.eventGap;first=false;
       if(ev.type==="pause"){out[key]={start:t};t+=ev.min*60;continue}
       if(state.timing==="manual"&&!delayed&&!doneNow.has(key)){t+=(state.delay[s]||0)*60;delayed=true}
+      // direct bassin : la série en cours dans l'eau donne l'heure réelle, tout le programme suivant se recale dessus
+      if(pa&&pa.key===key){const before=ev.series.slice(0,pa.heat-1).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=pa.sec-before;anchored=true}
       out[key]={start:t};t+=duration(ev);out[key].end=t;
+      if(anchored&&pa.key===key&&pa.done){const rest=ev.series.slice(pa.heat).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=Math.max(t,parisSec(Date.now())+rest);out[key].end=t}
       // chronométrage électronique : on se recale sur l'heure réelle d'arrivée des résultats
-      if(state.timing==="elec"&&doneNow.has(key)&&ev.doneAt){const real=parisSec(ev.doneAt);if(Math.abs(real-t)<4*3600){t=real;out[key].end=t}}
+      if(state.timing==="elec"&&!anchored&&doneNow.has(key)&&ev.doneAt){const real=parisSec(ev.doneAt);if(Math.abs(real-t)<4*3600){t=real;out[key].end=t}}
     }
   }
   return out;
@@ -754,7 +759,7 @@ let POOL=null,poolWs=null,poolOff=0,poolOffN=0,poolRtt=1e9,poolSynced=false,pool
 function poolConnect(){if(poolWs||state.live!=="bassin"||!liveToday())return;
   try{poolWs=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+evq("/api/pool/ws"))}catch(_){return}
   poolWs.onopen=()=>{poolSync();setTimeout(poolSync,1500);setTimeout(poolSync,4000)};
-  poolWs.onmessage=e=>{if(e.data==="pong")return;try{const m=JSON.parse(e.data);if(m.type==="time"){const t1=Date.now(),t0=+m.id,rtt=t1-t0;if(rtt>=0&&rtt<poolRtt+30){poolRtt=Math.min(poolRtt,rtt);poolOff=m.now-(t0+t1)/2;poolSynced=true}return}if(m.type==="state"){const o=m.now-Date.now();if(!poolSynced)poolOff=poolOffN++?Math.max(poolOff,o):o;POOL=m;poolRetry=1000;if(state.view==="live"&&!state.admin)render()}}catch(_){}};
+  poolWs.onmessage=e=>{if(e.data==="pong")return;try{const m=JSON.parse(e.data);if(m.type==="time"){const t1=Date.now(),t0=+m.id,rtt=t1-t0;if(rtt>=0&&rtt<poolRtt+30){poolRtt=Math.min(poolRtt,rtt);poolOff=m.now-(t0+t1)/2;poolSynced=true}return}if(m.type==="state"){const o=m.now-Date.now();if(!poolSynced)poolOff=poolOffN++?Math.max(poolOff,o):o;const sig=h=>h?[h.event,h.heat,h.start,h.status].join("|"):"";const ch=sig(POOL&&POOL.heat)!==sig(m.heat);POOL=m;poolRetry=1000;if(!state.admin&&(state.view==="live"||ch))render()}}catch(_){}};
   poolWs.onclose=()=>{poolWs=null;setTimeout(poolConnect,poolRetry);poolRetry=Math.min(poolRetry*2,30000)};
   poolWs.onerror=()=>{try{poolWs.close()}catch(_){}}}
 function poolSync(){if(poolWs&&poolWs.readyState===1)poolWs.send("t:"+Date.now())}
