@@ -42,7 +42,7 @@ export class PoolRoom {
         const same = s.heat && ((s.heat.event === ev.event && s.heat.heat === ev.heat && !(fresh && s.heat.status === "done")) || (s.heat.event == null && s.heat.status !== "done"));
         if (same) { s.heat.event = ev.event; s.heat.heat = ev.heat; }
         if (!same) { if (s.heat && s.heat.start) s.prev = s.heat; s.heat = { event: ev.event, heat: ev.heat, status: "ready", start: null, lanes: {}, at: t }; }
-        const h = s.heat; h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
+        const h = s.heat; h.sim = !!ev.sim; h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
         h.names = {}; for (const l of ev.lanes || []) if (l.name) h.names[l.lane] = { name: l.name, club: l.club, born: l.born };
         if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; h.doneAt = h.doneAt || t; for (const l of ev.lanes || []) if (l.time) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); L.fin = { t: l.time, rank: l.rank }; } }
         break;

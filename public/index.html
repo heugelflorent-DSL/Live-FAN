@@ -128,7 +128,7 @@ tr.hit td{background:rgba(253,230,138,.16)}
 .pool,.pool h3{color:var(--ink)}.pool .pclock{color:var(--ink);font-family:var(--mono);font-size:40px;font-weight:700;letter-spacing:1px}.pool .pst{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
 .pool .pst.run{color:#d0202f}.pool .prow{color:var(--ink);display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:8px 4px;border-top:1px solid var(--line);background:none;border-radius:0;border-left:0;border-right:0;border-bottom:0}
 .pool .prow.fin b.t{color:#0f7a3d}.pool .prow small{color:var(--muted)}.pool .pres{text-align:right;font-family:var(--mono)}.pool .rkb{display:inline-block;min-width:22px;text-align:center;border-radius:6px;background:#eee;font-size:12px;font-weight:700;margin-left:6px}
-.pool .prow.can{cursor:pointer}.pool .spt{display:block;font-size:11px;color:var(--muted);font-family:inherit}.pool .ptab{grid-column:1/-1}.pool .lt{display:block;font-size:12px;color:var(--muted);font-family:var(--mono)}.pool .pnext.first{margin-top:0;padding-top:0;border-top:0}.pool .pprev{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}.pool .pprev summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}.pool .pnext{margin-top:14px;padding-top:12px;border-top:2px dashed var(--line)}.pool .pnext h4{margin:4px 0 8px;font-size:16px}.pool .pn{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:4px;align-items:center;font-size:14px}.pool .pn.fav{background:#fff6cf}.pool .rkb.r1{background:#f5c542}.pool .rkb.r2{background:#cfd4da}.pool .rkb.r3{background:#e0a46a}
+.pool .prow.can{cursor:pointer}.pool .spt{display:block;font-size:11px;color:var(--muted);font-family:inherit}.pool .ptab{grid-column:1/-1}.pool .lt{display:block;font-size:12px;color:var(--muted);font-family:var(--mono)}.simbox{margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;display:flex;flex-direction:column;gap:6px}.simbox select{min-width:0;flex:1}.pool .pnext.first{margin-top:0;padding-top:0;border-top:0}.pool .pprev{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}.pool .pprev summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}.pool .pnext{margin-top:14px;padding-top:12px;border-top:2px dashed var(--line)}.pool .pnext h4{margin:4px 0 8px;font-size:16px}.pool .pn{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:4px;align-items:center;font-size:14px}.pool .pn.fav{background:#fff6cf}.pool .rkb.r1{background:#f5c542}.pool .rkb.r2{background:#cfd4da}.pool .rkb.r3{background:#e0a46a}
 .lv-badge{background:#d0202f;color:#fff;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:700;letter-spacing:.5px}
 .dif{font-variant-numeric:tabular-nums;font-weight:600}.dif.dn{color:#0f7a3d}.dif.up{color:#8a6d3b}
 .clogo{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;background:#fff}.clogo.big{width:44px;height:44px}
@@ -474,6 +474,9 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <label for="ev-progdate">Publication du programme prévue le<input class="field" type="date" id="ev-progdate"><span class="msg" style="font-weight:400">Vide = 3 jours avant la compétition</span></label></div>
           <label for="ev-live">Direct pendant la compétition<select class="field" id="ev-live"><option value="off">Désactivé</option><option value="ffn">Live FFN : série par série, sans matériel</option><option value="bassin">Bassin : chrono en direct depuis le Quantum (relais au bord du bassin) + Live FFN</option></select><span class="msg" style="font-weight:400">L'onglet « Direct » apparaît les jours de compétition.</span></label>
+          <div class="simbox" id="sim-box"><b>Simulateur de course</b> <span class="msg" style="font-weight:400">Envoie une fausse course au direct bassin de cet événement, comme le ferait le Quantum, pour tester l'affichage.</span>
+            <div class="inline"><select class="field" id="sim-heat" aria-label="Série à simuler"></select><button class="btn" id="sim-go">Lancer une course</button><button class="btn ghost" id="sim-stop">Arrêter</button><button class="btn ghost" id="sim-clear">Vider le direct</button></div>
+            <span class="msg" id="sim-msg" style="font-weight:400"></span></div>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button><button class="btn ghost" id="link-replace" title="Retire les autres compétitions et suit uniquement celle-ci">Remplacer tout</button></div>
           <p class="msg" id="link-msg">Ajoute autant de compétitions que nécessaire.</p>
           <div id="comp-list" style="display:grid;gap:6px"></div>
@@ -643,7 +646,7 @@ function doneSet(){
   return done;
 }
 // test chrono : une série courue plus de 10 min avant le début de sa réunion n'est pas montrée au public
-function poolIsTest(h){if(!h)return false;const ev=poolEvent(h);if(!ev)return false;const s=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!s||!state.starts[s])return false;
+function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)return false;const s=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!s||!state.starts[s])return false;
   const t=h.start||(Date.now()+poolOff);return parisSec(t)<toMin(state.starts[s])*60-600}
 function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3||poolIsTest(h))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
@@ -700,6 +703,29 @@ function markDirty(){const dirty=JSON.stringify(toConfig())!==lastSaved;const el
 async function saveNow(){const c=JSON.stringify(toConfig());if(c===lastSaved){markDirty();return}const el=$("#save-state");
   try{if(el)el.textContent="Enregistrement…";await api("/api/config",{method:"PUT",body:c});lastSaved=c;if(el)el.textContent="Tout est enregistré · "+hhmm(new Date());markDirty()}
   catch(e){if(el)el.textContent="Échec de l'enregistrement : "+e.message}}
+
+
+/* ---------- simulateur de course (admin) : imite le Quantum pour tester le direct bassin ---------- */
+let SIM=[];
+function simHeats(){const out=[];for(const s of Object.keys(state.order))for(const k of state.order[s]){const ev=EVENTS[k];if(!ev||ev.type!=="event")continue;const n=Math.max(1,ev.series.length);for(let i=0;i<n;i++)out.push({key:k,heat:i+1,label:`${ev.numEp?"N°"+ev.numEp+" · ":""}${ev.name} · série ${i+1}/${n}`})}return out}
+function simFill(){const sel=$("#sim-heat");if(!sel)return;const hs=simHeats();sel.innerHTML=hs.length?hs.map((h,i)=>`<option value="${i}">${esc(h.label)}</option>`).join(""):`<option value="-1">100 Nage Libre (sans programme)</option>`}
+async function simSend(list){try{await api("/api/pool/event",{method:"POST",body:JSON.stringify(list.map(e=>({...e,sent:Date.now()})))})}catch(e){$("#sim-msg").textContent="Envoi refusé : "+e.message}}
+function simStop(){SIM.forEach(clearTimeout);SIM=[]}
+function simRun(){simStop();const hs=simHeats(),pick=hs[+$("#sim-heat").value];const ev=pick?EVENTS[pick.key]:null;const se=ev&&ev.series[pick.heat-1];
+  const name=ev?ev.name:"100 Nage Libre Messieurs",dist=parseInt(name)||100,relay=/^\d+x/.test(name),total=relay?(+name.match(/^(\d+)x(\d+)/)[1])*(+name.match(/^(\d+)x(\d+)/)[2]):dist;
+  let sw=(se&&se.swimmers.length?se.swimmers:[]).map(w=>({lane:+w.lane,name:w.name,club:w.club||"",born:w.year||"",entry:w.time||null}));
+  if(!sw.length)sw=[3,4,5,6].map((l,i)=>({lane:l,name:"NAGEUR "+(i+1),club:"CLUB TEST",born:"",entry:null}));
+  const base=total*0.68;const step=50,laps=Math.max(1,Math.round(total/step));
+  sw.forEach(w=>{const tgt=(w.entry||base*(1+Math.random()*0.15))*(0.97+Math.random()*0.06);const f=[];let acc=0;for(let i=0;i<laps;i++){acc+=(i===0?0.94:1+0.02*i)/laps;f.push(acc)}w.splits=f.map(x=>Math.round(tgt*x/acc*100)/100)});
+  const evn=ev?+ev.numEp||0:1,heat=pick?pick.heat:1,lanes=sw.map(w=>({lane:w.lane,name:w.name,club:w.club,born:w.born}));
+  const head={k:"heat",sim:true,event:evn,heat,heats:ev?ev.series.length:1,laps,title:name};
+  const at=(sec,fn)=>SIM.push(setTimeout(fn,sec*1000));
+  simSend([{...head,stat:"W",lanes}]);$("#sim-msg").textContent="Série affichée · départ dans 5 s";
+  at(5,()=>{simSend([{k:"start",ts:Date.now()}]);$("#sim-msg").textContent="Course en cours…"});
+  const last=Math.max(...sw.map(w=>w.splits.at(-1)));for(let t=2;t<last;t+=2)at(5+t,()=>simSend([{k:"clock",ts:Date.now(),rt:t}]));
+  for(let i=0;i<laps;i++){const order=[...sw].sort((a,b)=>a.splits[i]-b.splits[i]);order.forEach((w,r)=>at(5+w.splits[i],()=>simSend([{k:i===laps-1?"finish":"split",lane:w.lane,lap:i+1,dist:(i+1)*step,t:w.splits[i],rank:r+1}])))}
+  const fin=[...sw].sort((a,b)=>a.splits.at(-1)-b.splits.at(-1));
+  at(5+last+15,()=>{simSend([{...head,stat:"O",lanes:fin.map((w,r)=>({...lanes.find(l=>l.lane===w.lane),time:w.splits.at(-1),rank:r+1}))}]);$("#sim-msg").textContent="Série validée · course terminée"})}
 
 /* ---------- rendu public ---------- */
 const $=s=>document.querySelector(s);
@@ -1116,7 +1142,7 @@ function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs(
 function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
 function shrink(file){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const S=96,r=Math.min(S/img.width,S/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>40000?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
 function renderAdmin(){renderLogos();
-  $("#ev-name").value=state.name;$("#ev-live").value=state.live||"off";$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
+  $("#ev-name").value=state.name;$("#ev-live").value=state.live||"off";simFill();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
@@ -1192,6 +1218,9 @@ $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
 $("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
 $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
 $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
+$("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
+$("#sim-stop").onclick=()=>{simStop();$("#sim-msg").textContent="Simulation arrêtée"};
+$("#sim-clear").onclick=()=>{simStop();simSend([{k:"clear"}]);$("#sim-msg").textContent="Direct vidé"};
 $("#ev-switch").onchange=e=>switchEvent(e.target.value);
 $("#ev-new").onclick=async()=>{const name=prompt("Nom du nouvel événement (ex. Meeting de Saint-Dizier) :");if(!name)return;const link=prompt("Lien Live FFN de la compétition (facultatif, tu pourras en ajouter ensuite) :")||"";const m=link.match(/competition=(\d+)/)||link.match(/^(\d{4,6})$/);
   try{const r=await api("/api/admin/events",{method:"POST",body:JSON.stringify({name,comps:m?[m[1]]:[]})});await switchEvent(r.id)}catch(err){alert(err.message)}};
