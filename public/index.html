@@ -769,7 +769,7 @@ function poolHtml(){
   if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000)return"";
   const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1];const who=n=>{const q=h.names&&h.names[n];if(q&&q.name){const m=se&&se.swimmers.find(w=>norm(w.name)===norm(q.name));return m||{name:q.name,club:q.club,year:q.born,lane:n}}return se&&se.swimmers.find(w=>+w.lane===+n)};
   const used=new Set([...Object.keys(h.lanes||{}),...Object.keys(h.names||{}),...(h.names?[]:se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
-  if(h.status==="done")lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
+  if(h.status==="done"||poolAllIn(h))lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
   const st=h.status==="running"&&poolAllIn(h)?`<span class="pst">Tous arrivés · en attente de validation</span>`:h.status==="running"?`<span class="pst run"><span class="livedot"></span>En course</span>`:h.status==="ready"?`<span class="pst">Au départ</span>`:`<span class="pst">Arrivée · résultats officiels à suivre sur le Live FFN</span>`;
   const allIn=h.status==="running"&&poolAllIn(h);const clock=h.status==="running"&&h.start?(allIn?`<span class="pclock">${fmt(Math.max(...Object.values(h.lanes).map(L=>L.fin?L.fin.t:0)))}</span>`:`<span class="pclock" id="pclock">${poolShown&&poolShown.s===h.start?fmtClock(poolShown.t):"0.0"}</span>`):"";
   const rows=lanes.map(n=>{const L=h.lanes[n]||{},w=who(n),last=L.last?L.laps[L.last]:null;
