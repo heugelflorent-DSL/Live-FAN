@@ -564,6 +564,8 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
         <summary><span class="n">6</span>Mode du direct<span class="hint" id="h-live"></span></summary>
         <div class="step-body">
           <label for="ev-live">Direct pendant la compétition<select class="field" id="ev-live"><option value="off">Désactivé</option><option value="ffn">Live FFN : série par série, sans matériel</option><option value="bassin">Bassin : chrono en direct depuis le Quantum (relais au bord du bassin) + Live FFN</option></select><span class="msg" style="font-weight:400">L'onglet « Direct » apparaît les jours de compétition. En mode Bassin, le relais du PC Quantum envoie le chrono à l'événement réglé sur Bassin.</span></label>
+          <div class="grid2c"><label for="pool-sort">Classement de la série<select class="field" id="pool-sort"><option value="touch">dès que tous ont touché</option><option value="official">à la validation sur le Quantum</option></select></label>
+          <label for="pool-hold">Ensuite, garder les résultats affichés<select class="field" id="pool-hold"><option value="0">jusqu'à la série suivante sur le Quantum (recommandé)</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select></label></div>
           <p class="msg" id="relay-state"></p>
           <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement à partir de 5 jours avant la compétition, quelques nageurs par minute.</span></div>
         </div>
@@ -631,7 +633,7 @@ function defaultDur(name){const d=parseInt(name)||100;return {25:25,50:45,100:95
 function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m[2]):parseInt(name)}
 
 function build(cfg,data){
-  state.name=cfg.name||"";state.live=cfg.live||"off";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
+  state.name=cfg.name||"";state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
@@ -692,7 +694,7 @@ function build(cfg,data){
 }
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
-  return{name:state.name,live:state.live||"off",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
+  return{name:state.name,live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
     rankings:state.podRules,infos:state.infos,published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -958,8 +960,8 @@ function poolHtml(){
   if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000||poolIsTest(POOL.heat))return"";
   const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1],total=poolTotal(h,ev);
   const used=new Set([...Object.keys(h.lanes||{}),...Object.keys(h.names||{}),...(h.names?[]:se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
-  const allIn=poolAllIn(h),ended=h.status==="done"||allIn;
-  if(ended)lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
+  const allIn=poolAllIn(h),ended=h.status==="done"||allIn,sorted=state.poolSort==="official"?h.status==="done":ended;
+  if(sorted)lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
   const st=h.status==="running"&&allIn?`<span class="pst">Tous arrivés · validation en cours</span>`:h.status==="running"?`<span class="pst run"><span class="livedot"></span>En course</span>`:h.status==="ready"?`<span class="pst">Au départ</span>`:poolOfficial(h,ev,se)?`<span class="pst ok">Résultats officiels publiés (Live FFN)</span>`:`<span class="pst">Arrivée · temps provisoires</span>`;
   const clockTxt=h.status==="running"&&h.start?(allIn?fmt(Math.max(...Object.values(h.lanes).map(L=>L.fin?L.fin.t:0))):(poolShown&&poolShown.s===h.start?fmtClock(poolShown.t):"0.0")):h.status==="ready"?"0.0":"";
   const clock=clockTxt?`<span class="pclock"${h.status==="running"&&!allIn?` id="pclock"`:""}>${clockTxt}</span>`:"";
@@ -972,9 +974,10 @@ function poolHtml(){
   const sub=`${ev&&state.comps.length>1?compBadge(ev.comp)+" · ":""}Série ${h.heat}${ev?" / "+ev.series.length:""}`;
   const foot=`<p class="msg">Temps provisoires, transmis en direct par le chronométrage. Les résultats officiels sont ceux du Live FFN.${Object.keys(MPP).length?" Records personnels : FFN Extranat.":""}</p>`;
   const doneEv=poolUpcoming(ev,h.heat,ended?1:0);
-  if(nx&&endT&&Date.now()+poolOff-endT>60000){
+  const hold=(state.poolHold||0)*1000;
+  if(hold&&nx&&endT&&Date.now()+poolOff-endT>hold){
     return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}${tvBtn()}<div class="card lv-card pool">${head(`À suivre${nx.at!=null?" · vers "+atTxt(nx.at):""}`,esc(nx.ev.name),`${state.comps.length>1?compBadge(nx.ev.comp)+" · ":""}Série ${nx.heat} / ${nx.ev.series.length}`,"")}${startList(nx.se)}<details class="pprev"${document.body.classList.contains("tv")?"":" open"}><summary>Résultats · ${title} · Série ${h.heat}</summary>${poolPhrase(h,se)}${rows}${ev&&ev.series.length>1?poolRanking(h,ev):""}</details></div>${doneEv}${foot}</div>`}
-  if(nx&&endT){clearTimeout(poolSwap);poolSwap=setTimeout(()=>{if(state.view==="live"&&!state.admin)render()},Math.max(1000,60500-(Date.now()+poolOff-endT)))}
+  if(hold&&nx&&endT){clearTimeout(poolSwap);poolSwap=setTimeout(()=>{if(state.view==="live"&&!state.admin)render()},Math.max(1000,hold+500-(Date.now()+poolOff-endT)))}
   return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}${tvBtn()}<div class="card lv-card pool" style="--n:${Math.max(4,lanes.length)}">${head(st,title,sub,clock)}${ended?poolPhrase(h,se):""}${rows||`<p class="msg">En attente des nageurs…</p>`}${ended&&ev&&ev.series.length>1?poolRanking(h,ev):""}${nextH}</div>${doneEv}${foot}</div>`}
 // prochaines séries du programme (repliées : un clic montre la liste de départ)
 function poolUpcoming(ev,heat,skip,n=4){if(!ev)return"";const out=[];let e=ev,hh=heat;for(let i=0;i<n+skip;i++){const nx=poolNext(e,hh);if(!nx)break;if(i>=skip)out.push(nx);e=nx.ev;hh=nx.heat}if(!out.length)return"";
@@ -1299,7 +1302,7 @@ function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs(
 function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
 function shrink(file){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const S=96,r=Math.min(S/img.width,S/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>40000?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
 function renderAdmin(){renderLogos();
-  $("#ev-name").value=state.name;$("#ev-live").value=state.live||"off";simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
+  $("#ev-name").value=state.name;$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
@@ -1378,6 +1381,7 @@ $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
 $("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
 $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
 $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
+$("#pool-sort").onchange=e=>{state.poolSort=e.target.value;scheduleSave()};$("#pool-hold").onchange=e=>{state.poolHold=+e.target.value;scheduleSave()};
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
 $("#mpp-go").onclick=async()=>{const m=$("#mpp-msg");m.textContent="Lecture en cours…";try{const j=await api("/api/admin/mpp",{method:"POST"});console.log("records perso",j);m.textContent=j.total?`${j.total} nageur(s) traité(s) · ${j.found} retrouvé(s) sur Extranat · ${j.withBest} avec un record sur leurs épreuves. Reclique pour continuer.${j.found?"":" (Extranat : "+(j.probe&&(j.probe.status||j.probe.error))+" · "+((j.sample||[]).map(x=>x.err).filter(Boolean)[0]||"")+")"}`:"Aucun nageur à traiter : il faut les listes de départ (programme définitif) et une compétition dans les 5 jours.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}};
 $("#sim-stop").onclick=()=>{simStop();$("#sim-msg").textContent="Simulation arrêtée"};
