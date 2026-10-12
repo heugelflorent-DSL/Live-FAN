@@ -716,11 +716,14 @@ function simRun(){simStop();const hs=simHeats(),pick=hs[+$("#sim-heat").value];c
   let sw=(se&&se.swimmers.length?se.swimmers:[]).map(w=>({lane:+w.lane,name:w.name,club:w.club||"",born:w.year||"",entry:w.time||null}));
   if(!sw.length)sw=[3,4,5,6].map((l,i)=>({lane:l,name:"NAGEUR "+(i+1),club:"CLUB TEST",born:"",entry:null}));
   const base=total*0.68;const step=50,laps=Math.max(1,Math.round(total/step));
-  sw.forEach(w=>{const tgt=(w.entry||base*(1+Math.random()*0.15))*(0.97+Math.random()*0.06);const f=[];let acc=0;for(let i=0;i<laps;i++){acc+=(i===0?0.94:1+0.02*i)/laps;f.push(acc)}w.splits=f.map(x=>Math.round(tgt*x/acc*100)/100)});
+  let real=0;sw.forEach(w=>{const r=ev&&ev.results.find(x=>norm(x.name)===norm(w.name));
+    if(r&&r.res&&!r.dsq){const sp=(r.splits||[]).filter(x=>x.dist%step===0&&x.dist<total).map(x=>x.cum);if(sp.length===laps-1){w.splits=[...sp,r.res];real++;return}
+      const f=[];let acc=0;for(let i=0;i<laps;i++){acc+=(i===0?0.94:1+0.02*i)/laps;f.push(acc)}w.splits=f.map(x=>Math.round(r.res*x/acc*100)/100);real++;return}
+    const tgt=(w.entry||base*(1+Math.random()*0.15))*(0.97+Math.random()*0.06);const f=[];let acc=0;for(let i=0;i<laps;i++){acc+=(i===0?0.94:1+0.02*i)/laps;f.push(acc)}w.splits=f.map(x=>Math.round(tgt*x/acc*100)/100)});
   const evn=ev?+ev.numEp||0:1,heat=pick?pick.heat:1,lanes=sw.map(w=>({lane:w.lane,name:w.name,club:w.club,born:w.born}));
   const head={k:"heat",sim:true,event:evn,heat,heats:ev?ev.series.length:1,laps,title:name};
   const at=(sec,fn)=>SIM.push(setTimeout(fn,sec*1000));
-  simSend([{...head,stat:"W",lanes}]);$("#sim-msg").textContent="Série affichée · départ dans 5 s";
+  simSend([{...head,stat:"W",lanes}]);$("#sim-msg").textContent="Série affichée · départ dans 5 s"+(real?` · ${real} temps réels du Live FFN`:" · temps inventés");
   at(5,()=>{simSend([{k:"start",ts:Date.now()}]);$("#sim-msg").textContent="Course en cours…"});
   const last=Math.max(...sw.map(w=>w.splits.at(-1)));for(let t=2;t<last;t+=2)at(5+t,()=>simSend([{k:"clock",ts:Date.now(),rt:t}]));
   for(let i=0;i<laps;i++){const order=[...sw].sort((a,b)=>a.splits[i]-b.splits[i]);order.forEach((w,r)=>at(5+w.splits[i],()=>simSend([{k:i===laps-1?"finish":"split",lane:w.lane,lap:i+1,dist:(i+1)*step,t:w.splits[i],rank:r+1}])))}
