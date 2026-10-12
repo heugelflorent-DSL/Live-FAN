@@ -290,7 +290,8 @@ export default {
       let body;
       try { body = { at: Date.now(), ...parseLive(await get(urls.live(c), { delay: 0, tries: 1 })) }; }
       catch (e) { body = { at: Date.now(), error: String(e.message || e) }; }
-      const res = json(body, 200, { "cache-control": "public, max-age=30" });
+      // page absente (direct pas commencé) : on ne redemande pas au Live FFN avant 10 min
+      const res = json(body, 200, { "cache-control": `public, max-age=${body.error ? 600 : 30}` });
       ctx.waitUntil(cache.put(key, res.clone()));
       return res;
     }
