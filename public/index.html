@@ -148,6 +148,16 @@ tr.hit td{background:rgba(253,230,138,.16)}
 .pool .pnext{margin-top:12px;padding-top:10px;border-top:2px dashed var(--line)}.pool .pnext h4{margin:4px 0 6px;font-size:16px}
 .pool .pprev{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}.pool .pprev summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
 body.v-live .top .meta,body.v-live .top .upd,body.v-live .top .legend,body.v-live .top .app{display:none}body.v-live .top h1{font-size:18px}body.v-live .top .logo{width:34px;height:34px}body.v-live .top{padding-block:8px}
+@media (max-width:700px){.tvb{display:none}}.tvb{float:right;margin-top:-34px;background:#fff;color:#b3121f;border:0;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px -8px rgba(80,0,15,.5)}
+body.tv{background:#0e0d0c!important}body.tv .pdone,body.tv .session>.msg,body.tv .sec-title{display:none}body.tv .tvb{position:fixed;top:12px;right:16px;margin:0;z-index:30;opacity:.35}body.tv .tvb:hover{opacity:1}
+body.tv .pool{background:#1b1918;color:#fff;border:0;padding:0 3vw 2vh;min-height:92vh}body.tv .pool h3,body.tv .pool h4,body.tv .pool .nm{color:#fff}
+body.tv .pool .ptop{position:static;background:#1b1918;border-color:#333;margin:0 -3vw;padding:2.5vh 3vw}body.tv .pool .ptop h3{font-size:clamp(24px,3.4vw,56px)}body.tv .pool .ptop .sub{font-size:clamp(14px,1.6vw,26px);color:#bbb}
+body.tv .pool .pclock{color:#ffd54a;font-size:clamp(48px,8vw,140px)}body.tv .pool .pst{font-size:clamp(12px,1.3vw,22px)}
+body.tv .pool .prow{border-color:#333;padding:1.4vh 0;grid-template-columns:5vw minmax(0,1fr) auto;gap:.4vh 1.5vw}body.tv .pool .lane-n{width:3.6vw;height:3.6vw;font-size:clamp(16px,1.8vw,32px);background:#2a2725;color:#ffd54a;border-color:#444}
+body.tv .pool .nm{font-size:clamp(18px,2.4vw,44px)}body.tv .pool .cl{font-size:clamp(12px,1.3vw,24px);color:#aaa}body.tv .pool .pt{font-size:clamp(18px,2.4vw,44px);color:#fff}body.tv .pool .pt b{font-size:clamp(20px,2.8vw,52px)}body.tv .pool .prow.fin .pt b{color:#7CFC9A}
+body.tv .pool .lt,body.tv .pool .spt{display:none}body.tv .pool .dif{font-size:clamp(11px,1.2vw,22px)}body.tv .pool .lane-n{display:flex;align-items:center;justify-content:center}body.tv .pool .pbar{background:#333;height:.6vh}body.tv .pool .pbar i{background:#ffd54a}
+body.tv .pool .pphr{background:#163223;color:#d8ffe6;font-size:clamp(14px,1.6vw,28px)}body.tv .pool .sch{background:#2a2725;color:#ddd;border-color:#444;font-size:clamp(12px,1.2vw,20px)}body.tv .pool .sch.cur{background:#d0202f;color:#fff}
+body.tv .pool .pnext{border-color:#444}body.tv .pool .pnext h4{font-size:clamp(16px,2vw,34px)}body.tv .pool .lv-tag{font-size:clamp(12px,1.2vw,22px)}body.tv .pool .pn{grid-template-columns:5vw minmax(0,1fr);gap:1.5vw;padding:.6vh 0}body.tv .pool .pn .nm{font-size:clamp(14px,1.6vw,28px)}body.tv .pool .pn .cl{font-size:clamp(11px,1.1vw,20px)}body.tv .pool .pnext .pn{display:inline-grid;width:49%}body.tv .pool .pn{font-size:clamp(14px,1.6vw,28px)}body.tv .pool .pprev summary{color:#aaa}body.tv .pool .md{font-size:clamp(12px,1.2vw,22px)}body.tv .pool .prow.fav,body.tv .pool .pn.fav{background:#3a3115}
 .pdone{margin-top:12px;display:flex;flex-direction:column;gap:6px}.pdl{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;font-weight:600;cursor:pointer}.pdl small{color:var(--muted);font-weight:600;white-space:nowrap}
 @media (max-width:560px){.pool .hs{display:none}.pool{padding:0 12px 12px}.pool .ptop{margin:0 -12px;padding:10px 12px 8px}.pool .ptop h3{font-size:17px}.pool .pclock{font-size:36px}.pool .nm{font-size:15px}.pool .pt b{font-size:18px}.pool .pt{font-size:15px}.pool .prow{grid-template-columns:30px minmax(0,1fr) auto;gap:2px 8px}.pool .pn{grid-template-columns:30px minmax(0,1fr) auto;gap:8px}}
 @media (min-width:1024px){.pool{padding:0 26px 20px}.pool .ptop{margin:0 -26px;padding:16px 26px 12px}.pool .pclock{font-size:68px}.pool .ptop h3{font-size:26px}.pool .nm{font-size:19px}.pool .pt b{font-size:24px}.pool .pt{font-size:20px}.pool .prow{padding:12px 4px;grid-template-columns:42px minmax(0,1fr) auto}.pool .lane-n{width:36px;height:36px;font-size:16px}.pool .cl{font-size:14px}.pool .lt{font-size:13px}}
@@ -902,6 +912,8 @@ function poolPhrase(h,se){const ls=Object.keys(h.lanes||{}).filter(n=>h.lanes[n]
   const d=w&&w.time?t-w.time:null;let txt=`<b>${esc(w?w.name:"Couloir "+win)}</b> remporte la série en <b>${fmt(t)}</b>${d!=null?` (${d<0?"−":"+"}${Math.abs(d).toFixed(2).replace(".",",")} sur son engagement)`:""}.`;
   const favs=ls.filter(n=>n!==win).map(n=>({n,w:poolWho(h,se,n)})).filter(x=>x.w&&isFav(x.w));for(const x of favs.slice(0,3)){const f=h.lanes[x.n].fin;txt+=` <span class="favstar">★</span> ${esc(x.w.name)} ${f.rank}e en ${fmt(f.t)}.`}
   return`<p class="pphr">${txt}</p>`}
+const tvBtn=()=>`<button class="tvb" data-tv>${document.body.classList.contains("tv")?"✕ Quitter l'écran géant":"⛶ Écran géant"}</button>`;
+function tvToggle(on){on=on??!document.body.classList.contains("tv");document.body.classList.toggle("tv",on);try{on?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}render()}
 function poolHtml(){
   if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000||poolIsTest(POOL.heat))return"";
   const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1],total=poolTotal(h,ev);
@@ -921,9 +933,9 @@ function poolHtml(){
   const foot=`<p class="msg">Temps provisoires, transmis en direct par le chronométrage. Les résultats officiels sont ceux du Live FFN.</p>`;
   const doneEv=poolDoneEvents(ev);
   if(nx&&endT&&Date.now()+poolOff-endT>60000){
-    return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}<div class="card lv-card pool">${head(`À suivre${nx.at!=null?" · vers "+atTxt(nx.at):""}`,esc(nx.ev.name),`${state.comps.length>1?compBadge(nx.ev.comp)+" · ":""}Série ${nx.heat} / ${nx.ev.series.length}`,"")}${startList(nx.se)}<details class="pprev"><summary>Résultats · ${title} · Série ${h.heat}</summary>${poolPhrase(h,se)}${rows}</details></div>${doneEv}${foot}</div>`}
+    return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}${tvBtn()}<div class="card lv-card pool">${head(`À suivre${nx.at!=null?" · vers "+atTxt(nx.at):""}`,esc(nx.ev.name),`${state.comps.length>1?compBadge(nx.ev.comp)+" · ":""}Série ${nx.heat} / ${nx.ev.series.length}`,"")}${startList(nx.se)}<details class="pprev"><summary>Résultats · ${title} · Série ${h.heat}</summary>${poolPhrase(h,se)}${rows}</details></div>${doneEv}${foot}</div>`}
   if(nx&&endT){clearTimeout(poolSwap);poolSwap=setTimeout(()=>{if(state.view==="live"&&!state.admin)render()},Math.max(1000,60500-(Date.now()+poolOff-endT)))}
-  return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}<div class="card lv-card pool">${head(st,title,sub,clock)}${poolSeries(h,ev,len)}${ended?poolPhrase(h,se):""}${rows||`<p class="msg">En attente des nageurs…</p>`}${nextH}</div>${doneEv}${foot}</div>`}
+  return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}${tvBtn()}<div class="card lv-card pool">${head(st,title,sub,clock)}${poolSeries(h,ev,len)}${ended?poolPhrase(h,se):""}${rows||`<p class="msg">En attente des nageurs…</p>`}${nextH}</div>${doneEv}${foot}</div>`}
 // épreuves déjà terminées de la réunion : leurs résultats sont dans l'onglet Résultats
 function poolDoneEvents(ev){if(!ev)return"";const done=doneSet();const sk=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!sk)return"";const ks=state.order[sk].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"&&done.has(k)&&k!==ev.key);if(!ks.length)return"";
   return`<div class="pdone">${secTitle("Déjà nagé","résultats dans l'onglet Résultats")}${ks.slice(-4).reverse().map(k=>`<button class="pdl" data-goto-res="${k}">${esc(EVENTS[k].name)}<small>${EVENTS[k].results.length?"résultats →":"résultats bientôt"}</small></button>`).join("")}${ks.length>4?`<button class="pdl" data-goto-res="">Toutes les épreuves terminées<small>→</small></button>`:""}</div>`}
@@ -1301,6 +1313,7 @@ $("#pub-body").addEventListener("click",e=>{
   const rr=e.target.closest("[data-rr]");if(rr){state.rankRule=rr.dataset.rr;renderPublic();return}
   const go=e.target.closest("[data-go]");if(go){e.preventDefault();if(go.dataset.rr2)state.rankRule=go.dataset.rr2;if(go.dataset.sx2)state.rankSex=go.dataset.sx2;state.view=go.dataset.go;state.sel=null;render();window.scrollTo(0,0);return}
   const pr=e.target.closest("[data-pr]");if(pr){state.podRule=pr.dataset.pr;renderPublic();return}
+  if(e.target.closest("[data-tv]")){tvToggle();return}
   const ps=e.target.closest("[data-psel]");if(ps){const ev=poolEvent(POOL&&POOL.heat);const i=+ps.dataset.psel;state.psel=state.psel&&state.psel.k===(ev&&ev.key)&&state.psel.i===i?null:{k:ev&&ev.key,i};renderPublic();return}
   const gr=e.target.closest("[data-goto-res]");if(gr){const k=gr.dataset.gotoRes;state.view="res";state.sel=null;state.reu=null;if(k)state.open["r"+k]=true;render();const el=k&&document.querySelector(`[data-open="r${k}"]`);el?el.scrollIntoView({block:"start"}):window.scrollTo(0,0);return}
   const spb=e.target.closest("[data-sp]");if(spb){const k=spb.dataset.sp.replace(/&amp;/g,"&");state.sp[k]=!state.sp[k];renderPublic();return}
@@ -1409,6 +1422,7 @@ $("#timing").onchange=e=>{state.timing=e.target.value;render()};
 document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.dataset.delay;if(d){state.delay[d]=+e.target.value||0;render()}});
 {const y=document.getElementById("yr");if(y)y.textContent=new Date().getFullYear()}
 if(location.hash==="#admin")openAdmin();
+if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
 loadLogos();loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
 </script>
