@@ -72,7 +72,7 @@ class Decoder:
         if m == "ST": return {"k": "start", "ts": int(ts * 1000), "tod": j.get("TS")}
         if m == "TK":
             ln = j.get("Ln") or 0
-            if not ln: return None  # remise à zéro de l'affichage
+            if not ln or j.get("Kind") not in ("I", "F") or not j.get("Time"): return None  # remise à zéro / couloir vide
             t = to_sec(j.get("Time")); rk = int(j.get("Rk") or 0) or None; lap = j.get("Lap") or 0
             dist = int(j.get("Dist") or 0) or None
             kind = "finish" if j.get("Kind") == "F" else "split"
