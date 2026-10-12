@@ -639,7 +639,10 @@ function doneSet(){
     let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(ev.doneAt||(ev.results.length&&later))done.add(ks[i]);if(ev.results.length)later=true}}
   return done;
 }
-function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3)return null;const ev=poolEvent(h);if(!ev)return null;
+// test chrono : une série courue plus de 10 min avant le début de sa réunion n'est pas montrée au public
+function poolIsTest(h){if(!h)return false;const ev=poolEvent(h);if(!ev)return false;const s=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!s||!state.starts[s])return false;
+  const t=h.start||(Date.now()+poolOff);return parisSec(t)<toMin(state.starts[s])*60-600}
+function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3||poolIsTest(h))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
 function schedule(){
   const out={};const doneNow=doneSet();const pa=poolAnchor();let anchored=false;
@@ -773,7 +776,7 @@ function poolAllIn(h){const ns=Object.keys(h.names||{});const ls=ns.length?ns:Ob
 function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.status!=="running"||!h.start||poolAllIn(h))return;poolTimer=setInterval(()=>{const el=document.getElementById("pclock");if(!el||state.view!=="live"){clearInterval(poolTimer);return}let t=(Date.now()+poolOff-h.start)/1000;if(poolShown&&poolShown.s===h.start)t=Math.max(t,poolShown.t);poolShown={s:h.start,t};el.textContent=t>0?fmtClock(t):"0.0"},100)}
 function fmtClock(t){const m=Math.floor(t/60),s=t-m*60;return(m?m+":"+s.toFixed(1).padStart(4,"0"):s.toFixed(1))}
 function poolHtml(){
-  if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000)return"";
+  if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000||poolIsTest(POOL.heat))return"";
   const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1];const who=n=>{const q=h.names&&h.names[n];if(q&&q.name){const m=se&&se.swimmers.find(w=>norm(w.name)===norm(q.name));return m||{name:q.name,club:q.club,year:q.born,lane:n}}return se&&se.swimmers.find(w=>+w.lane===+n)};
   const used=new Set([...Object.keys(h.lanes||{}),...Object.keys(h.names||{}),...(h.names?[]:se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
   if(h.status==="done"||poolAllIn(h))lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
