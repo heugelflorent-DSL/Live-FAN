@@ -1,3 +1,6 @@
 node_modules/
 .wrangler/
 .dev.vars
+relais/cle.txt
+relais/relais.pid
+relais/relais.log

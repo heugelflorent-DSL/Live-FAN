@@ -23,6 +23,8 @@ SOH, STX, EOT, BS, LF, DC2, DC4 = b"\x01", b"\x02", b"\x04", b"\x08", b"\x0a", b
 ALIVE = SOH + DC2 + b"9" + DC4 + b"TP" + EOT
 HEAD = SOH + STX + BS
 
+if sys.stdout is None:  # lancé en arrière-plan (pythonw) : messages dans relais.log
+    sys.stdout = sys.stderr = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "relais.log"), "a", encoding="utf-8", buffering=1)
 def log(*a): print(datetime.now().strftime("%H:%M:%S"), *a, flush=True)
 
 def to_sec(txt):
@@ -238,8 +240,10 @@ def main():
     if not (a.port or a.reseau or a.demo or a.replay): ap.print_help(); return
     sender = None
     if not a.capture:
-        key = os.environ.get("SCHWIMME_CLE") or getpass.getpass("Mot de passe admin du site : ")
+        cle = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cle.txt")
+        key = os.environ.get("SCHWIMME_CLE") or (open(cle, encoding="utf-8").read().strip() if os.path.exists(cle) else "") or getpass.getpass("Mot de passe admin du site : ")
         sender = Sender(a.site, key); sender.ev = a.evenement; sender.start()
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "relais.pid"), "w") as f: f.write(str(os.getpid()))
     journal = None
     if a.port or a.reseau:
         name = a.journal or datetime.now().strftime("journal-%Y%m%d-%H%M.jsonl")
