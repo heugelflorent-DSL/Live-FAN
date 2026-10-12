@@ -713,8 +713,10 @@ function isFavClub(c){return!!c&&!!(FAV.cl[c]||FAV.cl[clubKey(c)])}
 function isFav(w){return!!w&&(isFavSw(w.iuf)||isFavClub(w.club)||isFavClub(w.team)||(!w.iuf&&!w.relay&&isFavName(w.name)))}
 function favBtn(kind,key,label){const on=kind==="s"?isFavSw(key):isFavClub(key);return`<button class="favbtn${on?" on":""}" data-fav="${kind}" data-favkey="${esc(key)}" data-favname="${esc(label||key)}" aria-pressed="${on}">${on?"★ Suivi":"☆ Suivre"}</button>`}
 function clubKey(c){return String(c||"").replace(/\s+\d+$/,"").trim()}
-function logo(c,big){const d=LOGOS[c]||LOGOS[clubKey(c)];return d?`<img class="clogo${big?" big":""}" src="${d}" alt="">`:""}
-async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){LOGOS=await r.json();render()}}catch(_){}}
+function clubNorm(c){return norm(clubKey(c)).toLowerCase().replace(/\bst\b/g,"saint").replace(/\bste\b/g,"sainte").replace(/[^a-z0-9]/g,"")}
+let LOGON=null;function logoFind(c){if(!c)return null;const d=LOGOS[c]||LOGOS[clubKey(c)];if(d)return d;if(!LOGON){LOGON={};for(const k in LOGOS)LOGON[clubNorm(k)]=LOGOS[k]}return LOGON[clubNorm(c)]||null}
+function logo(c,big){const d=logoFind(c);return d?`<img class="clogo${big?" big":""}" src="${d}" alt="">`:""}
+async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){LOGOS=await r.json();LOGON=null;render()}}catch(_){}}
 function compBadge(id){const c=comp(id);return`<span class="badge k${c.k}"><i></i>${esc(c.name)}</span>`}
 function renderHead(){
   $("#pub-title").textContent=state.name||(state.comps[0]&&!state.comps[0].loading?state.comps[0].name:"Schwimme Direct");
@@ -787,13 +789,13 @@ function poolHtml(){
     const res=L.fin?`<b class="t">${fmt(L.fin.t)}</b>${L.fin.rank?`<span class="rkb r${L.fin.rank}">${L.fin.rank}</span>`:""}${ltx}`:last?`${fmt(last.t)}<small> · ${last.dist||L.last*len} m</small>${last.rank?`<span class="rkb">${last.rank}</span>`:""}${ltx}`:(L.rt!=null?`<small>réaction ${L.rt.toFixed(2)}</small>`:"");
     const sk="P|"+h.start+"|"+n,lp=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b).map(k=>({k,...L.laps[k]})).filter(x=>x.t!=null),can=L.fin&&lp.length>1,op=can&&state.sp[sk];
     const tab=op?`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${lp.map((x,i)=>`<tr><td>${x.dist||x.k*len} m</td><td>${fmt(x.t)}</td><td>${fmt(i?x.t-lp[i-1].t:x.t)}</td></tr>`).join("")}</tbody></table>`:"";
-    return`<div class="prow${L.fin?" fin":""}${w&&isFav(w)?" fav":""}${can?" can":""}"${can?` data-sp="${sk}" role="button" tabindex="0"`:""}><span class="lane-n">${n}</span><span><b>${w?esc(w.name):"Couloir "+n}</b>${w?`<br><small>${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small>`:""}</span><span class="pres">${res}${can?`<small class="spt">${op?"▲":"▼"} passages</small>`:""}</span>${tab?`<div class="ptab">${tab}</div>`:""}</div>`}).join("");
+    return`<div class="prow${L.fin?" fin":""}${w&&isFav(w)?" fav":""}${can?" can":""}"${can?` data-sp="${sk}" role="button" tabindex="0"`:""}><span class="lane-n">${n}</span><span>${w?logo(w.club):""}<b>${w?esc(w.name):"Couloir "+n}</b>${w?`<br><small>${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small>`:""}</span><span class="pres">${res}${can?`<small class="spt">${op?"▲":"▼"} passages</small>`:""}</span>${tab?`<div class="ptab">${tab}</div>`:""}</div>`}).join("");
   const title=ev?esc(ev.name):h.title?esc(h.title):"Épreuve "+h.event;
   // course terminée : on annonce la série suivante (programme)
   let nextH="";if(ev&&(h.status==="done"||poolAllIn(h))){let nev=ev,nh=h.heat+1;
     if(nh>ev.series.length){const sk=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));const ks=sk?state.order[sk].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"):[];const i=ks.indexOf(ev.key);nev=i>=0&&ks[i+1]?EVENTS[ks[i+1]]:null;nh=1}
     const ns=nev&&nev.series[nh-1];if(ns){const sch=schedule()[nev.key];const before=nev.series.slice(0,nh-1).reduce((a,x)=>a+x.slowest+state.heatGap,0);const at=sch?sch.start+before:null;
-      nextH=`<div class="pnext"><span class="lv-tag">À suivre${at!=null?" · vers "+hhmm(new Date(new Date().setHours(0,0,0,0)+at*1000)).replace(":","h"):""}</span><h4>${esc(nev.name)} · Série ${nh} / ${nev.series.length}</h4>${[...ns.swimmers].sort((a,b)=>a.lane-b.lane).map(w=>`<div class="pn${isFav(w)?" fav":""}"><span class="lane-n">${w.lane}</span><span><b>${esc(w.name)}</b> <small>${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small></span></div>`).join("")}</div>`}}
+      nextH=`<div class="pnext"><span class="lv-tag">À suivre${at!=null?" · vers "+hhmm(new Date(new Date().setHours(0,0,0,0)+at*1000)).replace(":","h"):""}</span><h4>${esc(nev.name)} · Série ${nh} / ${nev.series.length}</h4>${[...ns.swimmers].sort((a,b)=>a.lane-b.lane).map(w=>`<div class="pn${isFav(w)?" fav":""}"><span class="lane-n">${w.lane}</span><span>${logo(w.club)}<b>${esc(w.name)}</b> <small>${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small></span></div>`).join("")}</div>`}}
   // 1 min après la fin de la course, la série suivante passe en premier ; les résultats se replient
   const endT=h.status==="done"||poolAllIn(h)?Math.max(h.doneAt||0,h.start?h.start+Math.max(0,...Object.values(h.lanes||{}).map(L=>L.fin?L.fin.t*1000:0)):0):0;
   if(nextH&&endT&&Date.now()+poolOff-endT>60000){
