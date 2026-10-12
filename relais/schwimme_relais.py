@@ -49,6 +49,10 @@ class Decoder:
             j = frame.find(SOH)
             if j < 0: continue
             frame = frame[j:]
+            if frame[1:2] == b"{":  # sortie réseau « Tableau Écran » (SCB Sport In The Box) : JSON
+                ev = self.decode_json(frame[1:-1], ts)
+                if ev: out.append(ev)
+                continue
             if frame == ALIVE or not frame.startswith(HEAD): continue
             payload = frame[len(HEAD):-1]
             if payload[:1] == LF:  # 2e partie : couloir, longueur, temps
@@ -59,6 +63,28 @@ class Decoder:
                 self.pt1, self.ts1 = payload, ts
         if len(self.buf) > 512: self.buf = self.buf[-64:]
         return out
+    @staticmethod
+    def decode_json(raw, ts):
+        """Messages JSON du Quantum (port 26700) : TP=vivant, ST=départ, TK=touche, HO=série (noms, résultats)."""
+        try: j = json.loads(raw.decode("utf-8", "replace"))
+        except ValueError: return None
+        m = j.get("Msg")
+        if m == "ST": return {"k": "start", "ts": int(ts * 1000), "tod": j.get("TS")}
+        if m == "TK":
+            ln = j.get("Ln") or 0
+            if not ln: return None  # remise à zéro de l'affichage
+            t = to_sec(j.get("Time")); rk = int(j.get("Rk") or 0) or None; lap = j.get("Lap") or 0
+            dist = int(j.get("Dist") or 0) or None
+            kind = "finish" if j.get("Kind") == "F" else "split"
+            return {"k": kind, "lane": ln, "lap": lap, "dist": dist, "t": t, "rank": rk, "edited": j.get("Type") not in (None, "T")}
+        if m in ("HO", "HS", "SL", "HR"):
+            e = j.get("EvHeader") or {}; h = j.get("HeatHeader") or {}
+            lanes = [{"lane": x.get("Ln"), "name": x.get("Name") or "", "club": x.get("Club") or "", "born": x.get("Born") or "",
+                      "time": to_sec(x.get("Time")), "rank": int(x.get("Rk") or 0) or None, "stat": x.get("Stat")} for x in (j.get("Lanes") or []) if x.get("Ln")]
+            title = " ".join(v for v in [e.get("Dist"), e.get("Stroke"), e.get("Cat"), e.get("Round")] if v)
+            return {"k": "heat", "msg": m, "event": int(e.get("Number") or 0) or None, "heat": int(h.get("Number") or 0) or None,
+                    "heats": e.get("Heats"), "laps": e.get("Laps"), "title": title, "stat": h.get("Stat"), "lanes": lanes}
+        return None
     @staticmethod
     def decode(p1, p2, ts):
         A, B, C = p1[0:1], p1[1:2], p1[2:3]
@@ -105,6 +131,7 @@ def describe(ev):
     if k == "split": return f"Passage couloir {ev['lane']}, longueur {ev['lap']} : {ev['t']} (rang {ev['rank']})"
     if k == "finish": return f"ARRIVÉE couloir {ev['lane']} : {ev['t']} (rang {ev['rank']})"
     if k == "end": return "Fin officielle de la série"
+    if k == "heat": return f"Série : épreuve {ev['event']} {ev['title']}, série {ev['heat']} ({ev['msg']}, état {ev['stat']}) · {len(ev['lanes'])} couloirs"
     return k
 
 def run(source, sender, journal):

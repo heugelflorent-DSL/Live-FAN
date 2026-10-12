@@ -763,15 +763,15 @@ function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.st
 function fmtClock(t){const m=Math.floor(t/60),s=t-m*60;return(m?m+":"+s.toFixed(1).padStart(4,"0"):s.toFixed(1))}
 function poolHtml(){
   if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000)return"";
-  const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1];const who=n=>se&&se.swimmers.find(w=>+w.lane===+n);
-  const used=new Set([...Object.keys(h.lanes||{}),...(se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
+  const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1];const who=n=>{const q=h.names&&h.names[n];if(q&&q.name){const m=se&&se.swimmers.find(w=>norm(w.name)===norm(q.name));return m||{name:q.name,club:q.club,year:q.born,lane:n}}return se&&se.swimmers.find(w=>+w.lane===+n)};
+  const used=new Set([...Object.keys(h.lanes||{}),...Object.keys(h.names||{}),...(h.names?[]:se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
   if(h.status==="done")lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
   const st=h.status==="running"?`<span class="pst run"><span class="livedot"></span>En course</span>`:h.status==="ready"?`<span class="pst">Au départ</span>`:`<span class="pst">Arrivée · résultats officiels à suivre sur le Live FFN</span>`;
   const clock=h.status==="running"&&h.start?`<span class="pclock" id="pclock">0.0</span>`:"";
   const rows=lanes.map(n=>{const L=h.lanes[n]||{},w=who(n),last=L.last?L.laps[L.last]:null;
     const res=L.fin?`<b class="t">${fmt(L.fin.t)}</b>${L.fin.rank?`<span class="rkb r${L.fin.rank}">${L.fin.rank}</span>`:""}`:last?`${fmt(last.t)}<small> · ${L.last*len} m</small>${last.rank?`<span class="rkb">${last.rank}</span>`:""}`:(L.rt!=null?`<small>réaction ${L.rt.toFixed(2)}</small>`:"");
     return`<div class="prow${L.fin?" fin":""}${w&&isFav(w)?" fav":""}"><span class="lane-n">${n}</span><span><b>${w?esc(w.name):"Couloir "+n}</b>${w?`<br><small>${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small>`:""}</span><span class="pres">${res}</span></div>`}).join("");
-  const title=ev?esc(ev.name):"Épreuve "+h.event;
+  const title=ev?esc(ev.name):h.title?esc(h.title):"Épreuve "+h.event;
   return`<div class="session">${secTitle("Au bord du bassin","temps réel · chronométrage")}<div class="card lv-card pool"><div class="ptop"><div><span class="lv-tag">${st}</span><h3>${title}</h3><div class="sub">${ev&&state.comps.length>1?compBadge(ev.comp)+" · ":""}Série ${h.heat}${ev?" / "+ev.series.length:""}</div></div>${clock}</div>${rows||`<p class="msg">En attente des nageurs…</p>`}</div><p class="msg">Temps provisoires, transmis en direct par le chronométrage. Les résultats officiels sont ceux du Live FFN.</p></div>`}
 
 /* ---------- Direct (Live FFN, série par série) ---------- */

@@ -15,18 +15,28 @@ export class PoolRoom {
 
   apply(ev) {
     const s = this.s; const t = Date.now();
-    const lane = (n) => { const h = s.heat; if (!h) return null; return (h.lanes[n] = h.lanes[n] || { laps: {} }); };
+    const ensure = () => (s.heat = s.heat || { event: null, heat: null, status: "ready", start: null, lanes: {}, at: t });
+    const lane = (n) => { const h = ensure(); return (h.lanes[n] = h.lanes[n] || { laps: {} }); };
     switch (ev.k) {
       case "ready": // nouvelle série au départ : la précédente devient « dernière série »
         if (s.heat && (s.heat.event !== ev.event || s.heat.heat !== ev.heat)) { if (s.heat.start) s.prev = s.heat; }
         if (!s.heat || s.heat.event !== ev.event || s.heat.heat !== ev.heat || s.heat.status === "done")
           s.heat = { event: ev.event, heat: ev.heat, laps: ev.laps || null, lanesUsed: ev.lanes || null, status: "ready", start: null, lanes: {}, at: t };
         break;
-      case "start": if (s.heat) { s.heat.start = ev.ts || t; s.heat.status = "running"; s.heat.lanes = {}; } break;
+      case "start": { if (s.heat && s.heat.status === "done") { s.prev = s.heat; s.heat = null; } const h = ensure(); h.start = ev.ts || t; h.status = "running"; h.lanes = {}; break; }
       case "react": { const l = lane(ev.lane); if (l) l.rt = ev.t; break; }
-      case "split": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, edited: !!ev.edited }; l.last = ev.lap; } break; }
+      case "split": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; } break; }
       case "finish": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, edited: !!ev.edited }; l.last = ev.lap; l.fin = { t: ev.t, rank: ev.rank || null }; } break; }
       case "end": if (s.heat) s.heat.status = "done"; break;
+      case "heat": { // noms et résultats envoyés par le Quantum (série chargée, puis officielle)
+        const same = s.heat && ((s.heat.event === ev.event && s.heat.heat === ev.heat) || (s.heat.event == null && s.heat.status !== "done"));
+        if (same) { s.heat.event = ev.event; s.heat.heat = ev.heat; }
+        if (!same) { if (s.heat && s.heat.start) s.prev = s.heat; s.heat = { event: ev.event, heat: ev.heat, status: "ready", start: null, lanes: {}, at: t }; }
+        const h = s.heat; h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
+        h.names = {}; for (const l of ev.lanes || []) h.names[l.lane] = { name: l.name, club: l.club, born: l.born };
+        if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; for (const l of ev.lanes || []) if (l.time) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); L.fin = { t: l.time, rank: l.rank }; } }
+        break;
+      }
       case "clear": this.s = empty(); break;
       case "ping": break;
       default: return false;
