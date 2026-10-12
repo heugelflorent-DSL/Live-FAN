@@ -757,6 +757,9 @@ function poolConnect(){if(poolWs||state.live!=="bassin"||!liveToday())return;
   poolWs.onclose=()=>{poolWs=null;setTimeout(poolConnect,poolRetry);poolRetry=Math.min(poolRetry*2,30000)};
   poolWs.onerror=()=>{try{poolWs.close()}catch(_){}}}
 setInterval(()=>{if(poolWs&&poolWs.readyState===1)poolWs.send("ping")},25000);
+// filet de sécurité : si la connexion temps réel est coupée (téléphone en veille, réseau mobile), on relit l'état toutes les 5 s
+setInterval(async()=>{if(state.live!=="bassin"||state.view!=="live"||document.hidden||(poolWs&&poolWs.readyState===1))return;try{const r=await fetch(evq("/api/pool/state"));if(!r.ok)return;const m=await r.json();poolOff=m.now-Date.now();POOL=m;if(!state.admin)render()}catch(_){}},5000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state.live==="bassin"){try{poolWs&&poolWs.close()}catch(_){}poolWs=null;poolConnect()}});
 function poolEvent(h){if(!h)return null;const c=Object.values(EVENTS).filter(e=>e.type==="event"&&+e.numEp===+h.event);if(!c.length)return null;const done=doneSet();return c.find(e=>!done.has(e.key))||c[0]}
 function poolLen(){const c=state.comps[0];const m=(c&&c.bassin||"").match(/(\d+)/);return m?+m[1]:25}
 function poolAllIn(h){const ns=Object.keys(h.names||{});const ls=ns.length?ns:Object.keys(h.lanes||{});return ls.length>0&&ls.every(n=>(h.lanes[n]||{}).fin)}
