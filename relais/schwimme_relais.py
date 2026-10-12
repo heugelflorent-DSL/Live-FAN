@@ -113,7 +113,7 @@ class Sender(threading.Thread):
             delay = 1
             while True:
                 try:
-                    req = urllib.request.Request(self.site + "/api/pool/event" + (("?e=" + self.ev) if self.ev else ""), data=json.dumps(batch).encode(), method="POST",
+                    req = urllib.request.Request(self.site + "/api/pool/event" + (("?e=" + self.ev) if self.ev else ""), data=json.dumps([dict(e, sent=int(time.time() * 1000)) for e in batch]).encode(), method="POST",
                                                  headers={"content-type": "application/json", "x-admin-key": self.key, "user-agent": "SchwimmeRelais/1.0"})
                     with urllib.request.urlopen(req, timeout=8) as r: res = json.loads(r.read() or b"{}")
                     log(f"→ site : {len(batch)} événement(s) envoyé(s) · {res.get('spectators', 0)} spectateur(s) connecté(s)"); break

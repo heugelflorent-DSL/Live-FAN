@@ -23,7 +23,7 @@ export class PoolRoom {
         if (!s.heat || s.heat.event !== ev.event || s.heat.heat !== ev.heat || s.heat.status === "done")
           s.heat = { event: ev.event, heat: ev.heat, laps: ev.laps || null, lanesUsed: ev.lanes || null, status: "ready", start: null, lanes: {}, at: t };
         break;
-      case "start": { if (s.heat && s.heat.status === "done") { s.prev = s.heat; s.heat = null; } const h = ensure(); h.start = ev.ts || t; h.status = "running"; h.lanes = {}; break; }
+      case "start": { if (s.heat && s.heat.status === "done") { s.prev = s.heat; s.heat = null; } const h = ensure(); h.start = ev.ts && ev.sent ? t - Math.max(0, ev.sent - ev.ts) : ev.ts || t; h.status = "running"; h.lanes = {}; break; }
       case "react": { const l = lane(ev.lane); if (l) l.rt = ev.t; break; }
       case "split": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; } break; }
       case "finish": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, edited: !!ev.edited }; l.last = ev.lap; l.fin = { t: ev.t, rank: ev.rank || null }; } break; }
