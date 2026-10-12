@@ -1,6 +1,7 @@
 // Schwimme Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 export { PoolRoom } from "./pool.js";
 import { get, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
+import { normEvent, findIuf, fetchMpp } from "./extranat.js";
 
 const BUDGET = 15;            // pages Live FFN lues au maximum par passage (le reste attend le passage suivant)
 const PROG_EVERY = 30 * 60e3; // programme relu toutes les 30 min
@@ -200,6 +201,41 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   return used;
 }
 
+// ---------- records personnels (FFN Extranat) ----------
+// La veille et pendant la compétition, quelques nageurs par minute : nom + année → licence → meilleures perfs (avec passages).
+const mppKey = (name, year) => String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim() + "|" + (year || "");
+async function mppStep(env, ev, max = 2) {
+  const { config, data } = await load(env, ev); const now = Date.now();
+  const want = new Map(); // clé nageur → { name, year, pool, events:Set }
+  for (const id of config.comps) {
+    const c = data.comps[id]; if (!c) continue; const dt = compDate(c.meta); if (!dt) continue;
+    const day = parisEpoch(dt.y, dt.m, dt.d); if (now < day - 5 * 864e5 || now > day + 2 * 864e5) continue;
+    const pool = +((c.meta?.pool || "").match(/\d+/) || [25])[0] === 50 ? 50 : 25;
+    for (const e of eventsOf(c)) {
+      const ek = normEvent(e.name); if (!ek) continue;
+      for (const h of c.events?.[e.epr]?.heats || []) for (const l of h.lanes || []) {
+        if (!l.name || l.members || !l.year) continue; const k = mppKey(l.name, l.year);
+        const w = want.get(k) || { name: l.name, year: l.year, pool, events: new Set() }; w.events.add(ek); want.set(k, w);
+      }
+    }
+  }
+  if (!want.size) return 0;
+  const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+  const todo = [...want.entries()].filter(([k]) => !store.sw[k] || now - store.sw[k].at > 5 * 864e5).slice(0, max);
+  if (!todo.length) return 0;
+  let used = 0;
+  for (const [k, w] of todo) {
+    try {
+      const iuf = store.sw[k]?.iuf || (await findIuf(w.name, w.year)); used++;
+      let b = {};
+      if (iuf) { const all = await fetchMpp(iuf); used++; const p = all[w.pool] || {}; for (const e of w.events) if (p[e]) b[e] = p[e]; }
+      store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b };
+    } catch (e) { store.sw[k] = { iuf: null, at: now - 4 * 864e5, b: {}, err: String(e.message || e) }; break; } // nouvel essai dans un jour
+  }
+  store.at = now; await env.KV.put(kk("mpp", ev), JSON.stringify(store));
+  return used;
+}
+
 // ---------- API ----------
 const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json; charset=utf-8", ...extra } });
 function authed(req, env) {
@@ -304,6 +340,17 @@ export default {
       return res;
     }
 
+    if (p === "/api/admin/mpp" && req.method === "POST") {
+      if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
+      const used = await mppStep(env, ev, 6); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+      const all = Object.values(store.sw); return json({ ok: true, used, total: all.length, found: all.filter((x) => x.iuf).length, withBest: all.filter((x) => x.b && Object.keys(x.b).length).length });
+    }
+    if (p === "/api/mpp" && req.method === "GET") {
+      const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+      const out = {}; for (const k in store.sw) if (store.sw[k].b && Object.keys(store.sw[k].b).length) out[k] = { iuf: store.sw[k].iuf, b: store.sw[k].b };
+      return json({ at: store.at || null, sw: out }, 200, { "cache-control": "public, max-age=300" });
+    }
+
     if (p === "/api/logos" && req.method === "GET") {
       const logos = (await env.KV.get("logos", "json")) || {};
       return json(logos, 200, { "cache-control": "public, max-age=300" });
@@ -395,7 +442,10 @@ export default {
       let left = BUDGET;
       for (let i = 0; i < 1 && left > 0; i++) {
         const ev = ids[(start + i) % ids.length];
-        try { left -= (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; } catch (e) { /* un événement en erreur ne bloque pas les autres */ }
+        let used = 0;
+        try { used = (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; left -= used; } catch (e) { /* un événement en erreur ne bloque pas les autres */ }
+        // records personnels : seulement quand la relecture du Live FFN n'a rien eu à faire (temps de calcul limité)
+        if (!used) { try { await mppStep(env, ev, 2); } catch (e) {} }
       }
     })());
   },
