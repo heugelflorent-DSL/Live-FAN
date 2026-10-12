@@ -42,6 +42,7 @@ def num(b):
     except (ValueError, UnicodeDecodeError): return 0
 
 class Decoder:
+    rt_at = 0
     """Assemble les trames OSM6 (deux messages par événement) et produit des événements Schwimme Direct."""
     def __init__(self): self.buf = b""; self.pt1 = None; self.ts1 = None
     def feed(self, data, ts):
@@ -71,7 +72,11 @@ class Decoder:
         try: j = json.loads(raw.decode("utf-8", "replace"))
         except ValueError: return None
         m = j.get("Msg")
-        if m == "ST": return {"k": "start", "ts": int(ts * 1000), "tod": j.get("TS")}
+        if m == "ST": Decoder.rt_at = ts; return {"k": "start", "ts": int(ts * 1000), "tod": j.get("TS")}
+        if m == "RT":  # chrono qui tourne sur le Quantum : recalage du site toutes les 2 s
+            rt = to_sec(j.get("RT"))
+            if rt is None or rt <= 0 or ts - Decoder.rt_at < 2: return None
+            Decoder.rt_at = ts; return {"k": "clock", "ts": int(ts * 1000), "rt": rt}
         if m == "TK":
             ln = j.get("Ln") or 0
             if not ln or j.get("Kind") not in ("I", "F") or not j.get("Time"): return None  # remise à zéro / couloir vide
@@ -106,7 +111,7 @@ class Decoder:
 class Sender(threading.Thread):
     """Envoie les événements au site, groupés, avec nouvelles tentatives si la connexion coupe."""
     def __init__(self, site, key):
-        super().__init__(daemon=True); self.q = queue.Queue(); self.site = site.rstrip("/"); self.key = key; self.ev = None
+        super().__init__(daemon=True); self.q = queue.Queue(); self.site = site.rstrip("/"); self.key = key; self.ev = None; self.off = None  # décalage horloge PC -> site (ms)
     def run(self):
         while True:
             batch = [self.q.get()]
@@ -115,9 +120,14 @@ class Sender(threading.Thread):
             delay = 1
             while True:
                 try:
-                    req = urllib.request.Request(self.site + "/api/pool/event" + (("?e=" + self.ev) if self.ev else ""), data=json.dumps([dict(e, sent=int(time.time() * 1000)) for e in batch]).encode(), method="POST",
+                    req = urllib.request.Request(self.site + "/api/pool/event" + (("?e=" + self.ev) if self.ev else ""), data=json.dumps([dict(e, sent=int(time.time() * 1000), **({"srv": int(e["ts"] + self.off)} if self.off is not None and e.get("ts") else {})) for e in batch]).encode(), method="POST",
                                                  headers={"content-type": "application/json", "x-admin-key": self.key, "user-agent": "SchwimmeRelais/1.0"})
+                    t0 = time.time() * 1000
                     with urllib.request.urlopen(req, timeout=8) as r: res = json.loads(r.read() or b"{}")
+                    t1 = time.time() * 1000
+                    if res.get("now") and t1 - t0 < 1500:  # recalage de l'horloge sur celle du site (aller-retour le plus court)
+                        o = res["now"] - (t0 + t1) / 2
+                        if self.off is None or t1 - t0 < getattr(self, "rtt", 1e9) + 30: self.off = o; self.rtt = t1 - t0
                     log(f"→ site : {len(batch)} événement(s) envoyé(s) · {res.get('spectators', 0)} spectateur(s) connecté(s)"); break
                 except urllib.error.HTTPError as e:
                     if e.code == 401: log("✗ Mot de passe refusé par le site. Relance le relais avec le bon mot de passe admin."); os._exit(2)
@@ -141,7 +151,7 @@ def run(source, sender, journal):
     for data, ts in source:
         if journal: journal.write(json.dumps({"ts": ts, "hex": data.hex()}) + "\n"); journal.flush()
         for ev in dec.feed(data, ts):
-            log(describe(ev))
+            if ev["k"] != "clock": log(describe(ev))
             if sender: sender.q.put(ev)
 
 def serial_source(port, settings):

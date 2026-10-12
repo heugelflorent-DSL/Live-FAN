@@ -750,15 +750,17 @@ function renderRank(){
 }
 function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`}
 /* ---------- Direct « Bassin » (Quantum → relais → site, temps réel) ---------- */
-let POOL=null,poolWs=null,poolOff=0,poolOffN=0,poolShown=0,poolRetry=1000,poolTimer=null;
+let POOL=null,poolWs=null,poolOff=0,poolOffN=0,poolRtt=1e9,poolSynced=false,poolShown=0,poolRetry=1000,poolTimer=null;
 function poolConnect(){if(poolWs||state.live!=="bassin"||!liveToday())return;
   try{poolWs=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+evq("/api/pool/ws"))}catch(_){return}
-  poolWs.onmessage=e=>{if(e.data==="pong")return;try{const m=JSON.parse(e.data);if(m.type==="state"){const o=m.now-Date.now();poolOff=poolOffN++?Math.max(poolOff,o):o;POOL=m;poolRetry=1000;if(state.view==="live"&&!state.admin)render()}}catch(_){}};
+  poolWs.onopen=()=>{poolSync();setTimeout(poolSync,1500);setTimeout(poolSync,4000)};
+  poolWs.onmessage=e=>{if(e.data==="pong")return;try{const m=JSON.parse(e.data);if(m.type==="time"){const t1=Date.now(),t0=+m.id,rtt=t1-t0;if(rtt>=0&&rtt<poolRtt+30){poolRtt=Math.min(poolRtt,rtt);poolOff=m.now-(t0+t1)/2;poolSynced=true}return}if(m.type==="state"){const o=m.now-Date.now();if(!poolSynced)poolOff=poolOffN++?Math.max(poolOff,o):o;POOL=m;poolRetry=1000;if(state.view==="live"&&!state.admin)render()}}catch(_){}};
   poolWs.onclose=()=>{poolWs=null;setTimeout(poolConnect,poolRetry);poolRetry=Math.min(poolRetry*2,30000)};
   poolWs.onerror=()=>{try{poolWs.close()}catch(_){}}}
-setInterval(()=>{if(poolWs&&poolWs.readyState===1)poolWs.send("ping")},25000);
+function poolSync(){if(poolWs&&poolWs.readyState===1)poolWs.send("t:"+Date.now())}
+setInterval(()=>{if(poolWs&&poolWs.readyState===1){poolWs.send("ping");poolRtt+=20;poolSync()}},25000);
 // filet de sécurité : si la connexion temps réel est coupée (téléphone en veille, réseau mobile), on relit l'état toutes les 5 s
-setInterval(async()=>{if(state.live!=="bassin"||state.view!=="live"||document.hidden||(poolWs&&poolWs.readyState===1))return;try{const r=await fetch(evq("/api/pool/state"));if(!r.ok)return;const m=await r.json();poolOff=m.now-Date.now();POOL=m;if(!state.admin)render()}catch(_){}},5000);
+setInterval(async()=>{if(state.live!=="bassin"||state.view!=="live"||document.hidden||(poolWs&&poolWs.readyState===1))return;try{const r=await fetch(evq("/api/pool/state"));if(!r.ok)return;const m=await r.json();if(!poolSynced)poolOff=m.now-Date.now();POOL=m;if(!state.admin)render()}catch(_){}},5000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state.live==="bassin"){try{poolWs&&poolWs.close()}catch(_){}poolWs=null;poolConnect()}});
 function poolEvent(h){if(!h)return null;const c=Object.values(EVENTS).filter(e=>e.type==="event"&&+e.numEp===+h.event);if(!c.length)return null;const done=doneSet();return c.find(e=>!done.has(e.key))||c[0]}
 function poolLen(){const c=state.comps[0];const m=(c&&c.bassin||"").match(/(\d+)/);return m?+m[1]:25}

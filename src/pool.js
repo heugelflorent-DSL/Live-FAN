@@ -23,7 +23,13 @@ export class PoolRoom {
         if (!s.heat || s.heat.event !== ev.event || s.heat.heat !== ev.heat || s.heat.status === "done")
           s.heat = { event: ev.event, heat: ev.heat, laps: ev.laps || null, lanesUsed: ev.lanes || null, status: "ready", start: null, lanes: {}, at: t };
         break;
-      case "start": { if (s.heat && s.heat.status === "done") { s.prev = s.heat; s.heat = null; } const h = ensure(); h.start = ev.ts && ev.sent ? t - Math.max(0, ev.sent - ev.ts) : ev.ts || t; h.status = "running"; h.lanes = {}; break; }
+      case "start": { if (s.heat && s.heat.status === "done") { s.prev = s.heat; s.heat = null; } const h = ensure(); h.start = ev.srv || (ev.ts && ev.sent ? t - Math.max(0, ev.sent - ev.ts) : ev.ts || t); h.status = "running"; h.lanes = {}; break; }
+      case "clock": { // temps de course du Quantum : recale l'heure de départ (sans retour en arrière visible de plus de 0,3 s)
+        const h = s.heat; if (!h || h.status !== "running" || !ev.rt) return false;
+        const st = (ev.srv || t - Math.max(0, (ev.sent || ev.ts) - ev.ts)) - ev.rt * 1000;
+        if (!h.start || Math.abs(st - h.start) > 100) h.start = Math.round(st); else return false;
+        break;
+      }
       case "react": { const l = lane(ev.lane); if (l) l.rt = ev.t; break; }
       case "split": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; } break; }
       case "finish": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; l.fin = { t: ev.t, rank: ev.rank || null }; } break; }
@@ -59,10 +65,10 @@ export class PoolRoom {
       const list = Array.isArray(body) ? body : body ? [body] : [];
       let n = 0; for (const ev of list.slice(0, 50)) if (ev && typeof ev === "object" && this.apply(ev)) n++;
       if (n) { await this.ctx.storage.put("s", this.s); this.broadcast(); }
-      return Response.json({ ok: true, applied: n, spectators: this.ctx.getWebSockets().length });
+      return Response.json({ ok: true, applied: n, spectators: this.ctx.getWebSockets().length, now: Date.now() });
     }
     return new Response(this.snapshot(), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
   }
-  webSocketMessage(ws, msg) { if (msg === "ping") ws.send("pong"); }
+  webSocketMessage(ws, msg) { if (msg === "ping") ws.send("pong"); else if (typeof msg === "string" && msg.startsWith("t:")) ws.send(JSON.stringify({ type: "time", id: msg.slice(2), now: Date.now() })); }
   webSocketClose(ws, code) { try { ws.close(code, "bye"); } catch {} }
 }
