@@ -213,9 +213,12 @@ async function mppStep(env, ev, max = 2, force = false) {
     const pool = +((c.meta?.pool || "").match(/\d+/) || [25])[0] === 50 ? 50 : 25;
     for (const e of eventsOf(c)) {
       const ek = normEvent(e.name); if (!ek) continue;
-      for (const h of c.events?.[e.epr]?.heats || []) for (const l of h.lanes || []) {
+      const st = c.events?.[e.epr] || {};
+      // nageurs des listes de départ, et aussi des résultats (compétition déjà nagée)
+      const lanes = [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)];
+      for (const l of lanes) {
         if (!l.name || l.members || !l.year) continue; const k = mppKey(l.name, l.year);
-        const w = want.get(k) || { name: l.name, year: l.year, pool, events: new Set() }; w.events.add(ek); want.set(k, w);
+        const w = want.get(k) || { name: l.name, year: l.year, pool, events: new Set() }; if (l.iuf) w.iuf = String(l.iuf); w.events.add(ek); want.set(k, w);
       }
     }
   }
@@ -227,7 +230,7 @@ async function mppStep(env, ev, max = 2, force = false) {
   let used = 0;
   for (const [k, w] of todo) {
     try {
-      const iuf = store.sw[k]?.iuf || (await findIuf(w.name, w.year)); used++;
+      const iuf = w.iuf || store.sw[k]?.iuf || (used++, await findIuf(w.name, w.year));
       let b = {};
       if (iuf) { const all = await fetchMpp(iuf); used++; const p = all[w.pool] || {}; for (const e of w.events) if (p[e]) b[e] = p[e]; }
       store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b };
