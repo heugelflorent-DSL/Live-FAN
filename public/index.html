@@ -759,15 +759,16 @@ function poolConnect(){if(poolWs||state.live!=="bassin"||!liveToday())return;
 setInterval(()=>{if(poolWs&&poolWs.readyState===1)poolWs.send("ping")},25000);
 function poolEvent(h){if(!h)return null;const c=Object.values(EVENTS).filter(e=>e.type==="event"&&+e.numEp===+h.event);if(!c.length)return null;const done=doneSet();return c.find(e=>!done.has(e.key))||c[0]}
 function poolLen(){const c=state.comps[0];const m=(c&&c.bassin||"").match(/(\d+)/);return m?+m[1]:25}
-function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.status!=="running"||!h.start)return;poolTimer=setInterval(()=>{const el=document.getElementById("pclock");if(!el||state.view!=="live"){clearInterval(poolTimer);return}const t=(Date.now()+poolOff-h.start)/1000;el.textContent=t>0?fmtClock(t):"0.0"},100)}
+function poolAllIn(h){const ns=Object.keys(h.names||{});const ls=ns.length?ns:Object.keys(h.lanes||{});return ls.length>0&&ls.every(n=>(h.lanes[n]||{}).fin)}
+function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.status!=="running"||!h.start||poolAllIn(h))return;poolTimer=setInterval(()=>{const el=document.getElementById("pclock");if(!el||state.view!=="live"){clearInterval(poolTimer);return}const t=(Date.now()+poolOff-h.start)/1000;el.textContent=t>0?fmtClock(t):"0.0"},100)}
 function fmtClock(t){const m=Math.floor(t/60),s=t-m*60;return(m?m+":"+s.toFixed(1).padStart(4,"0"):s.toFixed(1))}
 function poolHtml(){
   if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000)return"";
   const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1];const who=n=>{const q=h.names&&h.names[n];if(q&&q.name){const m=se&&se.swimmers.find(w=>norm(w.name)===norm(q.name));return m||{name:q.name,club:q.club,year:q.born,lane:n}}return se&&se.swimmers.find(w=>+w.lane===+n)};
   const used=new Set([...Object.keys(h.lanes||{}),...Object.keys(h.names||{}),...(h.names?[]:se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
   if(h.status==="done")lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
-  const st=h.status==="running"?`<span class="pst run"><span class="livedot"></span>En course</span>`:h.status==="ready"?`<span class="pst">Au départ</span>`:`<span class="pst">Arrivée · résultats officiels à suivre sur le Live FFN</span>`;
-  const clock=h.status==="running"&&h.start?`<span class="pclock" id="pclock">0.0</span>`:"";
+  const st=h.status==="running"&&poolAllIn(h)?`<span class="pst">Tous arrivés · en attente de validation</span>`:h.status==="running"?`<span class="pst run"><span class="livedot"></span>En course</span>`:h.status==="ready"?`<span class="pst">Au départ</span>`:`<span class="pst">Arrivée · résultats officiels à suivre sur le Live FFN</span>`;
+  const allIn=h.status==="running"&&poolAllIn(h);const clock=h.status==="running"&&h.start?(allIn?`<span class="pclock">${fmt(Math.max(...Object.values(h.lanes).map(L=>L.fin?L.fin.t:0)))}</span>`:`<span class="pclock" id="pclock">0.0</span>`):"";
   const rows=lanes.map(n=>{const L=h.lanes[n]||{},w=who(n),last=L.last?L.laps[L.last]:null;
     const res=L.fin?`<b class="t">${fmt(L.fin.t)}</b>${L.fin.rank?`<span class="rkb r${L.fin.rank}">${L.fin.rank}</span>`:""}`:last?`${fmt(last.t)}<small> · ${L.last*len} m</small>${last.rank?`<span class="rkb">${last.rank}</span>`:""}`:(L.rt!=null?`<small>réaction ${L.rt.toFixed(2)}</small>`:"");
     return`<div class="prow${L.fin?" fin":""}${w&&isFav(w)?" fav":""}"><span class="lane-n">${n}</span><span><b>${w?esc(w.name):"Couloir "+n}</b>${w?`<br><small>${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small>`:""}</span><span class="pres">${res}</span></div>`}).join("");
