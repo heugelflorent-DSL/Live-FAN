@@ -1352,7 +1352,7 @@ $("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
 $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
 $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
-$("#mpp-go").onclick=async()=>{const m=$("#mpp-msg");m.textContent="Lecture en cours…";try{const j=await api("/api/admin/mpp",{method:"POST"});m.textContent=j.total?`${j.total} nageur(s) traité(s) · ${j.found} retrouvé(s) sur Extranat · ${j.withBest} avec un record sur leurs épreuves. Reclique pour continuer.`:"Aucun nageur à traiter : il faut les listes de départ (programme définitif) et une compétition dans les 5 jours.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}};
+$("#mpp-go").onclick=async()=>{const m=$("#mpp-msg");m.textContent="Lecture en cours…";try{const j=await api("/api/admin/mpp",{method:"POST"});console.log("records perso",j);m.textContent=j.total?`${j.total} nageur(s) traité(s) · ${j.found} retrouvé(s) sur Extranat · ${j.withBest} avec un record sur leurs épreuves. Reclique pour continuer.${j.found?"":" (Extranat : "+(j.probe&&(j.probe.status||j.probe.error))+" · "+((j.sample||[]).map(x=>x.err).filter(Boolean)[0]||"")+")"}`:"Aucun nageur à traiter : il faut les listes de départ (programme définitif) et une compétition dans les 5 jours.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}};
 $("#sim-stop").onclick=()=>{simStop();$("#sim-msg").textContent="Simulation arrêtée"};
 $("#sim-clear").onclick=()=>{simStop();simSend([{k:"clear"}]);$("#sim-msg").textContent="Direct vidé"};
 $("#ev-switch").onchange=e=>switchEvent(e.target.value);

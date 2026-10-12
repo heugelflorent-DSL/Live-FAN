@@ -343,7 +343,11 @@ export default {
     if (p === "/api/admin/mpp" && req.method === "POST") {
       if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
       const used = await mppStep(env, ev, 6, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
-      const all = Object.values(store.sw); return json({ ok: true, used, total: all.length, found: all.filter((x) => x.iuf).length, withBest: all.filter((x) => x.b && Object.keys(x.b).length).length });
+      const all = Object.entries(store.sw);
+      // diagnostic : quelques exemples (nom lu, licence trouvée, erreur éventuelle) pour comprendre un échec
+      const sample = all.slice(-6).map(([k, x]) => ({ k, iuf: x.iuf, n: Object.keys(x.b || {}).length, err: x.err || null }));
+      let probe = null; try { const r = await fetch("https://ffn.extranat.fr/webffn/_recherche.php?go=ind&idrch=" + encodeURIComponent(all.length ? all[all.length - 1][0].split("|")[0] : "LOZAC'H Alienor"), { headers: { "User-Agent": "SchwimmeDirect/1.0" } }); probe = { status: r.status, body: (await r.text()).slice(0, 300) }; } catch (e) { probe = { error: String(e.message || e) }; }
+      return json({ ok: true, used, total: all.length, found: all.filter(([, x]) => x.iuf).length, withBest: all.filter(([, x]) => x.b && Object.keys(x.b).length).length, sample, probe });
     }
     if (p === "/api/mpp" && req.method === "GET") {
       const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
