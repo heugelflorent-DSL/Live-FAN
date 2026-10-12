@@ -661,7 +661,7 @@ function doneSet(){
   for(const s of Object.keys(state.order)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");
     let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(ev.doneAt||(ev.results.length&&later))done.add(ks[i]);if(ev.results.length)later=true}
     // direct bassin (ou simulateur) : la série dans l'eau dit où en est la réunion, les épreuves d'avant sont terminées
-    const h=state.live==="bassin"&&POOL&&POOL.heat;if(h&&h.event&&(h.sim||!poolIsTestRaw(h))){const i=ks.findIndex(k=>+EVENTS[k].numEp===+h.event&&!(EVENTS[k].doneAt));if(i>0)for(let j=0;j<i;j++)done.add(ks[j])}}
+    const h=state.live==="bassin"&&POOL&&POOL.heat;if(h&&h.event&&(h.sim||!poolIsTestRaw(h))){const T=norm(h.title||""),sx=["DAMES","MESSIEURS","MIXTE"].find(x=>T.includes(x));const i=h.key?ks.indexOf(h.key):ks.findIndex(k=>+EVENTS[k].numEp===+h.event&&!(EVENTS[k].doneAt)&&(!sx||norm(EVENTS[k].name).includes(sx)));if(i>0)for(let j=0;j<i;j++)done.add(ks[j])}}
   return done;
 }
 // test chrono : une série courue plus de 10 min avant le début de sa réunion n'est pas montrée au public
@@ -747,7 +747,7 @@ function simRun(){simStop();const hs=simHeats(),pick=hs[+$("#sim-heat").value];c
       const f=[];let acc=0;for(let i=0;i<laps;i++){acc+=(i===0?0.94:1+0.02*i)/laps;f.push(acc)}w.splits=f.map(x=>Math.round(r.res*x/acc*100)/100);real++;return}
     const tgt=(w.entry||base*(1+Math.random()*0.15))*(0.97+Math.random()*0.06);const f=[];let acc=0;for(let i=0;i<laps;i++){acc+=(i===0?0.94:1+0.02*i)/laps;f.push(acc)}w.splits=f.map(x=>Math.round(tgt*x/acc*100)/100)});
   const evn=ev?+ev.numEp||0:1,heat=pick?pick.heat:1,lanes=sw.map(w=>({lane:w.lane,name:w.name,club:w.club,born:w.born}));
-  const head={k:"heat",sim:true,event:evn,heat,heats:ev?ev.series.length:1,laps,title:name};
+  const head={k:"heat",sim:true,key:pick?pick.key:null,event:evn,heat,heats:ev?ev.series.length:1,laps,title:name};
   const at=(sec,fn)=>SIM.push(setTimeout(fn,sec*1000));
   SB={title:name,heat,laps,step,start:null,end:null,done:false,sw:sw.map(w=>({lane:w.lane,name:w.name,got:[],rank:null,fin:null}))};simDraw();
   simSend([{...head,stat:"W",lanes}]);$("#sim-msg").textContent="Série affichée · départ dans 5 s"+(real?` · ${real} temps réels du Live FFN`:" · temps inventés");
@@ -831,7 +831,19 @@ setInterval(()=>{if(poolWs&&poolWs.readyState===1){poolWs.send("ping");poolRtt+=
 // filet de sécurité : si la connexion temps réel est coupée (téléphone en veille, réseau mobile), on relit l'état toutes les 5 s
 setInterval(async()=>{if(state.live!=="bassin"||state.view!=="live"||document.hidden||(poolWs&&poolWs.readyState===1))return;try{const r=await fetch(evq("/api/pool/state"));if(!r.ok)return;const m=await r.json();if(!poolSynced)poolOff=m.now-Date.now();POOL=m;if(!state.admin)render()}catch(_){}},5000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state.live==="bassin"){try{poolWs&&poolWs.close()}catch(_){}poolWs=null;poolConnect()}});
-function poolEvent(h){if(!h)return null;const c=Object.values(EVENTS).filter(e=>e.type==="event"&&+e.numEp===+h.event);if(!c.length)return null;const done=doneSet();return c.find(e=>!done.has(e.key))||c[0]}
+// quelle épreuve du programme est dans l'eau ? Avec deux compétitions liées (un seul Quantum), le numéro seul peut être ambigu :
+// on départage par le nom de l'épreuve (distance, nage, sexe), le nom de la compétition envoyé par le Quantum et l'horaire
+let poolEvBusy=false;
+function poolEvent(h){if(!h)return null;if(h.key&&EVENTS[h.key])return EVENTS[h.key];
+  const all=Object.values(EVENTS).filter(e=>e.type==="event");let c=all.filter(e=>+e.numEp===+h.event);
+  const T=norm(h.title||""),words=x=>norm(x).split(" ").filter(w=>w.length>1);
+  const nameScore=e=>{const n=norm(e.name);const dn=n.match(/^(\d+)(?: ?X ?(\d+))?/),dt=T.match(/^(\d+)(?: ?X ?(\d+))?/);let sc=0;if(dn&&dt&&dn[1]===dt[1]&&(dn[2]||"")===(dt[2]||""))sc+=2;
+    for(const k of["NAGE LIBRE","DOS","BRASSE","PAPILLON","4 NAGES"])if(n.includes(k)&&T.includes(k))sc+=2;for(const k of["DAMES","MESSIEURS","MIXTE"])if(n.includes(k)&&T.includes(k))sc+=2;return sc};
+  if(!c.length&&T)c=all.filter(e=>nameScore(e)>=6);if(!c.length)return null;if(c.length===1)return c[0];
+  const C=words(h.comp||"");let sch={};if(!poolEvBusy){poolEvBusy=true;try{sch=schedule()}finally{poolEvBusy=false}}const now=parisSec(Date.now());
+  const score=e=>{const cm=comp(e.comp)||{};const cw=words((cm.name||"")+" "+(cm.city||""));let sc=nameScore(e)*5+(C.length?C.filter(w=>cw.includes(w)).length*3:0);
+    const t=sch[e.key];if(t)sc-=Math.min(3,Math.abs((t.start||0)-now)/1800);if(e.results.length)sc-=1;return sc};
+  return c.sort((a,b)=>score(b)-score(a))[0]}
 function poolLen(){const c=state.comps[0];const m=(c&&c.bassin||"").match(/(\d+)/);return m?+m[1]:25}
 function poolAllIn(h){const ns=Object.keys(h.names||{});const ls=ns.length?ns:Object.keys(h.lanes||{});return ls.length>0&&ls.every(n=>(h.lanes[n]||{}).fin)}
 function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.status!=="running"||!h.start||poolAllIn(h))return;poolTimer=setInterval(()=>{const el=document.getElementById("pclock");if(!el||state.view!=="live"){clearInterval(poolTimer);return}let t=(Date.now()+poolOff-h.start)/1000;if(poolShown&&poolShown.s===h.start)t=Math.max(t,poolShown.t);poolShown={s:h.start,t};el.textContent=t>0?fmtClock(t):"0.0"},100)}

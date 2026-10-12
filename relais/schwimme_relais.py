@@ -90,7 +90,7 @@ class Decoder:
                       "time": to_sec(x.get("Time")), "rank": int(x.get("Rk") or 0) or None, "stat": x.get("Stat")} for x in (j.get("Lanes") or []) if x.get("Ln")]
             title = " ".join(v for v in [e.get("Dist"), e.get("Stroke"), e.get("Cat"), e.get("Round")] if v)
             return {"k": "heat", "msg": m, "event": int(e.get("Number") or 0) or None, "heat": int(h.get("Number") or 0) or None,
-                    "heats": e.get("Heats"), "laps": e.get("Laps"), "title": title, "stat": h.get("Stat"), "lanes": lanes}
+                    "heats": e.get("Heats"), "laps": e.get("Laps"), "title": title, "comp": e.get("CompName") or "", "stat": h.get("Stat"), "lanes": lanes}
         return None
     @staticmethod
     def decode(p1, p2, ts):
