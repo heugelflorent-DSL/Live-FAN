@@ -688,7 +688,7 @@ let pauseId=Date.now();
 
 /* ---------- calculs ---------- */
 function toMin(hm){const[h,m]=hm.split(":").map(Number);return h*60+m}
-function hm(sec){sec=Math.round(sec);const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return String(h).padStart(2,"0")+"h"+String(m).padStart(2,"0")}
+function hm(sec){sec=((Math.round(sec)%86400)+86400)%86400;const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return String(h).padStart(2,"0")+"h"+String(m).padStart(2,"0")}
 function duration(ev){return ev.series.reduce((a,s)=>a+s.slowest+state.heatGap,0)-state.heatGap}
 function allKeys(){return Object.keys(state.order).flatMap(s=>state.order[s]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event")}
 // épreuve terminée : tous les résultats sont publiés, ou une épreuve suivante de la réunion a déjà des résultats
