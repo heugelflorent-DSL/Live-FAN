@@ -256,7 +256,12 @@ def main():
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "relais.pid"), "w") as f: f.write(str(os.getpid()))
     journal = None
     if a.port or a.reseau:
-        jdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "journaux"); os.makedirs(jdir, exist_ok=True)
+        here = os.path.dirname(os.path.abspath(__file__))
+        for f in os.listdir(here):  # ménage : anciens journaux et lanceurs de test devenus inutiles
+            if (f.startswith("journal-") and f.endswith(".jsonl")) or f in ("direct_quantum.bat", "test_quantum.bat", "enregistrer_quantum.bat"):
+                try: os.remove(os.path.join(here, f))
+                except OSError: pass
+        jdir = os.path.join(here, "journaux"); os.makedirs(jdir, exist_ok=True)
         for f in os.listdir(jdir):  # on ne garde que 7 jours d'enregistrements
             fp = os.path.join(jdir, f)
             if f.startswith("journal-") and time.time() - os.path.getmtime(fp) > 7 * 86400:
