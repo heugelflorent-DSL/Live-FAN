@@ -209,7 +209,7 @@ async function mppStep(env, ev, max = 2, force = false) {
   const want = new Map(); // clé nageur → { name, year, pool, events:Set }
   for (const id of config.comps) {
     const c = data.comps[id]; if (!c) continue; const dt = compDate(c.meta); if (!dt) continue;
-    const day = parisEpoch(dt.y, dt.m, dt.d); if (!force && (now < day - 5 * 864e5 || now > day + 2 * 864e5)) continue;
+    const day = parisEpoch(dt.y, dt.m, dt.d); if (!force && ev !== "test" && (now < day - 5 * 864e5 || now > day + 2 * 864e5)) continue; // l'épreuve test (simulateur) rejoue d'anciennes compétitions : pas de fenêtre de dates
     const pool = +((c.meta?.pool || "").match(/\d+/) || [25])[0] === 50 ? 50 : 25;
     for (const e of eventsOf(c)) {
       const ek = normEvent(e.name); if (!ek) continue;
