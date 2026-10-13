@@ -204,8 +204,8 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
 // ---------- records personnels (FFN Extranat) ----------
 // La veille et pendant la compétition, quelques nageurs par minute : nom + année → licence → meilleures perfs (avec passages).
 const mppKey = (name, year) => String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim() + "|" + (year || "");
-async function mppStep(env, ev, max = 2, force = false) {
-  const { config, data } = await load(env, ev); const now = Date.now();
+// nageurs dont on cherche les records (listes de départ + résultats), clé → { name, year, pool, events, iuf }
+function mppWant(config, data, ev, now, force) {
   const want = new Map(); // clé nageur → { name, year, pool, events:Set }
   for (const id of config.comps) {
     const c = data.comps[id]; if (!c) continue; const dt = compDate(c.meta); if (!dt) continue;
@@ -222,6 +222,18 @@ async function mppStep(env, ev, max = 2, force = false) {
       }
     }
   }
+  return want;
+}
+async function mppStatus(env, ev) {
+  const { config, data } = await load(env, ev); const now = Date.now();
+  const want = mppWant(config, data, ev, now, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+  let done = 0, found = 0, best = 0;
+  for (const k of want.keys()) { const x = store.sw[k]; if (!x) continue; done++; if (x.iuf) found++; if (x.b && Object.keys(x.b).length) best++; }
+  return { want: want.size, done, left: want.size - done, foundN: found, bestN: best };
+}
+async function mppStep(env, ev, max = 2, force = false) {
+  const { config, data } = await load(env, ev); const now = Date.now();
+  const want = mppWant(config, data, ev, now, force);
   if (!want.size) return 0;
   const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
   const stale = (x) => !x || now - x.at > 5 * 864e5 || (x.iuf && !Object.keys(x.b || {}).length && now - x.at > 3600e3);
@@ -344,6 +356,10 @@ export default {
       return res;
     }
 
+    if (p === "/api/admin/mpp" && req.method === "GET") {
+      if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
+      return json(await mppStatus(env, ev));
+    }
     if (p === "/api/admin/mpp" && req.method === "POST") {
       if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
       const used = await mppStep(env, ev, 6, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
@@ -353,7 +369,8 @@ export default {
       let probe = null; try { const r = await fetch("https://ffn.extranat.fr/webffn/_recherche.php?go=ind&idrch=" + encodeURIComponent(all.length ? all[all.length - 1][0].split("|")[0] : "LOZAC'H Alienor"), { headers: { "User-Agent": "SchwimmeDirect/1.0" } }); probe = { status: r.status, body: (await r.text()).slice(0, 300) }; } catch (e) { probe = { error: String(e.message || e) }; }
       let probe2 = null; const one = all.find(([, x]) => x.iuf);
       if (one) { try { const r = await fetch("https://ffn.extranat.fr/webffn/nat_recherche.php?idact=nat", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SchwimmeDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: one[1].iuf, idiuf: one[1].iuf, idopt: "mpp" }) }); const t = await r.text(); probe2 = { status: r.status, len: t.length, bassins: (t.match(/Bassin\s*:\s*\d+/gi) || []).length, rows: (t.match(/scope=["']row["']/g) || []).length, setCookie: r.headers.get("set-cookie") ? 1 : 0 }; } catch (e) { probe2 = { error: String(e.message || e) }; } }
-      return json({ ok: true, used, total: all.length, probe2, found: all.filter(([, x]) => x.iuf).length, withBest: all.filter(([, x]) => x.b && Object.keys(x.b).length).length, sample, probe });
+      const st = await mppStatus(env, ev);
+      return json({ ok: true, used, ...st, total: all.length, probe2, found: all.filter(([, x]) => x.iuf).length, withBest: all.filter(([, x]) => x.b && Object.keys(x.b).length).length, sample, probe });
     }
     if (p === "/api/mpp" && req.method === "GET") {
       const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };

@@ -571,7 +571,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
           <div class="grid2c"><label for="pool-sort">Classement de la série<select class="field" id="pool-sort"><option value="touch">dès que tous ont touché</option><option value="official">à la validation sur le Quantum</option></select></label>
           <label for="pool-hold">Ensuite, garder les résultats affichés<select class="field" id="pool-hold"><option value="0">jusqu'à la série suivante sur le Quantum (recommandé)</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select></label></div>
           <p class="msg" id="relay-state"></p>
-          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement à partir de 5 jours avant la compétition, quelques nageurs par minute.</span></div>
+          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
         </div>
       </details>
       <details class="step sim">
@@ -768,7 +768,8 @@ async function loadEvents(){try{EVLIST=await api("/api/admin/events");if(!Array.
   sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.id==="main"?" (adresse principale)":""}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"",id==="main"?"/":"/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
-async function loadAdmin(){const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render()}
+async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}const p=Math.round(j.done/j.want*100);el.innerHTML=`Records perso : <b>${j.done} / ${j.want}</b> nageurs cherchés (${p} %) · ${j.bestN} avec des records · ${j.left?`<b>${j.left}</b> restent à chercher`:"tous cherchés ✓"}`}catch(e){el.textContent=""}}
+async function loadAdmin(){const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
 let lastSaved="",saveTimer=null;
 function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(markDirty,150)}
 function markDirty(){const dirty=JSON.stringify(toConfig())!==lastSaved;const el=$("#save-state"),b=$("#save-btn"),bar=$("#savebar");
@@ -1402,7 +1403,7 @@ $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
 $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
 $("#pool-sort").onchange=e=>{state.poolSort=e.target.value;scheduleSave()};$("#pool-hold").onchange=e=>{state.poolHold=+e.target.value;scheduleSave()};
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
-$("#mpp-go").onclick=async()=>{const m=$("#mpp-msg");m.textContent="Lecture en cours…";try{const j=await api("/api/admin/mpp",{method:"POST"});console.log("records perso",j);m.textContent=j.total?`${j.total} nageur(s) traité(s) · ${j.found} retrouvé(s) sur Extranat · ${j.withBest} avec un record sur leurs épreuves. Reclique pour continuer.${j.found?"":" (Extranat : "+(j.probe&&(j.probe.status||j.probe.error))+" · "+((j.sample||[]).map(x=>x.err).filter(Boolean)[0]||"")+")"}`:"Aucun nageur à traiter : il faut les listes de départ (programme définitif) et une compétition dans les 5 jours.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}};
+$("#mpp-go").onclick=async()=>{const m=$("#mpp-msg");m.textContent="Lecture en cours…";try{const j=await api("/api/admin/mpp",{method:"POST"});console.log("records perso",j);m.textContent=j.total?`${j.total} nageur(s) traité(s) · ${j.found} retrouvé(s) sur Extranat · ${j.withBest} avec un record sur leurs épreuves. Reclique pour continuer.${j.found?"":" (Extranat : "+(j.probe&&(j.probe.status||j.probe.error))+" · "+((j.sample||[]).map(x=>x.err).filter(Boolean)[0]||"")+")"}`:"Aucun nageur à traiter : il faut les listes de départ (programme définitif) et une compétition dans les 5 jours.";loadMpp();mppStat(j)}catch(e){m.textContent="Échec : "+e.message}};
 $("#sim-stop").onclick=()=>{simStop();$("#sim-msg").textContent="Simulation arrêtée"};
 $("#sim-clear").onclick=()=>{simStop();simSend([{k:"clear"}]);$("#sim-msg").textContent="Direct vidé"};
 $("#ev-switch").onchange=e=>switchEvent(e.target.value);
