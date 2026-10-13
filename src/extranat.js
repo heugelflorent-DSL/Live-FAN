@@ -29,12 +29,27 @@ export function parseMpp(html) {
   }
   return out;
 }
-export async function findIuf(name, year) {
-  const r = await fetch(`${EXT}/_recherche.php?go=ind&idrch=${encodeURIComponent(name)}`, { headers: { "User-Agent": "SchwimmeDirect/1.0" } });
-  if (!r.ok) throw new Error("Extranat " + r.status);
-  const list = await r.json().catch(() => []);
-  const hit = (Array.isArray(list) ? list : []).filter((x) => !year || String(x.ind || "").includes("(" + year + ")"));
+const fold = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+// Le Live FFN abrège les noms longs : « LOYNTON-FERRAND S. », « LECONTE-DEROUBAIX E.M. ».
+// On cherche alors le nom seul, puis on garde le nageur de la bonne année dont le prénom a les mêmes initiales.
+export function splitInitials(name) {
+  const m = String(name || "").trim().match(/^(.*?)\s+((?:\p{L}\.[\s-]?)+)$/u);
+  return m ? { base: m[1].trim(), ini: fold(m[2]).replace(/[^A-Z]/g, "") } : { base: String(name || "").trim(), ini: "" };
+}
+export function pickIuf(list, name, year) {
+  const { base, ini } = splitInitials(name);
+  const hit = (Array.isArray(list) ? list : []).filter((x) => {
+    const ind = String(x.ind || ""); if (year && !ind.includes("(" + year + ")")) return false;
+    if (!ini) return true;
+    const fn = fold(ind.slice(0, ind.indexOf("(")).trim()); const b = fold(base); if (!fn.startsWith(b)) return false;
+    const parts = fn.slice(b.length).trim().split(/[\s-]+/).filter(Boolean); return parts.map((p) => p[0]).join("").startsWith(ini);
+  });
   return hit.length === 1 ? hit[0].iuf : null; // ambigu ou introuvable : on s'abstient
+}
+export async function findIuf(name, year) {
+  const r = await fetch(`${EXT}/_recherche.php?go=ind&idrch=${encodeURIComponent(splitInitials(name).base)}`, { headers: { "User-Agent": "SchwimmeDirect/1.0" } });
+  if (!r.ok) throw new Error("Extranat " + r.status);
+  return pickIuf(await r.json().catch(() => []), name, year);
 }
 export async function fetchMpp(iuf) {
   const r = await fetch(`${EXT}/nat_recherche.php?idact=nat`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SchwimmeDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: String(iuf), idiuf: String(iuf), idopt: "mpp" }) });
