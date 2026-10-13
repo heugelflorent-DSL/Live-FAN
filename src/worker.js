@@ -51,7 +51,7 @@ function expected(ev) {
   return lanes || ev.nPart || 0;
 }
 function eventsOf(comp) {
-  return (comp.reunions || []).flatMap((r) => r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, reunion: r.n })));
+  return (comp.reunions || []).flatMap((r) => r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, key: i.key || String(i.epr), reunion: r.n })));
 }
 function windowOpen(cfg, data, now) {
   if (!cfg.scrape?.onlyLive) return true;
@@ -76,7 +76,7 @@ function finished(cfg, data, now) {
   return cfg.comps.every((id) => {
     const c = data.comps[id]; if (!c || !c.reunions) return false;
     const evs = eventsOf(c); if (!evs.length) return false;
-    if (evs.every((e) => c.events?.[e.epr]?.doneAt)) return true;
+    if (evs.every((e) => c.events?.[e.key]?.doneAt)) return true;
     const dt = compDate(c.meta); if (!dt) return false;
     const last = Math.max(...evs.map((e) => hToMin(e.time) ?? 0));
     return now > parisEpoch(dt.y, dt.m, dt.d) + (last + 180) * 60e3;
@@ -99,23 +99,25 @@ function plan(cfg, data, now, live) {
     if (!c || !c.progAt || now - c.progAt > progEvery(c, now)) tasks.push({ t: "prog", c: id });
     if (!c) continue;
     for (const r of c.reunions || []) {
-      const evs = r.items.filter((i) => i.kind === "event");
-      const started = evs.some((e) => c.events?.[e.epr]?.results?.rows?.length);
+      const evs = r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, key: i.key || String(i.epr) }));
+      const started = evs.some((e) => c.events?.[e.key]?.results?.rows?.length);
       for (const e of evs) {
         if (e.provisional) continue; // programme provisoire : rien d'autre à lire pour l'instant
-        const st = c.events?.[e.epr] || {};
-        if (!st.heatsAt || (!started && now - st.heatsAt > HEATS_EVERY)) tasks.push({ t: "heats", c: id, epr: e.epr });
+        const st = c.events?.[e.key] || {};
+        // finales : la liste de départ est publiée entre les séries et la finale → relue jusqu'à ses résultats
+        const fin = e.key !== String(e.epr) && !st.results?.rows?.length;
+        if (!st.heatsAt || ((!started || fin) && now - st.heatsAt > HEATS_EVERY)) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
       if (!live) continue;
       // épreuves en cours : la première non terminée de la réunion et la suivante
       if (evs.some((e) => e.provisional)) continue;
-      const idx = evs.findIndex((e) => !c.events?.[e.epr]?.doneAt);
+      const idx = evs.findIndex((e) => !c.events?.[e.key]?.doneAt);
       if (idx >= 0) for (const e of evs.slice(Math.max(0, idx - 1), idx + 2)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
   }
-  // résultats d'abord, puis programme, puis séries
-  const rank = { res: 0, prog: 1, heats: 2 };
-  return tasks.sort((a, b) => rank[a.t] - rank[b.t]);
+  // résultats d'abord, puis programme, puis séries ; une seule lecture par page (tous les tours d'une épreuve sont sur la même page de résultats)
+  const rank = { res: 0, prog: 1, heats: 2 }; const seen = new Set();
+  return tasks.filter((t) => { const k = t.t + "|" + t.c + "|" + (t.t === "heats" ? t.key : t.epr); if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => rank[a.t] - rank[b.t]);
 }
 
 async function runTask(task, data, now) {
@@ -134,23 +136,44 @@ async function runTask(task, data, now) {
     } else { delete c.entriesOpen; }
     return;
   }
-  const ev = eventsOf(c).find((e) => e.epr === task.epr);
-  if (!ev) return;
-  const st = (c.events[task.epr] = c.events[task.epr] || {});
   if (task.t === "heats") {
+    const ev = eventsOf(c).find((e) => e.key === (task.key || String(task.epr)));
+    if (!ev) return;
+    const st = (c.events[ev.key] = c.events[ev.key] || {});
     st.heats = parseHeats(await get(urls.heats(task.c, ev))); st.heatsAt = now; return;
   }
   if (task.t === "res") {
+    const evs = eventsOf(c).filter((e) => e.epr === task.epr);
+    if (!evs.length) return;
     const r = parseResults(await get(urls.results(task.c, task.epr)));
     // le Live FFN peut renvoyer une autre page quand l'épreuve n'a pas encore de résultats : on vérifie le titre
     const nrm = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
-    if (!r.title || !nrm(r.title).startsWith(nrm(ev.name))) { r.rows = []; delete st.doneAt; }
-    const n = r.rows.length;
-    if (n !== st.nRows) st.changedAt = now;
-    st.results = r; st.resultsAt = now; st.nRows = n;
-    const exp = expected({ ...ev, heats: st.heats });
-    if (n && !st.doneAt && (n >= exp || exp === 0)) st.doneAt = now;
+    for (const ev of evs) {
+      const st = (c.events[ev.key] = c.events[ev.key] || {});
+      const sec = pickSection(ev, r);
+      const res = sec ? { title: sec.title, when: sec.when || "", rows: sec.rows } : { title: r.title, when: r.when || "", rows: [] };
+      if (!res.title || !nrm(res.title).startsWith(nrm(ev.name))) { res.rows = []; delete st.doneAt; }
+      if (isSeries(ev)) { const b = (r.sections || []).filter((x) => x.kind === "barrage"); if (b.length) st.barrages = b.map((x) => ({ title: x.title, when: x.when, rows: x.rows })); else delete st.barrages; }
+      const n = res.rows.length;
+      if (n !== st.nRows) st.changedAt = now;
+      st.results = res; st.resultsAt = now; st.nRows = n;
+      const exp = expected({ ...ev, heats: st.heats });
+      if (n && !st.doneAt && (n >= exp || exp === 0)) st.doneAt = now;
+    }
   }
+}
+const isSeries = (e) => !e.typ || e.typ === 60 || e.typ === 62 || e.typ === 61;
+// section de la page de résultats qui correspond à un tour du programme
+export function pickSection(ev, r) {
+  if (!r.sections) return isSeries(ev) || !r.title ? r : null;
+  if (isSeries(ev)) return r.sections.find((x) => x.kind === "series") || null;
+  const cand = r.sections.filter((x) => x.kind === "final" && x.fin === ev.fin);
+  if (cand.length <= 1) return cand[0] || null;
+  // plusieurs finales A (finales par âge) : on compare les âges / catégories
+  const toks = (x) => new Set((String(x || "").match(/u?\d+/gi) || []).map((t) => t.toLowerCase()));
+  const want = toks(ev.category); let best = null, bs = 0;
+  for (const x of cand) { const have = toks(x.cat); let sc = 0; for (const t of want) if (have.has(t)) sc++; if (sc > bs) { bs = sc; best = x; } }
+  return best;
 }
 
 export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
@@ -213,7 +236,7 @@ function mppWant(config, data, ev, now, force) {
     const pool = +((c.meta?.pool || "").match(/\d+/) || [25])[0] === 50 ? 50 : 25;
     for (const e of eventsOf(c)) {
       const ek = normEvent(e.name); if (!ek) continue;
-      const st = c.events?.[e.epr] || {};
+      const st = c.events?.[e.key] || {};
       // nageurs des listes de départ, et aussi des résultats (compétition déjà nagée)
       const lanes = [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)];
       for (const l of lanes) {
@@ -288,11 +311,11 @@ async function rescrape(env, scope, what, ev = "main") {
     else if (!c) tasks.push({ t: "prog", c: id });
     const evs = c ? eventsOf(c).filter((e) => !reu || e.reunion === reu) : [];
     for (const e of evs.filter((x) => !x.provisional)) {
-      const st = c.events?.[e.epr];
+      const st = c.events?.[e.key];
       if (st && (what === "all" || what === "start")) { delete st.heats; delete st.heatsAt; }
       if (st && (what === "all" || what === "res")) { delete st.results; delete st.resultsAt; delete st.doneAt; delete st.nRows; }
-      if (what !== "res") tasks.push({ t: "heats", c: id, epr: e.epr });
-      if (what !== "start") tasks.push({ t: "res", c: id, epr: e.epr });
+      if (what !== "res") tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
+      if (what !== "start" && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
   }
   data.queue = tasks; data.savedAt = 0;

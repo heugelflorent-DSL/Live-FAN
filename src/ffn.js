@@ -69,6 +69,25 @@ export function parseMeta(html) {
 }
 
 // Programme : réunions, ouverture des portes, épreuves (heure, nom, n° FFN, séries, participants) et lignes non sportives
+// Tours d'une épreuve : le Live FFN donne un code fiable (typ), les libellés sont parfois saisis à la main
+// (« 50 Dos Dames 50 Dos Dames U15 et moins (Finale D) », « Finale rouge »…)
+export const ROUNDS = { 60: "Séries", 62: "Premières séries", 61: "Série finale", 11: "Finale A", 12: "Finale B", 13: "Finale C", 14: "Finale D" };
+const EV_RE = /^(\d+\s*x\s*\d+|\d+)\s+(nage libre|dos|brasse|papillon|4 nages)\s+(dames|messieurs|mixtes)/i;
+export function roundOf(full, typ, cat, epr) {
+  const bm = full.match(EV_RE); const rm = full.match(/^(.*?)\s+(S[ée]ries|Premi[èe]res s[ée]ries|S[ée]rie finale|Finales?.*|Demi-finales?.*|Barrages?.*|Classement.*)$/i);
+  const name = bm ? bm[0] : rm ? rm[1] : full;
+  let rest = full.slice(name.length);
+  while (rest.toLowerCase().includes(name.toLowerCase())) rest = rest.replace(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ");
+  rest = rest.replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
+  const std = ROUNDS[typ] || "";
+  let alias = "";
+  const fm = rest.match(/^(.*?)\b(Finales?|S[ée]ries|Premi[èe]res s[ée]ries|S[ée]rie finale|Demi-finales?|Barrages?)\b\s*([A-D](?![a-z]))?\s*(.*)$/i);
+  let category = rest;
+  if (fm) { category = (fm[1] + " " + fm[4]).trim(); if (!fm[3] && /^finale/i.test(fm[2]) && fm[4] && !/^(u\d|\d)/i.test(fm[4])) { alias = (fm[2] + " " + fm[4].split(" ")[0]).trim(); category = (fm[1] + " " + fm[4].split(" ").slice(1).join(" ")).trim(); } }
+  const round = std || (rm ? rm[2] : "");
+  const key = !typ || typ === 60 || typ === 62 ? String(epr) : `${epr}-${typ}-${cat || 0}`;
+  return { name, round, alias, category, fin: typ >= 11 && typ <= 14 ? "ABCD"[typ - 11] : "", key };
+}
 export function parseProgramme(html) {
   html = strip(html);
   const meta = parseMeta(html);
@@ -90,10 +109,9 @@ export function parseProgramme(html) {
       const tip = li.match(/<span class="tooltip"[^>]*>([\s\S]*?)<b[^>]*>([\s\S]*?)<\/b>/);
       const full = one(tip ? tip[1] : li);
       const info = one(tip ? tip[2] : "");
-      const rm = full.match(/^(.*?)\s+(S[ée]ries|Finales?.*|Demi-finales?.*|Barrages?.*|Classement.*)$/i);
       const ns = info.match(/(\d+)\s*s[ée]ries?/i), np = info.match(/(\d+)\s*participant/i);
       r.items.push({ kind: "event", epr: +on[2], cat: +on[1], typ: +on[3], num: +on[4], time: time ? time.trim() : null,
-        name: rm ? rm[1] : full, round: rm ? rm[2] : "", nSeries: ns ? +ns[1] : null, nPart: np ? +np[1] : null });
+        ...roundOf(full, +on[3], +on[1], +on[2]), nSeries: ns ? +ns[1] : null, nPart: np ? +np[1] : null });
     }
     reunions.push(r);
   }
@@ -150,16 +168,29 @@ function parseSplits(html) {
   }).filter(Boolean);
 }
 
+// « 200 Nage Libre Dames - Finale B   U16 : 10-16 ans » → { kind: "final", fin: "B", cat: "U16 : 10-16 ans" }
+export function sectionKind(title) {
+  const t = String(title || "").replace(/\s+/g, " "); const i = t.indexOf(" - "); const r = i >= 0 ? t.slice(i + 3).trim() : t;
+  if (/barrage/i.test(r)) return { kind: "barrage", fin: "", cat: r };
+  const f = r.match(/^Finale\s*([A-D])?\b\s*(.*)$/i); if (f) return { kind: "final", fin: (f[1] || "A").toUpperCase(), cat: f[2].replace(/^[-\s]+/, "").trim() };
+  if (/s[ée]rie finale/i.test(r)) return { kind: "series", fin: "", cat: "" };
+  if (/s[ée]ries|^$/i.test(r)) return { kind: "series", fin: "", cat: r.replace(/^(Premi[èe]res )?s[ée]ries\s*/i, "") };
+  return { kind: "other", fin: "", cat: r };
+}
 // Résultats d'une épreuve : classement, temps, statut, points FFN, passages ; relais avec leurs 4 relayeurs
 export function parseResults(html) {
   html = strip(html);
   const start = html.indexOf('<table class="tableau">'); if (start < 0) return { title: "", rows: [] };
   const end = html.indexOf('<div id="boxLegende"', start);
   const tbl = html.slice(start, end > 0 ? end : undefined);
-  const out = { title: "", rows: [] }; let last = null;
+  const out = { title: "", rows: [] }; let last = null; const sections = [];
   for (const tr of rows(tbl)) {
     const cs = cells(tr);
-    if (cs.length && cs[0].cls.includes("epreuve")) { out.title = one(cs[0].html); continue; }
+    if (cs.length && cs[0].cls.includes("epreuve")) {
+      const t = one(cs[0].html); const wm = t.match(/\(([^()]*\d{1,2}h\d{2})\)\s*$/);
+      out.title = wm ? t.slice(0, wm.index).trim() : t; out.rows = []; last = null;
+      sections.push(out.sec = { title: out.title, when: wm ? wm[1] : "", ...sectionKind(out.title), rows: out.rows }); continue;
+    }
     if (!/class="survol/.test(tr.slice(0, 40)) || cs.length < 6) continue;
     const place = one(cs[0].html);
     const a = cs[1].html; const iuf = +((a.match(/iuf=(\d+)/) || [])[1] || 0) || null;
@@ -181,6 +212,7 @@ export function parseResults(html) {
       status: isTime ? null : (tlabel || null), reason: isTime ? null : reason || null,
       points: ptsCell ? (parseInt(one(ptsCell.html)) || null) : null,
       splits: tcell ? parseSplits(tcell.html) : [],
+      qual: one((cs.find((c) => c.cls === "qualification") || { html: "" }).html) || null,
     };
     if (relayEv) row.relay = [{ name, iuf, year, nat, leg: legSec }];
     out.rows.push(row); last = row;
@@ -189,6 +221,14 @@ export function parseResults(html) {
   const byClub = {};
   for (const r of out.rows) if (r.relay) { byClub[r.club] = (byClub[r.club] || 0) + 1; r.teamNo = byClub[r.club]; }
   for (const r of out.rows) if (r.relay) r.team = byClub[r.club] > 1 ? `${r.club} ${r.teamNo}` : r.club;
+  // plusieurs tours sur la même page (finales, séries, barrages) : chacun dans sa section ; title/rows = les séries
+  delete out.sec;
+  if (sections.length) {
+    for (const sc of sections) { const bc = {}; for (const r of sc.rows) if (r.relay) { bc[r.club] = (bc[r.club] || 0) + 1; r.teamNo = bc[r.club]; } for (const r of sc.rows) if (r.relay) r.team = bc[r.club] > 1 ? `${r.club} ${r.teamNo}` : r.club; }
+    const main = sections.find((x) => x.kind === "series") || sections[sections.length - 1];
+    out.title = main.title; out.rows = main.rows; out.when = main.when;
+    if (sections.length > 1) out.sections = sections;
+  }
   return out;
 }
 
