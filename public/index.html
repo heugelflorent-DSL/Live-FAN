@@ -1219,7 +1219,7 @@ function renderRes(){
   const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();
   let html=reuChips(done);
   for(const s of reuShown(done)){
-    const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&done.has(k)&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
+    const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&done.has(k)&&!dupSF(EVENTS[k])&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
     if(!keys.length)continue;
     html+=`<div class="session">${secTitle("Réunion "+s,plural(keys.length,"épreuve"))}<div class="list">${keys.map(k=>{const ev=EVENTS[k],open=state.open["r"+k]||(q&&evMatches(ev,q));const win=ranking(ev)[0];
      return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm(sch[k].start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
@@ -1240,6 +1240,8 @@ function parseGroups(txt){return txt.split(/[,;]/).map(x=>x.trim()).filter(Boole
 // compétitions à finales : un nageur compte une seule fois par épreuve, à la place de son meilleur tour
 // (finale A, puis B, C, D, puis séries) ; l'ordre de ce classement est conservé (pas de retri au temps)
 function epGroup(ev){return ev.epr==null?[ev]:Object.values(EVENTS).filter(x=>x.type==="event"&&x.comp===ev.comp&&x.epr===ev.epr)}
+// 800/1500 : « premières séries » + « série finale » = un seul classement (publié une fois, rattaché aux deux tours)
+function dupSF(ev){return ev.typ===61&&epGroup(ev).some(x=>x.typ===62)}
 function hasFinals(ev){return ev.epr!=null&&epGroup(ev).some(x=>x.fin)}
 function finalsDone(ev,done){done=done||doneSet();const f=epGroup(ev).filter(x=>x.fin);return f.length>0&&f.every(x=>done.has(x.key))}
 function mergedRanking(ev){const g=epGroup(ev);if(!g.some(x=>x.fin))return ranking(ev);
@@ -1273,7 +1275,7 @@ function teamRanking(rule,done,sex){
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : chaque nageur compte une fois (son meilleur tour)
-    else if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
+    else if(!done.has(k)||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
     if(sex&&(sex==='F')!==/Dames/.test(ev.name))continue;
     const per={};
     for(const w of (fx?mergedRanking(ev):ranking(ev))){if(w.dsq)continue;const c=w.team||w.club||w.name;const p=w.points||0;(per[c]=per[c]||[]).push({ev,w,p})}
@@ -1302,8 +1304,8 @@ function renderPod(){
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
-    else if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
-    const gn=fx?(ev.base||ev.name):ev.name;
+    else if(!done.has(k)||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
+    const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
     if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
   if(state.podEv&&!groups.some(g=>g.name===state.podEv))state.podEv="";
   if(groups.length>1)html+=`<label class="evpick" for="pod-ev"><span>Épreuve</span><select class="field" id="pod-ev"><option value="">Toutes les épreuves (${groups.length})</option>${groups.map(g=>`<option value="${esc(g.name)}" ${state.podEv===g.name?"selected":""}>${hm(g.start)} · ${esc(g.name)}</option>`).join("")}</select></label>`;
