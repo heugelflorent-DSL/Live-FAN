@@ -218,7 +218,7 @@ function mppWant(config, data, ev, now, force) {
       const lanes = [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)];
       for (const l of lanes) {
         if (!l.name || l.members || !l.year) continue; const k = mppKey(l.name, l.year);
-        const w = want.get(k) || { name: l.name, year: l.year, pool, events: new Set() }; if (l.iuf) w.iuf = String(l.iuf); w.events.add(ek); want.set(k, w);
+        const w = want.get(k) || { name: l.name, year: l.year, pool, events: new Set(), day }; if (day < w.day) w.day = day; if (l.iuf) w.iuf = String(l.iuf); w.events.add(ek); want.set(k, w);
       }
     }
   }
@@ -238,9 +238,10 @@ async function mppStep(env, ev, max = 2, force = false) {
   const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
   const empty = (x) => !Object.keys(x.b || {}).length;
   // lecture forcée : on reprend tout de suite les échecs et les nageurs retrouvés sans record
-  const stale = (x) => !x || now - x.at > 5 * 864e5 || (x.err && (force || now - x.at > 3600e3)) || (x.iuf && empty(x) && (force || now - x.at > 3600e3)) || (!x.iuf && (force || now - x.at > 864e5));
+  // un record déjà lu n'est plus relu une fois la compétition commencée : on garde le record d'avant la course
+  const stale = (x, w) => !x || (now - x.at > 5 * 864e5 && !(w && now >= w.day && !empty(x) && !x.err)) || (x.err && (force || now - x.at > 3600e3)) || (x.iuf && empty(x) && (force || now - x.at > 3600e3)) || (!x.iuf && (force || now - x.at > 864e5));
   const prio = (x) => (!x ? 0 : x.err ? 1 : empty(x) ? 2 : 3); // jamais lus d'abord, puis échecs, puis sans record, du plus ancien au plus récent
-  const todo = [...want.entries()].filter(([k]) => stale(store.sw[k])).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
+  const todo = [...want.entries()].filter(([k, w]) => stale(store.sw[k], w)).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
   if (!todo.length) return 0;
   let used = 0;
   for (const [k, w] of todo) {
