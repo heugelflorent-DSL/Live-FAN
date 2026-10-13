@@ -126,6 +126,7 @@ async function runTask(task, data, now) {
   if (task.t === "prog") {
     const p = parseProgramme(await get(urls.programme(task.c)));
     if (!p.reunions.length) throw new Error(`Programme vide pour la compétition ${task.c}`);
+    if (JSON.stringify([p.meta, p.reunions]) !== JSON.stringify([c.meta, c.reunions])) data.dirty = true;
     c.meta = p.meta; c.reunions = p.reunions; c.progAt = now;
     if (p.reunions.some((r) => (r.items || []).some((i) => i.provisional))) {
       try {
@@ -140,7 +141,9 @@ async function runTask(task, data, now) {
     const ev = eventsOf(c).find((e) => e.key === (task.key || String(task.epr)));
     if (!ev) return;
     const st = (c.events[ev.key] = c.events[ev.key] || {});
-    st.heats = parseHeats(await get(urls.heats(task.c, ev))); st.heatsAt = now; return;
+    const hs = parseHeats(await get(urls.heats(task.c, ev))).map((h) => ({ n: h.n, of: h.of, time: h.time, lanes: h.lanes.map(packLane) }));
+    if (JSON.stringify(hs) !== JSON.stringify(st.heats || null)) { st.heats = hs; data.dirty = true; }
+    st.heatsAt = now; return;
   }
   if (task.t === "res") {
     const evs = eventsOf(c).filter((e) => e.epr === task.epr);
@@ -151,17 +154,26 @@ async function runTask(task, data, now) {
     for (const ev of evs) {
       const st = (c.events[ev.key] = c.events[ev.key] || {});
       const sec = pickSection(ev, r);
-      const res = sec ? { title: sec.title, when: sec.when || "", rows: sec.rows } : { title: r.title, when: r.when || "", rows: [] };
+      const res = sec ? { title: sec.title, when: sec.when || "", rows: sec.rows.map(packRow) } : { title: r.title, when: r.when || "", rows: [] };
       if (!res.title || !nrm(res.title).startsWith(nrm(ev.name))) { res.rows = []; delete st.doneAt; }
-      if (isSeries(ev)) { const b = (r.sections || []).filter((x) => x.kind === "barrage"); if (b.length) st.barrages = b.map((x) => ({ title: x.title, when: x.when, rows: x.rows })); else delete st.barrages; }
+      if (isSeries(ev)) { const b = (r.sections || []).filter((x) => x.kind === "barrage"); const nb = b.length ? b.map((x) => ({ title: x.title, when: x.when, rows: x.rows.map(packRow) })) : null; if (JSON.stringify(nb) !== JSON.stringify(st.barrages || null)) { if (nb) st.barrages = nb; else delete st.barrages; data.dirty = true; } }
       const n = res.rows.length;
       if (n !== st.nRows) st.changedAt = now;
-      st.results = res; st.resultsAt = now; st.nRows = n;
+      if (JSON.stringify(res) !== JSON.stringify(st.results || null)) { st.results = res; data.dirty = true; }
+      st.resultsAt = now; st.nRows = n;
       const exp = expected({ ...ev, heats: st.heats });
       if (n && !st.doneAt && (n >= exp || exp === 0)) st.doneAt = now;
     }
   }
 }
+// stockage compact (10 ms de calcul par passage en offre gratuite) : champs inutiles retirés, passages à plat [d1, t1, d2, t2…]
+const strip0 = (o) => { for (const k of Object.keys(o)) if (o[k] == null || o[k] === "" || (Array.isArray(o[k]) && !o[k].length)) delete o[k]; return o; };
+export function packRow(r) {
+  const sp = []; for (const x of r.splits || []) if (x.d && x.cum != null) sp.push(x.d, x.cum);
+  return strip0({ place: r.place, name: r.name, iuf: r.iuf, year: r.year, club: r.club, time: r.time, status: r.status, reason: r.reason, points: r.points, qual: r.qual, team: r.team,
+    relay: r.relay ? r.relay.map((m) => strip0({ name: m.name, iuf: m.iuf, year: m.year, leg: m.leg })) : null, sp });
+}
+export const packLane = (l) => strip0({ lane: l.lane, name: l.name, year: l.year, club: l.club, entry: l.entry, members: l.members });
 const isSeries = (e) => !e.typ || e.typ === 60 || e.typ === 62 || e.typ === 61;
 // section de la page de résultats qui correspond à un tour du programme
 export function pickSection(ev, r) {
@@ -182,7 +194,6 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   let pruned = false;
   for (const id of Object.keys(data.comps || {})) if (!config.comps.includes(id)) { delete data.comps[id]; pruned = true; }
   if (pruned) await saveData(env, data, "", ev);
-  const before = JSON.stringify(data);
   const now = Date.now();
   const every = (config.scrape?.every ?? 2) * 60e3;
   if (!force) {
@@ -191,7 +202,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     if (data.lastRun && now - data.lastRun < every - 5e3) return 0;
     // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
     if (finished(config, data, now) && !(data.queue || []).length) {
-      if (!data.finished) { data.finished = now; await saveData(env, data, JSON.stringify({}), ev); }
+      if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); }
       return 0;
     }
   }
@@ -217,10 +228,9 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   data.lastRun = now;
   if (!errors) { data.lastOk = now; data.error = null; }
   // les horodatages seuls ne justifient pas une écriture KV (1 000 écritures/jour en gratuit) : on écrit si le contenu a changé
-  const strip = (s) => s.replace(/"(lastRun|lastOk|progAt|heatsAt|resultsAt)":\d+,?/g, "");
-  if (strip(JSON.stringify(data)) !== strip(before) || !data.savedAt || now - data.savedAt > 10 * 60e3) {
-    data.savedAt = now; await saveData(env, data, before, ev);
-  }
+  // (repéré pendant la lecture, sans recomparer tout le fichier : trop coûteux pour une grosse compétition)
+  const dirty = data.dirty || errors || data.queue.length; delete data.dirty;
+  if (dirty || !data.savedAt || now - data.savedAt > 10 * 60e3) { data.savedAt = now; await saveData(env, data, "", ev); }
   return used;
 }
 
@@ -346,11 +356,13 @@ export default {
     if (p === "/api/state" && req.method === "GET") {
       const cache = caches.default; const key = ckey("/api/state");
       const hit = await cache.match(key); if (hit) return hit;
-      const { config, data } = await load(env, ev);
-      const body = config.published
-        ? { published: true, config: publicConfig(config), data: { comps: data.comps, lastOk: data.lastOk }, now: Date.now() }
-        : { published: false, now: Date.now() };
-      const res = json(body, 200, { "cache-control": "public, max-age=15" });
+      // le fichier de données est renvoyé tel quel (sans le relire ni le réécrire : trop coûteux pour une grosse compétition)
+      const [c0, raw] = await Promise.all([env.KV.get(kk("config", ev), "json"), env.KV.get(kk("data", ev))]);
+      const config = { ...DEFAULT_CONFIG, ...(c0 || {}) };
+      const now = Date.now();
+      const res = config.published
+        ? new Response(`{"published":true,"config":${JSON.stringify(publicConfig(config))},"data":${raw || '{"comps":{}}'},"now":${now}}`, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=15" } })
+        : json({ published: false, now }, 200, { "cache-control": "public, max-age=15" });
       ctx.waitUntil(cache.put(key, res.clone()));
       return res;
     }

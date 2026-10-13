@@ -674,8 +674,8 @@ function build(cfg,data){
         const entries=series.flatMap(s=>s.swimmers);
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
           res:x.time,dsq:!!x.status,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
-          splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap})),qual:x.qual||null}));
-        const barrages=(st.barrages||[]).map(b=>({title:b.title,when:b.when,rows:(b.rows||[]).map(x=>({iuf:swId(x.name,x.year),name:x.name,year:x.year,club:x.club,res:x.time,dsq:!!x.status,status:x.status,rank:x.place,qual:x.qual||null,splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap}))}))}));
+          splits:unSp(x),qual:x.qual||null}));
+        const barrages=(st.barrages||[]).map(b=>({title:b.title,when:b.when,rows:(b.rows||[]).map(x=>({iuf:swId(x.name,x.year),name:x.name,year:x.year,club:x.club,res:x.time,dsq:!!x.status,status:x.status,rank:x.place,qual:x.qual||null,splits:unSp(x)}))}));
         EVENTS[key]={key,comp:id,num:it.epr,epr:it.epr,numEp:it.num,base:it.name,name:it.name+(rlab?" · "+rlab:""),round:it.round,roundLabel:rlab,fin:it.fin||"",typ:it.typ||60,catId:it.cat||0,barrages,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
           doneAt:st.doneAt||null,nPart:it.nPart,relay,sex,type:"event"};
         byReu[r.n].keys.push(key);
@@ -1220,6 +1220,8 @@ function podCard(list,label,places){
   const rows=ranked.slice(0,Math.max(3,places||3));
   return`<div class="podblock"><div class="podlabel">${esc(label)}</div><ol class="podlist">${rows.map(w=>`<li class="pr r${w.rank}"><span class="medal m${w.rank<=3?w.rank:0}">${w.rank}</span><span class="pw"><b>${nameCell(w)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+w.year:""}</small></span><span class="ptime">${fmt(w.res).replace(/^00:/,"")}</span></li>`).join("")}</ol></div>`;
 }
+// passages : format compact du serveur [d1,t1,d2,t2…] (ancien format [{d,cum,lap}] encore accepté)
+function unSp(x){if(x.sp){const o=[];for(let i=0;i<x.sp.length;i+=2){const c=x.sp[i+1],p=i?x.sp[i-1]:0;o.push({dist:x.sp[i],cum:c,lap:Math.round((c-p)*100)/100})}return o}return(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap}))}
 function compYear(id){const c=comp(id);const m=c&&c.date&&c.date.match(/(\d{4})/);return m?+m[1]:null}
 function refYearDefault(){const c=state.comps.find(x=>x.date);const m=c&&c.date.match(/(\d{4})/);return m?+m[1]:new Date().getFullYear()}
 const FFN_CATS=[{name:"Avenirs",min:0,max:10},{name:"Benjamins",min:11,max:12},{name:"Juniors",min:13,max:17},{name:"Seniors",min:18,max:""}];

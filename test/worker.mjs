@@ -25,6 +25,6 @@ console.log("refresh", await (await req("/api/refresh", "POST")).json());
 const st = await (await req("/api/state")).json();
 const c = st.data.comps["93222"]; const e = c.events[47];
 console.log("meta", c.meta, "heats", JSON.stringify(e.heats[0].lanes.map((l) => [l.lane, l.name, l.club, l.entry, (l.members || []).length])));
-console.log("res", e.results.rows.map((r) => [r.place, r.team, r.time, r.status, r.points, r.relay && r.relay.length, r.splits.length]), "doneAt", !!e.doneAt);
+console.log("res", e.results.rows.map((r) => [r.place, r.team, r.time, r.status, r.points, r.relay && r.relay.length, (r.sp || []).length / 2]), "doneAt", !!e.doneAt);
 const w0 = writes; await cycle(env); await cycle(env, { force: true }); console.log("writes on unchanged runs", writes - w0, "fetch calls", calls);
 console.log("rescrape", await (await req("/api/rescrape", "POST", { scope: "all", what: "all" })).json());
