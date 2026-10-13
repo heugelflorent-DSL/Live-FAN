@@ -744,7 +744,9 @@ function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)re
   const t=h.start||(Date.now()+poolOff);return parisSec(t)<toMin(state.starts[s])*60-600}
 function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3||poolIsTest(h))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
-function schedule(){
+let CSD=0;function schedule(){
+  // résultats lus longtemps après la compétition (compétition passée relue) : l'heure de lecture n'est pas l'heure de la course
+  const csd=compStartDate();CSD=csd?csd.getTime():0;
   const out={};const doneNow=doneSet();const pa=poolAnchor();let anchored=false;
   for(const s of Object.keys(state.order)){
     let t=toMin(state.starts[s]||"10:00")*60;let first=true;let delayed=false;
@@ -760,7 +762,7 @@ function schedule(){
       out[key]={start:t};t+=duration(ev);out[key].end=t;
       if(anchored&&pa.key===key&&pa.done){const rest=ev.series.slice(pa.heat).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=Math.max(t,parisSec(Date.now())+rest);out[key].end=t}
       // chronométrage électronique : on se recale sur l'heure réelle d'arrivée des résultats
-      if(state.timing==="elec"&&!anchored&&doneNow.has(key)&&ev.doneAt){const real=parisSec(ev.doneAt);if(Math.abs(real-t)<4*3600){t=real;out[key].end=t}}
+      if(state.timing==="elec"&&!anchored&&doneNow.has(key)&&ev.doneAt&&!(CSD&&ev.doneAt>CSD+3*864e5)){const real=parisSec(ev.doneAt);if(Math.abs(real-t)<4*3600){t=real;out[key].end=t}}
     }
   }
   return out;
