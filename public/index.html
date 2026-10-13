@@ -1184,7 +1184,7 @@ function renderSeries(ev,q){
 function catMedals(ev){
   const out={};if(/^\d+x/i.test(ev.name))return out;
   const rule=state.podRules.find(r=>r.type!=="team"&&r.comps.includes(ev.comp)&&(r.mode==="age"||r.mode==="year"));if(!rule)return out;
-  const ok=ev.results.filter(w=>w.rank!=null&&w.res!=null).sort((a,b)=>a.res-b.res);
+  const ok=hasFinals(ev)?mergedRanking(ev):ev.results.filter(w=>w.rank!=null&&w.res!=null).sort((a,b)=>a.res-b.res);
   let groups=[];
   if(rule.mode==="year")groups=[...new Set(ok.map(w=>w.year))].map(y=>({name:y,list:ok.filter(w=>w.year===y)}));
   else{const ref=+rule.refYear||refYearDefault();groups=(rule.cats||[]).map(c=>({name:c.name||`${c.min}-${c.max} ans`,list:ok.filter(w=>{const a=ref-(+w.year);return w.year&&a>=(+c.min||0)&&a<=(c.max===""||c.max==null?999:+c.max)})}))}
@@ -1228,13 +1228,27 @@ function compYear(id){const c=comp(id);const m=c&&c.date&&c.date.match(/(\d{4})/
 function refYearDefault(){const c=state.comps.find(x=>x.date);const m=c&&c.date.match(/(\d{4})/);return m?+m[1]:new Date().getFullYear()}
 const FFN_CATS=[{name:"Avenirs",min:0,max:10},{name:"Benjamins",min:11,max:12},{name:"Juniors",min:13,max:17},{name:"Seniors",min:18,max:""}];
 function parseGroups(txt){return txt.split(/[,;]/).map(x=>x.trim()).filter(Boolean).map(g=>{const m=g.match(/(\d{4})\s*(?:[-–à]\s*(\d{4}))?/);if(!m)return null;const a=+m[1],b=+(m[2]||m[1]);return{lo:Math.min(a,b),hi:Math.max(a,b),label:a===b?"Né(e)s en "+a:"Né(e)s "+Math.min(a,b)+"–"+Math.max(a,b)}}).filter(Boolean)}
+// compétitions à finales : un nageur compte une seule fois par épreuve, à la place de son meilleur tour
+// (finale A, puis B, C, D, puis séries) ; l'ordre de ce classement est conservé (pas de retri au temps)
+function epGroup(ev){return ev.epr==null?[ev]:Object.values(EVENTS).filter(x=>x.type==="event"&&x.comp===ev.comp&&x.epr===ev.epr)}
+function hasFinals(ev){return ev.epr!=null&&epGroup(ev).some(x=>x.fin)}
+function finalsDone(ev,done){done=done||doneSet();const f=epGroup(ev).filter(x=>x.fin);return f.length>0&&f.every(x=>done.has(x.key))}
+function mergedRanking(ev){const g=epGroup(ev);if(!g.some(x=>x.fin))return ranking(ev);
+  const order=[...g.filter(x=>x.fin).sort((a,b)=>a.fin.localeCompare(b.fin)||((b.ffnSec||0)-(a.ffnSec||0))),...g.filter(x=>!x.fin)];
+  const seen=new Set(),out=[];
+  for(const e of order)for(const w of ranking(e).filter(w=>!w.dsq&&w.res!=null).sort((a,b)=>a.res-b.res)){const id=w.iuf||w.name;if(seen.has(id))continue;seen.add(id);out.push({...w,round:e.roundLabel||"Séries"})}
+  return out.map((w,i)=>({...w,rank:i+1}))}
+function renum(l,keep){return keep?l.map((w,i)=>({...w,rank:i+1})):rerank(l)}
 function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map((w,i)=>({...w,rank:i+1}))}
 function teamRanking(rule,done,sex){
   done=done||doneSet();const clubs={};
-  for(const k of allKeys()){const ev=EVENTS[k];if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
+  const seenEp=new Set();
+  for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
+    if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : chaque nageur compte une fois (son meilleur tour)
+    else if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
     if(sex&&(sex==='F')!==/Dames/.test(ev.name))continue;
     const per={};
-    for(const w of ranking(ev)){if(w.dsq)continue;const c=w.team||w.club||w.name;const p=w.points||0;(per[c]=per[c]||[]).push({ev,w,p})}
+    for(const w of (fx?mergedRanking(ev):ranking(ev))){if(w.dsq)continue;const c=w.team||w.club||w.name;const p=w.points||0;(per[c]=per[c]||[]).push({ev,w,p})}
     for(const c in per){let l=per[c].sort((a,b)=>b.p-a.p);if(rule.perEvent>0)l=l.slice(0,rule.perEvent);(clubs[c]=clubs[c]||{club:c,total:0,items:[],comp:ev.comp});l.forEach(x=>{clubs[c].total+=x.p;clubs[c].items.push(x)})}}
   return Object.values(clubs).sort((a,b)=>b.total-a.total).map((c,i)=>({...c,rank:i+1}));
 }
@@ -1257,18 +1271,22 @@ function renderPod(){
   if(!rule){$("#pub-body").innerHTML=html+`<p class="empty">Aucun podium paramétré.</p>`;return}
   // regroupe les épreuves terminées du même nom sur les compétitions de la règle
   const groups=[];const byName={};
-  for(const k of allKeys()){const ev=EVENTS[k];if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
-    if(!byName[ev.name]){byName[ev.name]={name:ev.name,keys:[],start:sch[k].start};groups.push(byName[ev.name])}byName[ev.name].keys.push(k)}
+  const seenEp=new Set();
+  for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
+    if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
+    else if(!done.has(k)||!rule.comps.includes(ev.comp))continue;
+    const gn=fx?(ev.base||ev.name):ev.name;
+    if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
   if(state.podEv&&!groups.some(g=>g.name===state.podEv))state.podEv="";
   if(groups.length>1)html+=`<label class="evpick" for="pod-ev"><span>Épreuve</span><select class="field" id="pod-ev"><option value="">Toutes les épreuves (${groups.length})</option>${groups.map(g=>`<option value="${esc(g.name)}" ${state.podEv===g.name?"selected":""}>${hm(g.start)} · ${esc(g.name)}</option>`).join("")}</select></label>`;
   const list=groups.filter(g=>(!state.podEv||g.name===state.podEv)&&(!q||g.keys.some(k=>evMatches(EVENTS[k],q))));
   html+=list.map(g=>{const relay=/^4x/i.test(g.name);
-    const all=rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
+    const K=!!g.fx;const all=K?mergedRanking(EVENTS[g.keys[0]]):rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
     if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places);
-    else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(rerank(all.filter(w=>w.year===y)),"Né(e)s en "+y,rule.places)).join("")}
+    else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(renum(all.filter(w=>w.year===y),K),"Né(e)s en "+y,rule.places)).join("")}
     else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
-      blocks=cats.map(c=>podCard(rerank(all.filter(w=>{const a=ref-(+w.year);return w.year&&a>=(+c.min||0)&&a<=(c.max===""||c.max==null?999:+c.max)})),c.name||`${c.min}-${c.max} ans`,rule.places)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
-    const merged=g.keys.length>1;
+      blocks=cats.map(c=>podCard(renum(all.filter(w=>{const a=ref-(+w.year);return w.year&&a>=(+c.min||0)&&a<=(c.max===""||c.max==null?999:+c.max)})),c.name||`${c.min}-${c.max} ans`,rule.places)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
+    const merged=g.keys.length>1&&!K;
     return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`;
   $("#pub-body").innerHTML=html;
 }
