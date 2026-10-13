@@ -170,6 +170,7 @@ body.tv .pool .pnext{display:none}body.tv .pool .pnext h4{font-size:clamp(16px,2
 .pool .who.hl,.prank .who.hl{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:center}.who.hl>.wlg{grid-row:1/3;display:flex}.who.hl>.nm,.who.hl>.cl{grid-column:2;min-width:0}.who.hl .cl .clogo{display:none}.pool .who.hl .wlg .clogo{width:40px;height:40px;margin:0;border-radius:6px}.prank .who.hl .wlg .clogo{width:26px;height:26px;margin:0;border-radius:6px}body.tv .pool .who.hl .wlg .clogo{width:calc(var(--rh)*.55);height:calc(var(--rh)*.55);max-width:7vh;max-height:7vh}body:not(.tv) .prank .who.hl .nm{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}body.tv .prank .who.hl{display:flex}body.tv .prank .who.hl .wlg{display:none}
 .pool .cl .eng{flex:none;font-family:var(--mono);font-size:.95em;color:var(--ink);font-weight:600}.pool .rpnote{font-size:12.5px;color:#5d4a50;background:#faf5f6;border-radius:8px;padding:6px 10px;margin:4px 0 6px}.pool .tvsp span.worst{border-color:#e07a86!important;box-shadow:0 0 0 2px #fbe1e4}body.tv .pool .tvsp span.worst{border-color:#ff6b6b!important;box-shadow:0 0 0 2px #5a1f25}
 .rk-rps{display:flex;flex-wrap:wrap;gap:4px 6px;margin:4px 0 6px}.rk-rps span{display:inline-flex;flex-direction:column;align-items:center;min-width:64px;padding:3px 8px 4px;border-radius:8px;background:#fff;border:1px solid #e7d6da;font-family:var(--mono);font-size:13px;line-height:1.15}.rk-rps small{color:#8a6a72;font-size:10px;font-weight:700;text-transform:uppercase}.rk-rps em{font-style:normal;font-size:11.5px;font-weight:700;padding:0 6px;border-radius:99px;background:#efe7e9;color:#5d4a50}.rk-rps em.fa{background:#dff3e6;color:#0f7a3d}.rk-rps em.sl{background:#fbe1e4;color:#b3121f}.rk-rps span.worst{border-color:#e07a86;box-shadow:0 0 0 2px #fbe1e4}.rk-sp .rpnote{font-size:12.5px;color:#5d4a50;background:#faf5f6;border-radius:8px;padding:6px 10px;margin:0 0 6px}.rpb{display:inline-block;padding:0 6px;border-radius:99px;background:#6d3ad6;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.3px}.sptab td.fa{color:#0f7a3d}.sptab td.sl{color:#b3121f}
+.qprov{margin:6px 0 8px;padding:6px 10px;border-radius:8px;background:#fff6cf;color:#6b5400;font-size:12.5px}.qbadge{display:inline-block;margin-right:6px;padding:0 6px;border-radius:99px;background:#e8f1ff;color:#1b4fa3;font-size:10.5px;font-weight:800;vertical-align:2px;font-family:var(--sans,inherit)}.qbadge.br{background:#fff1d6;color:#8a5a00}
 .prank{margin-top:12px;padding:10px 12px;border-radius:10px;background:#faf5f6}.pool .prank ol{list-style:none;margin:6px 0 0;padding:0}.pool .prank li{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--line)}.pool .prank li.fav{background:#fff6cf}.pool .prank .rt{font-family:var(--mono);font-size:17px}body.tv .pool .prank{background:#24211f}body.tv .pool .prank li{border-color:#333;grid-template-columns:5vw minmax(0,1fr) auto}body.tv .pool .prank .md{justify-self:start}body.tv .pool .prank .rt{font-size:clamp(16px,2vw,36px);color:#fff}
 @keyframes pin{0%{opacity:0}100%{opacity:1}}.pool.pin{animation:pin .9s ease}
 .pup{background:#fff;border:1px solid var(--line);border-radius:10px;color:var(--ink)}.pup.fav{background:#fff6cf}.pup summary{display:flex;gap:12px;align-items:center;padding:10px 12px;cursor:pointer;list-style:none}.pup summary::-webkit-details-marker{display:none}.pup .t{font-family:var(--mono);font-weight:700;min-width:48px;color:#b3121f}.pup .ev{display:flex;flex-direction:column}.pup .ev small{color:var(--muted)}.pup .pupl{border:0;padding:0 12px 10px;min-height:0}body.tv .pdone{display:none}
@@ -660,7 +661,7 @@ function build(cfg,data){
     for(const r of c.reunions){
       (byReu[r.n]=byReu[r.n]||{doors:r.doors,keys:[]});if(!byReu[r.n].doors)byReu[r.n].doors=r.doors;
       for(const it of r.items){if(it.kind!=="event")continue;
-        const key=id+"-"+it.epr,st=(c.events||{})[it.epr]||{};const relay=/^\d+x/i.test(it.name);const sex=/Dames/.test(it.name)?"F":/Messieurs/.test(it.name)?"M":"X";
+        const ik=it.key||String(it.epr),key=id+"-"+ik,st=(c.events||{})[ik]||{};const rlab=/^s[ée]ries$/i.test(it.round||"")||!it.round?"":((it.alias||it.round)+(it.category?" "+it.category:""));const relay=/^\d+x/i.test(it.name);const sex=/Dames/.test(it.name)?"F":/Messieurs/.test(it.name)?"M":"X";
         const heats=st.heats||[];if(heats.some(h=>h.lanes.some(l=>l.lane>0)))anyLane=true;
         const nrmT=x=>norm(x).toLowerCase();const okTitle=st.results&&st.results.title&&nrmT(st.results.title).startsWith(nrmT(it.name));
         const res=(okTitle&&st.results.rows)||[];if(!okTitle)st.doneAt=null;
@@ -673,8 +674,9 @@ function build(cfg,data){
         const entries=series.flatMap(s=>s.swimmers);
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
           res:x.time,dsq:!!x.status,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
-          splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap}))}));
-        EVENTS[key]={key,comp:id,num:it.epr,numEp:it.num,name:it.name,round:it.round,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
+          splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap})),qual:x.qual||null}));
+        const barrages=(st.barrages||[]).map(b=>({title:b.title,when:b.when,rows:(b.rows||[]).map(x=>({iuf:swId(x.name,x.year),name:x.name,year:x.year,club:x.club,res:x.time,dsq:!!x.status,status:x.status,rank:x.place,qual:x.qual||null,splits:(x.splits||[]).map(s=>({dist:s.d,cum:s.cum,lap:s.lap}))}))}));
+        EVENTS[key]={key,comp:id,num:it.epr,epr:it.epr,numEp:it.num,base:it.name,name:it.name+(rlab?" · "+rlab:""),round:it.round,roundLabel:rlab,fin:it.fin||"",typ:it.typ||60,catId:it.cat||0,barrages,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
           doneAt:st.doneAt||null,nPart:it.nPart,relay,sex,type:"event"};
         byReu[r.n].keys.push(key);
         // fichier des nageurs
@@ -683,6 +685,15 @@ function build(cfg,data){
       }
     }
   });
+  // finales dont la liste de départ n'est pas encore publiée : qualifiés tirés des résultats des séries (QFA, QFB…)
+  for(const ev of Object.values(EVENTS)){if(!ev.fin||ev.series.some(se=>se.swimmers.length))continue;
+    const ser=Object.values(EVENTS).find(x=>x.comp===ev.comp&&x.epr===ev.epr&&(x.typ===60||x.typ===62));if(!ser||!ser.results.length)continue;
+    let q=ser.results.filter(w=>(w.qual||"").toUpperCase()==="QF"+ev.fin);
+    const twins=Object.values(EVENTS).filter(x=>x!==ev&&x.comp===ev.comp&&x.epr===ev.epr&&x.fin===ev.fin);
+    if(twins.length){const am=(ev.roundLabel.match(/(\d+)\s*ans/)||[])[1];const y=compYear(ev.comp);if(am&&y)q=q.filter(w=>y-(+w.year)===+am)}
+    if(!q.length)continue;
+    ev.qualProv=true;ev.series=[{n:1,swimmers:q.slice().sort((a,b)=>a.res-b.res).map(w=>({lane:null,heat:1,name:w.name,year:w.year,club:w.club,time:w.res,iuf:w.iuf,relay:false,members:null,dns:false})),slowest:Math.max(...q.map(w=>w.res||0))||defaultDur(ev.name)}];
+    ev.entries=ev.series[0].swimmers}
   // équipes (Interclubs) : composition des relais
   for(const ev of Object.values(EVENTS)){if(!ev.relay)continue;
     const teams=[...ev.results.map(r=>({team:r.name,m:r.members})),...ev.entries.map(e=>({team:e.name,m:e.members}))];
@@ -744,6 +755,8 @@ function schedule(){
       if(state.timing==="manual"&&!delayed&&!doneNow.has(key)){t+=(state.delay[s]||0)*60;delayed=true}
       // direct bassin : la série en cours dans l'eau donne l'heure réelle, tout le programme suivant se recale dessus
       if(pa&&pa.key===key){const before=ev.series.slice(0,pa.heat-1).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=pa.sec-before;anchored=true}
+      // finales : horaires fixes (cérémonies, podiums) → jamais avant l'heure annoncée par le Live FFN
+      if((ev.fin||ev.typ===61)&&ev.ffnSec!=null&&!(pa&&pa.key===key))t=Math.max(t,ev.ffnSec);
       out[key]={start:t};t+=duration(ev);out[key].end=t;
       if(anchored&&pa.key===key&&pa.done){const rest=ev.series.slice(pa.heat).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=Math.max(t,parisSec(Date.now())+rest);out[key].end=t}
       // chronométrage électronique : on se recale sur l'heure réelle d'arrivée des résultats
@@ -1020,7 +1033,7 @@ function liveOn(){if(state.live!=="ffn"&&state.live!=="bassin")return false;if(l
 async function loadLive(){if(!liveOn()||!liveToday())return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch(evq("/api/live?c="+c.id),{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok)return;const j=await r.json();const old=LIVE[c.id];const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j}catch(_){}}));if(state.view==="live"&&!state.admin)render()}
 function lvSplits(w){const sp=w.splits||[];if(sp.length<2)return"";return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.d} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
 function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=null;
-  for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||ev.comp!==id)continue;const n=norm(ev.name+" "+(ev.round||""));if(t===n||t.startsWith(norm(ev.name)+" ")&&(!best||n.length>norm(best.name+" "+(best.round||"")).length))best=ev;if(t===n)return ev}
+  for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||ev.comp!==id)continue;const bn=ev.base||ev.name,n=norm(bn+" "+(ev.round||"")+(ev.roundLabel&&ev.round&&ev.roundLabel!==ev.round?" "+ev.roundLabel.slice(ev.round.length):""));if(t===n||t.startsWith(norm(bn)+" ")&&(!best||n.length>norm((best.base||best.name)+" "+(best.round||"")).length))best=ev;if(t===n)return ev}
   return best}
 function yearOf(w,ev){if(w.year)return w.year;const all=[...(ev&&ev.series?ev.series.flatMap(x=>x.swimmers||[]):[]),...(ev&&ev.results||[])];const r=all.find(x=>norm(x.name)===norm(w.name));return r&&r.year||""}
 function lvRows(rows,id,title){const lev=liveMatch(id,title)||{name:title};return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1,w2={...w,year:yearOf(w,lev),res:w.time,splits:(w.splits||[]).map(x=>({dist:x.d,cum:x.cum,lap:x.lap}))},rpx=w.time!=null?rpRes(lev,w2):"";
@@ -1144,7 +1157,7 @@ function renderProg(){
       const open=state.open[key]||match;
       rows+=`<div class="lane${done.has(key)?" past":""}"><button class="row" data-open="${key}" aria-expanded="${!!open}">
         <span class="time">${ev.provisional?"—":(eng?"~":"")+hm(t.start)}<small>${ev.provisional?"à venir":done.has(key)?"terminée":eng?"provisoire":"fin ~"+hm(t.end)}</small></span>
-        <span class="ev"><b>${esc(ev.name)}</b><span class="sub">${state.comps.length>1?compBadge(ev.comp):""}<span>${eng?plural(ev.entries.filter(x=>!x.dns).length,"engagé")+" · ~"+plural(ev.series.length,"série"):plural(ev.series.length,"série")}</span></span></span>
+        <span class="ev"><b>${esc(ev.name)}</b><span class="sub">${state.comps.length>1?compBadge(ev.comp):""}<span>${eng?plural(ev.entries.filter(x=>!x.dns).length,"engagé")+" · ~"+plural(ev.series.length,"série"):ev.fin?(ev.entries.length?plural(ev.entries.length,ev.qualProv?"qualifié":"nageur")+(ev.qualProv?" · couloirs à venir":""):"liste de départ à venir"):plural(ev.series.length,"série")}</span></span></span>
         <span class="chev" aria-hidden="true">▼</span></button>${open?(eng?renderEngages(ev,q):renderSeries(ev,q)):""}</div>`;
     }
     const started=state.order[s].some(k=>done.has(k));
@@ -1157,11 +1170,12 @@ function nameCell(w){return w.iuf?`<a href="#" data-swimmer="${w.iuf}">${esc(w.n
 function renderSeries(ev,q){
   const relay=/^4x/i.test(ev.name);
   const st=(schedule()[ev.key]||{}).start||0;let acc=st;const starts=ev.series.map(se=>{const t=acc;acc+=se.slowest+state.heatGap;return t});
-  return`<div class="inner">${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>Série ${se.n} / ${ev.series.length}</h4>
+  const fin=!!ev.fin||ev.typ===61;
+  return`<div class="inner">${ev.qualProv?`<p class="qprov">Qualifiés d'après les séries · liste de départ et couloirs pas encore publiés</p>`:""}${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>${fin?esc(ev.roundLabel||"Finale"):`Série ${se.n} / ${ev.series.length}`}</h4>
    <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${isFav(w)?"fav ":""}${hit(w,q)}${w.dns?" dns":""}">
      <span class="lane-n">${w.lane||"—"}</span>
      <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+logo(w.club)+esc(w.club||"")}</small></span>
-     <span class="rk-res"><b>${w.time!=null?fmt(w.time):"—"}</b><small>engag.</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
+     <span class="rk-res"><b>${w.time!=null?fmt(w.time):"—"}</b><small>${ev.fin||ev.typ===61?"séries":"engag."}</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
 }
 
 // médailles par catégorie : selon le classement « course par course » paramétré pour la compétition
@@ -1183,11 +1197,11 @@ function renderRanking(ev,q){
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}${isFav(w)?" fav":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}">${w.rank??"—"}</span>
       <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
-      <span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",diffHtml(w.res,ent[w.iuf||w.name]),rpRes(ev,w)].filter(Boolean).join(" · ")}</small></span>
+      <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",diffHtml(w.res,ent[w.iuf||w.name]),rpRes(ev,w)].filter(Boolean).join(" · ")}</small></span>
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
       ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w)}</div>`:""}
     </li>`}).join("")}
-  </ol></div>`;
+  </ol>${(ev.barrages||[]).map(b=>`<p class="forcomp">${esc(b.title.replace(/^.*? - /,""))}${b.when?` · ${esc((b.when.match(/\d{1,2}h\d{2}/)||[""])[0])}`:""}</p><ol class="rk-list">${b.rows.map(w=>`<li class="rk-row"><span class="rk-pl">${w.rank??"—"}</span><span class="rk-who"><b>${nameCell(w)}</b><small>${w.year?w.year+" · ":""}${logo(w.club)}${esc(w.club||"")}</small></span><span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small></small></span><span></span></li>`).join("")}</ol>`).join("")}</div>`;
 }
 
 function renderRes(){
@@ -1206,6 +1220,7 @@ function podCard(list,label,places){
   const rows=ranked.slice(0,Math.max(3,places||3));
   return`<div class="podblock"><div class="podlabel">${esc(label)}</div><ol class="podlist">${rows.map(w=>`<li class="pr r${w.rank}"><span class="medal m${w.rank<=3?w.rank:0}">${w.rank}</span><span class="pw"><b>${nameCell(w)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+w.year:""}</small></span><span class="ptime">${fmt(w.res).replace(/^00:/,"")}</span></li>`).join("")}</ol></div>`;
 }
+function compYear(id){const c=comp(id);const m=c&&c.date&&c.date.match(/(\d{4})/);return m?+m[1]:null}
 function refYearDefault(){const c=state.comps.find(x=>x.date);const m=c&&c.date.match(/(\d{4})/);return m?+m[1]:new Date().getFullYear()}
 const FFN_CATS=[{name:"Avenirs",min:0,max:10},{name:"Benjamins",min:11,max:12},{name:"Juniors",min:13,max:17},{name:"Seniors",min:18,max:""}];
 function parseGroups(txt){return txt.split(/[,;]/).map(x=>x.trim()).filter(Boolean).map(g=>{const m=g.match(/(\d{4})\s*(?:[-–à]\s*(\d{4}))?/);if(!m)return null;const a=+m[1],b=+(m[2]||m[1]);return{lo:Math.min(a,b),hi:Math.max(a,b),label:a===b?"Né(e)s en "+a:"Né(e)s "+Math.min(a,b)+"–"+Math.max(a,b)}}).filter(Boolean)}
