@@ -52,7 +52,7 @@ python schwimme_relais.py --ports                  # trouver le port de l'adapta
 python schwimme_relais.py --port COM5              # Windows
 python schwimme_relais.py --port /dev/tty.usbserial-XXXX   # Mac
 ```
-Le mot de passe admin du site est demandé au démarrage.
+La clé du relais (secret RELAY_KEY dans Cloudflare) est demandée au démarrage ; le mot de passe admin fonctionne aussi, mais il vaut mieux ne pas le laisser sur le PC du chrono.
 Réglages série par défaut : `9600,7,N,1` (modifiable avec `--reglages 9600,8,N,1`).
 
 Dans l'admin du site : **Direct pendant la compétition → Bassin**, puis Enregistrer.
