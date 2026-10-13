@@ -1252,7 +1252,7 @@ function renum(l,keep){return keep?l.map((w,i)=>({...w,rank:i+1})):rerank(l)}
 function catAges(t){t=String(t||"");let m=t.match(/(\d+)\s*-\s*(\d+)\s*ans/);if(m)return{min:+m[1],max:+m[2]};m=t.match(/U\s?(\d+)|(\d+)\s*ans et moins/i);if(m)return{min:"",max:+(m[1]||m[2])};m=t.match(/(\d+)\s*ans/);if(m)return{min:+m[1],max:+m[1]};return{min:"",max:""}}
 // nombre de lignes d'eau du bassin, d'après les listes de départ (couloir le plus haut utilisé)
 function compLanes(compId){let m=0;for(const e of Object.values(EVENTS))if(e.type==="event"&&e.comp===compId)for(const se of e.series)for(const w of se.swimmers)if(w.lane>m)m=w.lane;return m>=4&&m<=10?m:8}
-function finRule(compId,ev){const r=(state.finals||{})[compId]||{};const k=ev.fin+"|"+(ev.category||"");const c=(r.cats||{})[k]||catAges(ev.category);return{places:+r.places||compLanes(compId),double:!!r.double,min:c.min,max:c.max}}
+function finRule(compId,ev){const r=(state.finals||{})[compId]||{};const k=ev.fin+"|"+(ev.category||"");const c=(r.cats||{})[k]||catAges(ev.category);return{places:+r.places||compLanes(compId),double:false,min:c.min,max:c.max}}
 // qualifiés probables (tant que le Live FFN n'a pas publié QFA/QFB…) : finales remplies dans l'ordre A, B, C, D
 function probables(ser){const g=epGroup(ser).filter(x=>x.fin).sort((a,b)=>a.fin.localeCompare(b.fin));const y=compYear(ser.comp);
   const pool=ser.results.filter(w=>!w.dsq&&w.res!=null).sort((a,b)=>a.res-b.res);const taken=new Set(),out={};
@@ -1264,7 +1264,7 @@ function renderFinRules(){const el=$("#fin-rules"),st=$("#fin-step");if(!el)retu
   const ids=Object.keys(byComp);st.hidden=!ids.length;if(!ids.length){el.innerHTML="";return}
   el.innerHTML=ids.map(id=>{const r=(state.finals||{})[id]||{};return`<div class="card" style="padding:10px 12px;margin:8px 0"><b>${esc(comp(id).name)}</b>
     <div class="grid2c"><label>Nageurs par finale<input class="field" type="number" min="4" max="10" data-fr="${id}|places" value="${+r.places||""}" placeholder="${compLanes(id)}"><span class="msg" style="font-weight:400">Vide = nombre de lignes d'eau du bassin (${compLanes(id)}, d'après les listes de départ)</span></label>
-    <label class="chk"><input type="checkbox" data-fr="${id}|double" ${r.double?"checked":""}> Un nageur de la finale A peut aussi nager une finale d'âge</label></div>
+</div>
     <table class="sptab"><thead><tr><th>Finale</th><th>Âge mini</th><th>Âge maxi</th></tr></thead><tbody>${Object.entries(byComp[id]).sort().map(([k,ev])=>{const c=((r.cats||{})[k])||catAges(ev.category);return`<tr><td>Finale ${esc(ev.fin)}${ev.category?" · "+esc(ev.category):""}</td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|min" value="${c.min}" placeholder="—"></td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|max" value="${c.max}" placeholder="—"></td></tr>`}).join("")}</tbody></table></div>`}).join("");
   $("#h-fin").textContent=plural(ids.length,"compétition")+" à finales"}
 function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map((w,i)=>({...w,rank:i+1}))}
