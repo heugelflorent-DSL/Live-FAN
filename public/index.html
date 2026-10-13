@@ -751,7 +751,9 @@ function doneSet(){
 function poolIsTestRaw(h){if(!h||h.sim)return false;const k=Object.keys(EVENTS).find(k=>EVENTS[k].type==="event"&&+EVENTS[k].numEp===+h.event);const s=k&&Object.keys(state.order).find(x=>state.order[x].includes(k));if(!s||!state.starts[s])return false;const t=h.start||(Date.now()+poolOff);return parisSec(t)<toMin(state.starts[s])*60-600}
 function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)return false;const s=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!s||!state.starts[s])return false;
   const t=h.start||(Date.now()+poolOff);return parisSec(t)<toMin(state.starts[s])*60-600}
-function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3||poolIsTest(h))return null;const ev=poolEvent(h);if(!ev)return null;
+function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3||poolIsTest(h))return null;
+  // série jouée hors des jours de la compétition (simulateur, essai) : ne décale pas le programme
+  const cd=compStartDate();if(cd&&(h.start<cd.getTime()-864e5||h.start>cd.getTime()+5*864e5))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
 let CSD=0;function schedule(){
   // résultats lus longtemps après la compétition (compétition passée relue) : l'heure de lecture n'est pas l'heure de la course
