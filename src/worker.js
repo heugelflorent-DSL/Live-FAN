@@ -227,17 +227,20 @@ function mppWant(config, data, ev, now, force) {
 async function mppStatus(env, ev) {
   const { config, data } = await load(env, ev); const now = Date.now();
   const want = mppWant(config, data, ev, now, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
-  let done = 0, found = 0, best = 0;
-  for (const k of want.keys()) { const x = store.sw[k]; if (!x) continue; done++; if (x.iuf) found++; if (x.b && Object.keys(x.b).length) best++; }
-  return { want: want.size, done, left: want.size - done, foundN: found, bestN: best };
+  let done = 0, found = 0, best = 0, err = 0, noRec = 0, notFound = 0;
+  for (const k of want.keys()) { const x = store.sw[k]; if (!x) continue; if (x.err) { err++; continue; } done++; if (x.iuf) found++; const has = x.b && Object.keys(x.b).length; if (has) best++; else if (x.iuf) noRec++; else notFound++; }
+  return { want: want.size, done, left: want.size - done, foundN: found, bestN: best, errN: err, noRecN: noRec, notFoundN: notFound };
 }
 async function mppStep(env, ev, max = 2, force = false) {
   const { config, data } = await load(env, ev); const now = Date.now();
   const want = mppWant(config, data, ev, now, force);
   if (!want.size) return 0;
   const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
-  const stale = (x) => !x || now - x.at > 5 * 864e5 || (x.iuf && !Object.keys(x.b || {}).length && now - x.at > 3600e3);
-  const todo = [...want.entries()].filter(([k]) => stale(store.sw[k])).slice(0, max);
+  const empty = (x) => !Object.keys(x.b || {}).length;
+  // lecture forcée : on reprend tout de suite les échecs et les nageurs retrouvés sans record
+  const stale = (x) => !x || now - x.at > 5 * 864e5 || (x.err && (force || now - x.at > 3600e3)) || (x.iuf && empty(x) && (force || now - x.at > 3600e3));
+  const prio = (x) => (!x ? 0 : x.err ? 1 : empty(x) ? 2 : 3); // jamais lus d'abord, puis échecs, puis sans record, du plus ancien au plus récent
+  const todo = [...want.entries()].filter(([k]) => stale(store.sw[k])).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
   if (!todo.length) return 0;
   let used = 0;
   for (const [k, w] of todo) {
@@ -246,7 +249,7 @@ async function mppStep(env, ev, max = 2, force = false) {
       let b = {};
       if (iuf) { const all = await fetchMpp(iuf); used++; const p = all[w.pool] || {}; for (const e of w.events) if (p[e]) b[e] = p[e]; }
       store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b };
-    } catch (e) { store.sw[k] = { iuf: null, at: now - 4 * 864e5, b: {}, err: String(e.message || e) }; break; } // nouvel essai dans un jour
+    } catch (e) { store.sw[k] = { iuf: w.iuf || store.sw[k]?.iuf || null, at: now, b: {}, err: String(e.message || e) }; break; } // échec (Extranat) : nouvel essai dans 1 h
   }
   store.at = now; await env.KV.put(kk("mpp", ev), JSON.stringify(store));
   return used;
