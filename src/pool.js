@@ -85,6 +85,6 @@ export class PoolRoom {
     }
     return new Response(this.snapshot(), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
   }
-  webSocketMessage(ws, msg) { if (msg === "ping") ws.send("pong"); else if (typeof msg === "string" && msg.startsWith("t:")) ws.send(JSON.stringify({ type: "time", id: msg.slice(2), now: Date.now() })); }
+  webSocketMessage(ws, msg) { if (msg === "ping") ws.send("pong"); else if (typeof msg === "string" && msg.startsWith("t:")) ws.send(JSON.stringify({ type: "time", id: msg.slice(2, 40), now: Date.now() })); }
   webSocketClose(ws, code) { try { ws.close(code, "bye"); } catch {} }
 }

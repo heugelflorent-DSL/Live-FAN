@@ -258,12 +258,17 @@ async function mppStep(env, ev, max = 2, force = false) {
 
 // ---------- API ----------
 const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json; charset=utf-8", ...extra } });
-function authed(req, env) {
-  const k = req.headers.get("x-admin-key") || "";
-  const p = env.ADMIN_PASSWORD || "";
-  if (!p || k.length !== p.length) return false;
-  let d = 0; for (let i = 0; i < p.length; i++) d |= k.charCodeAt(i) ^ p.charCodeAt(i);
-  return d === 0;
+const same = (k, p) => { if (!p || k.length !== p.length) return false; let d = 0; for (let i = 0; i < p.length; i++) d |= k.charCodeAt(i) ^ p.charCodeAt(i); return d === 0; };
+function authed(req, env) { return same(req.headers.get("x-admin-key") || "", env.ADMIN_PASSWORD || ""); }
+// relais du Quantum : sa propre clé (secret RELAY_KEY), pour ne pas laisser le mot de passe admin sur le PC du chrono
+function relayAuthed(req, env) { return authed(req, env) || same(req.headers.get("x-admin-key") || "", env.RELAY_KEY || ""); }
+// anti-essais en rafale : 10 mauvais mots de passe en 15 min depuis la même adresse = blocage 15 min
+async function tooManyFails(req, ok) {
+  const ip = req.headers.get("cf-connecting-ip") || "?"; const key = new Request("https://lock.local/" + encodeURIComponent(ip));
+  const hit = await caches.default.match(key); const n = hit ? +(await hit.text()) || 0 : 0;
+  if (n >= 10) return true;
+  if (!ok) await caches.default.put(key, new Response(String(n + 1), { headers: { "cache-control": "max-age=900" } }));
+  return false;
 }
 function publicConfig(cfg) { const { scrape, ...rest } = cfg; return rest; }
 
@@ -300,6 +305,8 @@ export default {
     const url = new URL(req.url);
     const p = url.pathname;
     if (!p.startsWith("/api/")) return env.ASSETS.fetch(req);
+    if (req.headers.has("x-admin-key") && (await tooManyFails(req, authed(req, env) || (p === "/api/pool/event" && relayAuthed(req, env)))))
+      return json({ error: "Trop d'essais de mot de passe. Réessaie dans 15 minutes." }, 429);
     const ev = url.searchParams.get("e") || "main";
     if (!EV_RE.test(ev)) return json({ error: "Événement inconnu." }, 404);
     if (ev !== "main" && p !== "/api/admin/events" && !(await listEvents(env)).some((x) => x.id === ev)) return json({ error: "Événement inconnu." }, 404);
@@ -335,7 +342,7 @@ export default {
       const { config } = await load(env, rid);
       const room = env.POOL.get(env.POOL.idFromName(rid === "main" ? "bassin" : "bassin:" + rid));
       if (p === "/api/pool/event") {
-        if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
+        if (!relayAuthed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
       }
       if (config.live !== "bassin" && !authed(req, env)) return json({ error: "Direct bassin non activé." }, 404);

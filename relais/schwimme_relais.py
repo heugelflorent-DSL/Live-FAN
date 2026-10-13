@@ -253,7 +253,7 @@ def main():
     sender = None
     if not a.capture:
         cle = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cle.txt")
-        key = os.environ.get("SCHWIMME_CLE") or (open(cle, encoding="utf-8").read().strip() if os.path.exists(cle) else "") or getpass.getpass("Mot de passe admin du site : ")
+        key = os.environ.get("SCHWIMME_CLE") or (open(cle, encoding="utf-8").read().strip() if os.path.exists(cle) else "") or getpass.getpass("Clé du relais (RELAY_KEY) ou mot de passe admin du site : ")
         sender = Sender(a.site, key); sender.ev = a.evenement; sender.start()
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "relais.pid"), "w") as f: f.write(str(os.getpid()))
     journal = None
