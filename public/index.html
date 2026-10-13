@@ -571,6 +571,13 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
           <div id="logo-list"></div>
         </div>
       </details>
+      <details class="step" id="fin-step" hidden>
+        <summary><span class="n">★</span>Finales : règles d'accès<span class="hint" id="h-fin"></span></summary>
+        <div class="step-body">
+          <p class="msg">Les qualifiés officiels publiés par le Live FFN (QFA, QFB…) sont toujours prioritaires. Ces règles servent seulement à afficher les <b>qualifiés probables</b> tant que le Live FFN ne les a pas publiés. Les âges sont calculés sur l'année de la compétition.</p>
+          <div id="fin-rules"></div>
+        </div>
+      </details>
     </div>
 
     <h3 class="grp">Direct au bord du bassin</h3>
@@ -649,7 +656,7 @@ function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m
 
 function build(cfg,data){
   state.name=cfg.name||"";state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";
-  state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.lines=cfg.lines||{};
+  state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.finals=cfg.finals||{};state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
   const byReu={};let anyLane=false;
@@ -688,9 +695,11 @@ function build(cfg,data){
   // finales dont la liste de départ n'est pas encore publiée : qualifiés tirés des résultats des séries (QFA, QFB…)
   for(const ev of Object.values(EVENTS)){if(!ev.fin||ev.series.some(se=>se.swimmers.length))continue;
     const ser=Object.values(EVENTS).find(x=>x.comp===ev.comp&&x.epr===ev.epr&&(x.typ===60||x.typ===62));if(!ser||!ser.results.length)continue;
-    let q=ser.results.filter(w=>(w.qual||"").toUpperCase()==="QF"+ev.fin);
-    const twins=Object.values(EVENTS).filter(x=>x!==ev&&x.comp===ev.comp&&x.epr===ev.epr&&x.fin===ev.fin);
-    if(twins.length){const am=(ev.roundLabel.match(/(\d+)\s*ans/)||[])[1];const y=compYear(ev.comp);if(am&&y)q=q.filter(w=>y-(+w.year)===+am)}
+    const coded=ser.results.some(w=>/^QF/i.test(w.qual||""));let q;
+    if(coded){q=ser.results.filter(w=>(w.qual||"").toUpperCase()==="QF"+ev.fin);
+      const twins=Object.values(EVENTS).filter(x=>x!==ev&&x.comp===ev.comp&&x.epr===ev.epr&&x.fin===ev.fin);
+      if(twins.length){const am=(ev.roundLabel.match(/(\d+)\s*ans/)||[])[1];const y=compYear(ev.comp);if(am&&y)q=q.filter(w=>y-(+w.year)===+am)}}
+    else{ser.__prob=ser.__prob||probables(ser);q=ser.__prob[ev.key]||[];ev.qualProb=true}
     if(!q.length)continue;
     ev.qualProv=true;ev.series=[{n:1,swimmers:q.slice().sort((a,b)=>a.res-b.res).map(w=>({lane:null,heat:1,name:w.name,year:w.year,club:w.club,time:w.res,iuf:w.iuf,relay:false,members:null,dns:false})),slowest:Math.max(...q.map(w=>w.res||0))||defaultDur(ev.name)}];
     ev.entries=ev.series[0].swimmers}
@@ -720,7 +729,7 @@ function build(cfg,data){
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
   return{name:state.name,live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,delay:state.delay,
-    rankings:state.podRules,infos:state.infos,published:state.published,scrape:state.scrape};
+    rankings:state.podRules,finals:state.finals||{},infos:state.infos,published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
 
@@ -1173,7 +1182,7 @@ function renderSeries(ev,q){
   const relay=/^4x/i.test(ev.name);
   const st=(schedule()[ev.key]||{}).start||0;let acc=st;const starts=ev.series.map(se=>{const t=acc;acc+=se.slowest+state.heatGap;return t});
   const fin=!!ev.fin||ev.typ===61;
-  return`<div class="inner">${ev.qualProv?`<p class="qprov">Qualifiés d'après les séries · liste de départ et couloirs pas encore publiés</p>`:""}${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>${fin?esc(ev.roundLabel||"Finale"):`Série ${se.n} / ${ev.series.length}`}</h4>
+  return`<div class="inner">${ev.qualProv?`<p class="qprov">${ev.qualProb?"Qualifiés probables d'après les temps des séries (qualifications pas encore publiées)":"Qualifiés d'après les séries"} · liste de départ et couloirs pas encore publiés</p>`:""}${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>${fin?esc(ev.roundLabel||"Finale"):`Série ${se.n} / ${ev.series.length}`}</h4>
    <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${isFav(w)?"fav ":""}${hit(w,q)}${w.dns?" dns":""}">
      <span class="lane-n">${w.lane||"—"}</span>
      <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+logo(w.club)+esc(w.club||"")}</small></span>
@@ -1239,6 +1248,23 @@ function mergedRanking(ev){const g=epGroup(ev);if(!g.some(x=>x.fin))return ranki
   for(const e of order)for(const w of ranking(e).filter(w=>!w.dsq&&w.res!=null).sort((a,b)=>a.res-b.res)){const id=w.iuf||w.name;if(seen.has(id))continue;seen.add(id);out.push({...w,round:e.roundLabel||"Séries"})}
   return out.map((w,i)=>({...w,rank:i+1}))}
 function renum(l,keep){return keep?l.map((w,i)=>({...w,rank:i+1})):rerank(l)}
+// âges d'une finale d'après son libellé (« U15 et moins », « U16 : 10-16 ans », « 15 ans », « U17 »)
+function catAges(t){t=String(t||"");let m=t.match(/(\d+)\s*-\s*(\d+)\s*ans/);if(m)return{min:+m[1],max:+m[2]};m=t.match(/U\s?(\d+)|(\d+)\s*ans et moins/i);if(m)return{min:"",max:+(m[1]||m[2])};m=t.match(/(\d+)\s*ans/);if(m)return{min:+m[1],max:+m[1]};return{min:"",max:""}}
+function finRule(compId,ev){const r=(state.finals||{})[compId]||{};const k=ev.fin+"|"+(ev.category||"");const c=(r.cats||{})[k]||catAges(ev.category);return{places:+r.places||8,double:!!r.double,min:c.min,max:c.max}}
+// qualifiés probables (tant que le Live FFN n'a pas publié QFA/QFB…) : finales remplies dans l'ordre A, B, C, D
+function probables(ser){const g=epGroup(ser).filter(x=>x.fin).sort((a,b)=>a.fin.localeCompare(b.fin));const y=compYear(ser.comp);
+  const pool=ser.results.filter(w=>!w.dsq&&w.res!=null).sort((a,b)=>a.res-b.res);const taken=new Set(),out={};
+  for(const f of g){const r=finRule(ser.comp,f);const ok=w=>{const a=y&&w.year?y-(+w.year):null;if(a==null)return r.min===""&&r.max==="";return(r.min===""||a>=+r.min)&&(r.max===""||a<=+r.max)};
+    const agel=r.min!==""||r.max!=="";out[f.key]=pool.filter(w=>ok(w)&&!(taken.has(w.iuf||w.name)&&!(r.double&&agel))).slice(0,r.places);for(const w of out[f.key])taken.add(w.iuf||w.name)}
+  return out}
+function renderFinRules(){const el=$("#fin-rules"),st=$("#fin-step");if(!el)return;const byComp={};
+  for(const ev of Object.values(EVENTS))if(ev.type==="event"&&ev.fin){const k=ev.fin+"|"+(ev.category||"");(byComp[ev.comp]=byComp[ev.comp]||{})[k]=ev}
+  const ids=Object.keys(byComp);st.hidden=!ids.length;if(!ids.length){el.innerHTML="";return}
+  el.innerHTML=ids.map(id=>{const r=(state.finals||{})[id]||{};return`<div class="card" style="padding:10px 12px;margin:8px 0"><b>${esc(comp(id).name)}</b>
+    <div class="grid2c"><label>Nageurs par finale<input class="field" type="number" min="4" max="10" data-fr="${id}|places" value="${+r.places||8}"></label>
+    <label class="chk"><input type="checkbox" data-fr="${id}|double" ${r.double?"checked":""}> Un nageur de la finale A peut aussi nager une finale d'âge</label></div>
+    <table class="sptab"><thead><tr><th>Finale</th><th>Âge mini</th><th>Âge maxi</th></tr></thead><tbody>${Object.entries(byComp[id]).sort().map(([k,ev])=>{const c=((r.cats||{})[k])||catAges(ev.category);return`<tr><td>Finale ${esc(ev.fin)}${ev.category?" · "+esc(ev.category):""}</td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|min" value="${c.min}" placeholder="—"></td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|max" value="${c.max}" placeholder="—"></td></tr>`}).join("")}</tbody></table></div>`}).join("");
+  $("#h-fin").textContent=plural(ids.length,"compétition")+" à finales"}
 function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map((w,i)=>({...w,rank:i+1}))}
 function teamRanking(rule,done,sex){
   done=done||doneSet();const clubs={};
@@ -1367,7 +1393,7 @@ function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs(
   el.querySelectorAll("[data-logorm]").forEach(b=>b.onclick=async()=>{const c=cl[+b.dataset.logorm];try{await api("/api/logo",{method:"PUT",body:JSON.stringify({club:c,data:null})});delete LOGOS[c];renderLogos();render()}catch(e){alertMsg(e.message)}})}
 function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
 function shrink(file){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const S=96,r=Math.min(S/img.width,S/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>40000?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
-function renderAdmin(){renderLogos();
+function renderAdmin(){renderLogos();renderFinRules();
   $("#ev-name").value=state.name;$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
@@ -1496,7 +1522,11 @@ document.addEventListener("click",e=>{
 document.addEventListener("change",e=>{const t=e.target;
   if(t.dataset.start){state.starts[t.dataset.start]=t.value||state.starts[t.dataset.start];render()}
   if(t.dataset.pmin){EVENTS[t.dataset.pmin].min=Math.max(0,+t.value||0);render()}
-  if(t.dataset.ptxt){EVENTS[t.dataset.ptxt].name=t.value;scheduleSave()}});
+  if(t.dataset.ptxt){EVENTS[t.dataset.ptxt].name=t.value;scheduleSave()}
+  if(t.dataset.fr){const[id,f,k,mm]=t.dataset.fr.split("|");const r=(state.finals=state.finals||{})[id]=state.finals[id]||{};
+    if(f==="places")r.places=Math.max(1,Math.min(10,+t.value||8));else if(f==="double")r.double=t.checked;
+    else{const ev=Object.values(EVENTS).find(x=>x.comp===id&&x.fin&&(x.fin+"|"+(x.category||""))===k);const c=(r.cats=r.cats||{})[k]=r.cats[k]||catAges(ev&&ev.category);c[mm]=t.value===""?"":+t.value}
+    scheduleSave()}});
 let dragKey=null;
 document.addEventListener("dragstart",e=>{const li=e.target.closest&&e.target.closest(".item");if(!li)return;dragKey=li.dataset.key;li.classList.add("dragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",dragKey)}catch(_){}});
 document.addEventListener("dragend",()=>{dragKey=null;document.querySelectorAll(".item").forEach(x=>x.classList.remove("dragging","over"))});
