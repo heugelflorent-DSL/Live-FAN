@@ -845,6 +845,7 @@ let LOGON=null;function logoFind(c){if(!c)return null;const d=LOGOS[c]||LOGOS[cl
 function logo(c,big){const d=logoFind(c);return d?`<img class="clogo${big?" big":""}" src="${d}" alt="">`:""}
 /* ---------- records personnels (FFN Extranat) ---------- */
 let MPP={};
+setInterval(()=>{if(!document.hidden&&state.view==="live"&&!state.admin)loadMpp()},5*60e3); // records perso relus toutes les 5 min (lecture progressive côté serveur)
 async function loadMpp(){try{const r=await fetch(evq("/api/mpp"));if(r.ok){const j=await r.json();MPP=j.sw||{};if(state.view==="live"&&!state.admin)render()}}catch(_){}}
 function evKey(name){const n=norm(name);const d=+(n.match(/^(\d+)/)||[])[1];if(!d||/^\d+ ?X/.test(n))return null;const s=/4 ?N/.test(n)?"4N":/\bNL\b|NAGE LIBRE/.test(n)?"NL":/\bDOS\b/.test(n)?"DOS":/BRA/.test(n)?"BRA":/PAP/.test(n)?"PAP":null;return s?d+" "+s:null}
 function bestOf(w,ev){if(!w||!ev||!w.name)return null;const x=MPP[norm(w.name)+"|"+(w.year||"")];if(!x)return null;const k=evKey(ev.name);return k&&x.b[k]?x.b[k]:null}
