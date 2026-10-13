@@ -179,7 +179,12 @@ const isSeries = (e) => !e.typ || e.typ === 60 || e.typ === 62 || e.typ === 61;
 export function pickSection(ev, r) {
   if (!r.sections) return isSeries(ev) || !r.title ? r : null;
   if (isSeries(ev)) return r.sections.find((x) => x.kind === "series") || null;
-  const cand = r.sections.filter((x) => x.kind === "final" && x.fin === ev.fin);
+  const finals = r.sections.filter((x) => x.kind === "final");
+  // l'horaire du tour est le repère le plus sûr (« Finale rouge » n'a pas de lettre)
+  const hh = (x) => (String(x || "").match(/(\d{1,2})h(\d{2})/) || []).slice(1).join("h");
+  const byTime = ev.time ? finals.filter((x) => hh(x.when) && hh(x.when) === hh(ev.time)) : [];
+  if (byTime.length === 1) return byTime[0];
+  const cand = finals.filter((x) => x.fin === ev.fin);
   if (cand.length <= 1) return cand[0] || null;
   // plusieurs finales A (finales par âge) : on compare les âges / catégories
   const toks = (x) => new Set((String(x || "").match(/u?\d+/gi) || []).map((t) => t.toLowerCase()));

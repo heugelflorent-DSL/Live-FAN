@@ -20,3 +20,10 @@ phase = "soir"; await req("/api/rescrape", "POST", { scope: "all", what: "all" }
 const c = await show("après les finales");
 const ok = c.events["3-12-671780"].results.rows[0].name === "MARTIN Lalie" && c.events["3-11-0"].results.rows.length === 2 && c.events["3"].results.rows.length === 7 && c.events["3-12-671780"].heats[0].lanes.length === 2;
 console.log("finales OK", ok);
+// Épinal : libellés libres (« 200 Papillon Messieurs (Finale A) », « Finale rouge ») → rapprochés par l'horaire
+const { pickSection } = await import("../src/worker.js"); const { sectionKind } = await import("../src/ffn.js");
+const mk = (title, when) => ({ title, when, ...sectionKind(title), rows: [{ name: title }] });
+const r83 = { sections: [mk("200 Papillon Messieurs - 200 Papillon Messieurs (Finale A)", "Vendredi 3 Juillet 2026 - 16h46"), mk("200 Papillon Messieurs - Finale rouge", "Vendredi 3 Juillet 2026 - 16h42"), mk("200 Papillon Messieurs - 200 Papillon Messieurs U15 et moins (Finale C)", "Vendredi 3 Juillet 2026 - 16h38"), mk("200 Papillon Messieurs - Séries", "Vendredi 3 Juillet 2026 - 10h02")] };
+const ev = (typ, fin, time, category = "") => ({ typ, fin, time, category, epr: 83 });
+const got = [ev(11, "A", "16h46"), ev(12, "B", "16h42"), ev(13, "C", "16h38", "U15 et moins"), ev(60, "", "10h02")].map((e) => pickSection(e, r83)?.title.replace("200 Papillon Messieurs - ", ""));
+console.log("Épinal", got.join(" | "), got.join("|") === "200 Papillon Messieurs (Finale A)|Finale rouge|200 Papillon Messieurs U15 et moins (Finale C)|Séries");

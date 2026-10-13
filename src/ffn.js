@@ -172,7 +172,14 @@ function parseSplits(html) {
 export function sectionKind(title) {
   const t = String(title || "").replace(/\s+/g, " "); const i = t.indexOf(" - "); const r = i >= 0 ? t.slice(i + 3).trim() : t;
   if (/barrage/i.test(r)) return { kind: "barrage", fin: "", cat: r };
-  const f = r.match(/^Finale\s*([A-D])?\b\s*(.*)$/i); if (f) return { kind: "final", fin: (f[1] || "A").toUpperCase(), cat: f[2].replace(/^[-\s]+/, "").trim() };
+  // libellés saisis à la main : « 50 Dos Dames (Finale A) », « 50 Dos Dames U15 et moins (Finale D) », « Finale rouge »
+  const base = i >= 0 ? t.slice(0, i).trim() : "";
+  if (/\bfinale\b/i.test(r) && !/s[ée]rie finale/i.test(r)) {
+    const f = r.match(/\bFinale\s+([A-D])(?![a-zà-ü])/i);
+    let cat = r.replace(/\(?\s*Finale(\s+[A-D](?![a-zà-ü]))?\s*\)?/i, " ");
+    if (base) cat = cat.split(base).join(" ");
+    return { kind: "final", fin: f ? f[1].toUpperCase() : "", cat: cat.replace(/[()]/g, " ").replace(/\s+/g, " ").trim() };
+  }
   if (/s[ée]rie finale/i.test(r)) return { kind: "series", fin: "", cat: "" };
   if (/s[ée]ries|^$/i.test(r)) return { kind: "series", fin: "", cat: r.replace(/^(Premi[èe]res )?s[ée]ries\s*/i, "") };
   return { kind: "other", fin: "", cat: r };
