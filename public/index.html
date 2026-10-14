@@ -500,11 +500,13 @@ body.pick{background:#e9f4f8;background-image:none}
 .st-done{opacity:.72}
 .pk-wait{margin:24px 0;color:#5b7685}
 @media (max-width:560px){.pk-row{grid-template-columns:80px minmax(0,1fr);padding-right:14px}.pk-st{grid-column:2;justify-self:start}.pk-date b{font-size:22px}}
-.pk-arch{margin-top:32px}.pk-arch summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;font-size:20px;font-weight:700;color:#06324f;padding:6px 0}
-.pk-arch summary::-webkit-details-marker{display:none}.pk-arch summary::after{content:"▾";font-size:16px;color:#5b7685;transition:transform .2s}.pk-arch[open] summary::after{transform:rotate(180deg)}
-.pk-arch summary small{font-size:14px;font-weight:600;color:#5b7685;background:#fff;border-radius:99px;padding:2px 10px}.pk-arch summary:focus-visible{outline:3px solid #0b5c8e;outline-offset:2px;border-radius:6px}
-.pk-arch .pk-st{display:none}.pk-arch .pk-row{grid-template-columns:92px minmax(0,1fr)}
-.pk-arch h3{margin:16px 0 8px;font-size:15px;font-weight:600;color:#5b7685}
+.pk-archlink{display:flex;align-items:center;gap:12px;margin-top:32px;padding:16px 18px;background:#fff;border-radius:14px;text-decoration:none;color:#06324f;box-shadow:0 1px 0 #cfe2ea}
+.pk-archlink span{font-size:18px;font-weight:700}.pk-archlink small{flex:1;font-size:14px;color:#5b7685}.pk-archlink b{font-size:24px;color:#5b7685}.pk-archlink:hover{background:#f4fafc}.pk-archlink:focus-visible{outline:3px solid #0b5c8e;outline-offset:2px}
+.pk-back{display:inline-block;margin-top:22px;color:#0b5c8e;font-weight:600;text-decoration:none}.pk-h{margin:10px 0 14px;font-size:28px;font-weight:800;letter-spacing:-.02em;color:#06324f}
+.pk-search{width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:12px 14px;border:2px solid #c9dde6;border-radius:12px;background:#fff;color:#06324f}.pk-search:focus{outline:none;border-color:#0b5c8e}
+.pk-seas{display:flex;gap:8px;overflow-x:auto;margin:12px 0 14px;scrollbar-width:none}.pk-seas button{flex:0 0 auto;font:inherit;font-size:14px;font-weight:600;padding:7px 14px;border-radius:99px;border:2px solid #c9dde6;background:#fff;color:#06324f;cursor:pointer}
+.pk-seas button[aria-pressed="true"]{background:#06324f;border-color:#06324f;color:#fff}
+#pk-res{margin-top:12px}#pk-res .st-done{opacity:1}#pk-res .pk-st{display:none}#pk-res .pk-row{grid-template-columns:92px minmax(0,1fr)}@media (max-width:560px){#pk-res .pk-row{grid-template-columns:80px minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -901,7 +903,7 @@ function simRun(idx,chain){if(idx==null){simStop();idx=+$("#sim-heat").value;cha
 
 
 /* ---------- page d'accueil : choix de la compétition ---------- */
-const PICK=location.pathname==="/";
+const ARCH=/^\/archives\/?$/.test(location.pathname);const PICK=location.pathname==="/"||ARCH;
 const MOIS_P=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 function pickDates(txt){const t=(txt||"").toLowerCase();const m=t.match(/(\d{1,2})\s+([a-zéèûô]+)\s+(\d{4})/);if(!m)return null;const mo=MOIS_P.indexOf(m[2]);if(mo<0)return null;
   const end=new Date(+m[3],mo,+m[1]);const d0=(t.match(/^\D*?(\d{1,2})\b/)||[])[1];let start=new Date(end);if(d0&&+d0!==+m[1]){start=new Date(+m[3],+d0>+m[1]?mo-1:mo,+d0)}return{start,end}}
@@ -914,7 +916,7 @@ async function pickBoot(){document.body.classList.add("pick");state.theme="ffn";
   body.innerHTML=hero+`<p class="pk-wait">Chargement des compétitions…</p>`;
   let ev=[];try{const r=await fetch("/api/events");if(r.ok)ev=await r.json()}catch(_){}
   if(!Array.isArray(ev)||!ev.length){body.innerHTML=hero+`<p class="pk-wait">Aucune compétition en ligne pour le moment. Revenez le jour du meeting.</p>`;return}
-  if(ev.length===1){location.replace("/e/"+ev[0].id);return}
+  if(ev.length===1&&!ARCH){location.replace("/e/"+ev[0].id);return}
   const L=ev.map(e=>({...e,st:pickStatus(e)})).sort((a,b)=>a.st.ord-b.st.ord||a.st.t-b.st.t);
   const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
   const row=e=>{const c=e.comps[0]||{};const city=c.city?c.city.toLowerCase().replace(/(^|[\s-])\S/g,x=>x.toUpperCase()):"";const d=pickDates(c.date);
@@ -924,10 +926,17 @@ async function pickBoot(){document.body.classList.add("pick");state.theme="ffn";
       <span class="pk-txt"><span class="pk-name">${esc(e.name||c.name||"Compétition")}</span><span class="pk-where">${esc(where)}${e.org?`<span class="pk-org">${esc(e.org)}</span>`:""}</span></span>
       <span class="pk-st">${e.st.k==="live"?'<span class="pk-dot"></span>En direct':esc(e.st.lab)}</span></a>`};
   const grp=(k,t)=>{const x=L.filter(e=>k.includes(e.st.k));return x.length?`<section class="pk-grp"><h2>${t}</h2><div class="pk-list">${x.map(row).join("")}</div></section>`:""};
-  const MF=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-  const done=L.filter(e=>e.st.k==="done");let arch="";
-  if(done.length){const by=new Map();for(const e of done){const d=pickDates((e.comps[0]||{}).date);const k=d?MF[d.end.getMonth()]+" "+d.end.getFullYear():"Autres";if(!by.has(k))by.set(k,[]);by.get(k).push(e)}
-    arch=`<details class="pk-arch"><summary><span>Compétitions terminées</span><small>${done.length}</small></summary>${[...by].map(([k,x])=>`<h3>${esc(k)}</h3><div class="pk-list">${x.map(row).join("")}</div>`).join("")}</details>`}
+  const done=L.filter(e=>e.st.k==="done");
+  if(ARCH){document.title="Archives · Swim Direct";const seas=e=>{const d=pickDates((e.comps[0]||{}).date);if(!d)return"";const y=d.end.getMonth()>=8?d.end.getFullYear():d.end.getFullYear()-1;return y+"-"+(y+1)};
+    const S=[...new Set(done.map(seas).filter(Boolean))].sort().reverse();let cur=S[0]||"";
+    const draw=()=>{const q=norm(($("#pk-q")||{}).value||"").toLowerCase();const x=done.filter(e=>(!cur||q||seas(e)===cur)&&(!q||norm([e.name,e.org,...e.comps.map(c=>c.city+" "+c.name)].join(" ")).toLowerCase().includes(q)));
+      $("#pk-res").innerHTML=x.length?`<div class="pk-list">${x.map(row).join("")}</div>`:`<p class="pk-wait">Aucune compétition ne correspond à « ${esc(($("#pk-q")||{}).value||"")} ».</p>`;
+      document.querySelectorAll(".pk-seas button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.s===cur&&!q)))};
+    body.innerHTML=hero+`<div class="pk-body"><a class="pk-back" href="/">‹ Compétitions en cours et à venir</a><h2 class="pk-h">Archives</h2>
+      <input class="pk-search" id="pk-q" type="search" placeholder="Compétition, ville ou organisateur" aria-label="Rechercher une compétition">
+      ${S.length>1?`<div class="pk-seas" role="group" aria-label="Saison">${S.map(x=>`<button type="button" data-s="${x}">Saison ${x.replace("-","–")}</button>`).join("")}</div>`:""}<div id="pk-res"></div></div>`;
+    $("#pk-q").oninput=draw;document.querySelectorAll(".pk-seas button").forEach(b=>b.onclick=()=>{cur=b.dataset.s;$("#pk-q").value="";draw()});draw();return}
+  const arch=done.length?`<a class="pk-archlink" href="/archives"><span>Archives</span><small>${done.length} compétition${done.length>1?"s":""} terminée${done.length>1?"s":""}</small><b>›</b></a>`:"";
   body.innerHTML=hero+`<div class="pk-body">${grp(["live"],"En ce moment")+grp(["soon","na"],"À venir")+arch}</div>`}
 /* ---------- rendu public ---------- */
 const $=s=>document.querySelector(s);
