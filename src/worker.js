@@ -1,5 +1,6 @@
 // Swim Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 export { PoolRoom } from "./pool.js";
+export { StatsRoom } from "./stats.js";
 import { get, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 import { normEvent, findIuf, fetchMpp } from "./extranat.js";
 
@@ -438,6 +439,20 @@ export default {
       return json({ at: store.at || null, sw: out }, 200, { "cache-control": "public, max-age=300" });
     }
 
+    // audience sans cookie : une empreinte hachée (IP + navigateur + semaine) par visiteur, rien de lisible n'est gardé
+    if (p === "/api/hit" && req.method === "POST") {
+      if (!env.STATS) return new Response(null, { status: 204 });
+      let body = {}; try { body = await req.json(); } catch (e) {}
+      const path = String(body.p || "/");
+      const m = path.match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/); const where = m ? m[1] : /^\/archives/.test(path) ? "~archives" : "~accueil";
+      const now = new Date(); const pp = parisParts(now); const day = `${pp.y}-${String(pp.m).padStart(2, "0")}-${String(pp.d).padStart(2, "0")}`;
+      const week = Math.floor((parisEpoch(pp.y, pp.m, pp.d) / 864e5 + 3) / 7); // change chaque lundi
+      const raw = `${env.ADMIN_PASSWORD || "x"}|${week}|${req.headers.get("cf-connecting-ip") || ""}|${req.headers.get("user-agent") || ""}`;
+      const k = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw)))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+      ctx.waitUntil(env.STATS.get(env.STATS.idFromName("stats")).fetch(new Request("https://stats/hit", { method: "POST", body: JSON.stringify({ day, ev: where, k }) })).catch(() => {}));
+      return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
+    }
+
     // partenaires : ceux de tous les lives + ceux de cet événement
     if (p === "/api/sponsors" && req.method === "GET") {
       const [all, one] = await Promise.all([env.KV.get("sponsors", "json"), env.KV.get(kk("sponsors", ev), "json")]);
@@ -507,7 +522,7 @@ export default {
         if (!x || typeof x.img !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(x.img) || x.img.length > 80000) return json({ error: "Image invalide ou trop lourde." }, 400);
         const link = String(x.url || "").trim().slice(0, 300);
         if (link && !/^https?:\/\/[^\s"<>]+$/i.test(link)) return json({ error: "Lien invalide : il doit commencer par http:// ou https://" }, 400);
-        clean.push({ name: String(x.name || "").slice(0, 80), url: link, img: x.img, bg: x.bg === "none" ? "none" : "white" });
+        clean.push({ name: String(x.name || "").slice(0, 80), url: link, img: x.img, bg: x.bg === "none" ? "none" : "white", role: x.role === "co" ? "co" : "sp" });
       }
       await env.KV.put(scope === "all" ? "sponsors" : kk("sponsors", ev), JSON.stringify(clean));
       return json({ ok: true });
@@ -573,28 +588,54 @@ export default {
 
 // ---------- audience (Cloudflare Web Analytics, lecture seule) ----------
 async function audience(env, url) {
-  if (!env.CF_API_TOKEN) return json({ setup: true });
-  const days = Math.min(30, Math.max(1, +(url.searchParams.get("days") || 1)));
+  const day = (x) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x || ""); return m ? [+m[1], +m[2], +m[3]] : null; };
+  const pp = parisParts(); const today = [pp.y, pp.m, pp.d];
+  let f = day(url.searchParams.get("from")), t = day(url.searchParams.get("to"));
+  const days0 = Math.min(30, Math.max(1, +(url.searchParams.get("days") || 1)));
+  if (!f || !t) { t = today; const d0 = new Date(Date.UTC(...today) - (days0 - 1) * 864e5); f = [d0.getUTCFullYear(), d0.getUTCMonth() + 1, d0.getUTCDate()]; }
+  const start = new Date(parisEpoch(...f)); const endEx = parisEpoch(t[0], t[1], t[2]) + 864e5; const now = Date.now(); const end = new Date(Math.min(now, endEx));
+  const nDays = Math.round((endEx - start.getTime()) / 864e5);
+  const iso = (a) => `${a[0]}-${String(a[1]).padStart(2, "0")}-${String(a[2]).padStart(2, "0")}`;
+  // personnes différentes / connectés (stockage maison) : même sans jeton Cloudflare
+  let own = null;
+  if (env.STATS) { try { const r = await env.STATS.get(env.STATS.idFromName("stats")).fetch(new Request(`https://stats/q?from=${iso(f)}&to=${iso(t)}`)); if (r.ok) own = await r.json(); } catch (e) {} }
+  if (!env.CF_API_TOKEN) return json({ setup: true, own });
   const host = url.hostname;
-  const now = new Date();
-  const start = days === 1 ? new Date(parisEpoch(...Object.values(parisParts(now)).slice(0, 3))) : new Date(now.getTime() - days * 864e5);
-  const filter = `{datetime_geq: "${start.toISOString()}", datetime_leq: "${now.toISOString()}", requestHost: "${host}"}`;
-  const block = (alias, dim, order) => `${alias}: rumPageloadEventsAdaptiveGroups(limit: 200, filter: ${filter}, orderBy: [${order}]) { count sum { visits } dimensions { ${dim} } }`;
-  const query = `query { viewer { accounts(filter: {accountTag: "${env.CF_ACCOUNT_ID}"}) {
-    ${block("total", "date", "date_ASC")}
-    ${block("hours", "datetimeHour", "datetimeHour_ASC")}
+  const filter = `{datetime_geq: "${start.toISOString()}", datetime_leq: "${end.toISOString()}", requestHost: "${host}"}`;
+  const block = (alias, dim, order, ds = "rumPageloadEventsAdaptiveGroups") => `${alias}: ${ds}(limit: 500, filter: ${filter}, orderBy: [${order}]) { count sum { visits } dimensions { ${dim} } }`;
+  const gql = async (inner) => {
+    const query = `query { viewer { accounts(filter: {accountTag: "${env.CF_ACCOUNT_ID}"}) { ${inner} } } }`;
+    const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { Authorization: `Bearer ${env.CF_API_TOKEN}`, "content-type": "application/json" }, body: JSON.stringify({ query }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.errors?.length) throw new Error((j.errors && j.errors[0]?.message) || `Cloudflare a répondu ${r.status}`);
+    return j.data?.viewer?.accounts?.[0] || {};
+  };
+  const timeDim = nDays <= 2 ? "datetimeFifteenMinutes" : nDays <= 7 ? "datetimeHour" : "date";
+  let a;
+  try {
+    a = await gql(`${block("total", "date", "date_ASC")}
+    ${block("hours", timeDim, timeDim + "_ASC")}
     ${block("devices", "deviceType", "count_DESC")}
     ${block("countries", "countryName", "count_DESC")}
     ${block("browsers", "userAgentBrowser", "count_DESC")}
-    ${block("referers", "refererHost", "count_DESC")}
-  } } }`;
-  const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { Authorization: `Bearer ${env.CF_API_TOKEN}`, "content-type": "application/json" }, body: JSON.stringify({ query }) });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.errors?.length) return json({ error: (j.errors && j.errors[0]?.message) || `Cloudflare a répondu ${r.status}` }, 502);
-  const a = j.data?.viewer?.accounts?.[0] || {};
+    ${block("referers", "refererHost", "count_DESC")}`);
+  } catch (e) { return json({ error: e.message, own }, 502); }
+  // compléments : si Cloudflare refuse un champ, le reste des statistiques s'affiche quand même
+  const extra = await Promise.allSettled([
+    gql(block("paths", "requestPath", "count_DESC")),
+    gql(block("os", "userAgentOS", "count_DESC")),
+    gql(`perf: rumPerformanceEventsAdaptiveGroups(limit: 1, filter: ${filter}) { count avg { pageLoadTime } quantiles { pageLoadTimeP50 pageLoadTimeP90 } }`),
+  ]);
   const pick = (rows, key) => (rows || []).map((x) => ({ k: x.dimensions[key] || "—", views: x.count, visits: x.sum?.visits || 0 }));
-  const tot = (a.total || []).reduce((t, x) => ({ views: t.views + x.count, visits: t.visits + (x.sum?.visits || 0) }), { views: 0, visits: 0 });
-  return json({ days, from: start.toISOString(), ...tot,
-    hours: pick(a.hours, "datetimeHour"), devices: pick(a.devices, "deviceType"), countries: pick(a.countries, "countryName"),
-    browsers: pick(a.browsers, "userAgentBrowser"), referers: pick(a.referers, "refererHost") });
+  const tot = (a.total || []).reduce((s, x) => ({ views: s.views + x.count, visits: s.visits + (x.sum?.visits || 0) }), { views: 0, visits: 0 });
+  // pages → lives
+  const byLive = {};
+  for (const x of pick(extra[0].value?.paths, "requestPath")) { const m = String(x.k).match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/); const k = m ? m[1] : /^\/archives/.test(x.k) ? "~archives" : x.k === "/" ? "~accueil" : null; if (!k) continue; const o = (byLive[k] = byLive[k] || { views: 0, visits: 0 }); o.views += x.views; o.visits += x.visits; }
+  const pf = extra[2].value?.perf?.[0];
+  const perf = pf && pf.count ? { n: pf.count, avg: pf.avg?.pageLoadTime ?? null, p50: pf.quantiles?.pageLoadTimeP50 ?? null, p90: pf.quantiles?.pageLoadTimeP90 ?? null } : null;
+  return json({ days: nDays, from: start.toISOString(), to: end.toISOString(), step: timeDim, ...tot,
+    hours: pick(a.hours, timeDim), devices: pick(a.devices, "deviceType"), countries: pick(a.countries, "countryName"),
+    browsers: pick(a.browsers, "userAgentBrowser"), referers: pick(a.referers, "refererHost"),
+    os: pick(extra[1].value?.os, "userAgentOS"), byLive, perf, own,
+    warn: extra.filter((x) => x.status === "rejected").map((x) => x.reason?.message).filter(Boolean) });
 }

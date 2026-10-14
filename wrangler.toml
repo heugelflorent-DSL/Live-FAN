@@ -30,6 +30,15 @@ enabled = true
 name = "POOL"
 class_name = "PoolRoom"
 
+[[durable_objects.bindings]]
+name = "STATS"
+class_name = "StatsRoom"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["PoolRoom"]
+
+# Audience : personnes différentes et connectés en ce moment (sans cookie)
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["StatsRoom"]

@@ -515,6 +515,11 @@ body.pick{background:#e9f4f8;background-image:none}
 .sp-l{display:flex;align-items:center;justify-content:center;height:64px;padding:8px 12px;box-sizing:border-box;background:#fff;border-radius:10px;border:1px solid var(--line);flex:0 0 auto}
 .sp-l img{height:100%;width:auto;max-width:200px;object-fit:contain}.sp-l.nobg{background:none;border-color:transparent;padding:4px}a.sp-l:hover{border-color:var(--a)}a.sp-l:focus-visible{outline:3px solid var(--a);outline-offset:2px}
 @media (max-width:700px){.foot .sigw.has-sp{flex-wrap:wrap}.foot .sigw.has-sp .sig{order:-1;flex:0 0 100%;object-fit:contain}.sp-side{flex:0 0 100%;justify-content:center!important;flex-wrap:wrap;gap:10px}.sp-l{height:54px}.sp-l img{max-width:150px}}
+.aud5{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}.audchart{overflow-x:auto}.audt td,.audt th{padding:6px 8px}.audt td.num,.audt th:not(:first-child){text-align:right}
+.cobrand{display:inline-flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 auto}.co-row,.co-x{display:flex;align-items:center;gap:10px}.co-x:empty{display:none}
+.co-times{font-size:26px;font-weight:300;color:var(--muted);line-height:1}.sp-l.co{height:88px;padding:10px 14px}.sp-l.co img{max-width:220px}.sp-l.co.nobg{padding:4px}
+.co-cap{flex:0 0 100%;text-align:center;font-size:13px;font-weight:600;color:var(--muted);margin-top:2px}
+@media (max-width:700px){.foot .sigw.has-sp .cobrand{order:-1;flex:0 0 100%}.foot .sigw.has-sp .cobrand .sig{order:0;flex:0 0 auto;width:72px;height:72px}.sp-l.co{height:72px}.sp-l.co img{max-width:150px}}
 </style>
 </head>
 <body>
@@ -698,7 +703,7 @@ body.pick{background:#e9f4f8;background-image:none}
     <div class="savebar" id="savebar"><span id="save-state">Tout est enregistré</span><div class="inline"><button class="btn small ghost" id="back-public2" type="button">Page publique</button><button class="btn" id="save-btn" type="button" disabled>Enregistrer</button></div></div>
   </section>
 
-  <footer class="foot"><div class="sigw"><div class="sp-side l" id="sp-l"></div><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo — Collectif alsacien pour la natation de demain"><div class="sp-side r" id="sp-r"></div></div><p>Swim Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
+  <footer class="foot"><div class="sigw"><div class="sp-side l" id="sp-l"></div><span class="cobrand" id="cobrand"><span class="co-row"><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo — Collectif alsacien pour la natation de demain"><span class="co-x" id="co-x"></span></span><span class="co-cap" id="co-cap" hidden></span></span><div class="sp-side r" id="sp-r"></div></div><p>Swim Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
 </main>
 
 <script>
@@ -925,16 +930,18 @@ function simRun(idx,chain){if(idx==null){simStop();idx=+$("#sim-heat").value;cha
 /* ---------- partenaires / sponsors ---------- */
 let SPONS={all:[],ev:[]};
 async function loadSpons(){try{const r=await fetch(evq("/api/sponsors")+(state.admin?(evq("/api/sponsors").includes("?")?"&":"?")+"t="+Date.now():""));if(r.ok){const j=await r.json();SPONS={all:j.all||[],ev:j.ev||[]}}}catch(_){}renderSpons();if(state.admin)renderSponsAdmin()}
-function renderSpons(){const L=[...(PICK?[]:SPONS.ev),...SPONS.all];const l=$("#sp-l"),r=$("#sp-r");if(!l||!r)return;
+function renderSpons(){const ALL=[...(PICK?[]:SPONS.ev),...SPONS.all];const CO=ALL.filter(x=>x.role==="co"),L=ALL.filter(x=>x.role!=="co");const l=$("#sp-l"),r=$("#sp-r");if(!l||!r)return;
   const logo=x=>{const im=`<img src="${x.img}" alt="${esc(x.name||"Partenaire")}" loading="lazy">`;const cls="sp-l"+(x.bg==="none"?" nobg":"");return x.url?`<a class="${cls}" href="${esc(x.url)}" target="_blank" rel="noopener sponsored" title="${esc(x.name||"")}">${im}</a>`:`<span class="${cls}" title="${esc(x.name||"")}">${im}</span>`};
   // alternance gauche / droite autour du logo, le premier partenaire le plus près
   const left=[],right=[];L.forEach((x,i)=>(i%2?right:left).push(x));l.innerHTML=left.reverse().map(logo).join("");r.innerHTML=right.map(logo).join("");
-  document.querySelector(".foot .sigw").classList.toggle("has-sp",L.length>0)}
+  const cx=$("#co-x");if(cx)cx.innerHTML=CO.map(x=>`<span class="co-times" aria-hidden="true">×</span>${logo(x).replace('class="sp-l','class="sp-l co')}`).join("");
+  const cap=$("#co-cap");if(cap){cap.hidden=!CO.length;cap.textContent=CO.length?"Mat & Flo × "+CO.map(x=>x.name||"partenaire").join(" × "):""}
+  document.querySelector(".foot .sigw").classList.toggle("has-sp",ALL.length>0)}
 async function saveSpons(scope){const msg=$("#sp-msg");try{await api("/api/admin/sponsors",{method:"PUT",body:JSON.stringify({scope,list:SPONS[scope]})});if(msg)msg.textContent="Enregistré ✓";renderSpons()}catch(e){if(msg)msg.textContent=e.message}}
 let spT={};
 function renderSponsAdmin(){for(const scope of ["ev","all"]){const el=$("#sp-"+scope);if(!el)continue;const L=SPONS[scope];
   el.innerHTML=L.length?L.map((x,i)=>`<div class="sp-row"><span class="sp-img"><img src="${x.img}" alt=""></span><input class="field" placeholder="Nom" value="${esc(x.name||"")}" data-sp="${scope}" data-i="${i}" data-f="name"><input class="field" placeholder="Lien (facultatif) https://…" value="${esc(x.url||"")}" data-sp="${scope}" data-i="${i}" data-f="url">
-    <select class="field sp-bg" data-sp="${scope}" data-i="${i}" data-f="bg" aria-label="Fond du logo"><option value="white"${x.bg==="none"?"":" selected"}>Fond blanc</option><option value="none"${x.bg==="none"?" selected":""}>Fond transparent</option></select><span class="sp-act"><button class="btn small ghost" data-spmv="${scope}" data-i="${i}" data-d="-1" ${i?"":"disabled"} aria-label="Monter">↑</button><button class="btn small ghost" data-spmv="${scope}" data-i="${i}" data-d="1" ${i<L.length-1?"":"disabled"} aria-label="Descendre">↓</button><button class="btn small ghost" data-sprm="${scope}" data-i="${i}" aria-label="Retirer">×</button></span></div>`).join(""):`<p class="msg">Aucun logo.</p>`;
+    <select class="field sp-bg" data-sp="${scope}" data-i="${i}" data-f="role" aria-label="Type de partenaire"><option value="sp"${x.role==="co"?"":" selected"}>Sponsor (autour du logo)</option><option value="co"${x.role==="co"?" selected":""}>Partenaire officiel : Mat & Flo × …</option></select><select class="field sp-bg" data-sp="${scope}" data-i="${i}" data-f="bg" aria-label="Fond du logo"><option value="white"${x.bg==="none"?"":" selected"}>Fond blanc</option><option value="none"${x.bg==="none"?" selected":""}>Fond transparent</option></select><span class="sp-act"><button class="btn small ghost" data-spmv="${scope}" data-i="${i}" data-d="-1" ${i?"":"disabled"} aria-label="Monter">↑</button><button class="btn small ghost" data-spmv="${scope}" data-i="${i}" data-d="1" ${i<L.length-1?"":"disabled"} aria-label="Descendre">↓</button><button class="btn small ghost" data-sprm="${scope}" data-i="${i}" aria-label="Retirer">×</button></span></div>`).join(""):`<p class="msg">Aucun logo.</p>`;
   el.querySelectorAll("[data-f]").forEach(inp=>inp[inp.tagName==="SELECT"?"onchange":"oninput"]=()=>{SPONS[scope][+inp.dataset.i][inp.dataset.f]=inp.value;clearTimeout(spT[scope]);spT[scope]=setTimeout(()=>saveSpons(scope),inp.tagName==="SELECT"?0:700);if(inp.tagName==="SELECT")renderSpons()});
   el.querySelectorAll("[data-spmv]").forEach(b=>b.onclick=()=>{const i=+b.dataset.i,j=i+ +b.dataset.d;const L2=SPONS[scope];[L2[i],L2[j]]=[L2[j],L2[i]];renderSponsAdmin();saveSpons(scope)});
   el.querySelectorAll("[data-sprm]").forEach(b=>b.onclick=()=>{SPONS[scope].splice(+b.dataset.i,1);renderSponsAdmin();saveSpons(scope)})}
@@ -1485,33 +1492,48 @@ function renderClub(){
 }
 
 /* ---------- rendu admin ---------- */
-let AUD={days:1,data:null,loading:false,err:null};
+let AUD={per:"today",data:null,loading:false,err:null};
+const isoD=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function audRange(){const t=new Date();t.setHours(0,0,0,0);const add=n=>{const d=new Date(t);d.setDate(d.getDate()+n);return d};
+  if(AUD.per==="yday")return[add(-1),add(-1)];if(AUD.per==="7")return[add(-6),t];if(AUD.per==="30")return[add(-29),t];
+  if(AUD.per==="comp"){let a=null,b=null;for(const c of state.comps){const d=pickDates(c.date);if(!d)continue;if(!a||d.start<a)a=d.start;if(!b||d.end>b)b=d.end}if(a)return[a,b>t?t:b]}
+  return[t,t]}
+function evLabel(k){if(k==="~accueil")return"Accueil";if(k==="~archives")return"Archives";if(k==="*")return"Tout le site";const e=(EVLIST||[]).find(x=>x.id===k);return e&&e.name?e.name:"/e/"+k}
 function renderAudience(){
   const box=$("#aud");if(!box)return;
-  const d=AUD.data;
-  const tabs=`<div class="subtabs" style="margin:0">${[[1,"Aujourd'hui"],[7,"7 jours"],[30,"30 jours"]].map(([v,l])=>`<button data-aud="${v}" aria-selected="${AUD.days===v}">${l}</button>`).join("")}</div>`;
-  if(d&&d.setup){box.innerHTML=`<p class="msg">Dernière étape : créer le jeton de lecture des statistiques Cloudflare et l'enregistrer comme secret <b>CF_API_TOKEN</b> du Worker. Ensuite les chiffres s'affichent ici.</p>`;$("#h-aud").textContent="à configurer";return}
+  const d=AUD.data;const hasComp=state.comps.some(c=>pickDates(c.date));
+  const pers=[["today","Aujourd'hui"],["yday","Hier"],["7","7 jours"],["30","30 jours"]].concat(hasComp?[["comp","Cette compétition"]]:[]);
+  const tabs=`<div class="subtabs" style="margin:0;flex-wrap:wrap">${pers.map(([v,l])=>`<button data-aud="${v}" aria-selected="${AUD.per===v}">${l}</button>`).join("")}</div>`;
   if(AUD.err){box.innerHTML=tabs+`<p class="msg err">Statistiques indisponibles : ${esc(AUD.err)}</p>`;return}
   if(!d){box.innerHTML=tabs+`<p class="msg">${AUD.loading?"Chargement des statistiques…":""}</p>`;if(!AUD.loading)loadAudience();return}
-  for(const k of ["hours","devices","countries","browsers","referers"])d[k]=d[k]||[];d.visits=d.visits||0;d.views=d.views||0;d.days=d.days||AUD.days;
-  const hours=d.hours||[];const max=Math.max(1,...hours.map(h=>h.visits));
-  const W=Math.max(320,hours.length*14),H=110,bw=W/Math.max(1,hours.length);
-  const lab=h=>{const t=new Date(h.k);return d.days===1?t.toLocaleTimeString("fr-FR",{hour:"2-digit",timeZone:"Europe/Paris"}).replace(/\D/g,"")+"h":t.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",timeZone:"Europe/Paris"})};
-  const step=Math.ceil(hours.length/12);
-  const bars=hours.length?`<svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Visites par heure">${hours.map((h,i)=>{const hh=Math.max(2,Math.round(H*h.visits/max));return`<rect x="${i*bw+2}" y="${H-hh}" width="${Math.max(2,bw-4)}" height="${hh}" rx="2" fill="${h.visits===max?"#ffffff":"rgba(255,255,255,.45)"}"><title>${lab(h)} · ${h.visits} visites</title></rect>${i%step===0?`<text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle" font-size="9" fill="#f3d3d7" font-family="JetBrains Mono,monospace">${lab(h)}</text>`:""}`}).join("")}</svg>`:`<p class="msg">Pas encore de visite sur la période.</p>`;
-  const list=(rows,n=5)=>{const t=rows.reduce((a,x)=>a+x.views,0)||1;return rows.slice(0,n).map(x=>`<div class="aurow"><span>${esc(x.k)}</span><span class="bar"><i style="width:${Math.round(100*x.views/t)}%"></i></span><b>${Math.round(100*x.views/t)} %</b></div>`).join("")||`<p class="msg">—</p>`};
+  const own=d.own||{uniq:{},now:{all:0,by:{}},days:[]};const people=own.uniq&&own.uniq["*"]||0;const nowAll=own.now?own.now.all:0;
+  const kOwn=`<div class="kpis3 aud5"><div><b>${nowAll}</b><span>connectés en ce moment</span></div><div><b>${people.toLocaleString("fr-FR")}</b><span>personnes différentes</span></div>`;
+  if(d.setup){box.innerHTML=tabs+kOwn+`</div><p class="msg">Pour les visites, appareils et pays : enregistrer le jeton Cloudflare <b>CF_API_TOKEN</b> du Worker.</p>`;$("#h-aud").textContent=people+" personnes";return}
+  for(const k of ["hours","devices","countries","browsers","referers","os"])d[k]=d[k]||[];d.visits=d.visits||0;d.views=d.views||0;
+  const hours=d.hours,max=Math.max(1,...hours.map(h=>h.visits));const W=Math.max(320,hours.length*(d.step==="datetimeFifteenMinutes"?6:14)),H=110,bw=W/Math.max(1,hours.length);
+  const lab=h=>{const t=new Date(d.step==="date"?h.k+"T12:00":h.k);return d.step==="date"?t.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"}):d.step==="datetimeHour"&&d.days>2?t.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",timeZone:"Europe/Paris"})+" "+t.toLocaleTimeString("fr-FR",{hour:"2-digit",timeZone:"Europe/Paris"}).replace(/\D/g,"")+"h":t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}).replace(":","h")};
+  const step=Math.ceil(hours.length/10);
+  const bars=hours.length?`<svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Visites dans le temps">${hours.map((h,i)=>{const hh=Math.max(2,Math.round(H*h.visits/max));return`<rect x="${i*bw+1}" y="${H-hh}" width="${Math.max(1.5,bw-2)}" height="${hh}" rx="1.5" fill="var(--a)" opacity="${h.visits===max?1:.45}"><title>${lab(h)} · ${h.visits} visites</title></rect>${i%step===0?`<text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="JetBrains Mono,monospace">${lab(h)}</text>`:""}`}).join("")}</svg>`:`<p class="msg">Pas encore de visite sur la période.</p>`;
+  const list=(rows,n=6)=>{const t=rows.reduce((a,x)=>a+x.views,0)||1;return rows.slice(0,n).map(x=>`<div class="aurow"><span>${esc(x.k)}</span><span class="bar"><i style="width:${Math.round(100*x.views/t)}%"></i></span><b>${Math.round(100*x.views/t)} %</b></div>`).join("")||`<p class="msg">—</p>`};
   const peak=hours.reduce((m,h)=>h.visits>(m?m.visits:-1)?h:m,null);
-  box.innerHTML=tabs+`<div class="kpis3"><div><b>${d.visits.toLocaleString("fr-FR")}</b><span>visites</span></div><div><b>${d.views.toLocaleString("fr-FR")}</b><span>pages vues</span></div><div><b>${peak&&peak.visits?lab(peak):"—"}</b><span>pic d'affluence${peak&&peak.visits?" · "+peak.visits+" visites":""}</span></div></div>
-   <div class="audbox"><div class="podlabel">${d.days===1?"Visites par heure":"Visites"}</div>${bars}</div>
-   <div class="grid2c"><div class="audbox"><div class="podlabel">Appareils</div>${list(d.devices)}</div><div class="audbox"><div class="podlabel">Pays</div>${list(d.countries)}</div>
-   <div class="audbox"><div class="podlabel">Navigateurs</div>${list(d.browsers)}</div><div class="audbox"><div class="podlabel">Venus depuis</div>${list(d.referers.filter(x=>x.k&&x.k!=="—"&&!/natation-alsace|swim-direct/.test(x.k)))}</div></div>
-   <p class="msg">Source : Cloudflare Web Analytics, sans cookie. Les chiffres arrivent avec quelques minutes de décalage.</p>`;
-  $("#h-aud").textContent=d.visits+" visites "+(d.days===1?"aujourd'hui":"sur "+d.days+" jours");
+  const ids=[...new Set([...Object.keys(own.uniq||{}),...Object.keys(d.byLive||{})])].filter(k=>k!=="*");
+  const rows=ids.map(k=>({k,p:(own.uniq||{})[k]||0,v:((d.byLive||{})[k]||{}).visits||0,n:((own.now||{}).by||{})[k]||0})).sort((a,b)=>b.p-a.p||b.v-a.v);
+  const live=rows.length?`<div class="audbox"><div class="podlabel">Par live</div><div class="tbl"><table class="audt"><thead><tr><th>Page</th><th>Personnes</th><th>Visites</th><th>En ce moment</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(evLabel(r.k))}</td><td class="num">${r.p}</td><td class="num">${r.v}</td><td class="num">${r.n||""}</td></tr>`).join("")}</tbody></table></div></div>`:"";
+  const sec=x=>x==null?null:(x>100000?x/1e6:x/1000);const pf=d.perf;
+  const perf=pf&&pf.p50!=null?`<div class="audbox"><div class="podlabel">Temps de chargement</div><p class="msg" style="margin:0">La moitié des visiteurs voit le site en moins de <b>${sec(pf.p50).toFixed(1).replace(".",",")} s</b>${pf.p90!=null?` · 9 sur 10 en moins de <b>${sec(pf.p90).toFixed(1).replace(".",",")} s</b>`:""} (${pf.n} mesures).</p></div>`:"";
+  box.innerHTML=tabs+kOwn+`<div><b>${d.visits.toLocaleString("fr-FR")}</b><span>visites</span></div><div><b>${d.views.toLocaleString("fr-FR")}</b><span>pages vues</span></div><div><b>${peak&&peak.visits?lab(peak):"—"}</b><span>pic d'affluence${peak&&peak.visits?" · "+peak.visits+" visites":""}</span></div></div>
+   <div class="audbox"><div class="podlabel">${d.step==="datetimeFifteenMinutes"?"Visites par quart d'heure":d.step==="datetimeHour"?"Visites par heure":"Visites par jour"}</div><div class="audchart">${bars}</div></div>
+   ${live}${perf}
+   <div class="grid2c"><div class="audbox"><div class="podlabel">Appareils</div>${list(d.devices)}</div><div class="audbox"><div class="podlabel">Systèmes</div>${list(d.os)}</div>
+   <div class="audbox"><div class="podlabel">Pays</div>${list(d.countries)}</div><div class="audbox"><div class="podlabel">Navigateurs</div>${list(d.browsers)}</div>
+   <div class="audbox"><div class="podlabel">Venus depuis</div>${list(d.referers.filter(x=>x.k&&x.k!=="—"&&!/natation-alsace|swim-direct/.test(x.k)))}</div></div>
+   <p class="msg">Visites, appareils et pays : Cloudflare Web Analytics, sans cookie, avec quelques minutes de décalage. Personnes différentes et connectés : comptés par Swim Direct sans cookie, à partir d'une empreinte anonyme renouvelée chaque semaine (une même personne sur deux appareils compte deux fois). « En ce moment » = actifs ces 6 dernières minutes.</p>`;
+  $("#h-aud").textContent=nowAll?nowAll+" connectés":people+" personnes";
 }
-async function loadAudience(){AUD.loading=true;AUD.err=null;
-  try{AUD.data=await api("/api/admin/audience?days="+AUD.days)}catch(e){AUD.err=e.message}
+async function loadAudience(){AUD.loading=true;AUD.err=null;const [a,b]=audRange();
+  try{AUD.data=await api(`/api/admin/audience?from=${isoD(a)}&to=${isoD(b)}`)}catch(e){AUD.err=e.message}
   AUD.loading=false;renderAudience()}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-aud]");if(!b)return;AUD.days=+b.dataset.aud;AUD.data=null;renderAudience()});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-aud]");if(!b)return;AUD.per=b.dataset.aud;AUD.data=null;renderAudience()});
 function allClubs(){const set=new Set();for(const s of Object.values(SWIMMERS))if(s.club)set.add(clubKey(s.club));for(const ev of Object.values(EVENTS))for(const w of (ev.entries||[]).concat(ev.results||[]))if(w.club)set.add(clubKey(w.club));for(const k of Object.keys(LOGOS))set.add(k);return[...set].sort((a,b)=>a.localeCompare(b))}
 function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs();const n=cl.filter(c=>LOGOS[c]).length;$("#h-logos").textContent=cl.length?n+"/"+cl.length:"";
   el.innerHTML=cl.length?cl.map((c,i)=>`<div class="logorow"><span class="lbox">${LOGOS[c]?`<img class="clogo big" style="margin:0" src="${LOGOS[c]}" alt="">`:"aucun"}</span><b>${esc(c)}</b><label class="btn small ghost">${LOGOS[c]?"Changer":"Ajouter"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-logo="${i}" hidden></label>${LOGOS[c]?`<button class="btn small ghost" data-logorm="${i}">Retirer</button>`:""}</div>`).join(""):`<p class="empty">Aucun club pour l'instant.</p>`;
@@ -1717,6 +1739,8 @@ document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.datase
 if(location.hash==="#admin")openAdmin();
 if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
+function hit(){if(document.hidden||state.admin)return;try{fetch("/api/hit",{method:"POST",keepalive:true,headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname})}).catch(()=>{})}catch(_){}}
+hit();setInterval(hit,5*60e3);document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Date.now()-(window.__lastHit||0)>4*60e3){window.__lastHit=Date.now();hit()}});
 bindSpons();loadSpons();if(PICK)pickBoot();else{
 loadLogos();loadMpp();setInterval(loadMpp,10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);}
 </script>
