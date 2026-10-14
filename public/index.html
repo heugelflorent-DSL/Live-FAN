@@ -12,9 +12,10 @@
 <style>
 /* thèmes : Alsace (rouge), Ligue (vert), FFN (bleu) — réglés par événement dans l'admin */
 :root{--a:#d0202f;--a0:#c8102e;--a-d:#b3121f;--a-d2:#9f1239;--a-dd:#881337;--a-rgb:200,16,46;--l-rgb:120,20,40;--l2-rgb:120,0,20;--s-rgb:80,0,15;--c1:62,14,24;--c2:84,20,32;--ink-d:#3b0a14;--ink-d2:#2a0d14;--t1:#fbe1e4;--t2:#ffe4e6;--t3:#fecdd3;--t4:#fdf7f8;--t5:#fbf6f7;--t6:#faf5f6;--m1:#6e4c55;--m2:#9c7f87;--m3:#5d4a50;--m4:#8a6a72;--mu:#f3d3d7;--fa:#d6a5ac;--g0:#d7102b;--g1:#e03a4c;--g2:#ec7b86;--g3:#f5b9bf;--g4:#fadfe1;--g5:#fdf3f4;--bg:#fbf6f6}
-html[data-theme="ligue"]{--a:#1e8a4a;--a0:#17803f;--a-d:#146c35;--a-d2:#0f5c2c;--a-dd:#0b4a23;--a-rgb:23,128,63;--l-rgb:20,90,45;--l2-rgb:0,90,30;--s-rgb:0,50,20;--c1:14,52,30;--c2:20,70,40;--ink-d:#0d2e1a;--ink-d2:#0b2416;--t1:#def3e5;--t2:#e2f6e9;--t3:#c9ecd5;--t4:#f6fbf8;--t5:#f5faf6;--t6:#f4f9f5;--m1:#4c6656;--m2:#7f9c88;--m3:#4a5d50;--m4:#6a8a74;--mu:#d3f0dd;--fa:#a5d6b4;--g0:#138a43;--g1:#3aa864;--g2:#7bc796;--g3:#b9e3c7;--g4:#dff2e6;--g5:#f3faf6;--bg:#f6fbf8}
+html[data-theme="ligue"]{--a:#17803f;--a0:#13703a;--a-d:#106130;--a-d2:#0d5229;--a-dd:#0a4322;--a-rgb:19,112,58;--l-rgb:20,90,45;--l2-rgb:0,90,30;--s-rgb:0,50,20;--c1:14,52,30;--c2:20,70,40;--ink-d:#0d2e1a;--ink-d2:#0b2416;--t1:#def3e5;--t2:#e2f6e9;--t3:#c9ecd5;--t4:#f6fbf8;--t5:#f5faf6;--t6:#f4f9f5;--m1:#4c6656;--m2:#7f9c88;--m3:#4a5d50;--m4:#6a8a74;--mu:#d3f0dd;--fa:#a5d6b4;--g0:#0f7438;--g1:#2a8f52;--g2:#6dbb8a;--g3:#b9e3c7;--g4:#dff2e6;--g5:#f3faf6;--bg:#f6fbf8}
 html[data-theme="ffn"]{--a:#1f5fbf;--a0:#0b4ea2;--a-d:#0a438c;--a-d2:#093a78;--a-dd:#072f63;--a-rgb:11,78,162;--l-rgb:20,50,110;--l2-rgb:0,30,90;--s-rgb:0,20,60;--c1:12,26,58;--c2:18,36,78;--ink-d:#0b1d3a;--ink-d2:#08162e;--t1:#e1eafb;--t2:#e4edfc;--t3:#cbdcf7;--t4:#f7f9fe;--t5:#f6f8fd;--t6:#f5f8fd;--m1:#4c5a70;--m2:#7f8ca3;--m3:#4a5466;--m4:#6a788f;--mu:#d3e0f5;--fa:#a5bde3;--g0:#0b4ea2;--g1:#3a73c0;--g2:#7ba2d8;--g3:#b9cdeb;--g4:#dfe8f6;--g5:#f3f6fc;--bg:#f6f8fd}
 html:not([data-theme="alsace"]) .logo{display:none}
+html:not([data-theme="alsace"]) .brand-txt h1{color:#fff}
 
 /* Schwimme Direct — thème Alsace (rouge et blanc) aligné sur Classement Clubs · Live.
    Mobile d'abord : en-tête, barre de navigation collante, une colonne de cartes ; l'admin en étapes numérotées. */
@@ -421,7 +422,7 @@ td a[data-swimmer],.pnm a[data-swimmer]{border-bottom:0}
 main{color:var(--ink)}
 main .card,main .lane,main .prow,main .podblock,main .detail,main .step,main .now{box-shadow:0 6px 20px -14px rgba(var(--s-rgb),.45);backdrop-filter:none}
 main .lane,main .prow,main .podblock,main .detail,main .step{border-color:rgba(var(--l-rgb),.10)}
-.row{color:var(--ink)}.row:hover,.prow:hover{background:var(--t4)}
+.row,main .prow:not(.pool .prow){color:var(--ink)}.row:hover,.prow:hover{background:var(--t4)}
 .time{color:var(--ink)}.time small{color:var(--muted)}
 .ev .sub,.chev{color:var(--muted)}
 a[data-swimmer]{color:inherit}
