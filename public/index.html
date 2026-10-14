@@ -474,14 +474,32 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:600px){table.ppe thead{display:none}table.ppe tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:8px 0;border-bottom:1px solid var(--line)}table.ppe td{display:block;padding:0;border:0;min-width:0;overflow-wrap:anywhere}table.ppe td:nth-child(1){grid-column:1;grid-row:1;font-weight:600}table.ppe td:nth-child(2){grid-column:1;grid-row:2;font-size:13px;color:var(--muted)}table.ppe td:nth-child(3){grid-column:2;grid-row:1;text-align:right}table.ppe td:nth-child(4){grid-column:2;grid-row:2;text-align:right}}
 .allev{display:inline-block;margin:0 0 4px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.18);color:#fff;font-size:13px;font-weight:600;text-decoration:none}.allev:hover{background:rgba(255,255,255,.3)}
-.picklist{display:grid;gap:10px}@media(min-width:900px){.picklist{grid-template-columns:1fr 1fr}}
-.pickcard{display:flex;align-items:stretch;gap:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);text-decoration:none;color:var(--ink);overflow:hidden;box-shadow:0 6px 20px -14px rgba(var(--s-rgb),.45);transition:transform .15s}
-.pickcard:hover{transform:translateY(-2px)}.pk-band{flex:0 0 8px;background:#c8102e}.pickcard.th-ligue .pk-band{background:#13703a}.pickcard.th-ffn .pk-band{background:#0b4ea2}
-.pk-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:14px 16px}.pk-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
-.pk-st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:var(--t2);color:var(--ink)}
-.pk-st.live{background:#dcfce7;color:#166534}.pk-st.done{background:#eef0f2;color:#555}.pk-org{font-size:12px;color:var(--muted)}
-.pk-name{font-size:18px;line-height:1.25}.pk-meta,.pk-date{font-size:14px;color:var(--muted)}.pk-go{display:flex;align-items:center;padding:0 16px;font-size:26px;color:var(--muted)}
-body.pick #pub-legend,body.pick #upd,body.pick #pub-org,body.pick .logo{display:none}
+body.pick header.top{display:none}body.pick main{padding-top:0}
+body.pick{background:#e9f4f8;background-image:none}
+.pk-hero{margin:0 calc(50% - 50vw);background:linear-gradient(180deg,#0b5c8e,#06324f);color:#fff;position:relative;overflow:hidden}
+.pk-hero::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 22%,rgba(255,255,255,.06) 22% 22.4%);pointer-events:none}
+.pk-rope{height:10px;background:repeating-linear-gradient(90deg,#d6202f 0 14px,#fff 14px 28px,#d6202f 28px 42px,#1d4ed8 42px 56px);background-size:56px 10px;opacity:.95}
+.pk-rope:first-child{animation:pkrope 18s linear infinite}@keyframes pkrope{to{background-position:560px 0}}@media (prefers-reduced-motion:reduce){.pk-rope:first-child{animation:none}}
+.pk-in{max-width:960px;margin:0 auto;padding:44px 16px 40px;position:relative}
+.pk-in h1{margin:0;font-size:clamp(44px,11vw,96px);font-weight:800;letter-spacing:-.045em;line-height:.92;color:#fff}
+.pk-in p{margin:14px 0 0;max-width:34em;font-size:clamp(15px,2.2vw,18px);line-height:1.5;color:#cfe6f3}
+.pk-body{padding:8px 0 24px}
+.pk-grp{margin-top:28px}.pk-grp h2{margin:0 0 10px;font-size:20px;font-weight:700;letter-spacing:-.01em;color:#06324f}
+.pk-list{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 0 #cfe2ea}
+.pk-row{display:grid;grid-template-columns:92px minmax(0,1fr) auto;align-items:center;gap:14px;padding:16px 18px 16px 0;text-decoration:none;color:#06324f;position:relative}
+.pk-row+.pk-row{border-top:2px dashed #c9dde6}
+.pk-row:hover,.pk-row:focus-visible{background:#f4fafc;outline:none}.pk-row:focus-visible{box-shadow:inset 0 0 0 3px #0b5c8e}
+.pk-date{display:flex;flex-direction:column;align-items:center;justify-content:center;align-self:stretch;margin:-16px 0;border-right:4px solid #d6202f;font-variant-numeric:tabular-nums}
+.th-ligue .pk-date{border-color:#13703a}.th-ffn .pk-date{border-color:#0b4ea2}
+.pk-date b{white-space:nowrap;font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1}.pk-date small{font-size:14px;color:#5b7685;margin-top:2px}
+.pk-txt{display:flex;flex-direction:column;gap:3px;min-width:0}.pk-name{font-size:18px;font-weight:700;line-height:1.25}
+.pk-where{font-size:14px;color:#5b7685;display:flex;flex-wrap:wrap;gap:2px 12px}.pk-org{color:#88a0ad}
+.pk-st{font-size:14px;font-weight:600;color:#5b7685;white-space:nowrap}
+.st-live .pk-st{display:inline-flex;align-items:center;gap:7px;background:#ffcc29;color:#3d2c00;padding:6px 12px;border-radius:8px;font-weight:700}
+.pk-dot{width:8px;height:8px;border-radius:50%;background:#d6202f;animation:pkdot 1.4s ease-in-out infinite}@keyframes pkdot{50%{opacity:.25}}@media (prefers-reduced-motion:reduce){.pk-dot{animation:none}}
+.st-done{opacity:.72}
+.pk-wait{margin:24px 0;color:#5b7685}
+@media (max-width:560px){.pk-row{grid-template-columns:80px minmax(0,1fr);padding-right:14px}.pk-st{grid-column:2;justify-self:start}.pk-date b{font-size:22px}}
 </style>
 </head>
 <body>
@@ -885,19 +903,23 @@ function pickDates(txt){const t=(txt||"").toLowerCase();const m=t.match(/(\d{1,2
 function pickStatus(e){let s=null,en=null;for(const c of e.comps||[]){const d=pickDates(c.date);if(!d)continue;if(!s||d.start<s)s=d.start;if(!en||d.end>en)en=d.end}
   const t=new Date();t.setHours(0,0,0,0);if(!s)return{k:"na",lab:"Dates à venir",ord:1,t:9e15};if(t>en)return{k:"done",lab:"Terminée",ord:2,t:-en.getTime()};if(t>=s)return{k:"live",lab:"En cours",ord:0,t:s.getTime()};
   const n=Math.round((s-t)/864e5);return{k:"soon",lab:n===1?"Demain":"Dans "+n+" jours",ord:1,t:s.getTime()}}
-async function pickBoot(){document.body.classList.add("pick");state.theme="alsace";state.org="";applyTheme();document.title="Swim Direct";
-  $("#pub-title").textContent="Swim Direct";$("#pub-meta").textContent="Choisis la compétition à suivre";$("#navbar").hidden=true;
-  const body=$("#pub-body");body.innerHTML=`<p class="empty">Chargement des compétitions…</p>`;
+async function pickBoot(){document.body.classList.add("pick");state.theme="ffn";state.org="";applyTheme();document.title="Swim Direct";
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content="#06324f";$("#navbar").hidden=true;
+  const body=$("#pub-body");const hero=`<section class="pk-hero"><div class="pk-rope"></div><div class="pk-in"><h1>Swim Direct</h1><p>Programme, séries et résultats des compétitions de natation, en direct du bord du bassin.</p></div><div class="pk-rope"></div></section>`;
+  body.innerHTML=hero+`<p class="pk-wait">Chargement des compétitions…</p>`;
   let ev=[];try{const r=await fetch("/api/events");if(r.ok)ev=await r.json()}catch(_){}
-  if(!Array.isArray(ev)||!ev.length){body.innerHTML=`<p class="empty">Aucune compétition en ligne pour le moment.</p>`;return}
+  if(!Array.isArray(ev)||!ev.length){body.innerHTML=hero+`<p class="pk-wait">Aucune compétition en ligne pour le moment. Revenez le jour du meeting.</p>`;return}
   if(ev.length===1){location.replace("/e/"+ev[0].id);return}
   const L=ev.map(e=>({...e,st:pickStatus(e)})).sort((a,b)=>a.st.ord-b.st.ord||a.st.t-b.st.t);
-  const card=e=>{const c=e.comps[0]||{};const city=c.city?c.city.charAt(0)+c.city.slice(1).toLowerCase():"";const n=e.comps.length;
-    return`<a class="pickcard th-${esc(e.theme)}" href="/e/${esc(e.id)}"><span class="pk-band"></span><span class="pk-main"><span class="pk-top"><span class="pk-st ${e.st.k}">${e.st.k==="live"?'<span class="livedot"></span>':""}${esc(e.st.lab)}</span>${e.org?`<span class="pk-org">${esc(e.org)}</span>`:""}</span>
-      <b class="pk-name">${esc(e.name||c.name||"Compétition")}</b><span class="pk-meta">${[city&&("Piscine de "+city),c.pool&&("bassin "+c.pool)].filter(Boolean).map(esc).join(" · ")}</span>
-      <span class="pk-date">${esc(c.date||"")}${n>1?` · ${n} compétitions`:""}</span></span><span class="pk-go">›</span></a>`};
-  const grp=(k,t)=>{const x=L.filter(e=>k.includes(e.st.k));return x.length?`<div class="session">${secTitle(t,"")}<div class="picklist">${x.map(card).join("")}</div></div>`:""};
-  body.innerHTML=grp(["live"],"En ce moment")+grp(["soon","na"],"À venir")+grp(["done"],"Terminées")}
+  const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+  const row=e=>{const c=e.comps[0]||{};const city=c.city?c.city.toLowerCase().replace(/(^|[\s-])\S/g,x=>x.toUpperCase()):"";const d=pickDates(c.date);
+    const day=d?(d.start.getDate()!==d.end.getDate()?d.start.getDate()+"–"+d.end.getDate():String(d.end.getDate())):"?";const mon=d?MC[d.end.getMonth()]:"";
+    const where=[city,c.pool&&("bassin de "+c.pool.replace(/\s/g,""))].filter(Boolean).join(", ");
+    return`<a class="pk-row st-${e.st.k} th-${esc(e.theme)}" href="/e/${esc(e.id)}"><span class="pk-date"><b>${esc(day)}</b><small>${esc(mon)}</small></span>
+      <span class="pk-txt"><span class="pk-name">${esc(e.name||c.name||"Compétition")}</span><span class="pk-where">${esc(where)}${e.org?`<span class="pk-org">${esc(e.org)}</span>`:""}</span></span>
+      <span class="pk-st">${e.st.k==="live"?'<span class="pk-dot"></span>En direct':esc(e.st.lab)}</span></a>`};
+  const grp=(k,t)=>{const x=L.filter(e=>k.includes(e.st.k));return x.length?`<section class="pk-grp"><h2>${t}</h2><div class="pk-list">${x.map(row).join("")}</div></section>`:""};
+  body.innerHTML=hero+`<div class="pk-body">${grp(["live"],"En ce moment")+grp(["soon","na"],"À venir")+grp(["done"],"Terminées")}</div>`}
 /* ---------- rendu public ---------- */
 const $=s=>document.querySelector(s);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
