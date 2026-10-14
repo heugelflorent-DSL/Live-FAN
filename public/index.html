@@ -472,6 +472,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
 .admin-head h2{color:#fff}
 .engban .kd{margin-top:4px;font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:600px){table.ppe thead{display:none}table.ppe tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:8px 0;border-bottom:1px solid var(--line)}table.ppe td{display:block;padding:0;border:0;min-width:0;overflow-wrap:anywhere}table.ppe td:nth-child(1){grid-column:1;grid-row:1;font-weight:600}table.ppe td:nth-child(2){grid-column:1;grid-row:2;font-size:13px;color:var(--muted)}table.ppe td:nth-child(3){grid-column:2;grid-row:1;text-align:right}table.ppe td:nth-child(4){grid-column:2;grid-row:2;text-align:right}}
 </style>
 </head>
 <body>
@@ -935,7 +936,7 @@ function renderRank(){
   $("#pub-body").innerHTML=html;
   const tv=$("#tv-btn");if(tv)tv.onclick=()=>{document.body.classList.toggle("tv");tv.textContent=document.body.classList.contains("tv")?"Quitter le plein écran":"Plein écran";try{document.body.classList.contains("tv")?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}};
 }
-function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`}
+function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table class="ppe"><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${esc(x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b></td></tr>`).join("")}</tbody></table></div></div></div>`}
 /* ---------- Direct « Bassin » (Quantum → relais → site, temps réel) ---------- */
 let poolSwap=null,POOL=null,poolWs=null,poolOff=0,poolOffN=0,poolRtt=1e9,poolSynced=false,poolShown=0,poolRetry=1000,poolTimer=null;
 function poolConnect(){if(poolWs||state.live!=="bassin"||!liveToday())return;
