@@ -1508,13 +1508,15 @@ function renderAudience(){
   if(AUD.err){box.innerHTML=tabs+`<p class="msg err">Statistiques indisponibles : ${esc(AUD.err)}</p>`;return}
   if(!d){box.innerHTML=tabs+`<p class="msg">${AUD.loading?"Chargement des statistiques…":""}</p>`;if(!AUD.loading)loadAudience();return}
   const own=d.own||{uniq:{},now:{all:0,by:{}},days:[]};const people=own.uniq&&own.uniq["*"]||0;const nowAll=own.now?own.now.all:0;
-  const kOwn=`<div class="kpis3 aud5"><div><b>${nowAll}</b><span>connectés en ce moment</span></div><div><b>${people.toLocaleString("fr-FR")}</b><span>personnes différentes</span></div>`;
+  const tm=own.time||{};const mins=ms=>{const m=Math.round((ms||0)/60e3);return m<1?"< 1 min":m<60?m+" min":Math.floor(m/60)+" h "+String(m%60).padStart(2,"0")};
+  const pk=own.peak;const pkLab=pk?new Date(pk.slot).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}).replace(":","h")+(AUD.per==="today"||AUD.per==="yday"?"":" le "+new Date(pk.slot).toLocaleDateString("fr-FR",{day:"numeric",month:"short",timeZone:"Europe/Paris"})):"";
+  const kOwn=`<div class="kpis3 aud5"><div><b>${nowAll}</b><span>connectés en ce moment</span></div><div><b>${people.toLocaleString("fr-FR")}</b><span>personnes différentes</span></div><div><b>${pk?pk.n:"—"}</b><span>pic de connectés${pk?" · "+pkLab:""}</span></div><div><b>${people?mins(tm.avgMs):"—"}</b><span>temps passé par personne</span></div><div><b>${people?Math.round(100*(tm.back||0)/people)+" %":"—"}</b><span>reviennent plusieurs fois${tm.back?" · "+tm.back+" pers.":""}</span></div>`;
   if(d.setup){box.innerHTML=tabs+kOwn+`</div><p class="msg">Pour les visites, appareils et pays : enregistrer le jeton Cloudflare <b>CF_API_TOKEN</b> du Worker.</p>`;$("#h-aud").textContent=people+" personnes";return}
   for(const k of ["hours","devices","countries","browsers","referers","os"])d[k]=d[k]||[];d.visits=d.visits||0;d.views=d.views||0;
-  const hours=d.hours,max=Math.max(1,...hours.map(h=>h.visits));const W=Math.max(320,hours.length*(d.step==="datetimeFifteenMinutes"?6:14)),H=110,bw=W/Math.max(1,hours.length);
+  const hours=d.hours,max=Math.max(1,...hours.map(h=>h.visits));const W=Math.max(640,hours.length*(d.step==="datetimeFifteenMinutes"?10:16)),H=110,bw=W/Math.max(1,hours.length);
   const lab=h=>{const t=new Date(d.step==="date"?h.k+"T12:00":h.k);return d.step==="date"?t.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"}):d.step==="datetimeHour"&&d.days>2?t.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",timeZone:"Europe/Paris"})+" "+t.toLocaleTimeString("fr-FR",{hour:"2-digit",timeZone:"Europe/Paris"}).replace(/\D/g,"")+"h":t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}).replace(":","h")};
   const step=Math.ceil(hours.length/10);
-  const bars=hours.length?`<svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Visites dans le temps">${hours.map((h,i)=>{const hh=Math.max(2,Math.round(H*h.visits/max));return`<rect x="${i*bw+1}" y="${H-hh}" width="${Math.max(1.5,bw-2)}" height="${hh}" rx="1.5" fill="var(--a)" opacity="${h.visits===max?1:.45}"><title>${lab(h)} · ${h.visits} visites</title></rect>${i%step===0?`<text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="JetBrains Mono,monospace">${lab(h)}</text>`:""}`}).join("")}</svg>`:`<p class="msg">Pas encore de visite sur la période.</p>`;
+  const bars=hours.length?`<svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Visites dans le temps">${hours.map((h,i)=>{const hh=Math.max(2,Math.round(H*h.visits/max));return`<rect x="${i*bw+1}" y="${H-hh}" width="${Math.max(1.5,bw-2)}" height="${hh}" rx="1.5" fill="var(--a)" opacity="${h.visits===max?1:.45}"><title>${lab(h)} · ${h.visits} visites</title></rect>${i%step===0?`<text x="${i?i*bw+bw/2:0}" y="${H+13}" text-anchor="${i?"middle":"start"}" font-size="11" fill="var(--muted)">${lab(h)}</text>`:""}`}).join("")}</svg>`:`<p class="msg">Pas encore de visite sur la période.</p>`;
   const list=(rows,n=6)=>{const t=rows.reduce((a,x)=>a+x.views,0)||1;return rows.slice(0,n).map(x=>`<div class="aurow"><span>${esc(x.k)}</span><span class="bar"><i style="width:${Math.round(100*x.views/t)}%"></i></span><b>${Math.round(100*x.views/t)} %</b></div>`).join("")||`<p class="msg">—</p>`};
   const peak=hours.reduce((m,h)=>h.visits>(m?m.visits:-1)?h:m,null);
   const ids=[...new Set([...Object.keys(own.uniq||{}),...Object.keys(d.byLive||{})])].filter(k=>k!=="*");
@@ -1524,16 +1526,28 @@ function renderAudience(){
   const perf=pf&&pf.p50!=null?`<div class="audbox"><div class="podlabel">Temps de chargement</div><p class="msg" style="margin:0">La moitié des visiteurs voit le site en moins de <b>${sec(pf.p50).toFixed(1).replace(".",",")} s</b>${pf.p90!=null?` · 9 sur 10 en moins de <b>${sec(pf.p90).toFixed(1).replace(".",",")} s</b>`:""} (${pf.n} mesures).</p></div>`:"";
   box.innerHTML=tabs+kOwn+`<div><b>${d.visits.toLocaleString("fr-FR")}</b><span>visites</span></div><div><b>${d.views.toLocaleString("fr-FR")}</b><span>pages vues</span></div><div><b>${peak&&peak.visits?lab(peak):"—"}</b><span>pic d'affluence${peak&&peak.visits?" · "+peak.visits+" visites":""}</span></div></div>
    <div class="audbox"><div class="podlabel">${d.step==="datetimeFifteenMinutes"?"Visites par quart d'heure":d.step==="datetimeHour"?"Visites par heure":"Visites par jour"}</div><div class="audchart">${bars}</div></div>
-   ${live}${perf}
+   ${live}${audTabs(own)}${audConc(own)}${perf}
    <div class="grid2c"><div class="audbox"><div class="podlabel">Appareils</div>${list(d.devices)}</div><div class="audbox"><div class="podlabel">Systèmes</div>${list(d.os)}</div>
    <div class="audbox"><div class="podlabel">Pays</div>${list(d.countries)}</div><div class="audbox"><div class="podlabel">Navigateurs</div>${list(d.browsers)}</div>
    <div class="audbox"><div class="podlabel">Venus depuis</div>${list(d.referers.filter(x=>x.k&&x.k!=="—"&&!/natation-alsace|swim-direct/.test(x.k)))}</div></div>
    <p class="msg">Visites, appareils et pays : Cloudflare Web Analytics, sans cookie, avec quelques minutes de décalage. Personnes différentes et connectés : comptés par Swim Direct sans cookie, à partir d'une empreinte anonyme renouvelée chaque semaine (une même personne sur deux appareils compte deux fois). « En ce moment » = actifs ces 6 dernières minutes.</p>`;
   $("#h-aud").textContent=nowAll?nowAll+" connectés":people+" personnes";
 }
+
+const TABLAB={pick:"Accueil (choix des compétitions)",archives:"Archives",home:"Accueil d'un live",live:"Direct",prog:"Programme",res:"Résultats",pod:"Podiums",rank:"Classement",part:"Nageurs & clubs"};
+function audTabs(own){const t=own.tabs||{},n=(own.now||{}).tabs||{};const ks=Object.keys(TABLAB).filter(k=>t[k]||n[k]);if(!ks.length)return"";const mx=Math.max(1,...ks.map(k=>t[k]||0));
+  return`<div class="audbox"><div class="podlabel">Onglets regardés</div><div class="tbl"><table class="audt"><thead><tr><th>Onglet</th><th>En ce moment</th><th>Personnes</th><th></th></tr></thead><tbody>${ks.sort((a,b)=>(t[b]||0)-(t[a]||0)).map(k=>`<tr><td>${TABLAB[k]}</td><td class="num">${n[k]||""}</td><td class="num">${t[k]||0}</td><td style="width:35%"><span class="bar"><i style="width:${Math.round(100*(t[k]||0)/mx)}%"></i></span></td></tr>`).join("")}</tbody></table></div></div>`}
+function audConc(own){const c=own.conc||[];if(c.length<2)return"";const multi=AUD.per!=="today"&&AUD.per!=="yday";
+  if(multi){const d=own.days||[];if(d.length<2)return"";const mx=Math.max(1,...d.map(x=>x.n)),W=Math.max(320,d.length*24),H=90,bw=W/d.length;
+    return`<div class="audbox"><div class="podlabel">Personnes différentes par jour</div><div class="audchart"><svg viewBox="0 0 ${W} ${H+18}" width="100%" role="img" aria-label="Personnes par jour">${d.map((x,i)=>{const hh=Math.max(2,Math.round(H*x.n/mx));return`<rect x="${i*bw+2}" y="${H-hh}" width="${Math.max(2,bw-4)}" height="${hh}" rx="2" fill="var(--a)" opacity=".7"><title>${x.day} · ${x.n} personnes</title></rect><text x="${i*bw+bw/2}" y="${H+13}" text-anchor="middle" font-size="9" fill="var(--muted)">${x.day.slice(8)}/${x.day.slice(5,7)}</text>`}).join("")}</svg></div></div>`}
+  const t0=c[0].slot,t1=c[c.length-1].slot,mx=Math.max(1,...c.map(x=>x.n)),W=640,H=100,X=t=>t1>t0?(t-t0)/(t1-t0)*W:0,Y=n=>H-H*n/mx;
+  const pts=c.map(x=>`${X(x.slot).toFixed(1)},${Y(x.n).toFixed(1)}`).join(" ");const hh=t=>new Date(t).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Paris"}).replace(":","h");
+  const ticks=[0,.25,.5,.75,1].map(f=>t0+(t1-t0)*f);
+  return`<div class="audbox"><div class="podlabel">Connectés en même temps</div><div class="audchart"><svg viewBox="-4 -6 ${W+8} ${H+26}" width="100%" role="img" aria-label="Connectés au fil de la journée"><polyline points="0,${H} ${pts} ${W},${H}" fill="var(--a)" opacity=".15"/><polyline points="${pts}" fill="none" stroke="var(--a)" stroke-width="2" stroke-linejoin="round"/>${ticks.map((t,i)=>`<text x="${X(t).toFixed(1)}" y="${H+16}" text-anchor="${i===0?"start":i===4?"end":"middle"}" font-size="10" fill="var(--muted)">${hh(t)}</text>`).join("")}<text x="2" y="8" font-size="10" fill="var(--muted)">max ${mx}</text></svg></div></div>`}
 async function loadAudience(){AUD.loading=true;AUD.err=null;const [a,b]=audRange();
   try{AUD.data=await api(`/api/admin/audience?from=${isoD(a)}&to=${isoD(b)}`)}catch(e){AUD.err=e.message}
   AUD.loading=false;renderAudience()}
+setInterval(()=>{const box=$("#aud");if(!state.admin||document.hidden||!box||!box.closest("details")?.open||AUD.loading)return;loadAudience()},30e3);
 document.addEventListener("click",e=>{const b=e.target.closest("[data-aud]");if(!b)return;AUD.per=b.dataset.aud;AUD.data=null;renderAudience()});
 function allClubs(){const set=new Set();for(const s of Object.values(SWIMMERS))if(s.club)set.add(clubKey(s.club));for(const ev of Object.values(EVENTS))for(const w of (ev.entries||[]).concat(ev.results||[]))if(w.club)set.add(clubKey(w.club));for(const k of Object.keys(LOGOS))set.add(k);return[...set].sort((a,b)=>a.localeCompare(b))}
 function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs();const n=cl.filter(c=>LOGOS[c]).length;$("#h-logos").textContent=cl.length?n+"/"+cl.length:"";
@@ -1740,8 +1754,13 @@ document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.datase
 if(location.hash==="#admin")openAdmin();
 if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
-function hit(){if(document.hidden||state.admin)return;try{fetch("/api/hit",{method:"POST",keepalive:true,headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname})}).catch(()=>{})}catch(_){}}
-hit();setInterval(hit,5*60e3);document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Date.now()-(window.__lastHit||0)>4*60e3){window.__lastHit=Date.now();hit()}});
+let LASTHIT=0,LASTV="";
+function hit(force){if(state.admin)return;if(document.hidden&&!force)return;const v=PICK?(ARCH?"archives":"pick"):state.view;LASTHIT=Date.now();LASTV=v;
+  try{fetch("/api/hit",{method:"POST",keepalive:true,headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname,v})}).catch(()=>{})}catch(_){}}
+hit();setInterval(()=>hit(),5*60e3);
+// onglet changé (au plus une fois toutes les 20 s), retour sur la page, départ (pour le temps passé)
+setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)hit()},5e3);
+document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.now()-LASTHIT>60e3)hit(true)}else if(Date.now()-LASTHIT>4*60e3)hit()});
 bindSpons();loadSpons();if(PICK)pickBoot();else{
 loadLogos();loadMpp();setInterval(loadMpp,10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);}
 </script>

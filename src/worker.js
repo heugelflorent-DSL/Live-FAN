@@ -449,7 +449,7 @@ export default {
       const week = Math.floor((parisEpoch(pp.y, pp.m, pp.d) / 864e5 + 3) / 7); // change chaque lundi
       const raw = `${env.ADMIN_PASSWORD || "x"}|${week}|${req.headers.get("cf-connecting-ip") || ""}|${req.headers.get("user-agent") || ""}`;
       const k = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw)))].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
-      ctx.waitUntil(env.STATS.get(env.STATS.idFromName("stats")).fetch(new Request("https://stats/hit", { method: "POST", body: JSON.stringify({ day, ev: where, k }) })).catch(() => {}));
+      ctx.waitUntil(env.STATS.get(env.STATS.idFromName("stats")).fetch(new Request("https://stats/hit", { method: "POST", body: JSON.stringify({ day, ev: where, k, v: String(body.v || "").slice(0, 12) }) })).catch(() => {}));
       return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
     }
 
