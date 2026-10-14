@@ -584,7 +584,7 @@ body.pick{background:#e9f4f8;background-image:none}
           <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option></select></label>
           <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
-          <label for="ev-progdate">Publication du programme prévue le<input class="field" type="date" id="ev-progdate"><span class="msg" style="font-weight:400">Vide = 3 jours avant la compétition</span></label></div>
+          <input type="hidden" id="ev-progdate"></div>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button><button class="btn ghost" id="link-replace" title="Retire les autres compétitions et suit uniquement celle-ci">Remplacer tout</button></div>
           <p class="msg" id="link-msg">Ajoute autant de compétitions que nécessaire.</p>
           <div id="comp-list" style="display:grid;gap:6px"></div>
@@ -1261,8 +1261,7 @@ function keyDates(){const out=[];const today=new Date();today.setHours(0,0,0,0);
   if(state.engEnd){const d=new Date(state.engEnd+"T12:00");out.push(d<today?`Engagements clos depuis le ${frDate(d)}`:`Fin des engagements : <b>${frDate(d)}</b>`)}
   else if(state.comps.some(c=>c.entriesOpen))out.push("Engagements en cours");
   if(auto){const d=new Date(auto.entryList+"T12:00");out.push(d<today?"Liste des engagés attendue d'un jour à l'autre":`Liste des engagés publiée le <b>${frDate(d)}</b>`)}
-  let p=state.progDate?new Date(state.progDate+"T12:00"):null;const c=compStartDate();if(!p&&c){p=new Date(c);p.setDate(p.getDate()-3);const a=state.comps.find(x=>x.entryList);if(a){const e=new Date(a.entryList+"T12:00");if(e>=p){p=null;out.push("Programme détaillé publié après la réunion technique")}}}
-  if(p)out.push(p<today?"Programme attendu d'un jour à l'autre":`Programme détaillé prévu vers le <b>${frDate(p)}</b>`);
+  out.push("Programme détaillé publié après la réunion technique");
   return out}
 function engBanner(){if(Object.values(EVENTS).some(e=>e.provisional)){const k=keyDates();return`<div class="card engban"><b>Programme provisoire</b><span>Le Live FFN n'a publié que la liste des courses. Les horaires, séries et engagés apparaîtront ici dès leur publication.</span>${k.length?`<span class="kd">${k.join(" · ")}</span>`:""}</div>`}
 return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
