@@ -1384,7 +1384,7 @@ function renderAudience(){
   box.innerHTML=tabs+`<div class="kpis3"><div><b>${d.visits.toLocaleString("fr-FR")}</b><span>visites</span></div><div><b>${d.views.toLocaleString("fr-FR")}</b><span>pages vues</span></div><div><b>${peak&&peak.visits?lab(peak):"—"}</b><span>pic d'affluence${peak&&peak.visits?" · "+peak.visits+" visites":""}</span></div></div>
    <div class="audbox"><div class="podlabel">${d.days===1?"Visites par heure":"Visites"}</div>${bars}</div>
    <div class="grid2c"><div class="audbox"><div class="podlabel">Appareils</div>${list(d.devices)}</div><div class="audbox"><div class="podlabel">Pays</div>${list(d.countries)}</div>
-   <div class="audbox"><div class="podlabel">Navigateurs</div>${list(d.browsers)}</div><div class="audbox"><div class="podlabel">Venus depuis</div>${list(d.referers.filter(x=>x.k&&x.k!=="—"&&!/natation-alsace/.test(x.k)))}</div></div>
+   <div class="audbox"><div class="podlabel">Navigateurs</div>${list(d.browsers)}</div><div class="audbox"><div class="podlabel">Venus depuis</div>${list(d.referers.filter(x=>x.k&&x.k!=="—"&&!/natation-alsace|swim-direct/.test(x.k)))}</div></div>
    <p class="msg">Source : Cloudflare Web Analytics, sans cookie. Les chiffres arrivent avec quelques minutes de décalage.</p>`;
   $("#h-aud").textContent=d.visits+" visites "+(d.days===1?"aujourd'hui":"sur "+d.days+" jours");
 }

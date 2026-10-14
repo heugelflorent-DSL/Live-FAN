@@ -18,7 +18,7 @@ Mot de passe : celui de l'admin du site, demandé au démarrage (ou variable SCH
 import argparse, getpass, json, os, queue, sys, threading, time, urllib.request, urllib.error
 from datetime import datetime
 
-SITE = "https://schwimme-direct.natation-alsace.workers.dev"
+SITE = "https://schwimme-direct.swim-direct.workers.dev"
 SOH, STX, EOT, BS, LF, DC2, DC4 = b"\x01", b"\x02", b"\x04", b"\x08", b"\x0a", b"\x12", b"\x14"
 ALIVE = SOH + DC2 + b"9" + DC4 + b"TP" + EOT
 HEAD = SOH + STX + BS
