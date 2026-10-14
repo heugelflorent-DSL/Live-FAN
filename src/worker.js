@@ -274,6 +274,8 @@ async function mppStep(env, ev, max = 2, force = false) {
   const want = mppWant(config, data, ev, now, force);
   if (!want.size) return 0;
   const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+  // tâche automatique : au plus une écriture toutes les 10 min par événement (1 000 écritures KV/jour en gratuit, tous événements confondus)
+  if (!force && store.at && now - store.at < 10 * 60e3) return 0;
   const empty = (x) => !Object.keys(x.b || {}).length;
   // lecture forcée : on reprend tout de suite les échecs et les nageurs retrouvés sans record
   // un record déjà lu n'est plus relu une fois la compétition commencée : on garde le record d'avant la course
@@ -523,7 +525,7 @@ export default {
         let used = 0;
         try { used = (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; left -= used; } catch (e) { /* un événement en erreur ne bloque pas les autres */ }
         // records personnels : seulement quand la relecture du Live FFN n'a rien eu à faire (temps de calcul limité)
-        if (!used) { try { await mppStep(env, ev, 2); } catch (e) {} }
+        if (!used) { try { await mppStep(env, ev, 4); } catch (e) {} }
       }
     })());
   },
