@@ -9,4 +9,4 @@ Auteurs : Flo et Mat.
 - `src/worker.js` : serveur Cloudflare (API, stockage KV, récupération programmée)
 
 Mise en ligne : Cloudflare Workers relié à ce dépôt GitHub. Chaque modification poussée sur `main` est publiée automatiquement.
-Le mot de passe de l'admin est la variable secrète `ADMIN_PASSWORD` du Worker (Cloudflare → Workers → schwimme-direct → Settings → Variables and Secrets).
+Le mot de passe de l'admin est la variable secrète `ADMIN_PASSWORD` du Worker (Cloudflare → Workers → swim-direct → Settings → Variables and Secrets).
