@@ -548,7 +548,7 @@ body.pick{background:#e9f4f8;background-image:none}
     <div class="admin-head"><h2>Administration</h2><button class="btn small" id="back-public">Voir la page publique</button></div>
     <div class="card evbar"><label for="ev-switch">Événement géré<select class="field" id="ev-switch"></select></label>
       <div class="evbar-act"><button class="btn small" id="ev-new">+ Nouvel événement</button><button class="btn small ghost" id="ev-del">Supprimer cet événement</button></div>
-      <p class="msg" id="ev-link"></p></div>
+      <p class="msg" id="ev-link"></p><div class="inline"><label for="ev-slug" style="flex:1">Adresse du live<input class="field" id="ev-slug" placeholder="ex. meeting-saint-louis-2026" maxlength="40"></label><button class="btn small" id="ev-slug-go" type="button">Changer l'adresse</button></div><p class="msg" id="ev-slug-msg"></p></div>
 
     <div class="card dash">
       <div class="dash-top">
@@ -844,7 +844,7 @@ function othersHtml(){const o=(Array.isArray(PUBEV)?PUBEV:[]).filter(e=>e.id!==E
 function evUrl(id){return location.origin+"/e/"+id}
 async function loadEvents(){try{EVLIST=await api("/api/admin/events");if(!Array.isArray(EVLIST))EVLIST=[]}catch(_){EVLIST=[]}const sel=$("#ev-switch");if(!sel)return;
   sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.id==="main"?" (adresse principale)":""}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
-  $("#ev-del").hidden=EV==="main";const u=evUrl(EV);$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
+  $("#ev-del").hidden=EV==="main";const u=evUrl(EV);{const sl=$("#ev-slug");if(sl&&document.activeElement!==sl)sl.value=EV==="main"?"":EV}$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
 async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}el.innerHTML=`<b>${j.bestN} nageurs avec records perso sur ${j.want}</b> · ${j.left?`<b>${j.left}</b> restent à chercher (dont ${j.errN||0} en échec, réessayés)`:"tous cherchés ✓"}${j.noRecN?` · ${j.noRecN} retrouvés sans record sur leurs épreuves (relus au prochain clic)`:""}${j.notFoundN?` · ${j.notFoundN} introuvables sur Extranat`:""}`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
 async function loadAdmin(){const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
@@ -1565,6 +1565,10 @@ $("#sim-clear").onclick=()=>{simStop();simSend([{k:"clear"}]);$("#sim-msg").text
 $("#ev-switch").onchange=e=>switchEvent(e.target.value);
 $("#ev-new").onclick=async()=>{const name=prompt("Nom du nouvel événement (ex. Meeting de Saint-Dizier) :");if(!name)return;const link=prompt("Lien Live FFN de la compétition (facultatif, tu pourras en ajouter ensuite) :")||"";const m=link.match(/competition=(\d+)/)||link.match(/^(\d{4,6})$/);
   try{const r=await api("/api/admin/events",{method:"POST",body:JSON.stringify({name,comps:m?[m[1]]:[]})});await switchEvent(r.id)}catch(err){alert(err.message)}};
+$("#ev-slug-go").onclick=async()=>{const to=($("#ev-slug").value||"").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40);const msg=$("#ev-slug-msg");
+  if(!to){msg.textContent="Indique une adresse (lettres, chiffres, tirets).";return}if(to===EV){msg.textContent="C'est déjà l'adresse de ce live.";return}
+  if(!confirm("Le live sera désormais à l'adresse "+location.origin+"/e/"+to+"\nL'ancien lien ne fonctionnera plus. Continuer ?"))return;
+  try{await saveNow();const j=await api("/api/admin/events",{method:"PATCH",body:JSON.stringify({to})});await switchEvent(j.id);msg.textContent="Adresse changée ✓"}catch(err){msg.textContent=err.message}};
 $("#ev-del").onclick=async()=>{if(EV==="main")return;if(!confirm("Supprimer définitivement cet événement (réglages et données) ? Le lien public ne fonctionnera plus."))return;try{await api("/api/admin/events",{method:"DELETE"});await switchEvent("main")}catch(err){alert(err.message)}};
 $("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
 $("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};

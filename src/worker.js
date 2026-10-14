@@ -466,6 +466,21 @@ export default {
         await caches.default.delete(new Request(url.origin + "/api/events"));
         return json({ ok: true, id });
       }
+      // changer l'adresse publique (/e/…) : réglages, données et records perso sont déplacés sous le nouveau nom
+      if (req.method === "PATCH") {
+        const { to = "" } = await req.json(); const id = String(to).toLowerCase().trim();
+        if (!EV_RE.test(id) || id === "main") return json({ error: "Adresse invalide : lettres minuscules, chiffres et tirets (40 caractères max)." }, 400);
+        if (id === ev) return json({ ok: true, id });
+        if (list.some((x) => x.id === id)) return json({ error: "Cette adresse est déjà utilisée par un autre événement." }, 400);
+        const [c, d, m] = await Promise.all(["config", "data", "mpp"].map((k) => env.KV.get(kk(k, ev))));
+        await Promise.all([c && env.KV.put(kk("config", id), c), d && env.KV.put(kk("data", id), d), m && env.KV.put(kk("mpp", id), m)].filter(Boolean));
+        const name = (c && JSON.parse(c).name) || (list.find((x) => x.id === ev) || {}).name || "";
+        await env.KV.put("events", JSON.stringify([...list.filter((x) => x.id !== ev), { id, name, createdAt: Date.now() }]));
+        if (ev === "main") await Promise.all([env.KV.put(kk("config", "main"), JSON.stringify({ ...DEFAULT_CONFIG })), env.KV.delete(kk("data", "main")), env.KV.delete(kk("mpp", "main"))]);
+        else await Promise.all(["config", "data", "mpp"].map((k) => env.KV.delete(kk(k, ev))));
+        await purge();
+        return json({ ok: true, id });
+      }
       if (req.method === "DELETE") {
         if (ev === "main") return json({ error: "L'événement principal ne peut pas être supprimé." }, 400);
         await env.KV.put("events", JSON.stringify(list.filter((x) => x.id !== ev)));
