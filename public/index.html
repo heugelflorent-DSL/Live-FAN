@@ -473,6 +473,15 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
 .engban .kd{margin-top:4px;font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:600px){table.ppe thead{display:none}table.ppe tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:8px 0;border-bottom:1px solid var(--line)}table.ppe td{display:block;padding:0;border:0;min-width:0;overflow-wrap:anywhere}table.ppe td:nth-child(1){grid-column:1;grid-row:1;font-weight:600}table.ppe td:nth-child(2){grid-column:1;grid-row:2;font-size:13px;color:var(--muted)}table.ppe td:nth-child(3){grid-column:2;grid-row:1;text-align:right}table.ppe td:nth-child(4){grid-column:2;grid-row:2;text-align:right}}
+.allev{display:inline-block;margin:0 0 4px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.18);color:#fff;font-size:13px;font-weight:600;text-decoration:none}.allev:hover{background:rgba(255,255,255,.3)}
+.picklist{display:grid;gap:10px}@media(min-width:900px){.picklist{grid-template-columns:1fr 1fr}}
+.pickcard{display:flex;align-items:stretch;gap:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r);text-decoration:none;color:var(--ink);overflow:hidden;box-shadow:0 6px 20px -14px rgba(var(--s-rgb),.45);transition:transform .15s}
+.pickcard:hover{transform:translateY(-2px)}.pk-band{flex:0 0 8px;background:#c8102e}.pickcard.th-ligue .pk-band{background:#13703a}.pickcard.th-ffn .pk-band{background:#0b4ea2}
+.pk-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:14px 16px}.pk-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.pk-st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:99px;background:var(--t2);color:var(--ink)}
+.pk-st.live{background:#dcfce7;color:#166534}.pk-st.done{background:#eef0f2;color:#555}.pk-org{font-size:12px;color:var(--muted)}
+.pk-name{font-size:18px;line-height:1.25}.pk-meta,.pk-date{font-size:14px;color:var(--muted)}.pk-go{display:flex;align-items:center;padding:0 16px;font-size:26px;color:var(--muted)}
+body.pick #pub-legend,body.pick #upd,body.pick #pub-org,body.pick .logo{display:none}
 </style>
 </head>
 <body>
@@ -480,7 +489,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
 <header class="top">
   <div class="wrap">
     <div class="brand"><div class="logo" role="img" aria-label="Drapeau de l'Alsace"></div>
-      <div class="brand-txt"><div class="app" id="pub-org">Swim Direct · Fédération Alsacienne de Natation</div><h1 id="pub-title"></h1><div class="meta" id="pub-meta"></div><div class="upd" id="upd"></div></div></div>
+      <div class="brand-txt"><a class="allev" id="allev" href="/" hidden>‹ Toutes les compétitions</a><div class="app" id="pub-org">Swim Direct · Fédération Alsacienne de Natation</div><h1 id="pub-title"></h1><div class="meta" id="pub-meta"></div><div class="upd" id="upd"></div></div></div>
     <div class="legend" id="pub-legend"></div>
   </div>
 </header>
@@ -813,12 +822,12 @@ async function loadPublic(){
 }
 let EVLIST=[],PUBEV=[];
 async function loadPubEvents(){try{const r=await fetch("/api/events");if(r.ok){const j=await r.json();PUBEV=Array.isArray(j)?j:[];if(!state.admin&&state.view==="home")render()}}catch(_){}}
-function othersHtml(){const o=(Array.isArray(PUBEV)?PUBEV:[]).filter(e=>e.id!==EV);if(!o.length)return"";return`<div class="session">${secTitle("Autres compétitions suivies","")}<div class="others">${o.map(e=>`<a href="${e.id==="main"?"/":"/e/"+e.id}">${esc(e.name||"Compétition")} ›</a>`).join("")}</div></div>`}
-function evUrl(id){return location.origin+(id==="main"?"/":"/e/"+id)}
+function othersHtml(){const o=(Array.isArray(PUBEV)?PUBEV:[]).filter(e=>e.id!==EV);if(!o.length)return"";return`<div class="session">${secTitle("Autres compétitions suivies","")}<div class="others">${o.map(e=>`<a href="/e/${e.id}">${esc(e.name||"Compétition")} ›</a>`).join("")}</div></div>`}
+function evUrl(id){return location.origin+"/e/"+id}
 async function loadEvents(){try{EVLIST=await api("/api/admin/events");if(!Array.isArray(EVLIST))EVLIST=[]}catch(_){EVLIST=[]}const sel=$("#ev-switch");if(!sel)return;
   sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.id==="main"?" (adresse principale)":""}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
-async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"",id==="main"?"/":"/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
+async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
 async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}el.innerHTML=`<b>${j.bestN} nageurs avec records perso sur ${j.want}</b> · ${j.left?`<b>${j.left}</b> restent à chercher (dont ${j.errN||0} en échec, réessayés)`:"tous cherchés ✓"}${j.noRecN?` · ${j.noRecN} retrouvés sans record sur leurs épreuves (relus au prochain clic)`:""}${j.notFoundN?` · ${j.notFoundN} introuvables sur Extranat`:""}`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
 async function loadAdmin(){const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
 let lastSaved="",saveTimer=null;
@@ -867,6 +876,28 @@ function simRun(idx,chain){if(idx==null){simStop();idx=+$("#sim-heat").value;cha
     if(chain>1&&hs[idx+1]){$("#sim-msg").textContent=`Série validée · prochaine série dans 40 s (${chain-1} restante${chain>2?"s":""})`;const s2=$("#sim-heat");if(s2)s2.value=String(idx+1);at(40,()=>simRun(idx+1,chain-1))}
     else $("#sim-msg").textContent="Série validée · simulation terminée"})}
 
+
+/* ---------- page d'accueil : choix de la compétition ---------- */
+const PICK=location.pathname==="/";
+const MOIS_P=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+function pickDates(txt){const t=(txt||"").toLowerCase();const m=t.match(/(\d{1,2})\s+([a-zéèûô]+)\s+(\d{4})/);if(!m)return null;const mo=MOIS_P.indexOf(m[2]);if(mo<0)return null;
+  const end=new Date(+m[3],mo,+m[1]);const d0=(t.match(/^\D*?(\d{1,2})\b/)||[])[1];let start=new Date(end);if(d0&&+d0!==+m[1]){start=new Date(+m[3],+d0>+m[1]?mo-1:mo,+d0)}return{start,end}}
+function pickStatus(e){let s=null,en=null;for(const c of e.comps||[]){const d=pickDates(c.date);if(!d)continue;if(!s||d.start<s)s=d.start;if(!en||d.end>en)en=d.end}
+  const t=new Date();t.setHours(0,0,0,0);if(!s)return{k:"na",lab:"Dates à venir",ord:1,t:9e15};if(t>en)return{k:"done",lab:"Terminée",ord:2,t:-en.getTime()};if(t>=s)return{k:"live",lab:"En cours",ord:0,t:s.getTime()};
+  const n=Math.round((s-t)/864e5);return{k:"soon",lab:n===1?"Demain":"Dans "+n+" jours",ord:1,t:s.getTime()}}
+async function pickBoot(){document.body.classList.add("pick");state.theme="alsace";state.org="";applyTheme();document.title="Swim Direct";
+  $("#pub-title").textContent="Swim Direct";$("#pub-meta").textContent="Choisis la compétition à suivre";$("#navbar").hidden=true;
+  const body=$("#pub-body");body.innerHTML=`<p class="empty">Chargement des compétitions…</p>`;
+  let ev=[];try{const r=await fetch("/api/events");if(r.ok)ev=await r.json()}catch(_){}
+  if(!Array.isArray(ev)||!ev.length){body.innerHTML=`<p class="empty">Aucune compétition en ligne pour le moment.</p>`;return}
+  if(ev.length===1){location.replace("/e/"+ev[0].id);return}
+  const L=ev.map(e=>({...e,st:pickStatus(e)})).sort((a,b)=>a.st.ord-b.st.ord||a.st.t-b.st.t);
+  const card=e=>{const c=e.comps[0]||{};const city=c.city?c.city.charAt(0)+c.city.slice(1).toLowerCase():"";const n=e.comps.length;
+    return`<a class="pickcard th-${esc(e.theme)}" href="/e/${esc(e.id)}"><span class="pk-band"></span><span class="pk-main"><span class="pk-top"><span class="pk-st ${e.st.k}">${e.st.k==="live"?'<span class="livedot"></span>':""}${esc(e.st.lab)}</span>${e.org?`<span class="pk-org">${esc(e.org)}</span>`:""}</span>
+      <b class="pk-name">${esc(e.name||c.name||"Compétition")}</b><span class="pk-meta">${[city&&("Piscine de "+city),c.pool&&("bassin "+c.pool)].filter(Boolean).map(esc).join(" · ")}</span>
+      <span class="pk-date">${esc(c.date||"")}${n>1?` · ${n} compétitions`:""}</span></span><span class="pk-go">›</span></a>`};
+  const grp=(k,t)=>{const x=L.filter(e=>k.includes(e.st.k));return x.length?`<div class="session">${secTitle(t,"")}<div class="picklist">${x.map(card).join("")}</div></div>`:""};
+  body.innerHTML=grp(["live"],"En ce moment")+grp(["soon","na"],"À venir")+grp(["done"],"Terminées")}
 /* ---------- rendu public ---------- */
 const $=s=>document.querySelector(s);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
@@ -896,7 +927,7 @@ function bestAt(b,d,total){if(!b)return null;if(b.sp){const x=b.sp.find(p=>p[0]=
 const pbTxt=(dv)=>`${dv<0?"−":"+"}${Math.abs(dv).toFixed(2).replace(".",",")}`;
 async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){LOGOS=await r.json();LOGON=null;render()}}catch(_){}}
 function compBadge(id){const c=comp(id);return`<span class="badge k${c.k}"><i></i>${esc(c.name)}</span>`}
-function renderHead(){
+function renderHead(){{const al=$("#allev");if(al)al.hidden=PICK||!(Array.isArray(PUBEV)&&PUBEV.length>1);}
   $("#pub-title").textContent=state.name||(state.comps[0]&&!state.comps[0].loading?state.comps[0].name:"Swim Direct");
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
   $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
@@ -1468,7 +1499,7 @@ function render(){if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}d
 /* ---------- interactions ---------- */
 $("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}});
 $("#admin-btn").onclick=()=>openAdmin();
-async function openAdmin(){
+async function openAdmin(){if(PICK){location.href="/e/main#admin";return}
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();loadEvents();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
   $("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-login").hidden=false;$("#login-pw").focus()}
 function alertLogin(m){$("#login-msg").textContent=m;$("#login-msg").className="msg err"}
@@ -1605,7 +1636,8 @@ document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.datase
 if(location.hash==="#admin")openAdmin();
 if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
-loadLogos();loadMpp();setInterval(loadMpp,10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);
+if(PICK)pickBoot();else{
+loadLogos();loadMpp();setInterval(loadMpp,10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);}
 </script>
 <!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
 </body>

@@ -356,7 +356,14 @@ export default {
     if (p === "/api/events" && req.method === "GET") {
       const all = [{ id: "main" }, ...(await listEvents(env))];
       const out = [];
-      for (const x of all) { const c = await env.KV.get(kk("config", x.id), "json"); if (c && c.published) out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main" }); }
+      for (const x of all) {
+        const c = await env.KV.get(kk("config", x.id), "json"); if (!c || !c.published) continue;
+        // page d'accueil : ville, bassin et dates lues dans le texte brut (sans relire tout le fichier de données)
+        const raw = (await env.KV.get(kk("data", x.id))) || ""; const metas = [];
+        for (const m of raw.matchAll(/"meta":(\{[^{}]*\})/g)) { try { metas.push(JSON.parse(m[1])); } catch (e) {} if (metas.length >= 6) break; }
+        out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main", theme: c.theme || "alsace", org: c.org ?? (c.theme && c.theme !== "alsace" ? "" : "Fédération Alsacienne de Natation"), live: c.live || "off",
+          comps: metas.map((m) => ({ name: m.name || "", city: m.city || "", pool: m.pool || "", date: m.date || "" })) });
+      }
       return json(out, 200, { "cache-control": "public, max-age=60" });
     }
 
