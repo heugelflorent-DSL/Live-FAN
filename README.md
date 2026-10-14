@@ -1,4 +1,4 @@
-# Schwimme Direct
+# Swim Direct
 
 Live de la Fédération Alsacienne de Natation : plusieurs Live FFN fusionnés en un seul programme, avec horaires recalculés, séries, résultats, podiums et classement des Interclubs.
 

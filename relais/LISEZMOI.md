@@ -1,4 +1,4 @@
-# Relais « Bassin » — Quantum → Schwimme Direct
+# Relais « Bassin » — Quantum → Swim Direct
 
 Le relais écoute la sortie série du Quantum (protocole **OSM6**) et transmet en direct au site :
 série prête, départ, temps de réaction, passages, arrivées et fin officielle.
@@ -11,11 +11,11 @@ et lire ce port avec le relais, sur le même PC. Aucun câble, aucun adaptateur.
 
 1. Sur le PC du Quantum, installer **com0com** (gratuit, « Null-modem emulator ») : il crée une paire de ports reliés, par ex. `COM20 ↔ COM21`.
 2. Dans Quantum, onglet **I/Os** : ajouter une ligne **« DH OSM6 »** et choisir **COM20** comme port.
-3. Lancer le relais sur le même PC : `python schwimme_relais.py --port COM21`
+3. Lancer le relais sur le même PC : `python swim_relais.py --port COM21`
 4. Le PC doit avoir internet (wifi de la piscine ou partage de connexion d'un téléphone).
 
 Si Quantum propose une sortie **réseau** (UDP/TCP) au lieu d'un port série, le relais sait aussi l'écouter :
-`python schwimme_relais.py --reseau udp:4000` (ou `tcp:4000`, ou `tcp:IP:PORT`).
+`python swim_relais.py --reseau udp:4000` (ou `tcp:4000`, ou `tcp:IP:PORT`).
 
 ## Matériel (si le PC du Quantum ne peut pas être utilisé)
 
@@ -43,14 +43,14 @@ et on adapte le décodage à partir de cet enregistrement.
 ## Installation (une fois)
 
 1. Installer Python 3 (python.org), puis : `pip install pyserial`
-2. Copier `schwimme_relais.py` sur l'ordinateur.
+2. Copier `swim_relais.py` sur l'ordinateur.
 
 ## Utilisation
 
 ```
-python schwimme_relais.py --ports                  # trouver le port de l'adaptateur
-python schwimme_relais.py --port COM5              # Windows
-python schwimme_relais.py --port /dev/tty.usbserial-XXXX   # Mac
+python swim_relais.py --ports                  # trouver le port de l'adaptateur
+python swim_relais.py --port COM5              # Windows
+python swim_relais.py --port /dev/tty.usbserial-XXXX   # Mac
 ```
 La clé du relais (secret RELAY_KEY dans Cloudflare) est demandée au démarrage ; le mot de passe admin fonctionne aussi, mais il vaut mieux ne pas le laisser sur le PC du chrono.
 Réglages série par défaut : `9600,7,N,1` (modifiable avec `--reglages 9600,8,N,1`).
@@ -59,9 +59,9 @@ Dans l'admin du site : **Direct pendant la compétition → Bassin**, puis Enreg
 
 ### Tester sans matériel
 ```
-python schwimme_relais.py --demo          # simule une course de 100 m, visible sur le site
-python schwimme_relais.py --port COM5 --capture   # enregistre seulement (entraînement)
-python schwimme_relais.py --replay journal-20261115-0900.jsonl   # rejoue un enregistrement
+python swim_relais.py --demo          # simule une course de 100 m, visible sur le site
+python swim_relais.py --port COM5 --capture   # enregistre seulement (entraînement)
+python swim_relais.py --replay journal-20261115-0900.jsonl   # rejoue un enregistrement
 ```
 Chaque session écrit un **journal brut** (`journal-AAAAMMJJ-HHMM.jsonl`) : à garder et à m'envoyer en cas de souci.
 

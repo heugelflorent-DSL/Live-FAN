@@ -47,12 +47,12 @@ export function pickIuf(list, name, year) {
   return hit.length === 1 ? hit[0].iuf : null; // ambigu ou introuvable : on s'abstient
 }
 export async function findIuf(name, year) {
-  const r = await fetch(`${EXT}/_recherche.php?go=ind&idrch=${encodeURIComponent(splitInitials(name).base)}`, { headers: { "User-Agent": "SchwimmeDirect/1.0" } });
+  const r = await fetch(`${EXT}/_recherche.php?go=ind&idrch=${encodeURIComponent(splitInitials(name).base)}`, { headers: { "User-Agent": "SwimDirect/1.0" } });
   if (!r.ok) throw new Error("Extranat " + r.status);
   return pickIuf(await r.json().catch(() => []), name, year);
 }
 export async function fetchMpp(iuf) {
-  const r = await fetch(`${EXT}/nat_recherche.php?idact=nat`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SchwimmeDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: String(iuf), idiuf: String(iuf), idopt: "mpp" }) });
+  const r = await fetch(`${EXT}/nat_recherche.php?idact=nat`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SwimDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: String(iuf), idiuf: String(iuf), idopt: "mpp" }) });
   if (!r.ok) throw new Error("Extranat " + r.status);
   return parseMpp(await r.text());
 }

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Relais Schwimme Direct — branché sur la sortie série d'un Quantum (protocole OSM6).
+"""Relais Swim Direct — branché sur la sortie série d'un Quantum (protocole OSM6).
 
 Il écoute UNIQUEMENT (il n'envoie jamais rien vers le chronométrage), enregistre tout ce qui passe
 dans un journal brut, décode les événements (série prête, départ, réaction, passage, arrivée,
-fin officielle) et les transmet au site Schwimme Direct.
+fin officielle) et les transmet au site Swim Direct.
 
 Utilisation :
-  python schwimme_relais.py --ports                 # liste les ports série
-  python schwimme_relais.py --port COM5             # Windows
-  python schwimme_relais.py --port /dev/tty.usbserial-XXXX   # Mac
-  python schwimme_relais.py --demo                  # simule une course (sans matériel)
-  python schwimme_relais.py --replay journal.jsonl  # rejoue un enregistrement
-  python schwimme_relais.py --port COM5 --capture   # enregistre seulement, n'envoie rien au site
+  python swim_relais.py --ports                 # liste les ports série
+  python swim_relais.py --port COM5             # Windows
+  python swim_relais.py --port /dev/tty.usbserial-XXXX   # Mac
+  python swim_relais.py --demo                  # simule une course (sans matériel)
+  python swim_relais.py --replay journal.jsonl  # rejoue un enregistrement
+  python swim_relais.py --port COM5 --capture   # enregistre seulement, n'envoie rien au site
 
-Mot de passe : celui de l'admin du site, demandé au démarrage (ou variable SCHWIMME_CLE).
+Mot de passe : celui de l'admin du site, demandé au démarrage (ou variable SWIM_CLE).
 """
 import argparse, getpass, json, os, queue, sys, threading, time, urllib.request, urllib.error
 from datetime import datetime
@@ -43,7 +43,7 @@ def num(b):
 
 class Decoder:
     rt_at = 0
-    """Assemble les trames OSM6 (deux messages par événement) et produit des événements Schwimme Direct."""
+    """Assemble les trames OSM6 (deux messages par événement) et produit des événements Swim Direct."""
     def __init__(self): self.buf = b""; self.pt1 = None; self.ts1 = None
     def feed(self, data, ts):
         self.buf += data; out = []
@@ -121,7 +121,7 @@ class Sender(threading.Thread):
             while True:
                 try:
                     req = urllib.request.Request(self.site + "/api/pool/event" + (("?e=" + self.ev) if self.ev else ""), data=json.dumps([dict(e, sent=int(time.time() * 1000), **({"srv": int(e["ts"] + self.off)} if self.off is not None and e.get("ts") else {})) for e in batch]).encode(), method="POST",
-                                                 headers={"content-type": "application/json", "x-admin-key": self.key, "user-agent": "SchwimmeRelais/1.0"})
+                                                 headers={"content-type": "application/json", "x-admin-key": self.key, "user-agent": "SwimRelais/1.0"})
                     t0 = time.time() * 1000
                     with urllib.request.urlopen(req, timeout=8) as r: res = json.loads(r.read() or b"{}")
                     t1 = time.time() * 1000
@@ -237,7 +237,7 @@ def demo_source(event=1, heat=1, lanes=(1, 2, 3, 4, 5, 6, 7, 8), laps=4):
     time.sleep(3); yield frame(p1("1", " "), p2(0, 0, 0)), time.time()
 
 def main():
-    ap = argparse.ArgumentParser(description="Relais Schwimme Direct pour Quantum (OSM6)")
+    ap = argparse.ArgumentParser(description="Relais Swim Direct pour Quantum (OSM6)")
     ap.add_argument("--port"); ap.add_argument("--reglages", default="9600,7,N,1", help="vitesse,bits,parité,arrêt (défaut 9600,7,N,1)")
     ap.add_argument("--reseau", help="au lieu d'un port série : udp:PORT, tcp:PORT (écoute) ou tcp:IP:PORT")
     ap.add_argument("--site", default=SITE); ap.add_argument("--evenement", help="identifiant de l'événement (ex. test), sinon l'événement principal"); ap.add_argument("--ports", action="store_true", help="liste les ports série")
@@ -253,7 +253,7 @@ def main():
     sender = None
     if not a.capture:
         cle = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cle.txt")
-        key = os.environ.get("SCHWIMME_CLE") or (open(cle, encoding="utf-8").read().strip() if os.path.exists(cle) else "") or getpass.getpass("Clé du relais (RELAY_KEY) ou mot de passe admin du site : ")
+        key = os.environ.get("SWIM_CLE") or os.environ.get("SCHWIMME_CLE") or (open(cle, encoding="utf-8").read().strip() if os.path.exists(cle) else "") or getpass.getpass("Clé du relais (RELAY_KEY) ou mot de passe admin du site : ")
         sender = Sender(a.site, key); sender.ev = a.evenement; sender.start()
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "relais.pid"), "w") as f: f.write(str(os.getpid()))
     journal = None

@@ -1,4 +1,4 @@
-// Schwimme Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
+// Swim Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 export { PoolRoom } from "./pool.js";
 import { get, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 import { normEvent, findIuf, fetchMpp } from "./extranat.js";
@@ -419,9 +419,9 @@ export default {
       const all = Object.entries(store.sw);
       // diagnostic : quelques exemples (nom lu, licence trouvée, erreur éventuelle) pour comprendre un échec
       const sample = all.slice(-6).map(([k, x]) => ({ k, iuf: x.iuf, n: Object.keys(x.b || {}).length, err: x.err || null }));
-      let probe = null; try { const r = await fetch("https://ffn.extranat.fr/webffn/_recherche.php?go=ind&idrch=" + encodeURIComponent(all.length ? all[all.length - 1][0].split("|")[0] : "LOZAC'H Alienor"), { headers: { "User-Agent": "SchwimmeDirect/1.0" } }); probe = { status: r.status, body: (await r.text()).slice(0, 300) }; } catch (e) { probe = { error: String(e.message || e) }; }
+      let probe = null; try { const r = await fetch("https://ffn.extranat.fr/webffn/_recherche.php?go=ind&idrch=" + encodeURIComponent(all.length ? all[all.length - 1][0].split("|")[0] : "LOZAC'H Alienor"), { headers: { "User-Agent": "SwimDirect/1.0" } }); probe = { status: r.status, body: (await r.text()).slice(0, 300) }; } catch (e) { probe = { error: String(e.message || e) }; }
       let probe2 = null; const one = all.find(([, x]) => x.iuf);
-      if (one) { try { const r = await fetch("https://ffn.extranat.fr/webffn/nat_recherche.php?idact=nat", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SchwimmeDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: one[1].iuf, idiuf: one[1].iuf, idopt: "mpp" }) }); const t = await r.text(); probe2 = { status: r.status, len: t.length, bassins: (t.match(/Bassin\s*:\s*\d+/gi) || []).length, rows: (t.match(/scope=["']row["']/g) || []).length, setCookie: r.headers.get("set-cookie") ? 1 : 0 }; } catch (e) { probe2 = { error: String(e.message || e) }; } }
+      if (one) { try { const r = await fetch("https://ffn.extranat.fr/webffn/nat_recherche.php?idact=nat", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SwimDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: one[1].iuf, idiuf: one[1].iuf, idopt: "mpp" }) }); const t = await r.text(); probe2 = { status: r.status, len: t.length, bassins: (t.match(/Bassin\s*:\s*\d+/gi) || []).length, rows: (t.match(/scope=["']row["']/g) || []).length, setCookie: r.headers.get("set-cookie") ? 1 : 0 }; } catch (e) { probe2 = { error: String(e.message || e) }; } }
       const st = await mppStatus(env, ev);
       return json({ ok: true, used, ...st, total: all.length, probe2, found: all.filter(([, x]) => x.iuf).length, withBest: all.filter(([, x]) => x.b && Object.keys(x.b).length).length, sample, probe });
     }

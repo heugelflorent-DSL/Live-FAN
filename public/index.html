@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#c8102e">
-<title>Schwimme Direct</title>
+<title>Swim Direct</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +17,7 @@ html[data-theme="ffn"]{--a:#1f5fbf;--a0:#0b4ea2;--a-d:#0a438c;--a-d2:#093a78;--a
 html:not([data-theme="alsace"]) .logo{display:none}
 html:not([data-theme="alsace"]) .brand-txt h1{color:#fff}
 
-/* Schwimme Direct — thème Alsace (rouge et blanc) aligné sur Classement Clubs · Live.
+/* Swim Direct — thème Alsace (rouge et blanc) aligné sur Classement Clubs · Live.
    Mobile d'abord : en-tête, barre de navigation collante, une colonne de cartes ; l'admin en étapes numérotées. */
 :root{
   --red:var(--a0); --red-d:var(--a-d2); --wine:var(--a-dd); --ink:#ffffff; --muted:var(--mu); --faint:var(--fa);
@@ -480,7 +480,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
 <header class="top">
   <div class="wrap">
     <div class="brand"><div class="logo" role="img" aria-label="Drapeau de l'Alsace"></div>
-      <div class="brand-txt"><div class="app" id="pub-org">Schwimme Direct · Fédération Alsacienne de Natation</div><h1 id="pub-title"></h1><div class="meta" id="pub-meta"></div><div class="upd" id="upd"></div></div></div>
+      <div class="brand-txt"><div class="app" id="pub-org">Swim Direct · Fédération Alsacienne de Natation</div><h1 id="pub-title"></h1><div class="meta" id="pub-meta"></div><div class="upd" id="upd"></div></div></div>
     <div class="legend" id="pub-legend"></div>
   </div>
 </header>
@@ -540,7 +540,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
         <div class="step-body">
           <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
           <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option></select></label>
-          <label for="ev-org">Organisateur affiché sous « Schwimme Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
+          <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <label for="ev-progdate">Publication du programme prévue le<input class="field" type="date" id="ev-progdate"><span class="msg" style="font-weight:400">Vide = 3 jours avant la compétition</span></label></div>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button><button class="btn ghost" id="link-replace" title="Retire les autres compétitions et suit uniquement celle-ci">Remplacer tout</button></div>
@@ -645,7 +645,7 @@ tr.hit td,.rk-row.hit{background:#fff3c4}
     <div class="savebar" id="savebar"><span id="save-state">Tout est enregistré</span><div class="inline"><button class="btn small ghost" id="back-public2" type="button">Page publique</button><button class="btn" id="save-btn" type="button" disabled>Enregistrer</button></div></div>
   </section>
 
-  <footer class="foot"><div class="sigw"><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo — Collectif alsacien pour la natation de demain"></div><p>Schwimme Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
+  <footer class="foot"><div class="sigw"><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo — Collectif alsacien pour la natation de demain"></div><p>Swim Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
 </main>
 
 <script>
@@ -766,7 +766,7 @@ function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.s
   const cd=compStartDate();if(cd&&(h.start<cd.getTime()-864e5||h.start>cd.getTime()+5*864e5))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
 const THEME_COL={alsace:"#c8102e",ligue:"#17803f",ffn:"#0b4ea2"};
-function applyTheme(){const t=THEME_COL[state.theme]?state.theme:"alsace";document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=THEME_COL[t];const o=document.getElementById("pub-org");if(o)o.textContent="Schwimme Direct"+(state.org?" · "+state.org:"")}
+function applyTheme(){const t=THEME_COL[state.theme]?state.theme:"alsace";document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=THEME_COL[t];const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
 let CSD=0;function schedule(){
   // résultats lus longtemps après la compétition (compétition passée relue) : l'heure de lecture n'est pas l'heure de la course
   const csd=compStartDate();CSD=csd?csd.getTime():0;
@@ -897,7 +897,7 @@ const pbTxt=(dv)=>`${dv<0?"−":"+"}${Math.abs(dv).toFixed(2).replace(".",",")}`
 async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){LOGOS=await r.json();LOGON=null;render()}}catch(_){}}
 function compBadge(id){const c=comp(id);return`<span class="badge k${c.k}"><i></i>${esc(c.name)}</span>`}
 function renderHead(){
-  $("#pub-title").textContent=state.name||(state.comps[0]&&!state.comps[0].loading?state.comps[0].name:"Schwimme Direct");
+  $("#pub-title").textContent=state.name||(state.comps[0]&&!state.comps[0].loading?state.comps[0].name:"Swim Direct");
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
   $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
   const sel=$("#filter-comp");const cur=sel.value;sel.innerHTML=`<option value="">Toutes les compétitions</option>`+state.comps.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");sel.value=state.comps.find(c=>c.id===cur)?cur:"";
