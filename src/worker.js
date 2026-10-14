@@ -507,7 +507,7 @@ export default {
         if (!x || typeof x.img !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(x.img) || x.img.length > 80000) return json({ error: "Image invalide ou trop lourde." }, 400);
         const link = String(x.url || "").trim().slice(0, 300);
         if (link && !/^https?:\/\/[^\s"<>]+$/i.test(link)) return json({ error: "Lien invalide : il doit commencer par http:// ou https://" }, 400);
-        clean.push({ name: String(x.name || "").slice(0, 80), url: link, img: x.img });
+        clean.push({ name: String(x.name || "").slice(0, 80), url: link, img: x.img, bg: x.bg === "none" ? "none" : "white" });
       }
       await env.KV.put(scope === "all" ? "sponsors" : kk("sponsors", ev), JSON.stringify(clean));
       return json({ ok: true });
