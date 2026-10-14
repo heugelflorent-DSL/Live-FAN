@@ -1191,7 +1191,7 @@ function renderHome(){
     return`<div class="card reu"><div class="reu-h"><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}</span></div><ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol></div>`}).join("")}</div></div>`;
   html+=teams;
   html+=`<div class="session">${secTitle("Compétitions")}<div class="card comps">${state.comps.map(c=>`<a class="comprow" href="https://www.liveffn.com/cgi-bin/index.php?competition=${c.id}&langue=fra" target="_blank" rel="noopener">${compBadge(c.id)}<span class="msg">${plural(Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length,"épreuve")}</span><span class="ext">Live FFN ↗</span></a>`).join("")}</div></div>`;
-  $("#pub-body").innerHTML=top+mySwimmers(false)+html+othersHtml();
+  $("#pub-body").innerHTML=top+mySwimmers(false)+html;
 }
 function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCase().includes(q))}
 function getQ(){return $("#search").value.trim().toLowerCase()}
