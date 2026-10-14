@@ -438,6 +438,11 @@ export default {
       return json({ at: store.at || null, sw: out }, 200, { "cache-control": "public, max-age=300" });
     }
 
+    // partenaires : ceux de tous les lives + ceux de cet événement
+    if (p === "/api/sponsors" && req.method === "GET") {
+      const [all, one] = await Promise.all([env.KV.get("sponsors", "json"), env.KV.get(kk("sponsors", ev), "json")]);
+      return json({ all: all || [], ev: one || [] }, 200, { "cache-control": "public, max-age=60" });
+    }
     if (p === "/api/logos" && req.method === "GET") {
       const logos = (await env.KV.get("logos", "json")) || {};
       return json(logos, 200, { "cache-control": "public, max-age=300" });
@@ -472,19 +477,19 @@ export default {
         if (!EV_RE.test(id) || id === "main") return json({ error: "Adresse invalide : lettres minuscules, chiffres et tirets (40 caractères max)." }, 400);
         if (id === ev) return json({ ok: true, id });
         if (list.some((x) => x.id === id)) return json({ error: "Cette adresse est déjà utilisée par un autre événement." }, 400);
-        const [c, d, m] = await Promise.all(["config", "data", "mpp"].map((k) => env.KV.get(kk(k, ev))));
-        await Promise.all([c && env.KV.put(kk("config", id), c), d && env.KV.put(kk("data", id), d), m && env.KV.put(kk("mpp", id), m)].filter(Boolean));
+        const [c, d, m, sp] = await Promise.all(["config", "data", "mpp", "sponsors"].map((k) => env.KV.get(kk(k, ev))));
+        await Promise.all([c && env.KV.put(kk("config", id), c), d && env.KV.put(kk("data", id), d), m && env.KV.put(kk("mpp", id), m), sp && env.KV.put(kk("sponsors", id), sp)].filter(Boolean));
         const name = (c && JSON.parse(c).name) || (list.find((x) => x.id === ev) || {}).name || "";
         await env.KV.put("events", JSON.stringify([...list.filter((x) => x.id !== ev), { id, name, createdAt: Date.now() }]));
         if (ev === "main") await Promise.all([env.KV.put(kk("config", "main"), JSON.stringify({ ...DEFAULT_CONFIG })), env.KV.delete(kk("data", "main")), env.KV.delete(kk("mpp", "main"))]);
-        else await Promise.all(["config", "data", "mpp"].map((k) => env.KV.delete(kk(k, ev))));
+        else await Promise.all(["config", "data", "mpp", "sponsors"].map((k) => env.KV.delete(kk(k, ev))));
         await purge();
         return json({ ok: true, id });
       }
       if (req.method === "DELETE") {
         if (ev === "main") return json({ error: "L'événement principal ne peut pas être supprimé." }, 400);
         await env.KV.put("events", JSON.stringify(list.filter((x) => x.id !== ev)));
-        await Promise.all([env.KV.delete(kk("config", ev)), env.KV.delete(kk("data", ev))]);
+        await Promise.all([env.KV.delete(kk("config", ev)), env.KV.delete(kk("data", ev)), env.KV.delete(kk("sponsors", ev))]);
         await purge();
         return json({ ok: true });
       }
@@ -493,6 +498,19 @@ export default {
     if (p === "/api/admin/state") {
       const { config, data } = await load(env, ev);
       return json({ config, data, now: Date.now() });
+    }
+    if (p === "/api/admin/sponsors" && req.method === "PUT") {
+      const { scope, list } = await req.json();
+      if (!Array.isArray(list) || list.length > 24) return json({ error: "Liste invalide (24 logos maximum)." }, 400);
+      const clean = [];
+      for (const x of list) {
+        if (!x || typeof x.img !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(x.img) || x.img.length > 80000) return json({ error: "Image invalide ou trop lourde." }, 400);
+        const link = String(x.url || "").trim().slice(0, 300);
+        if (link && !/^https?:\/\/[^\s"<>]+$/i.test(link)) return json({ error: "Lien invalide : il doit commencer par http:// ou https://" }, 400);
+        clean.push({ name: String(x.name || "").slice(0, 80), url: link, img: x.img });
+      }
+      await env.KV.put(scope === "all" ? "sponsors" : kk("sponsors", ev), JSON.stringify(clean));
+      return json({ ok: true });
     }
     if (p === "/api/logo" && req.method === "PUT") {
       const { club, data } = await req.json();

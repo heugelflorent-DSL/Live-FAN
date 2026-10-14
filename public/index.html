@@ -507,6 +507,14 @@ body.pick{background:#e9f4f8;background-image:none}
 .pk-seas{display:flex;gap:8px;overflow-x:auto;margin:12px 0 14px;scrollbar-width:none}.pk-seas button{flex:0 0 auto;font:inherit;font-size:14px;font-weight:600;padding:7px 14px;border-radius:99px;border:2px solid #c9dde6;background:#fff;color:#06324f;cursor:pointer}
 .pk-seas button[aria-pressed="true"]{background:#06324f;border-color:#06324f;color:#fff}
 #pk-res{margin-top:12px}#pk-res .st-done{opacity:1}#pk-res .pk-st{display:none}#pk-res .pk-row{grid-template-columns:92px minmax(0,1fr)}@media (max-width:560px){#pk-res .pk-row{grid-template-columns:80px minmax(0,1fr)}}
+.sp-h{margin:16px 0 8px;font-size:15px}.sp-list{display:grid;gap:8px;margin-bottom:10px}.sp-row{display:grid;grid-template-columns:96px 1fr 1.4fr auto;gap:8px;align-items:center}
+.sp-img{display:flex;align-items:center;justify-content:center;height:52px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px}.sp-img img{max-width:100%;max-height:100%;object-fit:contain}
+.sp-act{display:flex;gap:4px}@media (max-width:700px){.sp-row{grid-template-columns:80px 1fr}.sp-row input[data-f="url"]{grid-column:1/-1}.sp-act{grid-column:1/-1}}
+.foot .sigw.has-sp{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:nowrap}
+.sp-side{display:flex;align-items:center;gap:14px;flex:1;min-width:0}.sp-side.l{justify-content:flex-end}.sp-side.r{justify-content:flex-start}.sp-side:empty{display:none}.has-sp .sp-side:empty{display:flex}
+.sp-l{display:flex;align-items:center;justify-content:center;width:120px;height:64px;padding:8px;box-sizing:border-box;background:#fff;border-radius:10px;border:1px solid var(--line);flex:0 0 auto}
+.sp-l img{max-width:100%;max-height:100%;object-fit:contain}a.sp-l:hover{border-color:var(--a)}a.sp-l:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+@media (max-width:700px){.foot .sigw.has-sp{flex-wrap:wrap}.foot .sigw.has-sp .sig{order:-1;flex:0 0 100%;object-fit:contain}.sp-side{flex:0 0 100%;justify-content:center!important;flex-wrap:wrap;gap:10px}.sp-l{width:calc(50% - 5px);max-width:150px}}
 </style>
 </head>
 <body>
@@ -615,6 +623,17 @@ body.pick{background:#e9f4f8;background-image:none}
           <div id="logo-list"></div>
         </div>
       </details>
+      <details class="step">
+        <summary><span class="n">★</span>Partenaires et sponsors<span class="hint" id="h-spons"></span></summary>
+        <div class="step-body">
+          <p class="msg">Les logos s'affichent en bas de chaque page. Une image (PNG, JPG ou WebP) est réduite automatiquement ; le lien est facultatif. Chaque modification est enregistrée tout de suite.</p>
+          <h4 class="sp-h">Sur ce live uniquement</h4><div class="sp-list" id="sp-ev"></div>
+          <label class="btn small ghost">+ Ajouter un logo à ce live<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="sp-add-ev" hidden></label>
+          <h4 class="sp-h">Sur tous les lives (et l'accueil)</h4><div class="sp-list" id="sp-all"></div>
+          <label class="btn small ghost">+ Ajouter un logo à tous les lives<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="sp-add-all" hidden></label>
+          <p class="msg" id="sp-msg"></p>
+        </div>
+      </details>
       <details class="step" id="fin-step" hidden>
         <summary><span class="n">★</span>Finales : règles d'accès<span class="hint" id="h-fin"></span></summary>
         <div class="step-body">
@@ -679,7 +698,7 @@ body.pick{background:#e9f4f8;background-image:none}
     <div class="savebar" id="savebar"><span id="save-state">Tout est enregistré</span><div class="inline"><button class="btn small ghost" id="back-public2" type="button">Page publique</button><button class="btn" id="save-btn" type="button" disabled>Enregistrer</button></div></div>
   </section>
 
-  <footer class="foot"><div class="sigw"><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo — Collectif alsacien pour la natation de demain"></div><p>Swim Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
+  <footer class="foot"><div class="sigw"><div class="sp-side l" id="sp-l"></div><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo — Collectif alsacien pour la natation de demain"><div class="sp-side r" id="sp-r"></div></div><p>Swim Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo — Collectif alsacien pour la natation de demain <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
 </main>
 
 <script>
@@ -854,7 +873,7 @@ async function loadEvents(){try{EVLIST=await api("/api/admin/events");if(!Array.
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);{const sl=$("#ev-slug");if(sl&&document.activeElement!==sl)sl.value=EV==="main"?"":EV}$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
 async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}el.innerHTML=`<b>${j.bestN} nageurs avec records perso sur ${j.want}</b> · ${j.left?`<b>${j.left}</b> restent à chercher (dont ${j.errN||0} en échec, réessayés)`:"tous cherchés ✓"}${j.noRecN?` · ${j.noRecN} retrouvés sans record sur leurs épreuves (relus au prochain clic)`:""}${j.notFoundN?` · ${j.notFoundN} introuvables sur Extranat`:""}`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
-async function loadAdmin(){const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
+async function loadAdmin(){loadSpons();const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
 let lastSaved="",saveTimer=null;
 function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(markDirty,150)}
 function markDirty(){const dirty=JSON.stringify(toConfig())!==lastSaved;const el=$("#save-state"),b=$("#save-btn"),bar=$("#savebar");
@@ -902,6 +921,25 @@ function simRun(idx,chain){if(idx==null){simStop();idx=+$("#sim-heat").value;cha
     else $("#sim-msg").textContent="Série validée · simulation terminée"})}
 
 
+
+/* ---------- partenaires / sponsors ---------- */
+let SPONS={all:[],ev:[]};
+async function loadSpons(){try{const r=await fetch(evq("/api/sponsors")+(state.admin?(evq("/api/sponsors").includes("?")?"&":"?")+"t="+Date.now():""));if(r.ok){const j=await r.json();SPONS={all:j.all||[],ev:j.ev||[]}}}catch(_){}renderSpons();if(state.admin)renderSponsAdmin()}
+function renderSpons(){const L=[...(PICK?[]:SPONS.ev),...SPONS.all];const l=$("#sp-l"),r=$("#sp-r");if(!l||!r)return;
+  const logo=x=>{const im=`<img src="${x.img}" alt="${esc(x.name||"Partenaire")}" loading="lazy">`;return x.url?`<a class="sp-l" href="${esc(x.url)}" target="_blank" rel="noopener sponsored" title="${esc(x.name||"")}">${im}</a>`:`<span class="sp-l" title="${esc(x.name||"")}">${im}</span>`};
+  // alternance gauche / droite autour du logo, le premier partenaire le plus près
+  const left=[],right=[];L.forEach((x,i)=>(i%2?right:left).push(x));l.innerHTML=left.reverse().map(logo).join("");r.innerHTML=right.map(logo).join("");
+  document.querySelector(".foot .sigw").classList.toggle("has-sp",L.length>0)}
+async function saveSpons(scope){const msg=$("#sp-msg");try{await api("/api/admin/sponsors",{method:"PUT",body:JSON.stringify({scope,list:SPONS[scope]})});if(msg)msg.textContent="Enregistré ✓";renderSpons()}catch(e){if(msg)msg.textContent=e.message}}
+let spT={};
+function renderSponsAdmin(){for(const scope of ["ev","all"]){const el=$("#sp-"+scope);if(!el)continue;const L=SPONS[scope];
+  el.innerHTML=L.length?L.map((x,i)=>`<div class="sp-row"><span class="sp-img"><img src="${x.img}" alt=""></span><input class="field" placeholder="Nom" value="${esc(x.name||"")}" data-sp="${scope}" data-i="${i}" data-f="name"><input class="field" placeholder="Lien (facultatif) https://…" value="${esc(x.url||"")}" data-sp="${scope}" data-i="${i}" data-f="url">
+    <span class="sp-act"><button class="btn small ghost" data-spmv="${scope}" data-i="${i}" data-d="-1" ${i?"":"disabled"} aria-label="Monter">↑</button><button class="btn small ghost" data-spmv="${scope}" data-i="${i}" data-d="1" ${i<L.length-1?"":"disabled"} aria-label="Descendre">↓</button><button class="btn small ghost" data-sprm="${scope}" data-i="${i}" aria-label="Retirer">×</button></span></div>`).join(""):`<p class="msg">Aucun logo.</p>`;
+  el.querySelectorAll("[data-f]").forEach(inp=>inp.oninput=()=>{SPONS[scope][+inp.dataset.i][inp.dataset.f]=inp.value;clearTimeout(spT[scope]);spT[scope]=setTimeout(()=>saveSpons(scope),700)});
+  el.querySelectorAll("[data-spmv]").forEach(b=>b.onclick=()=>{const i=+b.dataset.i,j=i+ +b.dataset.d;const L2=SPONS[scope];[L2[i],L2[j]]=[L2[j],L2[i]];renderSponsAdmin();saveSpons(scope)});
+  el.querySelectorAll("[data-sprm]").forEach(b=>b.onclick=()=>{SPONS[scope].splice(+b.dataset.i,1);renderSponsAdmin();saveSpons(scope)})}
+  const h=$("#h-spons");if(h)h.textContent=(SPONS.ev.length+SPONS.all.length)?SPONS.ev.length+" ici · "+SPONS.all.length+" partout":""}
+function bindSpons(){for(const scope of ["ev","all"]){const inp=$("#sp-add-"+scope);if(inp)inp.onchange=async()=>{const f=inp.files[0];inp.value="";if(!f)return;try{const d=await shrink(f,360,160,80000);SPONS[scope].push({name:f.name.replace(/\.[a-z0-9]+$/i,"").replace(/[_-]+/g," "),url:"",img:d});renderSponsAdmin();await saveSpons(scope)}catch(e){$("#sp-msg").textContent=e.message}}}}
 /* ---------- page d'accueil : choix de la compétition ---------- */
 const ARCH=/^\/archives\/?$/.test(location.pathname);const PICK=location.pathname==="/"||ARCH;
 const MOIS_P=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -1481,7 +1519,7 @@ function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs(
   el.querySelectorAll("[data-logo]").forEach(inp=>inp.onchange=async()=>{const f=inp.files[0];if(!f)return;try{const d=await shrink(f);await api("/api/logo",{method:"PUT",body:JSON.stringify({club:cl[+inp.dataset.logo],data:d})});LOGOS[cl[+inp.dataset.logo]]=d;renderLogos();render()}catch(e){alertMsg(e.message)}});
   el.querySelectorAll("[data-logorm]").forEach(b=>b.onclick=async()=>{const c=cl[+b.dataset.logorm];try{await api("/api/logo",{method:"PUT",body:JSON.stringify({club:c,data:null})});delete LOGOS[c];renderLogos();render()}catch(e){alertMsg(e.message)}})}
 function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
-function shrink(file){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const S=96,r=Math.min(S/img.width,S/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>40000?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
+function shrink(file,W=96,H=96,max=40000){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const r=Math.min(W/img.width,H/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>max?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
 function renderAdmin(){renderLogos();renderFinRules();
   $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
@@ -1680,7 +1718,7 @@ document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.datase
 if(location.hash==="#admin")openAdmin();
 if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
-if(PICK)pickBoot();else{
+bindSpons();loadSpons();if(PICK)pickBoot();else{
 loadLogos();loadMpp();setInterval(loadMpp,10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);}
 </script>
 <!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
