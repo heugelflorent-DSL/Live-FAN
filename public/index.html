@@ -500,6 +500,11 @@ body.pick{background:#e9f4f8;background-image:none}
 .st-done{opacity:.72}
 .pk-wait{margin:24px 0;color:#5b7685}
 @media (max-width:560px){.pk-row{grid-template-columns:80px minmax(0,1fr);padding-right:14px}.pk-st{grid-column:2;justify-self:start}.pk-date b{font-size:22px}}
+.pk-arch{margin-top:32px}.pk-arch summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;font-size:20px;font-weight:700;color:#06324f;padding:6px 0}
+.pk-arch summary::-webkit-details-marker{display:none}.pk-arch summary::after{content:"▾";font-size:16px;color:#5b7685;transition:transform .2s}.pk-arch[open] summary::after{transform:rotate(180deg)}
+.pk-arch summary small{font-size:14px;font-weight:600;color:#5b7685;background:#fff;border-radius:99px;padding:2px 10px}.pk-arch summary:focus-visible{outline:3px solid #0b5c8e;outline-offset:2px;border-radius:6px}
+.pk-arch .pk-st{display:none}.pk-arch .pk-row{grid-template-columns:92px minmax(0,1fr)}
+.pk-arch h3{margin:16px 0 8px;font-size:15px;font-weight:600;color:#5b7685}
 </style>
 </head>
 <body>
@@ -919,7 +924,11 @@ async function pickBoot(){document.body.classList.add("pick");state.theme="ffn";
       <span class="pk-txt"><span class="pk-name">${esc(e.name||c.name||"Compétition")}</span><span class="pk-where">${esc(where)}${e.org?`<span class="pk-org">${esc(e.org)}</span>`:""}</span></span>
       <span class="pk-st">${e.st.k==="live"?'<span class="pk-dot"></span>En direct':esc(e.st.lab)}</span></a>`};
   const grp=(k,t)=>{const x=L.filter(e=>k.includes(e.st.k));return x.length?`<section class="pk-grp"><h2>${t}</h2><div class="pk-list">${x.map(row).join("")}</div></section>`:""};
-  body.innerHTML=hero+`<div class="pk-body">${grp(["live"],"En ce moment")+grp(["soon","na"],"À venir")+grp(["done"],"Terminées")}</div>`}
+  const MF=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const done=L.filter(e=>e.st.k==="done");let arch="";
+  if(done.length){const by=new Map();for(const e of done){const d=pickDates((e.comps[0]||{}).date);const k=d?MF[d.end.getMonth()]+" "+d.end.getFullYear():"Autres";if(!by.has(k))by.set(k,[]);by.get(k).push(e)}
+    arch=`<details class="pk-arch"><summary><span>Compétitions terminées</span><small>${done.length}</small></summary>${[...by].map(([k,x])=>`<h3>${esc(k)}</h3><div class="pk-list">${x.map(row).join("")}</div>`).join("")}</details>`}
+  body.innerHTML=hero+`<div class="pk-body">${grp(["live"],"En ce moment")+grp(["soon","na"],"À venir")+arch}</div>`}
 /* ---------- rendu public ---------- */
 const $=s=>document.querySelector(s);
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
