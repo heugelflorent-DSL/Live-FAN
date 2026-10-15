@@ -208,7 +208,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     if (!every) return 0; // récupération manuelle uniquement
     if (data.lastRun && now - data.lastRun < every - 5e3) return 0;
     // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
-    if (finished(config, data, now) && !(data.queue || []).length) {
+    if (finished(config, data, now) && !(data.queue || []).length && config.comps.every((id) => Object.keys((data.comps[id] || {}).events || {}).length)) {
       if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); }
       return 0;
     }
