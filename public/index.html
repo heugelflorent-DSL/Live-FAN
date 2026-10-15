@@ -372,7 +372,7 @@ tr.dns td{opacity:.55}tr.dns td a{text-decoration:line-through}
 .k1 i,.cdot.k1 i{background:var(--red)}
 .login{max-width:380px;margin:40px auto;padding:20px;display:grid;gap:12px}.login h2{margin:0}
 .agebox{display:grid;gap:10px;padding:12px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid var(--line)}
-.catgrid{display:grid;grid-template-columns:minmax(0,1fr) 72px 72px 32px;gap:6px;align-items:center}
+.catopen{justify-content:center}.catgrid{display:grid;grid-template-columns:minmax(0,1fr) 72px 72px 92px 32px;gap:6px;align-items:center}
 .podgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:10px}
 .podblock{padding:12px 14px 10px}
 .podlist{list-style:none;margin:0;padding:0;display:grid}
@@ -1594,7 +1594,7 @@ function renderPod(){
     if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places,g);
     else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(renum(all.filter(w=>rule.upOpen?(+w.year>=+y):w.year===y).map(w=>rule.upOpen&&w.year!==y?{...w,sur:1}:w),K),"Né(e)s en "+y,rule.places,g)).join("")}
     else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
-      blocks=cats.map(c=>podCard(renum(all.filter(w=>{const a=ref-(+w.year);return w.year&&(rule.upOpen||a>=(+c.min||0))&&a<=(c.max===""||c.max==null?999:+c.max)}).map(w=>rule.upOpen&&ref-(+w.year)<(+c.min||0)?{...w,sur:1}:w)),c.name||`${c.min}-${c.max} ans`,rule.places,g)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
+      blocks=cats.map(c=>podCard(renum(all.filter(w=>{const a=ref-(+w.year);return w.year&&(c.open||a>=(+c.min||0))&&a<=(c.max===""||c.max==null?999:+c.max)}).map(w=>c.open&&ref-(+w.year)<(+c.min||0)?{...w,sur:1}:w)),c.name||`${c.min}-${c.max} ans`,rule.places,g)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
     const merged=g.keys.length>1&&!K;
     return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`)+`</div>`;
   $("#pub-body").innerHTML=html;
@@ -1724,12 +1724,12 @@ function renderAdmin(){renderLogos();renderFinRules();
     ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label><label class="chk"><input type="checkbox" data-rf="needRelays" data-rid="${r.id}" ${r.needRelays!==false?"checked":""}> Équipe non classée s'il lui manque un relais (règle des Interclubs)</label>`:`<div class="grid2c">
       <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="age" ${r.mode==="age"?"selected":""}>Catégories d'âge</option></select></label>
       <label>Places affichées<input class="field" type="number" min="1" max="10" data-rf="places" data-rid="${r.id}" value="${r.places}"></label>
-    </div>${r.mode==="year"||r.mode==="age"?`<label class="chk"><input type="checkbox" data-rf="upOpen" data-rid="${r.id}" ${r.upOpen?"checked":""}> Surclassement : un nageur plus jeune assez rapide monte aussi sur les podiums des catégories plus âgées</label>`:""}`}
+    </div>${r.mode==="year"?`<label class="chk"><input type="checkbox" data-rf="upOpen" data-rid="${r.id}" ${r.upOpen?"checked":""}> Surclassement : un nageur plus jeune assez rapide monte aussi sur les podiums des catégories plus âgées</label>`:""}`}
     ${r.type!=="team"&&r.mode==="age"?`<div class="agebox"><b>Catégories d'âge</b>
       <p class="msg">Âge = année de référence − année de naissance. Par défaut, l'année de la compétition (saisons FFN en année civile). Les relais ne comptent pas dans les classements par âge.</p>
       <label>Année de référence<input class="field" type="number" data-rf="refYear" data-rid="${r.id}" value="${r.refYear||refYearDefault()}" style="max-width:160px"></label>
-      <div class="catgrid"><span class="msg">Nom</span><span class="msg">Âge min</span><span class="msg">Âge max</span><span></span>
-      ${(r.cats||[]).map((c,i)=>`<input class="field" data-cat="name" data-ci="${i}" data-rid="${r.id}" value="${esc(c.name)}" aria-label="Nom de la catégorie"><input class="field" type="number" min="0" data-cat="min" data-ci="${i}" data-rid="${r.id}" value="${c.min}" aria-label="Âge minimum"><input class="field" type="number" min="0" data-cat="max" data-ci="${i}" data-rid="${r.id}" value="${c.max}" placeholder="—" aria-label="Âge maximum"><button class="x" data-catdel="${i}" data-rid="${r.id}" aria-label="Supprimer la catégorie">×</button>`).join("")}</div>
+      <div class="catgrid"><span class="msg">Nom</span><span class="msg">Âge min</span><span class="msg">Âge max</span><span class="msg" title="Les nageurs plus jeunes assez rapides peuvent aussi monter sur ce podium">Ouverte aux plus jeunes</span><span></span>
+      ${(r.cats||[]).map((c,i)=>`<input class="field" data-cat="name" data-ci="${i}" data-rid="${r.id}" value="${esc(c.name)}" aria-label="Nom de la catégorie"><input class="field" type="number" min="0" data-cat="min" data-ci="${i}" data-rid="${r.id}" value="${c.min}" aria-label="Âge minimum"><input class="field" type="number" min="0" data-cat="max" data-ci="${i}" data-rid="${r.id}" value="${c.max}" placeholder="—" aria-label="Âge maximum"><label class="chk catopen"><input type="checkbox" data-catopen="${i}" data-rid="${r.id}" ${c.open?"checked":""} aria-label="Ouverte aux plus jeunes"></label><button class="x" data-catdel="${i}" data-rid="${r.id}" aria-label="Supprimer la catégorie">×</button>`).join("")}</div>
       <div class="inline"><button class="btn small ghost" data-catadd="${r.id}">+ Ajouter</button><button class="btn small ghost" data-catffn="${r.id}">Rétablir Avenirs / Benjamins / Juniors / Seniors</button></div></div>`:""}
   </div>`).join("")||`<p class="msg">Aucun classement.</p>`;
   $("#info-list").innerHTML=state.infos.map((i,ix)=>`<div class="rule">
@@ -1897,6 +1897,7 @@ document.addEventListener("change",e=>{const t=e.target;const r=t.dataset.rid&&s
   else if(t.dataset.rf==="places")r.places=Math.min(10,Math.max(1,+t.value||3));
   else if(t.dataset.rf==="split")r.split=t.checked;
   else if(t.dataset.rf==="upOpen")r.upOpen=t.checked;
+  else if(t.dataset.catopen!=null){r.cats[+t.dataset.catopen].open=t.checked}
   else if(t.dataset.rf==="perEvent")r.perEvent=Math.max(0,+t.value||0);
   else if(t.dataset.rf==="needRelays")r.needRelays=t.checked;
   else if(t.dataset.cat){const c=r.cats[+t.dataset.ci];c[t.dataset.cat]=t.dataset.cat==="name"?t.value:(t.value===""?"":+t.value)}
