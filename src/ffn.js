@@ -161,11 +161,18 @@ export function parseHeats(html) {
 
 function parseSplits(html) {
   const tb = (html.match(/<table class="split">([\s\S]*?)<\/table>/) || [])[1]; if (!tb) return [];
-  return rows(tb).map((tr) => {
-    const g = (c) => one((tr.match(new RegExp(`<td class="${c}">([\\s\\S]*?)</td>`)) || [])[1]);
-    const d = parseInt(g("distance")); const cum = toSec(g("split")); const lap = toSec(g("lap").replace(/[()]/g, ""));
-    return d ? { d, cum, lap } : null;
-  }).filter(Boolean);
+  // une ligne peut contenir plusieurs passages côte à côte (800, 1500 m : 50 / 550 / 1050 m sur la même ligne)
+  const out = [];
+  for (const tr of rows(tb)) {
+    const cells = [...tr.matchAll(/<td class="(distance|split|lap)">([\s\S]*?)<\/td>/g)];
+    for (let k = 0; k < cells.length; k++) {
+      if (cells[k][1] !== "distance") continue;
+      const d = parseInt(one(cells[k][2])); const sp = cells[k + 1] && cells[k + 1][1] === "split" ? toSec(one(cells[k + 1][2])) : null;
+      const lp = cells[k + 2] && cells[k + 2][1] === "lap" ? toSec(one(cells[k + 2][2]).replace(/[()]/g, "")) : null;
+      if (d && sp != null) out.push({ d, cum: sp, lap: lp });
+    }
+  }
+  return out.sort((a, b) => a.d - b.d);
 }
 
 // « 200 Nage Libre Dames - Finale B   U16 : 10-16 ans » → { kind: "final", fin: "B", cat: "U16 : 10-16 ans" }
@@ -279,11 +286,7 @@ function fullName(h) {
 }
 function liveSplits(h) {
   const tb = (h.match(/<table class="split2?">([\s\S]*?)<\/table>/) || [])[1]; if (!tb) return [];
-  return rows(tb).map((tr) => {
-    const g = (c) => one((tr.match(new RegExp(`<td class="${c}">([\\s\\S]*?)</td>`)) || [])[1]);
-    const d = parseInt(g("distance")); const cum = toSec(g("split")); const lap = toSec(g("lap").replace(/[()]/g, ""));
-    return d && cum ? { d, cum, lap } : null;
-  }).filter(Boolean);
+  return parseSplits(`<table class="split">${tb}</table>`);
 }
 function block(html, from, to) {
   const i = html.indexOf(from); if (i < 0) return "";
