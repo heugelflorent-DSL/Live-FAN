@@ -208,13 +208,15 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     if (!every) return 0; // récupération manuelle uniquement
     if (data.lastRun && now - data.lastRun < every - 5e3) return 0;
     // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
-    if (finished(config, data, now) && !(data.queue || []).length && config.comps.every((id) => Object.keys((data.comps[id] || {}).events || {}).length)) {
+    if (finished(config, data, now) && !(data.queue || []).length && config.comps.every((id) => Object.values((data.comps[id] || {}).events || {}).some((e) => (e.results || []).length))) {
       if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); }
       return 0;
     }
   }
   if (data.finished && !finished(config, data, now)) data.finished = null;
-  const live = force || windowOpen(config, data, now);
+  // compétition déjà passée dont les résultats manquent (ajoutée après coup, relecture interrompue) : on les récupère quand même
+  const missing = config.comps.some((id) => !Object.values((data.comps[id] || {}).events || {}).some((e) => (e.results || []).length));
+  const live = force || missing || windowOpen(config, data, now);
   data.queue = data.queue || [];
   let errors = 0, used = 0;
   const seen = new Set();
@@ -225,10 +227,15 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     if (!tasks.length) break;
     const todo = tasks.slice(0, budget - used);
     if (fromQueue) data.queue = data.queue.slice(todo.length);
-    for (const t of todo) {
+    for (let ti = 0; ti < todo.length; ti++) {
+      const t = todo[ti];
       seen.add(JSON.stringify(t)); used++;
       try { await runTask(t, data, now); }
-      catch (e) { errors++; data.error = String(e.message || e); data.errorAt = now; if (/indisponible/.test(data.error)) break; }
+      catch (e) {
+        errors++; data.error = String(e.message || e); data.errorAt = now;
+        // Live FFN indisponible : la tâche ratée et les suivantes reviennent dans la file, rien n'est perdu
+        if (/indisponible/.test(data.error)) { if (fromQueue) data.queue = [...todo.slice(ti), ...data.queue]; break; }
+      }
     }
   }
   if (!used) return 0;
