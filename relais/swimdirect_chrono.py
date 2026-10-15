@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.1.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.2.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -33,7 +33,7 @@ def load_cfg():
     except Exception: c = {}
     if not c.get("token"):
         c["token"] = "SD-" + "-".join("".join(random.SystemRandom().choice(ALPHA) for _ in range(4)) for _ in range(4))
-    c.setdefault("source", "127.0.0.1:26700"); c.setdefault("site", SITE); c.setdefault("forward", "")
+    c.setdefault("source", "127.0.0.1:26700"); c.setdefault("mode", "reseau"); c.setdefault("port", ""); c.setdefault("serial", "9600,7,E,1"); c.setdefault("site", SITE); c.setdefault("forward", "")
     save_cfg(c); return c
 def save_cfg(c):
     with open(CFG_PATH, "w", encoding="utf-8") as f: json.dump(c, f, indent=1)
@@ -153,6 +153,7 @@ class Core:
                 for d, ts in demo_source(): self.feed(d, ts)
                 time.sleep(5)
             return
+        if self.cfg.get("mode") == "serie": return self.serial_loop()
         quick = 0
         while not self.stop:
             host, _, port = self.cfg["source"].rpartition(":")
@@ -173,6 +174,28 @@ class Core:
                 self.log("⚠ La sortie du chronométrage ferme la connexion tout de suite : elle est peut-être réservée à la vidéo. Nouvel essai dans 2 min. Solution : créer une 2e sortie Sport In The Box sur un autre port dans le Quantum, et l'indiquer dans « Réglages ».")
                 quick = 0; time.sleep(120)
             else: time.sleep(5)
+
+    # port série (Omega ARES 21 en mode OSM6 : 9600, pair, 7 bits, 1 arrêt ; adaptateur USB-série + câble null-modem)
+    def serial_loop(self):
+        try: import serial
+        except ImportError: self.st["quantum"] = "module série absent"; self.log("✗ Lecture série indisponible (pyserial manquant)"); return
+        port = self.cfg.get("port") or ""
+        baud, bits, parity, stop = (self.cfg.get("serial", "9600,7,E,1").split(",") + ["9600", "7", "E", "1"])[:4]
+        kw = dict(port=port, baudrate=int(baud), bytesize={"7": serial.SEVENBITS, "8": serial.EIGHTBITS}.get(bits, serial.SEVENBITS),
+                  parity={"N": serial.PARITY_NONE, "E": serial.PARITY_EVEN, "O": serial.PARITY_ODD}.get(parity.upper(), serial.PARITY_EVEN),
+                  stopbits=serial.STOPBITS_TWO if stop == "2" else serial.STOPBITS_ONE, timeout=1)
+        while not self.stop:
+            if not port: self.st["quantum"] = "aucun port série choisi (Réglages)"; time.sleep(3); port = self.cfg.get("port") or ""; kw["port"] = port; continue
+            try:
+                with serial.Serial(**kw) as sp:
+                    self.st["quantum"] = f"connecté ({port}, {baud},{bits},{parity},{stop})"; self.log(f"✓ Port série {port} ouvert ({baud},{bits},{parity},{stop})")
+                    last = time.time()
+                    while not self.stop:
+                        d = sp.read(256)
+                        if d: self.feed(d, time.time()); last = time.time()
+                        elif time.time() - last > 30: self.st["quantum"] = f"{port} ouvert, rien reçu depuis 30 s"
+            except Exception as e:
+                self.st["quantum"] = f"port {port} : {e}"; self.log(f"✗ Port série {port} : {e}"); time.sleep(5)
 
     # passe-plat optionnel : redistribue à l'identique pour un logiciel vidéo
     def forward_loop(self):
@@ -278,19 +301,33 @@ def gui(cfg, demo=False, close_after=0):
     ttk.Button(bar, text="Ouvrir le live", command=lambda: core.st["url"] and webbrowser.open(core.st["url"])).pack(side="left", padx=6)
     def settings():
         w = tk.Toplevel(root); w.title("Réglages"); w.grab_set(); w.resizable(False, False)
-        tk.Label(w, text="Sortie du chronométrage (adresse:port)").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 2))
-        e1 = ttk.Entry(w, width=30); e1.insert(0, cfg["source"]); e1.grid(row=1, column=0, padx=10)
-        tk.Label(w, text="Ex. 127.0.0.1:26700 (Sport In The Box sur ce PC)\nou 192.168.1.20:26701 (2e sortie sur un autre PC)", fg=GREY, justify="left").grid(row=2, column=0, sticky="w", padx=10)
-        tk.Label(w, text="Passe-plat pour la vidéo : redistribuer sur le port (vide = désactivé)").grid(row=3, column=0, sticky="w", padx=10, pady=(12, 2))
-        e2 = ttk.Entry(w, width=10); e2.insert(0, cfg.get("forward", "")); e2.grid(row=4, column=0, sticky="w", padx=10)
-        tk.Label(w, text="À n'utiliser que si la vidéo ne peut pas partager la sortie :\nsi ce logiciel est fermé, la vidéo ne reçoit plus rien.", fg=GREY, justify="left").grid(row=5, column=0, sticky="w", padx=10)
+        mode = tk.StringVar(value=cfg.get("mode", "reseau"))
+        tk.Label(w, text="Comment le chronométrage envoie ses données ?", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
+        ttk.Radiobutton(w, text="Réseau (Quantum : sortie Sport In The Box)", variable=mode, value="reseau").grid(row=1, column=0, sticky="w", padx=10)
+        f1 = tk.Frame(w); f1.grid(row=2, column=0, sticky="w", padx=30)
+        e1 = ttk.Entry(f1, width=26); e1.insert(0, cfg["source"]); e1.pack(side="left")
+        tk.Label(f1, text="  ex. 127.0.0.1:26700", fg=GREY).pack(side="left")
+        ttk.Radiobutton(w, text="Port série (Omega ARES 21 en mode OSM6, autres boîtiers série)", variable=mode, value="serie").grid(row=3, column=0, sticky="w", padx=10, pady=(8, 0))
+        f2 = tk.Frame(w); f2.grid(row=4, column=0, sticky="w", padx=30)
+        try:
+            from serial.tools import list_ports
+            ports = [p.device + " — " + (p.description or "") for p in list_ports.comports()]
+        except Exception: ports = []
+        cb = ttk.Combobox(f2, width=34, values=ports); cb.set(cfg.get("port", "") or (ports[0] if ports else "")); cb.pack(side="left")
+        e3 = ttk.Entry(f2, width=12); e3.insert(0, cfg.get("serial", "9600,7,E,1")); e3.pack(side="left", padx=6)
+        tk.Label(w, text="Vitesse,bits,parité,arrêt — ARES 21 / OSM6 : 9600,7,E,1 (ou 9600,8,N,1).\nAucun port listé ? Branche l'adaptateur USB-série puis rouvre ces réglages.", fg=GREY, justify="left").grid(row=5, column=0, sticky="w", padx=30)
+        tk.Label(w, text="Passe-plat pour la vidéo (réseau) : redistribuer sur le port (vide = désactivé)").grid(row=6, column=0, sticky="w", padx=10, pady=(12, 2))
+        e2 = ttk.Entry(w, width=10); e2.insert(0, cfg.get("forward", "")); e2.grid(row=7, column=0, sticky="w", padx=10)
+        tk.Label(w, text="À n'utiliser que si la vidéo ne peut pas partager la sortie :\nsi ce logiciel est fermé, la vidéo ne reçoit plus rien.", fg=GREY, justify="left").grid(row=8, column=0, sticky="w", padx=10)
         def ok():
-            src = e1.get().strip(); fw = e2.get().strip()
-            if ":" not in src or not src.rsplit(":", 1)[1].isdigit(): messagebox.showerror(APP, "Adresse invalide (ex. 127.0.0.1:26700)"); return
+            src = e1.get().strip(); fw = e2.get().strip(); port = cb.get().split(" — ")[0].strip(); ser = e3.get().strip().upper().replace(" ", "")
+            if mode.get() == "reseau" and (":" not in src or not src.rsplit(":", 1)[1].isdigit()): messagebox.showerror(APP, "Adresse invalide (ex. 127.0.0.1:26700)"); return
+            if mode.get() == "serie" and not port: messagebox.showerror(APP, "Choisis le port série"); return
+            if mode.get() == "serie" and len(ser.split(",")) != 4: messagebox.showerror(APP, "Réglage série invalide (ex. 9600,7,E,1)"); return
             if fw and not fw.isdigit(): messagebox.showerror(APP, "Port du passe-plat invalide"); return
-            cfg["source"], cfg["forward"] = src, fw; save_cfg(cfg); w.destroy()
+            cfg.update(mode=mode.get(), source=src, port=port, serial=ser, forward=fw); save_cfg(cfg); w.destroy()
             messagebox.showinfo(APP, "Réglages enregistrés. Ferme et relance le logiciel pour les appliquer.")
-        ttk.Button(w, text="Enregistrer", command=ok).grid(row=6, column=0, sticky="e", padx=10, pady=10)
+        ttk.Button(w, text="Enregistrer", command=ok).grid(row=9, column=0, sticky="e", padx=10, pady=10)
     ttk.Button(bar, text="Réglages", command=settings).pack(side="left")
     ttk.Button(bar, text="Dossier des journaux", command=lambda: os.startfile(os.path.join(HOME, "journaux")) if hasattr(os, "startfile") else None).pack(side="right")
 
@@ -318,13 +355,17 @@ def main():
     ap = argparse.ArgumentParser(description=APP)
     ap.add_argument("--console", action="store_true", help="mode texte, sans fenêtre")
     ap.add_argument("--demo", action="store_true", help="course simulée, sans chronométrage")
-    ap.add_argument("--source", help="sortie du chronométrage, ex. 127.0.0.1:26700")
+    ap.add_argument("--source", help="sortie réseau du chronométrage, ex. 127.0.0.1:26700")
+    ap.add_argument("--port", help="port série, ex. COM3 (ARES 21 en mode OSM6)")
+    ap.add_argument("--serie", help="réglages série, ex. 9600,7,E,1")
     ap.add_argument("--site", help="adresse du site (tests)")
     ap.add_argument("--duree", type=float, default=0, help="mode texte : s'arrêter après N secondes (tests)")
     ap.add_argument("--fermer", type=float, default=0, help="fenêtre : se fermer après N secondes (tests)")
     a = ap.parse_args()
     cfg = load_cfg()
-    if a.source: cfg["source"] = a.source
+    if a.source: cfg["source"] = a.source; cfg["mode"] = "reseau"
+    if a.port: cfg["port"] = a.port; cfg["mode"] = "serie"
+    if a.serie: cfg["serial"] = a.serie
     if a.site: cfg["site"] = a.site
     if not a.console and not a.demo and startup_update(cfg): return  # nouvelle version installée et relancée
     if not a.console: return gui(cfg, a.demo, a.fermer)

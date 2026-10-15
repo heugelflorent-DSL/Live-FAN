@@ -15,8 +15,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install pyinstaller==6.10.0
-      - run: pyinstaller --onefile --windowed --name SwimDirect-Chrono --paths relais relais/swimdirect_chrono.py
+      - run: pip install pyinstaller==6.10.0 pyserial==3.5
+      - run: pyinstaller --onefile --windowed --name SwimDirect-Chrono --paths relais --hidden-import serial.tools.list_ports relais/swimdirect_chrono.py
       - run: python relais/swimdirect_chrono.py --console --demo --site http://127.0.0.1:9 --duree 8
       - run: python relais/swimdirect_chrono.py --demo --site http://127.0.0.1:9 --fermer 6
       - uses: actions/upload-artifact@v4
