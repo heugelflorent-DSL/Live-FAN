@@ -4,3 +4,7 @@ node_modules/
 relais/cle.txt
 relais/relais.pid
 relais/relais.log
+__pycache__/
+*.pyc
+node_modules/
+.wrangler/

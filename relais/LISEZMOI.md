@@ -1,3 +1,16 @@
+# Swim Direct · Chrono (recommandé)
+
+1. Dans l'admin du live (étape « Mode du direct »), clique « Télécharger le logiciel du chrono (Windows) » et copie `SwimDirect-Chrono.exe` sur le PC du chrono.
+2. Lance-le (la première fois, Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires » puis « Exécuter quand même » — le logiciel n'est pas signé).
+3. Il affiche une **clé de liaison** `SD-XXXX-XXXX-XXXX-XXXX` : bouton « Copier », puis colle-la dans l'admin de TON live → « Chronométrage relié » → « Relier ».
+4. La fenêtre affiche « ✓ nom du live » : tout ce que lit le chronométrage part sur ce live (événements + journal brut complet, gardé 14 jours et téléchargeable depuis l'admin).
+
+Réglages : sortie du chronométrage (défaut `127.0.0.1:26700`, sortie Sport In The Box). Si la vidéo utilise déjà cette sortie et qu'elle n'accepte qu'un seul logiciel, le chrono le détecte et se retire : crée alors une 2e sortie Sport In The Box sur un autre port dans le Quantum et indique-la dans « Réglages ». En dernier recours, option « passe-plat » (redistribue les données à la vidéo sur un autre port).
+
+Deux compétitions en même temps : un PC de chrono = une clé = un live. Rien à régler d'autre.
+
+---
+
 # Relais « Bassin » — Quantum → Swim Direct
 
 Le relais écoute la sortie série du Quantum (protocole **OSM6**) et transmet en direct au site :

@@ -1,0 +1,32 @@
+# Fabrique SwimDirect-Chrono.exe (Windows) à chaque modification du logiciel du chrono,
+# et le dépose dans public/chrono/ : il est alors téléchargeable depuis l'admin du site.
+name: Logiciel du chrono (.exe)
+on:
+  push:
+    branches: [main, wip-chrono]
+    paths: ["relais/swimdirect_chrono.py", "relais/swim_relais.py", ".github/workflows/chrono-exe.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pyinstaller==6.10.0
+      - run: pyinstaller --onefile --windowed --name SwimDirect-Chrono --paths relais relais/swimdirect_chrono.py
+      - run: python relais/swimdirect_chrono.py --console --demo --site http://127.0.0.1:9 --duree 8
+      - run: python relais/swimdirect_chrono.py --demo --site http://127.0.0.1:9 --fermer 6
+      - uses: actions/upload-artifact@v4
+        with: { name: SwimDirect-Chrono, path: dist/SwimDirect-Chrono.exe }
+      - name: Déposer l'exe sur le site
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          mkdir -p public/chrono && cp dist/SwimDirect-Chrono.exe public/chrono/
+          git config user.name "swim-direct-bot" && git config user.email "bot@users.noreply.github.com"
+          git add public/chrono/SwimDirect-Chrono.exe
+          git commit -m "Logiciel du chrono : nouvelle version de SwimDirect-Chrono.exe" || exit 0
+          git pull --rebase origin main && git push origin HEAD:main
