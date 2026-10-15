@@ -301,33 +301,51 @@ def gui(cfg, demo=False, close_after=0):
     ttk.Button(bar, text="Ouvrir le live", command=lambda: core.st["url"] and webbrowser.open(core.st["url"])).pack(side="left", padx=6)
     def settings():
         w = tk.Toplevel(root); w.title("Réglages"); w.grab_set(); w.resizable(False, False)
+        SYS = [("Swiss Timing Quantum (sortie Sport In The Box)", "quantum", "reseau", ""),
+               ("Omega ARES 21 (mode OSM6)", "ares", "serie", "9600,7,E,1"),
+               ("Stramatel (sortie série, décodage à venir)", "stramatel", "serie", "9600,8,N,1"),
+               ("Autre / réglage manuel", "autre", None, "")]
+        tk.Label(w, text="Ton chronométrage électronique", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
+        sysv = ttk.Combobox(w, width=48, state="readonly", values=[x[0] for x in SYS])
+        cur = cfg.get("sys") or ("ares" if cfg.get("mode") == "serie" else "quantum")
+        sysv.current(next((i for i, x in enumerate(SYS) if x[1] == cur), 0)); sysv.grid(row=1, column=0, sticky="w", padx=10)
         mode = tk.StringVar(value=cfg.get("mode", "reseau"))
-        tk.Label(w, text="Comment le chronométrage envoie ses données ?", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
-        ttk.Radiobutton(w, text="Réseau (Quantum : sortie Sport In The Box)", variable=mode, value="reseau").grid(row=1, column=0, sticky="w", padx=10)
-        f1 = tk.Frame(w); f1.grid(row=2, column=0, sticky="w", padx=30)
+        rb1 = ttk.Radiobutton(w, text="Réseau (adresse:port)", variable=mode, value="reseau"); rb1.grid(row=2, column=0, sticky="w", padx=10, pady=(8, 0))
+        f1 = tk.Frame(w); f1.grid(row=3, column=0, sticky="w", padx=30)
         e1 = ttk.Entry(f1, width=26); e1.insert(0, cfg["source"]); e1.pack(side="left")
         tk.Label(f1, text="  ex. 127.0.0.1:26700", fg=GREY).pack(side="left")
-        ttk.Radiobutton(w, text="Port série (Omega ARES 21 en mode OSM6, autres boîtiers série)", variable=mode, value="serie").grid(row=3, column=0, sticky="w", padx=10, pady=(8, 0))
-        f2 = tk.Frame(w); f2.grid(row=4, column=0, sticky="w", padx=30)
+        rb2 = ttk.Radiobutton(w, text="Port série", variable=mode, value="serie"); rb2.grid(row=4, column=0, sticky="w", padx=10, pady=(8, 0))
+        f2 = tk.Frame(w); f2.grid(row=5, column=0, sticky="w", padx=30)
         try:
             from serial.tools import list_ports
             ports = [p.device + " — " + (p.description or "") for p in list_ports.comports()]
         except Exception: ports = []
         cb = ttk.Combobox(f2, width=34, values=ports); cb.set(cfg.get("port", "") or (ports[0] if ports else "")); cb.pack(side="left")
         e3 = ttk.Entry(f2, width=12); e3.insert(0, cfg.get("serial", "9600,7,E,1")); e3.pack(side="left", padx=6)
-        tk.Label(w, text="Vitesse,bits,parité,arrêt — ARES 21 / OSM6 : 9600,7,E,1 (ou 9600,8,N,1).\nAucun port listé ? Branche l'adaptateur USB-série puis rouvre ces réglages.", fg=GREY, justify="left").grid(row=5, column=0, sticky="w", padx=30)
-        tk.Label(w, text="Passe-plat pour la vidéo (réseau) : redistribuer sur le port (vide = désactivé)").grid(row=6, column=0, sticky="w", padx=10, pady=(12, 2))
-        e2 = ttk.Entry(w, width=10); e2.insert(0, cfg.get("forward", "")); e2.grid(row=7, column=0, sticky="w", padx=10)
-        tk.Label(w, text="À n'utiliser que si la vidéo ne peut pas partager la sortie :\nsi ce logiciel est fermé, la vidéo ne reçoit plus rien.", fg=GREY, justify="left").grid(row=8, column=0, sticky="w", padx=10)
+        hint = tk.Label(w, text="", fg=GREY, justify="left"); hint.grid(row=6, column=0, sticky="w", padx=30)
+        def pick(_=None):
+            name, key, m, ser = SYS[sysv.current()]
+            if m: mode.set(m)
+            if ser: e3.delete(0, "end"); e3.insert(0, ser)
+            if key == "quantum" and ":" not in e1.get(): e1.delete(0, "end"); e1.insert(0, "127.0.0.1:26700")
+            st_ = "disabled" if m else "normal"; rb1.config(state=st_); rb2.config(state=st_)
+            hint.config(text={"quantum": "Active la sortie « Sport In The Box » dans Quantum (port 26700 par défaut).",
+                              "ares": "Câble null-modem + adaptateur USB-série, ARES en mode OSM6.\nSi rien n'arrive, essaie 9600,8,N,1.",
+                              "stramatel": "Le flux est enregistré dans le journal ; l'affichage en direct\narrivera dès qu'on aura analysé un vrai journal.",
+                              "autre": "Choisis toi-même réseau ou série."}[key] + ("\nAucun port listé ? Branche l'adaptateur puis rouvre ces réglages." if m == "serie" and not ports else ""))
+        sysv.bind("<<ComboboxSelected>>", pick); pick()
+        tk.Label(w, text="Passe-plat pour la vidéo (réseau) : redistribuer sur le port (vide = désactivé)").grid(row=7, column=0, sticky="w", padx=10, pady=(12, 2))
+        e2 = ttk.Entry(w, width=10); e2.insert(0, cfg.get("forward", "")); e2.grid(row=8, column=0, sticky="w", padx=10)
+        tk.Label(w, text="À n'utiliser que si la vidéo ne peut pas partager la sortie :\nsi ce logiciel est fermé, la vidéo ne reçoit plus rien.", fg=GREY, justify="left").grid(row=9, column=0, sticky="w", padx=10)
         def ok():
             src = e1.get().strip(); fw = e2.get().strip(); port = cb.get().split(" — ")[0].strip(); ser = e3.get().strip().upper().replace(" ", "")
             if mode.get() == "reseau" and (":" not in src or not src.rsplit(":", 1)[1].isdigit()): messagebox.showerror(APP, "Adresse invalide (ex. 127.0.0.1:26700)"); return
             if mode.get() == "serie" and not port: messagebox.showerror(APP, "Choisis le port série"); return
             if mode.get() == "serie" and len(ser.split(",")) != 4: messagebox.showerror(APP, "Réglage série invalide (ex. 9600,7,E,1)"); return
             if fw and not fw.isdigit(): messagebox.showerror(APP, "Port du passe-plat invalide"); return
-            cfg.update(mode=mode.get(), source=src, port=port, serial=ser, forward=fw); save_cfg(cfg); w.destroy()
+            cfg.update(sys=SYS[sysv.current()][1], mode=mode.get(), source=src, port=port, serial=ser, forward=fw); save_cfg(cfg); w.destroy()
             messagebox.showinfo(APP, "Réglages enregistrés. Ferme et relance le logiciel pour les appliquer.")
-        ttk.Button(w, text="Enregistrer", command=ok).grid(row=9, column=0, sticky="e", padx=10, pady=10)
+        ttk.Button(w, text="Enregistrer", command=ok).grid(row=10, column=0, sticky="e", padx=10, pady=10)
     ttk.Button(bar, text="Réglages", command=settings).pack(side="left")
     ttk.Button(bar, text="Dossier des journaux", command=lambda: os.startfile(os.path.join(HOME, "journaux")) if hasattr(os, "startfile") else None).pack(side="right")
 
