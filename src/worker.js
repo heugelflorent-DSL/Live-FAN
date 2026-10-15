@@ -287,7 +287,7 @@ async function mppStatus(env, ev) {
   const { config, data } = await load(env, ev); const now = Date.now();
   const want = mppWant(config, data, ev, now, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
   let done = 0, found = 0, best = 0, err = 0, noRec = 0, notFound = 0;
-  for (const k of want.keys()) { const x = store.sw[k]; if (!x) continue; if (x.err) { err++; continue; } done++; if (x.iuf) found++; const has = x.b && Object.keys(x.b).length; if (has) best++; else if (x.iuf) noRec++; else notFound++; }
+  for (const k of want.keys()) { const x = store.sw[k]; if (!x || !x.at) continue; if (x.err) { err++; continue; } done++; if (x.iuf) found++; const has = x.b && Object.keys(x.b).length; if (has) best++; else if (x.iuf) noRec++; else notFound++; }
   return { want: want.size, done, left: want.size - done, foundN: found, bestN: best, errN: err, noRecN: noRec, notFoundN: notFound };
 }
 async function mppStep(env, ev, max = 2, force = false) {
@@ -490,6 +490,9 @@ export default {
     }
     if (p === "/api/admin/mpp" && req.method === "POST") {
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
+      const body = await req.json().catch(() => ({}));
+      // tout écraser : on oublie les records lus (en gardant les licences retrouvées) pour tout relire sur l'Extranat
+      if (body.reset) { const st0 = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} }; for (const [k, x] of Object.entries(st0.sw)) st0.sw[k] = { iuf: x.iuf || null, at: 0, b: {} }; st0.at = 0; await env.KV.put(kk("mpp", ev), JSON.stringify(st0)); }
       const used = await mppStep(env, ev, 6, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
       const all = Object.entries(store.sw);
       // diagnostic : quelques exemples (nom lu, licence trouvée, erreur éventuelle) pour comprendre un échec

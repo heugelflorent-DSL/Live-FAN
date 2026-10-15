@@ -653,7 +653,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
       <details class="step">
         <summary><span class="n"></span>Records perso des engagés</summary>
         <div class="step-body">
-          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
+          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><button class="btn small ghost" id="mpp-reset" type="button">Tout relire et écraser</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
         </div>
       </details>
     <h3 class="grp">Présentation du live</h3>
@@ -1815,6 +1815,14 @@ $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
 $("#pool-sort").onchange=e=>{state.poolSort=e.target.value;scheduleSave()};$("#pool-hold").onchange=e=>{state.poolHold=+e.target.value;scheduleSave()};
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
 $("#mpp-go").onclick=async()=>{const m=$("#mpp-msg");m.textContent="Lecture en cours…";try{const j=await api("/api/admin/mpp",{method:"POST"});console.log("records perso",j);m.textContent=j.total?`${j.total} nageur(s) traité(s) · ${j.found} retrouvé(s) sur Extranat · ${j.withBest} avec un record sur leurs épreuves. Reclique pour continuer.${j.found?"":" (Extranat : "+(j.probe&&(j.probe.status||j.probe.error))+" · "+((j.sample||[]).map(x=>x.err).filter(Boolean)[0]||"")+")"}`:"Aucun nageur à traiter : il faut les listes de départ (programme définitif) et une compétition dans les 5 jours.";loadMpp();mppStat(j)}catch(e){m.textContent="Échec : "+e.message}};
+$("#mpp-reset").onclick=async()=>{const b=$("#mpp-reset"),m=$("#mpp-msg");
+  if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Confirmer : tout relire ?";m.textContent="Les records perso enregistrés pour ce live seront effacés puis relus un par un sur l'Extranat (avec leur date). Reclique pour confirmer.";setTimeout(()=>{delete b.dataset.sure;b.textContent="Tout relire et écraser"},8000);return}
+  delete b.dataset.sure;b.disabled=true;b.textContent="Relecture…";let first=true,last=-1,stuck=0;
+  try{for(let i=0;i<120;i++){const j=await api("/api/admin/mpp",{method:"POST",body:JSON.stringify(first?{reset:true}:{})});first=false;
+      m.textContent=`Relecture : ${j.done} / ${j.want} nageurs relus · ${j.bestN} avec un record${j.errN?` · ${j.errN} en échec (Extranat)`:""}`;mppStat(j);
+      if(!j.left||j.left<=j.errN)break;if(j.done===last){if(++stuck>=3)break}else stuck=0;last=j.done}
+    m.textContent+=" · terminé";loadMpp()}catch(e){m.textContent="Échec : "+e.message}
+  b.disabled=false;b.textContent="Tout relire et écraser"};
 $("#sim-stop").onclick=()=>{simStop();$("#sim-msg").textContent="Simulation arrêtée"};
 $("#sim-clear").onclick=()=>{simStop();simSend([{k:"clear"}]);$("#sim-msg").textContent="Direct vidé"};
 $("#ev-switch").onchange=e=>switchEvent(e.target.value);
