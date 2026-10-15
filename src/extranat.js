@@ -24,7 +24,9 @@ export function parseMpp(html) {
       const sp = [];
       if (tip) { const t = unesc(tip[2]); const r2 = /(\d+)\s*m\s*:\s*<\/td>\s*<td[^>]*>([\d:.]+)<\/td>/g; let x; while ((x = r2.exec(t))) { const c = toSec(x[2]); if (c != null) sp.push([+x[1], c]); } }
       sp.sort((a, b) => a[0] - b[0]);
-      o[k] = sp.length > 1 ? { t: time, sp } : { t: time };
+      // date de la performance (jj/mm/aaaa) : sert à repérer un record établi pendant la compétition elle-même
+      const dm = rest.replace(/<[^>]+>/g, " ").match(/(\d{2})\/(\d{2})\/(\d{4})/); const d = dm ? `${dm[3]}-${dm[2]}-${dm[1]}` : undefined;
+      o[k] = sp.length > 1 ? { t: time, sp, d } : { t: time, d };
     }
   }
   return out;

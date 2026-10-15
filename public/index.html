@@ -924,14 +924,14 @@ let CSD=0;function schedule(){
   return out;
 }
 function splitsHtml(ev,w){const sp=w.splits||[];if(sp.length<2)return"";
-  const B=/^\d+x/i.test(ev.name)?null:bestOf(w,ev),total=totalDist(ev.name);
+  let B=/^\d+x/i.test(ev.name)?null:bestOf(w,ev),total=totalDist(ev.name);if(B&&B.self)B=null;
   const R=B?rpSeg(sp.map((x,i)=>({k:i+1,t:x.cum,dist:x.dist})),B,total,poolLen()):null;
   const pill=d=>d==null?"":`<span class="rpp ${Math.abs(d)<.005?"":d<0?"fa":"sl"}">${Math.abs(d)<.005?"=":rpSg(Math.round(d*100)/100)}</span>`;
   const mx=R?Math.max(.5,...R.seg.map(z=>Math.abs(z.df))):1;
   const bar=d=>d==null?"":`<span class="spbar"><i class="${d<0?"fa":"sl"}" style="${d<0?"right":"left"}:50%;width:${Math.min(50,Math.abs(d)/mx*50).toFixed(1)}%"></i></span>`;
   return`<div class="sp3">${B?`<div class="sp3-h"><span></span><span>Passage <small>vs RP</small></span><span>Tronçon <small>vs RP</small></span></div>`:`<div class="sp3-h"><span></span><span>Passage</span><span>Tronçon</span></div>`}${sp.map((x,i)=>{const bv=B&&(x.dist>=total||(B.sp||[]).some(q=>q[0]===x.dist))?bestAt(B,x.dist,total||x.dist):null;const z=R?R.seg[i]:null;
     return`<div class="sp3-r"><span class="sp3-d">${i?sp[i-1].dist:0}–${x.dist} m</span><span class="sp3-c"><b>${fmt(x.cum)}</b>${bv!=null?pill(x.cum-bv):""}</span><span class="sp3-c"><b>${fmt(x.lap)}</b>${z?pill(z.df)+bar(z.df):""}</span></div>`}).join("")}</div>`}
-function rpRes(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return"";const B=bestOf(w,ev);if(!B||B.t==null)return"";const d=Math.round((w.res-B.t)*100)/100;return d<0?`<span class="rpb" title="Par rapport au record perso connu avant la course (FFN Extranat)">RECORD PERSO ${rpSg(d)}</span>`:d===0?`<span class="dif">= record perso</span>`:`<span class="dif up" title="Écart avec le record perso">${rpSg(d)} RP</span>`}
+function rpRes(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return"";const B=bestOf(w,ev);if(!B||B.t==null)return"";if(B.self)return`<span class="rpb" title="Record perso établi lors de cette compétition (FFN Extranat)">RECORD PERSO</span>`;const d=Math.round((w.res-B.t)*100)/100;return d<0?`<span class="rpb" title="Par rapport au record perso connu avant la course (FFN Extranat)">RECORD PERSO ${rpSg(d)}</span>`:d===0?`<span class="dif">= record perso</span>`:`<span class="dif up" title="Écart avec le record perso">${rpSg(d)} RP</span>`}
 function diffHtml(res,entry){if(!res||!entry)return"";const d=Math.round((res-entry)*100)/100;if(!isFinite(d))return"";const t=gapTxt(d);return d<0?`<span class="dif dn" title="Plus rapide que le temps d'engagement">−${t}</span>`:d>0?`<span class="dif up" title="Plus lent que le temps d'engagement">+${t}</span>`:`<span class="dif">=</span>`}
 function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test(x.status)))}
 
@@ -1128,7 +1128,9 @@ let MPP={};
 setInterval(()=>{if(!document.hidden&&state.view==="live"&&!state.admin)loadMpp()},5*60e3); // records perso relus toutes les 5 min (lecture progressive côté serveur)
 async function loadMpp(){try{const r=await fetch(evq("/api/mpp"));if(r.ok){const j=await r.json();MPP=j.sw||{};if(state.view==="live"&&!state.admin)render()}}catch(_){}}
 function evKey(name){const n=norm(name);const d=+(n.match(/^(\d+)/)||[])[1];if(!d||/^\d+ ?X/.test(n))return null;const s=/4 ?N/.test(n)?"4N":/\bNL\b|NAGE LIBRE/.test(n)?"NL":/\bDOS\b/.test(n)?"DOS":/BRA/.test(n)?"BRA":/PAP/.test(n)?"PAP":null;return s?d+" "+s:null}
-function bestOf(w,ev){if(!w||!ev||!w.name)return null;const x=MPP[norm(w.name)+"|"+(w.year||"")];if(!x)return null;const k=evKey(ev.name);return k&&x.b[k]?x.b[k]:null}
+function bestOf(w,ev){if(!w||!ev||!w.name)return null;const x=MPP[norm(w.name)+"|"+(w.year||"")];if(!x)return null;const k=evKey(ev.name);const B=k&&x.b[k]?x.b[k]:null;
+  // record établi pendant cette compétition (date Extranat ≥ début de la compétition) : ce n'est pas un record « d'avant », on ne compare pas la course à elle-même
+  if(B&&B.d&&CSD&&new Date(B.d+"T23:59:59").getTime()>=CSD)return w.res!=null&&Math.abs(w.res-B.t)<.005?{t:B.t,self:1}:null;return B}
 // temps de passage du record à la distance d : vrai passage si saisi, sinon rythme du record (1er 50 m plus rapide)
 function bestAt(b,d,total){if(!b)return null;if(b.sp){const x=b.sp.find(p=>p[0]===d);if(x)return x[1]}if(d>=total)return b.t;const n=Math.round(total/50),k=Math.round(d/50);if(!n||!k)return null;let a=0,all=0;for(let i=0;i<n;i++){const wgt=i===0?0.94:1+0.02*i;all+=wgt;if(i<k)a+=wgt}return b.t*a/all}
 // écart lisible : 0,45 · 12,30 · 1:22,30 au-delà d'une minute
