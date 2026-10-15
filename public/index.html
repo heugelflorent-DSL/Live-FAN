@@ -858,7 +858,7 @@ function allKeys(){return Object.keys(state.order).flatMap(s=>state.order[s]).fi
 function doneSet(){
   const done=new Set();if(state.phase==="eng")return done;
   for(const s of Object.keys(state.order)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");
-    let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(ev.doneAt||(ev.results.length&&later))done.add(ks[i]);if(ev.results.length)later=true}
+    let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(ev.doneAt||(ev.results.length&&(later||(CSD&&Date.now()-CSD>4*864e5))))done.add(ks[i]);if(ev.results.length)later=true}
     // direct bassin (ou simulateur) : la série dans l'eau dit où en est la réunion, les épreuves d'avant sont terminées
     const h=state.live==="bassin"&&POOL&&POOL.heat;if(h&&h.event&&(h.sim||!poolIsTestRaw(h))){const T=norm(h.title||""),sx=["DAMES","MESSIEURS","MIXTE"].find(x=>T.includes(x));const i=h.key?ks.indexOf(h.key):ks.findIndex(k=>+EVENTS[k].numEp===+h.event&&!(EVENTS[k].doneAt)&&(!sx||norm(EVENTS[k].name).includes(sx)));if(i>0)for(let j=0;j<i;j++)done.add(ks[j])}}
   return done;
@@ -1148,7 +1148,7 @@ function teamBoard(rule,sex){
   if(doneKs.length>1){const d2=new Set(done);d2.delete(last);prev={};teamRanking(rule,d2,sex).forEach(t=>prev[t.club]=t.rank)}
   return{now,prev,last,nDone:doneKs.length,nAll:ks.length};
 }
-function moveHtml(t,prev){if(!prev)return"";const p=prev[t.club];if(p==null)return`<span class="mvt new">nouv.</span>`;const d=p-t.rank;return d>0?`<span class="mvt up">▲${d}</span>`:d<0?`<span class="mvt down">▼${-d}</span>`:`<span class="mvt eq">=</span>`}
+function moveHtml(t,prev){if(!prev||typeof t.rank!=="number")return"";const p=prev[t.club];if(p==null)return`<span class="mvt new">nouv.</span>`;const d=p-t.rank;return d>0?`<span class="mvt up">▲${d}</span>`:d<0?`<span class="mvt down">▼${-d}</span>`:`<span class="mvt eq">=</span>`}
 function renderRank(){
   const rules=teamRules();if(!rules.find(r=>r.id===state.rankRule))state.rankRule=rules[0]&&rules[0].id;
   const rule=rules.find(r=>r.id===state.rankRule);const q=getQ();
@@ -1159,7 +1159,7 @@ function renderRank(){
   const b=teamBoard(rule,sex);const max=b.now[0]?b.now[0].total:1;
   html+=`<div class="card board-head"><div><div class="lbl">${esc(rule.name)}${sex?" · "+(sex==="F"?"Filles":"Garçons"):""}</div><div class="compline">${rule.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="bh-ev">${b.last?"Après "+esc(EVENTS[b.last].name):"En attente des premiers résultats"}</div></div><div class="kpi"><b>${b.nDone}<small>/${b.nAll}</small></b><span>épreuves</span></div><div class="prog"><i style="width:${b.nAll?Math.round(100*b.nDone/b.nAll):0}%"></i></div><button class="btn small ghost" id="tv-btn">Plein écran</button></div>`;
   const rows=b.now.filter(t=>!q||t.club.toLowerCase().includes(q));
-  html+=`<div class="list board">${rows.map(t=>{const open=state.open["t"+t.club];return`<div class="lane"><button class="row brow" data-open="t${esc(t.club)}" aria-expanded="${!!open}"><span class="rk r${t.rank}">${t.rank}</span><span class="ev"><b>${logo(t.club)}${esc(t.club)} ${moveHtml(t,b.prev)}</b><span class="bar"><i style="width:${Math.max(4,Math.round(100*t.total/max))}%"></i></span></span><span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></button>${open?teamDetail(t,rule,sex):""}</div>`}).join("")||`<p class="empty">${q?"Aucune équipe ne correspond.":"Le classement démarrera après la première épreuve."}</p>`}</div>`;
+  html+=`<div class="list board">${rows.map(t=>{const open=state.open["t"+t.club];return`<div class="lane"><button class="row brow" data-open="t${esc(t.club)}" aria-expanded="${!!open}"><span class="rk r${t.rank}">${t.rank}</span><span class="ev"><b>${logo(t.club)}${esc(t.club)} ${moveHtml(t,b.prev)}</b>${t.nc?`<span class="msg nc-note">Non classée · relais manquant : ${esc(t.nc.join(", "))}</span>`:""}<span class="bar"><i style="width:${Math.max(4,Math.round(100*t.total/max))}%"></i></span></span><span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></button>${open?teamDetail(t,rule,sex):""}</div>`}).join("")||`<p class="empty">${q?"Aucune équipe ne correspond.":"Le classement démarrera après la première épreuve."}</p>`}</div>`;
   $("#pub-body").innerHTML=html;
   const tv=$("#tv-btn");if(tv)tv.onclick=()=>{document.body.classList.toggle("tv");tv.textContent=document.body.classList.contains("tv")?"Quitter le plein écran":"Plein écran";try{document.body.classList.contains("tv")?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}};
 }
@@ -1520,7 +1520,12 @@ function teamRanking(rule,done,sex){
     const per={};
     for(const w of (fx?mergedRanking(ev):ranking(ev))){if(w.dsq)continue;const c=w.team||w.club||w.name;const p=w.points||0;(per[c]=per[c]||[]).push({ev,w,p})}
     for(const c in per){let l=per[c].sort((a,b)=>b.p-a.p);if(rule.perEvent>0)l=l.slice(0,rule.perEvent);(clubs[c]=clubs[c]||{club:c,total:0,items:[],comp:ev.comp});l.forEach(x=>{clubs[c].total+=x.p;clubs[c].items.push(x)})}}
-  return Object.values(clubs).sort((a,b)=>b.total-a.total).map((c,i)=>({...c,rank:i+1}));
+  // relais obligatoires : une équipe absente d'un relais terminé n'est pas classée (affichée « non classée » en bas)
+  if(rule.needRelays!==false&&sex){const rel=allKeys().filter(k=>{const e=EVENTS[k];return e.relay&&rule.comps.includes(e.comp)&&done.has(k)&&(!sex||(sex==="F")===/Dames/.test(e.name))});
+    for(const c of Object.values(clubs)){const miss=rel.filter(k=>!(EVENTS[k].results||[]).some(w=>(w.team||w.club||w.name)===c.club)).map(k=>EVENTS[k].name);if(miss.length)c.nc=miss}}
+  // ex aequo : même total = même place
+  const L=Object.values(clubs).sort((a,b)=>(!!a.nc-!!b.nc)||b.total-a.total);let rk=0;
+  return L.map((c,i)=>{if(!c.nc&&(i===0||L[i-1].nc||L[i-1].total!==c.total))rk=i+1;return{...c,rank:c.nc?"–":rk}});
 }
 function renderTeam(rule,html){
   const tr=teamRanking(rule);const top=tr.slice(0,3),order=[top[1],top[0],top[2]];
@@ -1682,7 +1687,7 @@ function renderAdmin(){renderLogos();renderFinRules();
     <div class="inline"><input class="field" data-rf="name" data-rid="${r.id}" value="${esc(r.name)}" aria-label="Nom du classement" placeholder="${r.type==="team"?"ex. Classement Interclubs":"ex. Podiums Avenirs"}"><button class="x" data-rdel="${r.id}" aria-label="Supprimer ce podium">×</button></div>
     <div class="checks">${state.comps.map(c=>`<label class="chk"><input type="checkbox" data-rc="${c.id}" data-rid="${r.id}" ${r.comps.includes(c.id)?"checked":""}><span class="badge k${c.k}"><i></i>${esc(c.name)}</span></label>`).join("")}</div>
     <label>Type de classement<select class="field" data-rf="type" data-rid="${r.id}"><option value="race" ${r.type!=="team"?"selected":""}>Course par course (podiums par épreuve)</option><option value="team" ${r.type==="team"?"selected":""}>Équipes : addition des points FFN</option></select></label>
-    ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label>`:`<div class="grid2c">
+    ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label><label class="chk"><input type="checkbox" data-rf="needRelays" data-rid="${r.id}" ${r.needRelays!==false?"checked":""}> Équipe non classée s'il lui manque un relais (règle des Interclubs)</label>`:`<div class="grid2c">
       <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="age" ${r.mode==="age"?"selected":""}>Catégories d'âge</option></select></label>
       <label>Places affichées<input class="field" type="number" min="1" max="10" data-rf="places" data-rid="${r.id}" value="${r.places}"></label>
     </div>`}
@@ -1856,6 +1861,7 @@ document.addEventListener("change",e=>{const t=e.target;const r=t.dataset.rid&&s
   else if(t.dataset.rf==="places")r.places=Math.min(10,Math.max(1,+t.value||3));
   else if(t.dataset.rf==="split")r.split=t.checked;
   else if(t.dataset.rf==="perEvent")r.perEvent=Math.max(0,+t.value||0);
+  else if(t.dataset.rf==="needRelays")r.needRelays=t.checked;
   else if(t.dataset.cat){const c=r.cats[+t.dataset.ci];c[t.dataset.cat]=t.dataset.cat==="name"?t.value:(t.value===""?"":+t.value)}
   else if(t.dataset.rf==="refYear")r.refYear=+t.value||refYearDefault();
   else{r[t.dataset.rf]=t.value;if(t.dataset.rf==="mode"&&t.value==="age"&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}
