@@ -1784,7 +1784,8 @@ function pRelease(){clearTimeout(PREL);PREL=setTimeout(()=>{PTOUCH=0;if(PPEND){P
 document.addEventListener("touchstart",e=>{if(e.target.closest&&e.target.closest(".pool .tvsp")){PTOUCH=1;clearTimeout(PREL)}},{passive:true,capture:true});
 document.addEventListener("touchend",()=>{if(PTOUCH)pRelease()},{passive:true,capture:true});document.addEventListener("touchcancel",()=>{if(PTOUCH)pRelease()},{passive:true,capture:true});
 document.addEventListener("scroll",e=>{if(e.target.classList&&e.target.classList.contains("tvsp")){tvspMask(e.target);if(PTOUCH&&e.target.dataset.l)PUSR[e.target.dataset.l]=1;if(PTOUCH&&!PDRAG)pRelease()}},{passive:true,capture:true});
-function render(){if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
+function render(){if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history.replaceState(null,"",location.pathname+location.search+want)}catch(_){}}
+  if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
 $("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}});
@@ -1959,6 +1960,8 @@ hit();setInterval(()=>hit(),5*60e3);
 // onglet changé (au plus une fois toutes les 20 s), retour sur la page, départ (pour le temps passé)
 setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)hit()},5e3);
 document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.now()-LASTHIT>60e3)hit(true)}else if(Date.now()-LASTHIT>4*60e3)hit()});
+// onglet ouvert gardé dans l'adresse (#res, #prog…) : un rafraîchissement reste sur le même onglet
+{const h=location.hash.slice(1);if(["live","prog","res","pod","part","rank"].includes(h))state.view=h}
 bindSpons();bindOrg();bindPair();loadSpons();if(PICK)pickBoot();else{
 loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(state.view==="live")loadLive()};
 // toutes les 60 s, seulement quand la page est visible ; mise à jour immédiate au retour sur la page
