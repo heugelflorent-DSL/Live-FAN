@@ -216,7 +216,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   if (data.finished && !finished(config, data, now)) data.finished = null;
   // compétition déjà passée dont les résultats manquent (ajoutée après coup, relecture interrompue) : on les récupère quand même
   const missing = config.comps.some((id) => !Object.values((data.comps[id] || {}).events || {}).some((e) => (e.results || []).length));
-  const live = force || missing || windowOpen(config, data, now);
+  const live = force || (missing && finished(config, data, now)) || windowOpen(config, data, now);
   data.queue = data.queue || [];
   let errors = 0, used = 0;
   const seen = new Set();
