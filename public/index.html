@@ -530,6 +530,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .pb-jr{margin-top:10px}#jr-list a{color:var(--a);font-weight:600}
 .orgbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 .pb-ver{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--card)}.pb-ver.ok{background:#dcfce7;color:#166534}.pb-ver.old{background:#fef3c7;color:#7a5200}
+#view-admin{counter-reset:st}#view-admin details.step>summary .n::before{counter-increment:st;content:counter(st)}
 </style>
 </head>
 <body>
@@ -597,13 +598,10 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
     </div>
 
     <h3 class="grp">Préparer la compétition</h3>
-    <div class="steps">
       <details class="step" open>
-        <summary><span class="n">1</span>Compétitions<span class="hint" id="h1"></span></summary>
+        <summary><span class="n"></span>Compétitions<span class="hint" id="h1"></span></summary>
         <div class="step-body">
           <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
-          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option></select></label>
-          <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <input type="hidden" id="ev-progdate"></div>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button><button class="btn ghost" id="link-replace" title="Retire les autres compétitions et suit uniquement celle-ci">Remplacer tout</button></div>
@@ -612,7 +610,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         </div>
       </details>
       <details class="step">
-        <summary><span class="n">2</span>Programme et horaires<span class="hint" id="h2"></span></summary>
+        <summary><span class="n"></span>Programme et horaires<span class="hint" id="h2"></span></summary>
         <div class="step-body">
           <label for="timing">Chronométrage<select class="field" id="timing"><option value="elec">Électronique · les horaires se recalent seuls sur les résultats</option><option value="manual">Manuel · horaires théoriques, retard saisi à la main</option></select></label>
           <div class="grid2c" id="sess-starts"></div>
@@ -621,8 +619,15 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
           <div id="order"></div>
         </div>
       </details>
+      <details class="step" id="fin-step" hidden>
+        <summary><span class="n"></span>Finales : règles d'accès<span class="hint" id="h-fin"></span></summary>
+        <div class="step-body">
+          <p class="msg">Les qualifiés officiels publiés par le Live FFN (QFA, QFB…) sont toujours prioritaires. Ces règles servent seulement à afficher les <b>qualifiés probables</b> tant que le Live FFN ne les a pas publiés. Les âges sont calculés sur l'année de la compétition.</p>
+          <div id="fin-rules"></div>
+        </div>
+      </details>
       <details class="step">
-        <summary><span class="n">3</span>Classements et podiums<span class="hint" id="h4"></span></summary>
+        <summary><span class="n"></span>Classements et podiums<span class="hint" id="h4"></span></summary>
         <div class="step-body">
           <p class="msg">Course par course ou par équipes (filles et garçons séparés). Cocher plusieurs compétitions fait un classement commun des épreuves de même nom.</p>
           <div id="pod-rules" style="display:grid;gap:10px"></div>
@@ -630,7 +635,21 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         </div>
       </details>
       <details class="step">
-        <summary><span class="n">4</span>Informations de l'accueil<span class="hint" id="h1b"></span></summary>
+        <summary><span class="n"></span>Records perso des engagés</summary>
+        <div class="step-body">
+          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
+        </div>
+      </details>
+    <h3 class="grp">Présentation du live</h3>
+      <details class="step">
+        <summary><span class="n"></span>Couleurs et organisateur</summary>
+        <div class="step-body">
+          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option></select></label>
+          <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
+        </div>
+      </details>
+      <details class="step">
+        <summary><span class="n"></span>Informations de l'accueil<span class="hint" id="h1b"></span></summary>
         <div class="step-body">
           <p class="msg">Affichées sur l'accueil, dans cet ordre. « Important » les met en avant.</p>
           <div id="info-list" style="display:grid;gap:10px"></div>
@@ -638,14 +657,14 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         </div>
       </details>
       <details class="step">
-        <summary><span class="n">5</span>Logos des clubs<span class="hint" id="h-logos"></span></summary>
+        <summary><span class="n"></span>Logos des clubs<span class="hint" id="h-logos"></span></summary>
         <div class="step-body">
           <p class="msg">Choisis une image pour chaque club (PNG, JPG ou WebP). Elle est réduite automatiquement et enregistrée tout de suite, sans passer par « Enregistrer ». Les clubs apparaissent ici dès que les engagés sont connus.</p>
           <div id="logo-list"></div>
         </div>
       </details>
       <details class="step">
-        <summary><span class="n">★</span>Partenaires et sponsors<span class="hint" id="h-spons"></span></summary>
+        <summary><span class="n"></span>Partenaires et sponsors<span class="hint" id="h-spons"></span></summary>
         <div class="step-body">
           <p class="msg">Les logos s'affichent en bas de chaque page. Une image (PNG, JPG ou WebP) est réduite automatiquement ; le lien est facultatif. Chaque modification est enregistrée tout de suite.</p>
           <h4 class="sp-h">Sur ce live uniquement</h4><div class="sp-list" id="sp-ev"></div>
@@ -655,38 +674,32 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
           <p class="msg" id="sp-msg"></p>
         </div>
       </details>
-      <details class="step" id="fin-step" hidden>
-        <summary><span class="n">★</span>Finales : règles d'accès<span class="hint" id="h-fin"></span></summary>
-        <div class="step-body">
-          <p class="msg">Les qualifiés officiels publiés par le Live FFN (QFA, QFB…) sont toujours prioritaires. Ces règles servent seulement à afficher les <b>qualifiés probables</b> tant que le Live FFN ne les a pas publiés. Les âges sont calculés sur l'année de la compétition.</p>
-          <div id="fin-rules"></div>
-        </div>
-      </details>
-    </div>
-
     <h3 class="grp">Direct au bord du bassin</h3>
-    <div class="steps">
       <details class="step">
-        <summary><span class="n">6</span>Mode du direct<span class="hint" id="h-live"></span></summary>
+        <summary><span class="n"></span>Mode du direct<span class="hint" id="h-live"></span></summary>
         <div class="step-body">
           <label for="ev-live">Direct pendant la compétition<select class="field" id="ev-live"><option value="off">Désactivé</option><option value="ffn">Live FFN : série par série, sans matériel</option><option value="bassin">Bassin : chrono en direct depuis le Quantum (relais au bord du bassin) + Live FFN</option></select><span class="msg" style="font-weight:400">L'onglet « Direct » apparaît les jours de compétition. En mode Bassin, le relais du PC Quantum envoie le chrono à l'événement réglé sur Bassin.</span></label>
           <div class="grid2c"><label for="pool-sort">Classement de la série<select class="field" id="pool-sort"><option value="touch">dès que tous ont touché</option><option value="official">à la validation sur le Quantum</option></select></label>
           <label for="pool-hold">Ensuite, garder les résultats affichés<select class="field" id="pool-hold"><option value="0">jusqu'à la série suivante sur le Quantum (recommandé)</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select></label></div>
           <p class="msg" id="relay-state"></p>
-          <div class="pairbox">
-            <div class="pb-head"><h4>Chronométrage relié</h4><a class="btn small ghost" href="/chrono/SwimDirect-Chrono.exe" download>Télécharger le logiciel (Windows)</a></div>
+        </div>
+      </details>
+      <details class="step">
+        <summary><span class="n"></span>Chronométrage relié (Quantum)</summary>
+        <div class="step-body">
+          <div class="pairbox" style="margin-top:0">
+            <div class="pb-head"><h4></h4><a class="btn small ghost" href="/chrono/SwimDirect-Chrono.exe" download>Télécharger le logiciel (Windows)</a></div>
             <ol class="pb-steps"><li>Sur le PC du chrono, lance <b>SwimDirect-Chrono.exe</b>.</li><li>Copie la clé qu'il affiche (<code>SD-XXXX-XXXX-XXXX-XXXX</code>).</li><li>Colle-la ci-dessous puis « Relier » : tout ce que lit le chrono arrive sur ce live.</li></ol>
             <div class="pb-row"><input class="field" id="pair-in" placeholder="SD-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false"><button class="btn small" id="pair-go" type="button">Relier</button></div>
             <p class="msg" id="pair-msg"></p>
             <div id="pair-list"></div>
             <p class="msg pb-ver" id="chrono-ver"></p>
-            <p class="msg pb-jr" id="jr-list"></p>
+            <p class="msg pb-jr admin-only" id="jr-list"></p>
           </div>
-          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
         </div>
       </details>
       <details class="step sim">
-        <summary><span class="n">7</span>Simulateur de course<span class="hint">tester l'affichage sans Quantum</span></summary>
+        <summary><span class="n"></span>Simulateur de course<span class="hint">tester l'affichage sans Quantum</span></summary>
         <div class="step-body">
           <p class="msg">Envoie une course au direct bassin de <b>cet événement</b>, comme le ferait le Quantum : série au départ, chrono, passages, arrivées, validation. Si la série a déjà des résultats sur le Live FFN, ses vrais temps sont rejoués. Garde cette page ouverte pendant la course, et regarde le résultat sur la page publique (onglet Direct), idéalement sur un téléphone.</p>
           <label for="sim-heat">Série à simuler<select class="field" id="sim-heat"></select></label>
@@ -696,12 +709,9 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
           <div class="simboard" id="sim-board" hidden></div>
         </div>
       </details>
-    </div>
-
     <h3 class="grp">Suivre la compétition</h3>
-    <div class="steps">
       <details class="step">
-        <summary><span class="n">8</span>Actualisation des données<span class="hint" id="h0"></span></summary>
+        <summary><span class="n"></span>Actualisation des données<span class="hint" id="h0"></span></summary>
         <div class="step-body">
           <label for="sc-every">Récupérer les données du Live FFN
             <select class="field" id="sc-every">
@@ -720,7 +730,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         </div>
       </details>
       <details class="step admin-only">
-        <summary><span class="n">9</span>Audience<span class="hint" id="h-aud"></span></summary>
+        <summary><span class="n"></span>Audience du site<span class="hint" id="h-aud"></span></summary>
         <div class="step-body" id="aud"></div>
       </details>
     </div>
@@ -989,7 +999,7 @@ async function pairLoad(){const el=$("#pair-list");if(!el)return;try{const L=awa
     const vt=v=>String(v).split(".").map(n=>+n||0),newer=(a,b)=>{const x=vt(a),y=vt(b);for(let i=0;i<Math.max(x.length,y.length);i++){if((x[i]||0)!==(y[i]||0))return(x[i]||0)>(y[i]||0)}return false};
     vbox.className="pb-ver "+(!cur?"":newer(latest,cur)?"old":"ok");
     vbox.innerHTML=!cur?(latest?`Dernière version du logiciel : <b>${esc(latest)}</b>. La version du chrono relié s'affichera dès qu'il enverra des données.`:""):newer(latest,cur)?`⚠ Le chrono relié utilise la version <b>${esc(cur)}</b>, la dernière est la <b>${esc(latest)}</b>. Il se mettra à jour tout seul à son prochain lancement (ou bouton « Mettre à jour » dans le logiciel).`:`✓ Logiciel du chrono à jour (version <b>${esc(cur)}</b>)${at?` · dernier signal ${new Date(at).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}`:""}`}}
-  const J=await api("/api/admin/journal");const ds=Object.entries(J.days||{}).sort((a,b)=>b[0].localeCompare(a[0]));
+  const J=ROLE==="admin"?await api("/api/admin/journal"):{days:{}};const ds=Object.entries(J.days||{}).sort((a,b)=>b[0].localeCompare(a[0]));
   $("#jr-list").innerHTML=ds.length?"Journal complet du chrono : "+ds.map(([d,n])=>`<a href="#" data-jr="${d}">${new Date(d+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})}</a> <small>(${Math.max(1,Math.round(n/1024))} Ko)</small>`).join(" · "):"";
   $("#jr-list").querySelectorAll("[data-jr]").forEach(a=>a.onclick=async e=>{e.preventDefault();try{const r=await fetch(evq("/api/admin/journal?day="+a.dataset.jr),{headers:{"x-admin-key":ADMIN_KEY}});if(!r.ok)throw new Error("Téléchargement impossible ("+r.status+")");const b=await r.blob();const u=URL.createObjectURL(b);const l=document.createElement("a");l.href=u;l.download=`journal-chrono-${EV}-${a.dataset.jr}.jsonl.gz`;l.click();setTimeout(()=>URL.revokeObjectURL(u),5000)}catch(err){$("#pair-msg").textContent=err.message}})}catch(_){}}
 function bindPair(){const go=$("#pair-go");if(!go)return;go.onclick=async()=>{const msg=$("#pair-msg");try{const j=await api("/api/admin/pair",{method:"PUT",body:JSON.stringify({token:$("#pair-in").value})});$("#pair-in").value="";msg.textContent="Relié ✓ Le logiciel du chrono affiche maintenant le nom de ce live."+(j.moved?" (Cette clé était reliée à un autre live : elle envoie désormais ici.)":"");pairLoad()}catch(e){msg.textContent=e.message}}}

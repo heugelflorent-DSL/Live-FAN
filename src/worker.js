@@ -525,6 +525,7 @@ export default {
       if (req.method === "DELETE") { for (const h of Object.keys(m)) if (h.startsWith(String(body.id || "-")) && m[h].ev === ev) delete m[h]; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0; return json({ ok: true }); }
     }
     if (p === "/api/admin/journal") {
+      if (!ADM) return adminOnly(); // journal brut du chrono : réservé à l'administrateur du site
       const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));
       const d = url.searchParams.get("day"); return room.fetch(new Request("https://pool/journal" + (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? "?day=" + d : "")));
     }
