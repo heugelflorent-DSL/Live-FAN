@@ -637,6 +637,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         <div class="step-body">
           <p class="msg">Course par course ou par équipes (filles et garçons séparés). Cocher plusieurs compétitions fait un classement commun des épreuves de même nom.</p>
           <div id="pod-rules" style="display:grid;gap:10px"></div>
+          <label for="rank-tab">Nom de l'onglet du classement par équipes<input class="field" id="rank-tab" placeholder="Auto : le nom du classement (ex. Classement Interclubs)" maxlength="40"><span class="msg" style="font-weight:400">Vide = le nom du classement s'il n'y en a qu'un, sinon « Classements ».</span></label>
           <div><button class="btn small ghost" id="pod-add">+ Ajouter un classement</button></div>
         </div>
       </details>
@@ -771,7 +772,7 @@ function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m
 
 function build(cfg,data){
   state.name=cfg.name||"";state.theme=cfg.theme||"alsace";state.color=cfg.color||"";state.org=cfg.org??(state.theme==="alsace"?"Fédération Alsacienne de Natation":"");applyTheme();state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";state.chronoSys=cfg.chronoSys||"quantum";
-  state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.finals=cfg.finals||{};state.lines=cfg.lines||{};
+  state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.rankTab=cfg.rankTab||"";state.finals=cfg.finals||{};state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
   const byReu={};let anyLane=false;
@@ -843,7 +844,7 @@ function build(cfg,data){
 }
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
-  return{name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",delay:state.delay,
+  return{name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:state.rankTab||"",delay:state.delay,
     rankings:state.podRules,finals:state.finals||{},infos:state.infos,published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -1127,7 +1128,7 @@ function renderHead(){{const al=$("#allev");if(al)al.hidden=PICK||!(Array.isArra
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
   $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
   const sel=$("#filter-comp");const cur=sel.value;sel.innerHTML=`<option value="">Toutes les compétitions</option>`+state.comps.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");sel.value=state.comps.find(c=>c.id===cur)?cur:"";
-  const hasLive=liveOn();$('[data-view=live]').hidden=!hasLive;if(!hasLive&&state.view==="live")state.view="home";const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;if(!hasTeam&&state.view==="rank")state.view="home";const hasPod=state.podRules.some(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));$('[data-view=pod]').hidden=!hasPod;if(!hasPod&&state.view==="pod")state.view="home";
+  const hasLive=liveOn();$('[data-view=live]').hidden=!hasLive;if(!hasLive&&state.view==="live")state.view="home";const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;{const tr=teamRules(),rb=$('[data-view=rank]');if(rb)rb.textContent=state.rankTab||(tr.length===1?tr[0].name||"Classement":"Classements")}if(!hasTeam&&state.view==="rank")state.view="home";const hasPod=state.podRules.some(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));$('[data-view=pod]').hidden=!hasPod;if(!hasPod&&state.view==="pod")state.view="home";
   sel.hidden=state.comps.length<2||state.view==="pod"||state.view==="rank";$("#filters").hidden=state.view==="home"||state.view==="live";
   document.querySelectorAll("#subnav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===state.view));
   $("#navbar").hidden=state.admin;
@@ -1666,7 +1667,7 @@ function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs(
 function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
 function shrink(file,W=96,H=96,max=40000,q=.85){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const r=Math.min(W/img.width,H/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));{const g=c.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(img,0,0,c.width,c.height)}URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",q);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>max?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
 function renderAdmin(){renderLogos();renderFinRules();
-  $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";if(state.color)$("#ev-color").value=state.color;$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
+  $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";$("#rank-tab").value=state.rankTab||"";if(state.color)$("#ev-color").value=state.color;$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
@@ -1678,7 +1679,7 @@ function renderAdmin(){renderLogos();renderFinRules();
      return`<li class="item" draggable="true" data-key="${key}"><span class="grip">⋮⋮</span><span class="t">${hm(t.start)}</span><span class="name"><span class="cdot k${comp(ev.comp).k}"><i></i></span> ${esc(ev.name)} <span class="msg">· ${ev.series.length} sér.</span></span><span class="mv"><button data-mv="${key}" data-d="-1" aria-label="Monter">↑</button><button data-mv="${key}" data-d="1" aria-label="Descendre">↓</button></span></li>`}).join("")}
   </ul></div>`).join("");
   $("#pod-rules").innerHTML=state.podRules.map(r=>`<div class="rule">
-    <div class="inline"><input class="field" data-rf="name" data-rid="${r.id}" value="${esc(r.name)}" aria-label="Nom du podium"><button class="x" data-rdel="${r.id}" aria-label="Supprimer ce podium">×</button></div>
+    <div class="inline"><input class="field" data-rf="name" data-rid="${r.id}" value="${esc(r.name)}" aria-label="Nom du classement" placeholder="${r.type==="team"?"ex. Classement Interclubs":"ex. Podiums Avenirs"}"><button class="x" data-rdel="${r.id}" aria-label="Supprimer ce podium">×</button></div>
     <div class="checks">${state.comps.map(c=>`<label class="chk"><input type="checkbox" data-rc="${c.id}" data-rid="${r.id}" ${r.comps.includes(c.id)?"checked":""}><span class="badge k${c.k}"><i></i>${esc(c.name)}</span></label>`).join("")}</div>
     <label>Type de classement<select class="field" data-rf="type" data-rid="${r.id}"><option value="race" ${r.type!=="team"?"selected":""}>Course par course (podiums par épreuve)</option><option value="team" ${r.type==="team"?"selected":""}>Équipes : addition des points FFN</option></select></label>
     ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label>`:`<div class="grid2c">
@@ -1860,6 +1861,7 @@ document.addEventListener("change",e=>{const t=e.target;const r=t.dataset.rid&&s
   else{r[t.dataset.rf]=t.value;if(t.dataset.rf==="mode"&&t.value==="age"&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}
   render()});
 document.addEventListener("click",e=>{const d=e.target.dataset&&e.target.dataset.rdel;if(d){state.podRules=state.podRules.filter(r=>r.id!==d);render()}});
+$("#rank-tab").oninput=e=>{state.rankTab=e.target.value.trim();render();markDirty()};
 $("#timing").onchange=e=>{const v=e.target.value;if(v==="manual")state.timing="manual";else{state.timing="elec";setChronoSys(v.slice(5))}render()};
 document.addEventListener("change",e=>{const d=e.target.dataset&&e.target.dataset.delay;if(d){state.delay[d]=+e.target.value||0;render()}});
 {const y=document.getElementById("yr");if(y)y.textContent=new Date().getFullYear()}
