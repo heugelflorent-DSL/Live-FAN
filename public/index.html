@@ -653,7 +653,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
       <details class="step">
         <summary><span class="n"></span>Records perso des engagés</summary>
         <div class="step-body">
-          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><button class="btn small ghost" id="mpp-reset" type="button">Tout relire et écraser</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
+          <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Lire les records perso manquants</button><button class="btn small ghost" id="mpp-reset" type="button">Tout relire et écraser</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
         </div>
       </details>
     <h3 class="grp">Présentation du live</h3>
@@ -931,7 +931,15 @@ function splitsHtml(ev,w){const sp=w.splits||[];if(sp.length<2)return"";
   const bar=d=>d==null?"":`<span class="spbar"><i class="${d<0?"fa":"sl"}" style="${d<0?"right":"left"}:50%;width:${Math.min(50,Math.abs(d)/mx*50).toFixed(1)}%"></i></span>`;
   return`<div class="sp3">${B?`<div class="sp3-h"><span></span><span>Passage <small>vs RP</small></span><span>Tronçon <small>vs RP</small></span></div>`:`<div class="sp3-h"><span></span><span>Passage</span><span>Tronçon</span></div>`}${sp.map((x,i)=>{const bv=B&&(x.dist>=total||(B.sp||[]).some(q=>q[0]===x.dist))?bestAt(B,x.dist,total||x.dist):null;const z=R?R.seg[i]:null;
     return`<div class="sp3-r"><span class="sp3-d">${i?sp[i-1].dist:0}–${x.dist} m</span><span class="sp3-c"><b>${fmt(x.cum)}</b>${bv!=null?pill(x.cum-bv):""}</span><span class="sp3-c"><b>${fmt(x.lap)}</b>${z?pill(z.df)+bar(z.df):""}</span></div>`}).join("")}</div>`}
-function rpRes(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return"";const B=bestOf(w,ev);if(!B||B.t==null)return"";if(B.self)return`<span class="rpb" title="Record perso établi lors de cette compétition (FFN Extranat)">RECORD PERSO</span>`;const d=Math.round((w.res-B.t)*100)/100;return d<0?`<span class="rpb" title="Par rapport au record perso connu avant la course (FFN Extranat)">RECORD PERSO ${rpSg(d)}</span>`:d===0?`<span class="dif">= record perso</span>`:`<span class="dif up" title="Écart avec le record perso">${rpSg(d)} RP</span>`}
+// meilleur temps du nageur sur cette épreuve dans toute la compétition (séries, demi-finales, finales)
+function bestInComp(ev,w){const k=evKey(ev.name);if(!k)return w.res;const sx=/Dames/.test(ev.name),sy=/Messieurs/.test(ev.name);let b=w.res;
+  for(const e of Object.values(EVENTS)){if(e.comp!==ev.comp||evKey(e.name)!==k||/Dames/.test(e.name)!==sx||/Messieurs/.test(e.name)!==sy)continue;for(const x of e.results||[])if(!x.dsq&&x.res!=null&&x.name===w.name&&(x.year||"")==(w.year||"")&&x.res<b)b=x.res}return b}
+function isRP(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return false;const B=bestOf(w,ev);if(!B||B.t==null)return false;if(bestInComp(ev,w)<w.res-.005)return false;return B.self?true:w.res<B.t-.005}
+function rpCount(){const done=doneSet(),seen=new Set();let n=0;for(const k of allKeys()){if(!done.has(k))continue;const ev=EVENTS[k];for(const w of ranking(ev)){const id=ev.comp+"|"+evKey(ev.name)+"|"+w.name;if(seen.has(id))continue;if(isRP(ev,w)){n++;seen.add(id)}}}return n}
+function rpRes(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return"";const B=bestOf(w,ev);if(!B||B.t==null)return"";
+  // le nageur va plus vite plus tard dans la compétition (finale) : l'étiquette record perso est pour cette course-là
+  if(bestInComp(ev,w)<w.res-.005){const d=Math.round((w.res-(B.self?w.res:B.t))*100)/100;return B.self?"":`<span class="dif ${d<0?"dn":"up"}" title="Plus rapide ensuite dans la compétition">${rpSg(d)} RP</span>`}
+  if(B.self)return`<span class="rpb" title="Record perso établi lors de cette compétition (FFN Extranat)">RECORD PERSO</span>`;const d=Math.round((w.res-B.t)*100)/100;return d<0?`<span class="rpb" title="Par rapport au record perso connu avant la course (FFN Extranat)">RECORD PERSO ${rpSg(d)}</span>`:d===0?`<span class="dif">= record perso</span>`:`<span class="dif up" title="Écart avec le record perso">${rpSg(d)} RP</span>`}
 function diffHtml(res,entry){if(!res||!entry)return"";const d=Math.round((res-entry)*100)/100;if(!isFinite(d))return"";const t=gapTxt(d);return d<0?`<span class="dif dn" title="Plus rapide que le temps d'engagement">−${t}</span>`:d>0?`<span class="dif up" title="Plus lent que le temps d'engagement">+${t}</span>`:`<span class="dif">=</span>`}
 function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test(x.status)))}
 
@@ -957,7 +965,7 @@ async function loadEvents(){if(ROLE==="org"){EVLIST=[];const u=evUrl(EV);const e
   sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);{const sl=$("#ev-slug");if(sl&&document.activeElement!==sl)sl.value=EV==="main"?"":EV}$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
-async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}el.innerHTML=`<b>${j.bestN} nageurs avec records perso sur ${j.want}</b> · ${j.left?`<b>${j.left}</b> restent à chercher (dont ${j.errN||0} en échec, réessayés)`:"tous cherchés ✓"}${j.noRecN?` · ${j.noRecN} retrouvés sans record sur leurs épreuves (relus au prochain clic)`:""}${j.notFoundN?` · ${j.notFoundN} introuvables sur Extranat`:""}`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
+async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}const nRP=rpCount();el.innerHTML=`<b>${j.done} nageurs sur ${j.want} lus sur l'Extranat</b> · ${j.bestN} ont un record perso sur leurs épreuves${j.left?` · <b>${j.left}</b> encore à lire`:" · tout est lu ✓"}${j.notFoundN?` · ${j.notFoundN} introuvables (nom ou année différents sur l'Extranat)`:""}<br><b>${nRP} record${nRP>1?"s":""} perso battu${nRP>1?"s":""}</b> pendant la compétition (pancartes violettes)`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
 async function loadAdmin(){const j=await api("/api/admin/state");ROLE=j.role||"admin";document.body.classList.toggle("org",ROLE==="org");loadSpons();if(ROLE==="admin")orgStatus();pairLoad();RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
 let lastSaved="",saveTimer=null;
 function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(markDirty,150)}
@@ -1814,14 +1822,17 @@ $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
 $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
 $("#pool-sort").onchange=e=>{state.poolSort=e.target.value;scheduleSave()};$("#pool-hold").onchange=e=>{state.poolHold=+e.target.value;scheduleSave()};
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
-$("#mpp-go").onclick=async()=>{const m=$("#mpp-msg");m.textContent="Lecture en cours…";try{const j=await api("/api/admin/mpp",{method:"POST"});console.log("records perso",j);m.textContent=j.total?`${j.total} nageur(s) traité(s) · ${j.found} retrouvé(s) sur Extranat · ${j.withBest} avec un record sur leurs épreuves. Reclique pour continuer.${j.found?"":" (Extranat : "+(j.probe&&(j.probe.status||j.probe.error))+" · "+((j.sample||[]).map(x=>x.err).filter(Boolean)[0]||"")+")"}`:"Aucun nageur à traiter : il faut les listes de départ (programme définitif) et une compétition dans les 5 jours.";loadMpp();mppStat(j)}catch(e){m.textContent="Échec : "+e.message}};
+$("#mpp-go").onclick=async()=>{const b=$("#mpp-go"),m=$("#mpp-msg");b.disabled=true;let last=-1,stuck=0;
+  try{for(let i=0;i<120;i++){const j=await api("/api/admin/mpp",{method:"POST"});m.textContent=`Lecture en cours : ${j.done} / ${j.want} nageurs…`;mppStat(j);
+      if(!j.left||j.left<=j.errN)break;if(j.done===last){if(++stuck>=3)break}else stuck=0;last=j.done}
+    m.textContent="Lecture terminée.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}b.disabled=false};
 $("#mpp-reset").onclick=async()=>{const b=$("#mpp-reset"),m=$("#mpp-msg");
   if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Confirmer : tout relire ?";m.textContent="Les records perso enregistrés pour ce live seront effacés puis relus un par un sur l'Extranat (avec leur date). Reclique pour confirmer.";setTimeout(()=>{delete b.dataset.sure;b.textContent="Tout relire et écraser"},8000);return}
   delete b.dataset.sure;b.disabled=true;b.textContent="Relecture…";let first=true,last=-1,stuck=0;
   try{for(let i=0;i<120;i++){const j=await api("/api/admin/mpp",{method:"POST",body:JSON.stringify(first?{reset:true}:{})});first=false;
-      m.textContent=`Relecture : ${j.done} / ${j.want} nageurs relus · ${j.bestN} avec un record${j.errN?` · ${j.errN} en échec (Extranat)`:""}`;mppStat(j);
+      m.textContent=`Relecture : ${j.done} / ${j.want} nageurs…`;mppStat(j);
       if(!j.left||j.left<=j.errN)break;if(j.done===last){if(++stuck>=3)break}else stuck=0;last=j.done}
-    m.textContent+=" · terminé";loadMpp()}catch(e){m.textContent="Échec : "+e.message}
+    m.textContent="Relecture terminée.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}
   b.disabled=false;b.textContent="Tout relire et écraser"};
 $("#sim-stop").onclick=()=>{simStop();$("#sim-msg").textContent="Simulation arrêtée"};
 $("#sim-clear").onclick=()=>{simStop();simSend([{k:"clear"}]);$("#sim-msg").textContent="Direct vidé"};
