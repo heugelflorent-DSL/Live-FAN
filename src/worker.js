@@ -312,6 +312,7 @@ async function orgMatch(env, key, ev) { const e = (await orgKeys(env))[ev]; retu
 // événement dont le mot de passe organisateur correspond (relais du Quantum sans « --evenement »)
 async function orgEventOf(env, key) { if (!key) return null; for (const [ev, e] of Object.entries(await orgKeys(env))) if (same(await sha(e.salt + "|" + key), e.hash)) return ev; return null; }
 // chronométrage relié par clé : l'exe du PC du chrono génère une clé, l'organisateur la colle dans l'admin de son live
+const SYSK = new Set(["quantum", "ares", "stramatel"]);
 const PAIR_RE = /^SD(-[A-Z2-9]{4}){4}$/;
 let PAIRC = { at: 0, map: null };
 async function pairs(env) { if (PAIRC.map && Date.now() - PAIRC.at < 30e3) return PAIRC.map; const m = (await env.KV.get("pairs", "json")) || {}; PAIRC = { at: Date.now(), map: m }; return m; }
@@ -414,7 +415,7 @@ export default {
       if (p === "/api/relay/hello") {
         if (!pr) return json({ linked: false });
         const c = (await env.KV.get(kk("config", pr.ev), "json")) || {};
-        return json({ linked: true, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", now: Date.now() });
+        return json({ linked: true, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || "quantum", now: Date.now() });
       }
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
@@ -512,16 +513,17 @@ export default {
     const adminOnly = () => json({ error: "Réservé à l'administrateur du site." }, 403);
     if (p === "/api/admin/pair") {
       const m = (await env.KV.get("pairs", "json")) || {};
-      if (req.method === "GET") return json(Object.entries(m).filter(([, x]) => x.ev === ev).map(([h, x]) => ({ id: h.slice(0, 12), tail: x.tail, at: x.at })));
+      if (req.method === "GET") return json(Object.entries(m).filter(([, x]) => x.ev === ev).map(([h, x]) => ({ id: h.slice(0, 12), tail: x.tail, at: x.at, sys: x.sys || "quantum" })));
       const body = await req.json().catch(() => ({}));
       if (req.method === "PUT") {
         const t = String(body.token || "").toUpperCase().replace(/\s+/g, "").replace(/^SD-?/, "SD-").replace(/[^A-Z0-9-]/g, "");
         const tok = t.replace(/^SD-/, "").replace(/-/g, "").match(/.{1,4}/g); const norm = tok ? "SD-" + tok.join("-") : "";
         if (!PAIR_RE.test(norm)) return json({ error: "Clé invalide : copie-la telle qu'affichée par le logiciel du chrono (SD-XXXX-XXXX-XXXX-XXXX)." }, 400);
         const h = await sha("pair|" + norm); const was = m[h] && m[h].ev !== ev ? m[h].ev : null;
-        m[h] = { ev, at: Date.now(), tail: norm.slice(-4) }; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0;
+        m[h] = { ev, at: Date.now(), tail: norm.slice(-4), sys: SYSK.has(body.sys) ? body.sys : "quantum" }; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0;
         return json({ ok: true, moved: was });
       }
+      if (req.method === "PATCH") { if (!SYSK.has(body.sys)) return json({ error: "Type inconnu" }, 400); for (const h of Object.keys(m)) if (h.startsWith(String(body.id || "-")) && m[h].ev === ev) m[h].sys = body.sys; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0; return json({ ok: true }); }
       if (req.method === "DELETE") { for (const h of Object.keys(m)) if (h.startsWith(String(body.id || "-")) && m[h].ev === ev) delete m[h]; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0; return json({ ok: true }); }
     }
     if (p === "/api/admin/journal") {

@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.2.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.3.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -74,6 +74,7 @@ class Core:
                 j = self.call("/api/relay/hello")
                 was = self.st["linked"]
                 self.st.update(linked=bool(j.get("linked")), name=j.get("name", ""), url=j.get("url", ""), bassin=j.get("bassin"), err="")
+                self.apply_sys(j.get("sys"))
                 if self.st["linked"] and not was: self.log(f"✓ Relié au live « {self.st['name']} »")
                 if self.st["linked"] and j.get("bassin") is False and was is None: self.log("⚠ Sur le site, le mode du direct de ce live n'est pas « Bassin » : les temps sont reçus mais pas affichés au public.")
             except Exception as e:
@@ -81,6 +82,17 @@ class Core:
                 self.st["err"] = f"site injoignable ({e})"
             self.check_update()
             time.sleep(5 if not self.st["linked"] else 60)
+
+    # type de chronométrage choisi sur la page admin du live : on règle le mode tout seul
+    PRESET = {"quantum": ("reseau", None), "ares": ("serie", "9600,7,E,1"), "stramatel": ("serie", "9600,8,N,1")}
+    NAMES = {"quantum": "Swiss Timing Quantum", "ares": "Omega ARES 21", "stramatel": "Stramatel"}
+    def apply_sys(self, sysk):
+        if sysk not in self.PRESET or self.cfg.get("sys") == sysk: return
+        mode, ser = self.PRESET[sysk]; old = self.cfg.get("mode")
+        self.cfg["sys"] = sysk; self.cfg["mode"] = mode
+        if ser: self.cfg["serial"] = ser
+        save_cfg(self.cfg); self.log(f"Chronométrage choisi sur le site : {self.NAMES[sysk]}" + (" (port série : choisis le port COM dans Réglages)" if mode == "serie" and not self.cfg.get("port") else ""))
+        if old != mode: self.restart = True
 
     # nouvelle version publiée sur le site ?
     def check_update(self, force=False):
@@ -153,15 +165,18 @@ class Core:
                 for d, ts in demo_source(): self.feed(d, ts)
                 time.sleep(5)
             return
-        if self.cfg.get("mode") == "serie": return self.serial_loop()
-        quick = 0
         while not self.stop:
+            self.restart = False
+            (self.serial_loop if self.cfg.get("mode") == "serie" else self.net_loop)()
+    def net_loop(self):
+        quick = 0
+        while not self.stop and not self.restart:
             host, _, port = self.cfg["source"].rpartition(":")
             t0 = time.time()
             try:
                 c = socket.create_connection((host or "127.0.0.1", int(port)), timeout=8); c.settimeout(20)
                 self.st["quantum"] = f"connecté ({self.cfg['source']})"; self.st["occupied"] = False; self.log(f"✓ Chronométrage trouvé sur {self.cfg['source']}")
-                while not self.stop:
+                while not self.stop and not self.restart:
                     d = c.recv(4096)
                     if not d: raise ConnectionError("connexion fermée par le chronométrage")
                     self.feed(d, time.time())
@@ -184,13 +199,13 @@ class Core:
         kw = dict(port=port, baudrate=int(baud), bytesize={"7": serial.SEVENBITS, "8": serial.EIGHTBITS}.get(bits, serial.SEVENBITS),
                   parity={"N": serial.PARITY_NONE, "E": serial.PARITY_EVEN, "O": serial.PARITY_ODD}.get(parity.upper(), serial.PARITY_EVEN),
                   stopbits=serial.STOPBITS_TWO if stop == "2" else serial.STOPBITS_ONE, timeout=1)
-        while not self.stop:
+        while not self.stop and not self.restart:
             if not port: self.st["quantum"] = "aucun port série choisi (Réglages)"; time.sleep(3); port = self.cfg.get("port") or ""; kw["port"] = port; continue
             try:
                 with serial.Serial(**kw) as sp:
                     self.st["quantum"] = f"connecté ({port}, {baud},{bits},{parity},{stop})"; self.log(f"✓ Port série {port} ouvert ({baud},{bits},{parity},{stop})")
                     last = time.time()
-                    while not self.stop:
+                    while not self.stop and not self.restart:
                         d = sp.read(256)
                         if d: self.feed(d, time.time()); last = time.time()
                         elif time.time() - last > 30: self.st["quantum"] = f"{port} ouvert, rien reçu depuis 30 s"

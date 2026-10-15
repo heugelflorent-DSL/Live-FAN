@@ -522,6 +522,7 @@ body.pick{background:#e9f4f8;background-image:none}
 @media (max-width:700px){.foot .sigw.has-sp .cobrand{order:-1;flex:0 0 100%}.foot .sigw.has-sp .cobrand .sig{order:0;flex:0 0 auto;width:72px;height:72px}.sp-l.co{height:72px}.sp-l.co img{max-width:150px}}
 .foot{justify-content:center}.foot p{flex:0 0 100%;max-width:none;text-align:center}.foot #admin-btn{margin:0 auto}
 body.org .admin-only{display:none!important}.org-only{display:none}body.org .org-only{display:block}
+.pb-sys{display:flex;gap:8px;align-items:center;font-weight:600;flex-wrap:wrap}.pb-sys select{width:auto}.pairrow select{width:auto;margin-left:auto;margin-right:8px}
 .pairbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 .pb-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:8px}.pb-head h4{margin:0;font-size:16px}
 .pb-steps{margin:0 0 12px;padding-left:20px;font-size:14px;color:var(--muted);line-height:1.5}.pb-steps code{font-family:var(--mono);font-size:12px;white-space:nowrap}
@@ -685,10 +686,11 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         </div>
       </details>
       <details class="step">
-        <summary><span class="n"></span>Chronométrage relié (Quantum)</summary>
+        <summary><span class="n"></span>Chronométrage électronique relié</summary>
         <div class="step-body">
           <div class="pairbox" style="margin-top:0">
             <div class="pb-head"><h4></h4><a class="btn small ghost" href="/chrono/SwimDirect-Chrono.exe" download>Télécharger le logiciel (Windows)</a></div>
+            <label class="pb-sys">Ton chronométrage <select class="field" id="pair-sys"><option value="quantum">Swiss Timing Quantum</option><option value="ares">Omega ARES 21</option><option value="stramatel">Stramatel</option></select></label><p class="msg" id="pair-sys-hint"></p>
             <ol class="pb-steps"><li>Sur le PC du chrono, lance <b>SwimDirect-Chrono.exe</b>.</li><li>Copie la clé qu'il affiche (<code>SD-XXXX-XXXX-XXXX-XXXX</code>).</li><li>Colle-la ci-dessous puis « Relier » : tout ce que lit le chrono arrive sur ce live.</li></ol>
             <div class="pb-row"><input class="field" id="pair-in" placeholder="SD-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false"><button class="btn small" id="pair-go" type="button">Relier</button></div>
             <p class="msg" id="pair-msg"></p>
@@ -991,8 +993,11 @@ function bindOrg(){const sv=$("#org-save"),dl=$("#org-del"),msg=$("#org-msg");if
   dl.onclick=async()=>{if(!confirm("Retirer l'accès organisateur de ce live ?"))return;try{await api("/api/admin/orgkey",{method:"PUT",body:JSON.stringify({pw:""})});msg.textContent="Accès organisateur retiré.";orgStatus()}catch(e){msg.textContent=e.message}}}
 
 /* ---------- chronométrage relié par clé ---------- */
+const SYSN={quantum:"Swiss Timing Quantum",ares:"Omega ARES 21",stramatel:"Stramatel"};
+const SYSH={quantum:"Dans Quantum, active la sortie « Sport In The Box ». Le logiciel la lit tout seul sur le même PC.",ares:"ARES 21 en mode OSM6, relié au PC par un câble null-modem + adaptateur USB-série. Dans le logiciel, choisis juste le port COM (Réglages).",stramatel:"Relie la sortie série du Stramatel au PC (adaptateur USB-série), choisis le port COM dans le logiciel. Les données sont enregistrées ; l'affichage en direct arrive bientôt."};
 async function pairLoad(){const el=$("#pair-list");if(!el)return;try{const L=await api("/api/admin/pair");
-  el.innerHTML=L.length?L.map(x=>`<div class="pairrow"><span>✓ Chrono relié · clé …${esc(x.tail)} · le ${new Date(x.at).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span><button class="btn small ghost" data-unpair="${x.id}" type="button">Délier</button></div>`).join(""):`<p class="msg">Aucun chronométrage relié pour l'instant.</p>`;
+  el.innerHTML=L.length?L.map(x=>`<div class="pairrow"><span>✓ Chrono relié · clé …${esc(x.tail)} · le ${new Date(x.at).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span><select class="field small" data-sys="${x.id}">${Object.entries(SYSN).map(([k,n])=>`<option value="${k}"${k===x.sys?" selected":""}>${n}</option>`).join("")}</select><button class="btn small ghost" data-unpair="${x.id}" type="button">Délier</button></div>`).join(""):`<p class="msg">Aucun chronométrage relié pour l'instant.</p>`;
+  el.querySelectorAll("[data-sys]").forEach(sl=>sl.onchange=async()=>{try{await api("/api/admin/pair",{method:"PATCH",body:JSON.stringify({id:sl.dataset.sys,sys:sl.value})});$("#pair-msg").textContent="Type enregistré ✓ Le logiciel du chrono se règle tout seul dans la minute."}catch(e){$("#pair-msg").textContent=e.message}});
   el.querySelectorAll("[data-unpair]").forEach(b=>b.onclick=async()=>{if(!confirm("Délier ce chronométrage ? Il n'enverra plus rien sur ce live."))return;try{await api("/api/admin/pair",{method:"DELETE",body:JSON.stringify({id:b.dataset.unpair})});pairLoad()}catch(e){$("#pair-msg").textContent=e.message}});
   {const vbox=$("#chrono-ver");if(vbox){let latest="",cur="",at=0;try{latest=(await (await fetch("/chrono/version.json?t="+Date.now())).json()).version||""}catch(_){}
     try{const ps=await (await fetch(evq("/api/pool/state"),{cache:"no-store"})).json();cur=ps.chronoVer||"";at=ps.chronoAt||0}catch(_){}
@@ -1002,7 +1007,7 @@ async function pairLoad(){const el=$("#pair-list");if(!el)return;try{const L=awa
   const J=ROLE==="admin"?await api("/api/admin/journal"):{days:{}};const ds=Object.entries(J.days||{}).sort((a,b)=>b[0].localeCompare(a[0]));
   $("#jr-list").innerHTML=ds.length?"Journal complet du chrono : "+ds.map(([d,n])=>`<a href="#" data-jr="${d}">${new Date(d+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})}</a> <small>(${Math.max(1,Math.round(n/1024))} Ko)</small>`).join(" · "):"";
   $("#jr-list").querySelectorAll("[data-jr]").forEach(a=>a.onclick=async e=>{e.preventDefault();try{const r=await fetch(evq("/api/admin/journal?day="+a.dataset.jr),{headers:{"x-admin-key":ADMIN_KEY}});if(!r.ok)throw new Error("Téléchargement impossible ("+r.status+")");const b=await r.blob();const u=URL.createObjectURL(b);const l=document.createElement("a");l.href=u;l.download=`journal-chrono-${EV}-${a.dataset.jr}.jsonl.gz`;l.click();setTimeout(()=>URL.revokeObjectURL(u),5000)}catch(err){$("#pair-msg").textContent=err.message}})}catch(_){}}
-function bindPair(){const go=$("#pair-go");if(!go)return;go.onclick=async()=>{const msg=$("#pair-msg");try{const j=await api("/api/admin/pair",{method:"PUT",body:JSON.stringify({token:$("#pair-in").value})});$("#pair-in").value="";msg.textContent="Relié ✓ Le logiciel du chrono affiche maintenant le nom de ce live."+(j.moved?" (Cette clé était reliée à un autre live : elle envoie désormais ici.)":"");pairLoad()}catch(e){msg.textContent=e.message}}}
+function bindPair(){const go=$("#pair-go");if(!go)return;const ps=$("#pair-sys"),ph=()=>$("#pair-sys-hint").textContent=SYSH[ps.value];ps.onchange=ph;ph();go.onclick=async()=>{const msg=$("#pair-msg");try{const j=await api("/api/admin/pair",{method:"PUT",body:JSON.stringify({token:$("#pair-in").value,sys:$("#pair-sys").value})});$("#pair-in").value="";msg.textContent="Relié ✓ Le logiciel du chrono affiche maintenant le nom de ce live."+(j.moved?" (Cette clé était reliée à un autre live : elle envoie désormais ici.)":"");pairLoad()}catch(e){msg.textContent=e.message}}}
 /* ---------- page d'accueil : choix de la compétition ---------- */
 const ARCH=/^\/archives\/?$/.test(location.pathname);const PICK=location.pathname==="/"||ARCH;
 const MOIS_P=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
