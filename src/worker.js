@@ -617,7 +617,7 @@ export default {
       const key = scope === "all" ? "toplogo" : "toplogo:ev:" + ev;
       if (!img) await env.KV.delete(key);
       else {
-        if (typeof img !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(img) || img.length > 90000) return json({ error: "Image invalide ou trop lourde." }, 400);
+        if (typeof img !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(img) || img.length > 250000) return json({ error: "Image invalide ou trop lourde." }, 400);
         await env.KV.put(key, JSON.stringify({ img, bg: bg === "none" ? "none" : "white" }));
       }
       await caches.default.delete(ckey("/api/sponsors"));
