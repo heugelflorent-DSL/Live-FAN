@@ -501,8 +501,8 @@ export default {
 
     // partenaires : ceux de tous les lives + ceux de cet événement
     if (p === "/api/sponsors" && req.method === "GET") {
-      const [all, one] = await Promise.all([env.KV.get("sponsors", "json"), env.KV.get(kk("sponsors", ev), "json")]);
-      return edge(json({ all: all || [], ev: one || [] }, 200, { "cache-control": "public, max-age=120" }));
+      const [all, one, ta, te] = await Promise.all([env.KV.get("sponsors", "json"), env.KV.get(kk("sponsors", ev), "json"), env.KV.get("toplogo", "json"), env.KV.get("toplogo:ev:" + ev, "json")]);
+      return edge(json({ all: all || [], ev: one || [], top: { all: ta, ev: te } }, 200, { "cache-control": "public, max-age=120" }));
     }
     if (p === "/api/logos" && req.method === "GET") {
       const logos = (await env.KV.get("logos", "json")) || {};
@@ -607,6 +607,19 @@ export default {
         clean.push({ name: String(x.name || "").slice(0, 80), url: link, img: x.img, bg: x.bg === "none" ? "none" : "white", role: x.role === "co" ? "co" : "sp" });
       }
       await env.KV.put(scope === "all" ? "sponsors" : kk("sponsors", ev), JSON.stringify(clean));
+      await caches.default.delete(ckey("/api/sponsors"));
+      return json({ ok: true });
+    }
+    // logo en haut à gauche : pour tous les lives (administrateur du site) ou pour ce live seulement
+    if (p === "/api/admin/toplogo" && req.method === "PUT") {
+      const { scope, img, bg } = await req.json();
+      if (scope === "all" && !ADM) return adminOnly();
+      const key = scope === "all" ? "toplogo" : "toplogo:ev:" + ev;
+      if (!img) await env.KV.delete(key);
+      else {
+        if (typeof img !== "string" || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(img) || img.length > 90000) return json({ error: "Image invalide ou trop lourde." }, 400);
+        await env.KV.put(key, JSON.stringify({ img, bg: bg === "none" ? "none" : "white" }));
+      }
       await caches.default.delete(ckey("/api/sponsors"));
       return json({ ok: true });
     }

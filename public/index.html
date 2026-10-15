@@ -523,6 +523,8 @@ body.pick{background:#e9f4f8;background-image:none}
 .foot{justify-content:center}.foot p{flex:0 0 100%;max-width:none;text-align:center}.foot #admin-btn{margin:0 auto}
 body.org .admin-only{display:none!important}.org-only{display:none}body.org .org-only{display:block}
 .pb-sys{display:flex;gap:8px;align-items:center;font-weight:600;flex-wrap:wrap}.pb-sys select{width:auto}.pairrow select{width:auto;margin-left:auto;margin-right:8px}
+.tl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)}.tl-row b{min-width:150px}.tl-prev{height:40px;max-width:120px;object-fit:contain;border-radius:7px;border:1px solid var(--line)}.tl-prev.w{background:#fff}.tl-row select{width:auto}
+.logo.custom{background:none!important;border:0!important;width:auto!important;display:block!important;height:auto!important}.logo.custom img{display:block;height:40px;max-width:120px;object-fit:contain;border-radius:7px}.logo.custom.w img{background:#fff;padding:2px;border:2px solid #fff}body.v-live .top .logo.custom img{height:34px}
 .pairbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 .pb-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:8px}.pb-head h4{margin:0;font-size:16px}
 .pb-steps{margin:0 0 12px;padding-left:20px;font-size:14px;color:var(--muted);line-height:1.5}.pb-steps code{font-family:var(--mono);font-size:12px;white-space:nowrap}
@@ -647,6 +649,11 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         <div class="step-body">
           <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option></select></label>
           <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
+          <h4 style="margin:14px 0 4px">Logo en haut à gauche</h4>
+          <p class="msg">Sans logo choisi : drapeau de l'Alsace avec les couleurs Alsace, rien avec les autres. Enregistré tout de suite, sans le bouton « Enregistrer ».</p>
+          <div class="tl-row admin-only" id="tl-all"></div>
+          <div class="tl-row" id="tl-ev"></div>
+          <p class="msg" id="tl-msg"></p>
         </div>
       </details>
       <details class="step">
@@ -967,7 +974,15 @@ function simRun(idx,chain){if(idx==null){simStop();idx=+$("#sim-heat").value;cha
 
 /* ---------- partenaires / sponsors ---------- */
 let SPONS={all:[],ev:[]};
-async function loadSpons(){try{const r=await fetch(evq("/api/sponsors")+(state.admin?(evq("/api/sponsors").includes("?")?"&":"?")+"t="+Date.now():""));if(r.ok){const j=await r.json();SPONS={all:j.all||[],ev:j.ev||[]}}}catch(_){}renderSpons();if(state.admin)renderSponsAdmin()}
+let TOPL={all:null,ev:null};
+async function loadSpons(){try{const r=await fetch(evq("/api/sponsors")+(state.admin?(evq("/api/sponsors").includes("?")?"&":"?")+"t="+Date.now():""));if(r.ok){const j=await r.json();SPONS={all:j.all||[],ev:j.ev||[]};TOPL=j.top||{all:null,ev:null}}}catch(_){}renderSpons();renderTopLogo();if(state.admin)renderSponsAdmin()}
+function renderTopLogo(){const L=(!PICK&&TOPL.ev)||TOPL.all;document.querySelectorAll(".top .logo").forEach(el=>{if(L){el.classList.add("custom");el.classList.toggle("w",L.bg!=="none");el.innerHTML=`<img src="${L.img}" alt="">`}else{el.classList.remove("custom","w");el.innerHTML=""}});if(state.admin)renderTopLogoAdmin()}
+function renderTopLogoAdmin(){for(const scope of ["all","ev"]){const box=$("#tl-"+scope);if(!box)continue;const L=TOPL[scope];
+  box.innerHTML=`<b>${scope==="all"?"Pour tous les lives":"Pour ce live seulement"}</b>${L?`<img class="tl-prev${L.bg!=="none"?" w":""}" src="${L.img}" alt="">`:`<span class="msg">${scope==="all"?"aucun":"aucun (celui de tous les lives s'applique)"}</span>`}<select class="field small" data-tlbg="${scope}"><option value="white">Fond blanc</option><option value="none"${L&&L.bg==="none"?" selected":""}>Fond transparent</option></select><label class="btn small ghost" style="cursor:pointer">${L?"Changer":"Choisir un logo"}<input type="file" accept="image/*" hidden data-tlf="${scope}"></label>${L?`<button class="btn small ghost" type="button" data-tlx="${scope}">Retirer</button>`:""}`}
+  const put=async(scope,img,bg)=>{try{await api("/api/admin/toplogo",{method:"PUT",body:JSON.stringify({scope,img,bg})});TOPL[scope]=img?{img,bg}:null;$("#tl-msg").textContent="Logo enregistré ✓";renderTopLogo()}catch(e){$("#tl-msg").textContent=e.message}};
+  document.querySelectorAll("[data-tlf]").forEach(i=>i.onchange=async()=>{const f=i.files[0];if(!f)return;try{const d=await shrink(f,360,120,85000);put(i.dataset.tlf,d,$(`[data-tlbg="${i.dataset.tlf}"]`).value)}catch(e){$("#tl-msg").textContent=e.message}});
+  document.querySelectorAll("[data-tlbg]").forEach(sl=>sl.onchange=()=>{const L=TOPL[sl.dataset.tlbg];if(L)put(sl.dataset.tlbg,L.img,sl.value)});
+  document.querySelectorAll("[data-tlx]").forEach(b=>b.onclick=()=>put(b.dataset.tlx,null))}
 function renderSpons(){const ALL=[...(PICK?[]:SPONS.ev),...SPONS.all];const CO=ALL.filter(x=>x.role==="co"),L=ALL.filter(x=>x.role!=="co");const l=$("#sp-l"),r=$("#sp-r");if(!l||!r)return;
   const logo=x=>{const im=`<img src="${x.img}" alt="${esc(x.name||"Partenaire")}" loading="lazy">`;const cls="sp-l"+(x.bg==="none"?" nobg":"");return x.url?`<a class="${cls}" href="${esc(x.url)}" target="_blank" rel="noopener sponsored" title="${esc(x.name||"")}">${im}</a>`:`<span class="${cls}" title="${esc(x.name||"")}">${im}</span>`};
   // alternance gauche / droite autour du logo, le premier partenaire le plus près
