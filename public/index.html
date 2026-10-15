@@ -490,7 +490,8 @@ body.pick{background:#e9f4f8;background-image:none}
 .pk-row+.pk-row{border-top:2px dashed #c9dde6}
 .pk-row:hover,.pk-row:focus-visible{background:#f4fafc;outline:none}.pk-row:focus-visible{box-shadow:inset 0 0 0 3px #0b5c8e}
 .pk-date{display:flex;flex-direction:column;align-items:center;justify-content:center;align-self:stretch;margin:-16px 0;border-right:4px solid #d6202f;font-variant-numeric:tabular-nums}
-.th-ligue .pk-date{border-color:#13703a}.th-ffn .pk-date{border-color:#0b4ea2}
+.cc-row{display:flex;gap:8px;align-items:center;margin-top:6px}.cc-row input[type=color]{width:46px;height:34px;border:1px solid var(--line);border-radius:8px;padding:2px;background:#fff}
+.th-ligue .pk-date{border-color:#13703a}.th-ffn .pk-date{border-color:#0b4ea2}.th-custom .pk-date{border-color:var(--pkc)}
 .pk-date b{white-space:nowrap;font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1}.pk-date small{font-size:14px;color:#5b7685;margin-top:2px}
 .pk-txt{display:flex;flex-direction:column;gap:3px;min-width:0}.pk-name{font-size:18px;font-weight:700;line-height:1.25}
 .pk-where{font-size:14px;color:#5b7685;display:flex;flex-wrap:wrap;gap:2px 12px}.pk-org{color:#88a0ad}
@@ -647,7 +648,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
       <details class="step">
         <summary><span class="n"></span>Couleurs et organisateur</summary>
         <div class="step-body">
-          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option></select></label>
+          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option><option value="custom">Couleur libre…</option></select><span class="cc-row" id="cc-row" hidden><input type="color" id="ev-color" value="#7a2bb5"><span class="msg" id="cc-msg"></span></span></label>
           <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
           <h4 style="margin:14px 0 4px">Logo en haut à gauche</h4>
           <p class="msg">Sans logo choisi : drapeau de l'Alsace avec les couleurs Alsace, rien avec les autres. Enregistré tout de suite, sans le bouton « Enregistrer ».</p>
@@ -767,7 +768,7 @@ function defaultDur(name){const d=parseInt(name)||100;return {25:25,50:45,100:95
 function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m[2]):parseInt(name)}
 
 function build(cfg,data){
-  state.name=cfg.name||"";state.theme=cfg.theme||"alsace";state.org=cfg.org??(state.theme==="alsace"?"Fédération Alsacienne de Natation":"");applyTheme();state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";state.chronoSys=cfg.chronoSys||"quantum";
+  state.name=cfg.name||"";state.theme=cfg.theme||"alsace";state.color=cfg.color||"";state.org=cfg.org??(state.theme==="alsace"?"Fédération Alsacienne de Natation":"");applyTheme();state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";state.chronoSys=cfg.chronoSys||"quantum";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.finals=cfg.finals||{};state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
@@ -840,7 +841,7 @@ function build(cfg,data){
 }
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
-  return{name:state.name,theme:state.theme||"alsace",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",delay:state.delay,
+  return{name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",delay:state.delay,
     rankings:state.podRules,finals:state.finals||{},infos:state.infos,published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -868,7 +869,24 @@ function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.s
   const cd=compStartDate();if(cd&&(h.start<cd.getTime()-864e5||h.start>cd.getTime()+5*864e5))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
 const THEME_COL={alsace:"#c8102e",ligue:"#17803f",ffn:"#0b4ea2"};
-function applyTheme(){const t=THEME_COL[state.theme]?state.theme:"alsace";document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=THEME_COL[t];const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
+/* couleur libre : toute la palette est recalculée à partir d'une seule couleur, en gardant les clartés du modèle FFN (contrastes vérifiés) */
+const BASE_PAL=(()=>{for(const sh of document.styleSheets){try{for(const r of sh.cssRules)if(r.selectorText==='html[data-theme="ffn"]'){const o={};for(const k of r.style)o[k]=r.style.getPropertyValue(k).trim();return o}}catch(_){}}return{}})();
+function hx2rgb(h){h=h.replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[n>>16&255,n>>8&255,n&255]}
+function rgb2hsl([r,g,b]){r/=255;g/=255;b/=255;const M=Math.max(r,g,b),m=Math.min(r,g,b),l=(M+m)/2;if(M===m)return[0,0,l];const d=M-m,s=l>.5?d/(2-M-m):d/(M+m);const h=M===r?(g-b)/d+(g<b?6:0):M===g?(b-r)/d+2:(r-g)/d+4;return[h*60,s,l]}
+function hsl2rgb([h,s,l]){const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return[f(0),f(8),f(4)].map(x=>Math.round(x*255))}
+const rgb2hx=c=>"#"+c.map(x=>x.toString(16).padStart(2,"0")).join("");
+const lum=c=>{const v=c.map(x=>{x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4)});return .2126*v[0]+.7152*v[1]+.0722*v[2]};
+const contrast=(a,b)=>{const A=lum(a),B=lum(b);return(Math.max(A,B)+.05)/(Math.min(A,B)+.05)};
+function customPalette(hex){const[H,S]=rgb2hsl(hx2rgb(hex));const out={};
+  const fix=(c0,isMain)=>{let[h,s,l]=rgb2hsl(c0);h=H;if(s>.08)s=Math.min(1,Math.max(.12,s*(S/.87)));else s=Math.min(s,S*.15);let c=hsl2rgb([h,s,l]);if(isMain){let g=0;while(contrast(c,[255,255,255])<4.6&&g++<60){l-=.01;c=hsl2rgb([h,s,l])}}return c};
+  for(const[k,v]of Object.entries(BASE_PAL)){const main=/^--a(0|-d|-d2|-dd)?$|^--g0$|^--a-rgb$/.test(k);
+    if(v.startsWith("#"))out[k]=rgb2hx(fix(hx2rgb(v),main));else if(/^\d+,\s*\d+,\s*\d+$/.test(v))out[k]=fix(v.split(",").map(Number),main).join(",");else out[k]=v}
+  // la couleur choisie elle-même pour --a, assombrie juste ce qu'il faut pour que le texte blanc reste lisible
+  let[h,s,l]=rgb2hsl(hx2rgb(hex)),c=hx2rgb(hex);while(contrast(c,[255,255,255])<4.6&&l>.05){l-=.01;c=hsl2rgb([h,s,l])}out["--a"]=rgb2hx(c);return{vars:out,adj:rgb2hx(c)!==hex.toLowerCase()?rgb2hx(c):""}}
+function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(state.color||"");const t=cust?"custom":THEME_COL[state.theme]?state.theme:"alsace";const de=document.documentElement;de.dataset.theme=t;
+  let pal=null;if(cust){pal=customPalette(state.color);for(const[k,v]of Object.entries(pal.vars))de.style.setProperty(k,v)}else for(const k of Object.keys(BASE_PAL))de.style.removeProperty(k);
+  const cm=$("#cc-msg");if(cm)cm.textContent=cust&&pal.adj?"Assombrie à "+pal.adj+" pour que le texte blanc reste lisible.":"";const cr=$("#cc-row");if(cr)cr.hidden=state.theme!=="custom";
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
 let CSD=0;function schedule(){
   // résultats lus longtemps après la compétition (compétition passée relue) : l'heure de lecture n'est pas l'heure de la course
   const csd=compStartDate();CSD=csd?csd.getTime():0;
@@ -1046,7 +1064,7 @@ async function pickBoot(){document.body.classList.add("pick");state.theme="ffn";
   const row=e=>{const c=e.comps[0]||{};const city=c.city?c.city.toLowerCase().replace(/(^|[\s-])\S/g,x=>x.toUpperCase()):"";const d=pickDates(c.date);
     const day=d?(d.start.getDate()!==d.end.getDate()?d.start.getDate()+"–"+d.end.getDate():String(d.end.getDate())):"?";const mon=d?MC[d.end.getMonth()]:"";
     const where=[city,c.pool&&("bassin de "+c.pool.replace(/\s/g,""))].filter(Boolean).join(", ");
-    return`<a class="pk-row st-${e.st.k} th-${esc(e.theme)}" href="/e/${esc(e.id)}"><span class="pk-date"><b>${esc(day)}</b><small>${esc(mon)}</small></span>
+    return`<a class="pk-row st-${e.st.k} th-${esc(e.theme)}"${e.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(e.color||"")?` style="--pkc:${e.color}"`:""} href="/e/${esc(e.id)}"><span class="pk-date"><b>${esc(day)}</b><small>${esc(mon)}</small></span>
       <span class="pk-txt"><span class="pk-name">${esc(e.name||c.name||"Compétition")}</span><span class="pk-where">${esc(where)}${e.org?`<span class="pk-org">${esc(e.org)}</span>`:""}</span></span>
       <span class="pk-st">${e.st.k==="live"?'<span class="pk-dot"></span>En direct':esc(e.st.lab)}</span></a>`};
   const grp=(k,t)=>{const x=L.filter(e=>k.includes(e.st.k));return x.length?`<section class="pk-grp"><h2>${t}</h2><div class="pk-list">${x.map(row).join("")}</div></section>`:""};
@@ -1635,7 +1653,7 @@ function renderLogos(){const el=$("#logo-list");if(!el)return;const cl=allClubs(
 function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("afterbegin",`<p class="msg" style="color:#b3121f">${esc(m)}</p>`)}
 function shrink(file,W=96,H=96,max=40000){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const r=Math.min(W/img.width,H/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",.85);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>max?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
 function renderAdmin(){renderLogos();renderFinRules();
-  $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
+  $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";if(state.color)$("#ev-color").value=state.color;$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
@@ -1722,7 +1740,8 @@ $("#pub-body").addEventListener("click",e=>{
 $("#search").oninput=renderPublic;
 $("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
 $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
-$("#ev-theme").onchange=e=>{state.theme=e.target.value;applyTheme();scheduleSave()};
+$("#ev-theme").onchange=e=>{state.theme=e.target.value;if(state.theme==="custom"&&!state.color)state.color=$("#ev-color").value;applyTheme();scheduleSave()};
+$("#ev-color").oninput=e=>{state.color=e.target.value;applyTheme()};$("#ev-color").onchange=e=>{state.color=e.target.value;applyTheme();scheduleSave()};
 $("#ev-org").oninput=e=>{state.org=e.target.value;applyTheme();scheduleSave()};
 $("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
 $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};

@@ -390,7 +390,7 @@ export default {
         // page d'accueil : ville, bassin et dates lues dans le texte brut (sans relire tout le fichier de données)
         const raw = (await env.KV.get(kk("data", x.id))) || ""; const metas = [];
         for (const m of raw.matchAll(/"meta":(\{[^{}]*\})/g)) { try { metas.push(JSON.parse(m[1])); } catch (e) {} if (metas.length >= 6) break; }
-        out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main", theme: c.theme || "alsace", org: c.org ?? (c.theme && c.theme !== "alsace" ? "" : "Fédération Alsacienne de Natation"), live: c.live || "off",
+        out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main", theme: c.theme || "alsace", color: c.color || "", org: c.org ?? (c.theme && c.theme !== "alsace" ? "" : "Fédération Alsacienne de Natation"), live: c.live || "off",
           comps: metas.map((m) => ({ name: m.name || "", city: m.city || "", pool: m.pool || "", date: m.date || "" })) });
       }
       return edge(json(out, 200, { "cache-control": "public, max-age=60" }));
