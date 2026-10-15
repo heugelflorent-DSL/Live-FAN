@@ -923,7 +923,7 @@ let CSD=0;function schedule(){
   }
   return out;
 }
-function splitsHtml(ev,w){const sp0=w.splits||[];if(sp0.length<2)return"";
+function splitsHtml(ev,w,by100){const sp0=w.splits||[];if(sp0.length<2)return"";
   let B=/^\d+x/i.test(ev.name)?null:bestOf(w,ev),total=totalDist(ev.name);const self=!!(B&&B.self);if(self)B=null;
   // record établi ici : on compare la finale à la série du même nageur (même compétition, autre tour)
   let vs="RP",prev=null;if(self&&ev.fin){prev=otherRound(ev,w);if(prev){B={t:prev.res,sp:(prev.splits||[]).map(x=>[x.dist,x.cum])};vs="série"}}
@@ -934,9 +934,9 @@ function splitsHtml(ev,w){const sp0=w.splits||[];if(sp0.length<2)return"";
     return`<div class="sp3">${lbl?`<div class="sp3-t">${lbl}</div>`:""}${B?`<div class="sp3-h"><span></span><span>Passage <small>vs ${vs}</small></span><span>Tronçon <small>vs ${vs}</small></span></div>`:`<div class="sp3-h"><span></span><span>Passage</span><span>Tronçon</span></div>`}${sp.map((x,i)=>{const bv=B&&(x.dist>=total||(B.sp||[]).some(q=>q[0]===x.dist))?bestAt(B,x.dist,total||x.dist):null;const z=R?R.seg[i]:null;
       return`<div class="sp3-r"><span class="sp3-d">${i?sp[i-1].dist:0}–${x.dist} m</span><span class="sp3-c"><b>${fmt(x.cum)}</b>${bv!=null?pill(x.cum-bv):""}</span><span class="sp3-c"><b>${fmt(x.lap)}</b>${z?pill(z.df)+bar(z.df):""}</span></div>`}).join("")}</div>`};
   // 400 m et plus : tronçons de 100 m en plus des 50 m
-  const sp100=total>=400?sp0.filter(x=>x.dist%100===0).map((x,i,a)=>({...x,lap:Math.round((x.cum-(i?a[i-1].cum:0))*100)/100})):[];
+  const sp100=by100&&total>=400?sp0.filter(x=>x.dist%100===0).map((x,i,a)=>({...x,lap:Math.round((x.cum-(i?a[i-1].cum:0))*100)/100})):[];
   const note=prev?`<p class="sp3-n">Comparaison avec ses séries (${fmt(prev.res)}) : l'ancien record perso n'est plus disponible sur l'Extranat.</p>`:self?`<p class="sp3-n">Record perso établi lors de cette compétition : l'ancien record n'est plus disponible sur l'Extranat pour comparer.</p>`:B&&!(B.sp&&B.sp.length>1)?`<p class="sp3-n">Passages du record perso précédent non disponibles sur l'Extranat : seule la comparaison du temps final est possible.</p>`:"";
-  return sp100.length>1&&sp100.length<sp0.length?table(sp100,"Par 100 m")+table(sp0,"Par 50 m")+note:table(sp0,"")+note}
+  return sp100.length>1&&sp100.length<sp0.length?table(sp0,"Par 50 m")+table(sp100,"Par 100 m")+note:table(sp0,"")+note}
 // meilleur temps du nageur sur cette épreuve dans toute la compétition (séries, demi-finales, finales)
 // même nageur, même épreuve, autre tour (séries d'une finale) avec ses passages
 function otherRound(ev,w){const k=evKey(ev.name);if(!k)return null;const sx=/Dames/.test(ev.name),sy=/Messieurs/.test(ev.name);
@@ -1504,7 +1504,7 @@ function renderRanking(ev,q){
       <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
       <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",(d=>d?"engag. "+d:"")(diffHtml(w.res,ent[w.iuf||w.name])),rpRes(ev,w)].filter(Boolean).join(" · ")}</small></span>
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
-      ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w)}</div>`:""}
+      ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w,1)}</div>`:""}
     </li>`}).join("")}
   </ol>${(()=>{const fo=ev.results.filter(x=>x.status&&/forf|dns|np/i.test(x.status));return fo.length?`<p class="forcomp">${plural(fo.length,"forfait")}</p><ol class="rk-list">${fo.map(w=>`<li class="rk-row dsq"><span class="rk-pl">—</span><span class="rk-who"><b>${nameCell(w)}</b><small>${relay?"":(w.year?w.year+" · ":"")+logo(w.club)}${esc(w.club||"")}</small></span><span class="rk-res"><b>${/dec/i.test(w.status)?"Forfait déclaré":/nd/i.test(w.status)?"Forfait non déclaré":esc(w.reason||w.status)}</b><small>${esc(w.status)}</small></span><span></span></li>`).join("")}</ol>`:""})()}${ev.fin&&finalsDone(ev)&&epGroup(ev).filter(x=>x.fin).sort((a,b)=>(b.ffnSec||0)-(a.ffnSec||0))[0]===ev?`<p class="forcomp">Classement final de l'épreuve · finales puis séries</p><ol class="rk-list">${mergedRanking(ev).map(w=>`<li class="rk-row ${hit(w,q)}${isFav(w)?" fav":""}"><span class="rk-pl ${w.rank<=3?"m"+w.rank:""}">${w.rank}</span><span class="rk-who"><b>${nameCell(w)}</b><small>${w.year?w.year+" · ":""}${logo(w.club)}${esc(w.club||"")}</small></span><span class="rk-res"><b>${fmt(w.res)}</b><small>${esc(w.round)}</small></span><span></span></li>`).join("")}</ol>`:""}${(ev.barrages||[]).map(b=>`<p class="forcomp">${esc(b.title.replace(/^.*? - /,""))}${b.when?` · ${esc((b.when.match(/\d{1,2}h\d{2}/)||[""])[0])}`:""}</p><ol class="rk-list">${b.rows.map(w=>`<li class="rk-row"><span class="rk-pl">${w.rank??"—"}</span><span class="rk-who"><b>${nameCell(w)}</b><small>${w.year?w.year+" · ":""}${logo(w.club)}${esc(w.club||"")}</small></span><span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small></small></span><span></span></li>`).join("")}</ol>`).join("")}</div>`;
 }
