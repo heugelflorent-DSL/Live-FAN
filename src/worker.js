@@ -36,7 +36,8 @@ const hToMin = (t) => { const m = String(t || "").match(/(\d{1,2})h(\d{2})/); re
 // Plusieurs événements : « main » garde les clés historiques, les autres ont leurs propres clés
 export const kk = (base, ev) => (ev && ev !== "main" ? `${base}:${ev}` : base);
 const EV_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
-async function listEvents(env) { return (await env.KV.get("events", "json")) || []; }
+let EVC = { at: 0, list: null };
+async function listEvents(env) { if (EVC.list && Date.now() - EVC.at < 60e3) return EVC.list; const l = (await env.KV.get("events", "json")) || []; EVC = { at: Date.now(), list: l }; return l; }
 async function load(env, ev = "main") {
   const [c, d] = await Promise.all([env.KV.get(kk("config", ev), "json"), env.KV.get(kk("data", ev), "json")]);
   return { config: { ...DEFAULT_CONFIG, ...(c || {}) }, data: d || { comps: {}, queue: [], log: [] } };
@@ -236,7 +237,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   // les horodatages seuls ne justifient pas une écriture KV (1 000 écritures/jour en gratuit) : on écrit si le contenu a changé
   // (repéré pendant la lecture, sans recomparer tout le fichier : trop coûteux pour une grosse compétition)
   const dirty = data.dirty || errors || data.queue.length; delete data.dirty;
-  if (dirty || !data.savedAt || now - data.savedAt > 10 * 60e3) { data.savedAt = now; await saveData(env, data, "", ev); }
+  if (dirty || !data.savedAt) { data.savedAt = now; await saveData(env, data, "", ev); }
   return used;
 }
 
@@ -350,8 +351,14 @@ export default {
       return json({ error: "Trop d'essais de mot de passe. Réessaie dans 15 minutes." }, 429);
     const ev = url.searchParams.get("e") || "main";
     if (!EV_RE.test(ev)) return json({ error: "Événement inconnu." }, 404);
-    if (ev !== "main" && p !== "/api/admin/events" && !(await listEvents(env)).some((x) => x.id === ev)) return json({ error: "Événement inconnu." }, 404);
+    if (ev !== "main" && p !== "/api/admin/events" && p !== "/api/hit" && !(await listEvents(env)).some((x) => x.id === ev)) return json({ error: "Événement inconnu." }, 404);
     const ckey = (path) => new Request(url.origin + path + (path.includes("?") ? "&" : "?") + "e=" + ev);
+
+    // lectures publiques gardées en cache (chaque lecture KV compte dans le quota gratuit)
+    const EDGE = { "/api/events": 0, "/api/logos": 0, "/api/mpp": 1, "/api/sponsors": 1 };
+    const edgeKey = p in EDGE ? (EDGE[p] ? ckey(p) : new Request(url.origin + p)) : null;
+    if (edgeKey && req.method === "GET") { const hit = await caches.default.match(edgeKey); if (hit) return hit; }
+    const edge = (res) => { if (edgeKey && res.ok) ctx.waitUntil(caches.default.put(edgeKey, res.clone())); return res; };
 
     // liste publique des événements (pour l'accueil et le partage)
     if (p === "/api/events" && req.method === "GET") {
@@ -365,7 +372,7 @@ export default {
         out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main", theme: c.theme || "alsace", org: c.org ?? (c.theme && c.theme !== "alsace" ? "" : "Fédération Alsacienne de Natation"), live: c.live || "off",
           comps: metas.map((m) => ({ name: m.name || "", city: m.city || "", pool: m.pool || "", date: m.date || "" })) });
       }
-      return json(out, 200, { "cache-control": "public, max-age=60" });
+      return edge(json(out, 200, { "cache-control": "public, max-age=60" }));
     }
 
     if (p === "/api/state" && req.method === "GET") {
@@ -436,7 +443,7 @@ export default {
     if (p === "/api/mpp" && req.method === "GET") {
       const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
       const out = {}; for (const k in store.sw) if (store.sw[k].b && Object.keys(store.sw[k].b).length) out[k] = { iuf: store.sw[k].iuf, b: store.sw[k].b };
-      return json({ at: store.at || null, sw: out }, 200, { "cache-control": "public, max-age=300" });
+      return edge(json({ at: store.at || null, sw: out }, 200, { "cache-control": "public, max-age=300" }));
     }
 
     // audience sans cookie : une empreinte hachée (IP + navigateur + semaine) par visiteur, rien de lisible n'est gardé
@@ -456,11 +463,11 @@ export default {
     // partenaires : ceux de tous les lives + ceux de cet événement
     if (p === "/api/sponsors" && req.method === "GET") {
       const [all, one] = await Promise.all([env.KV.get("sponsors", "json"), env.KV.get(kk("sponsors", ev), "json")]);
-      return json({ all: all || [], ev: one || [] }, 200, { "cache-control": "public, max-age=60" });
+      return edge(json({ all: all || [], ev: one || [] }, 200, { "cache-control": "public, max-age=120" }));
     }
     if (p === "/api/logos" && req.method === "GET") {
       const logos = (await env.KV.get("logos", "json")) || {};
-      return json(logos, 200, { "cache-control": "public, max-age=300" });
+      return edge(json(logos, 200, { "cache-control": "public, max-age=300" }));
     }
 
     if (!authed(req, env)) return json({ error: env.ADMIN_PASSWORD ? "Mot de passe incorrect." : "Le mot de passe admin n'est pas encore configuré dans Cloudflare (variable ADMIN_PASSWORD)." }, 401);
@@ -479,7 +486,7 @@ export default {
         let base = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "evenement";
         let id = base, i = 2; while (id === "main" || list.some((x) => x.id === id)) id = `${base}-${i++}`;
         list.push({ id, name: String(name).slice(0, 120), createdAt: Date.now() });
-        await env.KV.put("events", JSON.stringify(list));
+        EVC.at = 0; await env.KV.put("events", JSON.stringify(list));
         const cfg = { ...DEFAULT_CONFIG, name: String(name).slice(0, 120), comps: comps.filter((c) => /^\d{3,7}$/.test(String(c))).map(String) };
         await env.KV.put(kk("config", id), JSON.stringify(cfg));
         if (cfg.comps.length) ctx.waitUntil(cycle(env, { force: true, ev: id }));
@@ -495,7 +502,7 @@ export default {
         const [c, d, m, sp] = await Promise.all(["config", "data", "mpp", "sponsors"].map((k) => env.KV.get(kk(k, ev))));
         await Promise.all([c && env.KV.put(kk("config", id), c), d && env.KV.put(kk("data", id), d), m && env.KV.put(kk("mpp", id), m), sp && env.KV.put(kk("sponsors", id), sp)].filter(Boolean));
         const name = (c && JSON.parse(c).name) || (list.find((x) => x.id === ev) || {}).name || "";
-        await env.KV.put("events", JSON.stringify([...list.filter((x) => x.id !== ev), { id, name, createdAt: Date.now() }]));
+        EVC.at = 0; await env.KV.put("events", JSON.stringify([...list.filter((x) => x.id !== ev), { id, name, createdAt: Date.now() }]));
         if (ev === "main") await Promise.all([env.KV.put(kk("config", "main"), JSON.stringify({ ...DEFAULT_CONFIG })), env.KV.delete(kk("data", "main")), env.KV.delete(kk("mpp", "main"))]);
         else await Promise.all(["config", "data", "mpp", "sponsors"].map((k) => env.KV.delete(kk(k, ev))));
         await purge();
@@ -503,7 +510,7 @@ export default {
       }
       if (req.method === "DELETE") {
         if (ev === "main") return json({ error: "L'événement principal ne peut pas être supprimé." }, 400);
-        await env.KV.put("events", JSON.stringify(list.filter((x) => x.id !== ev)));
+        EVC.at = 0; await env.KV.put("events", JSON.stringify(list.filter((x) => x.id !== ev)));
         await Promise.all([env.KV.delete(kk("config", ev)), env.KV.delete(kk("data", ev)), env.KV.delete(kk("sponsors", ev))]);
         await purge();
         return json({ ok: true });
@@ -525,6 +532,7 @@ export default {
         clean.push({ name: String(x.name || "").slice(0, 80), url: link, img: x.img, bg: x.bg === "none" ? "none" : "white", role: x.role === "co" ? "co" : "sp" });
       }
       await env.KV.put(scope === "all" ? "sponsors" : kk("sponsors", ev), JSON.stringify(clean));
+      await caches.default.delete(ckey("/api/sponsors"));
       return json({ ok: true });
     }
     if (p === "/api/logo" && req.method === "PUT") {
