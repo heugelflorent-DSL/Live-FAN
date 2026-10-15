@@ -79,20 +79,24 @@ function finished(cfg, data, now) {
     const c = data.comps[id]; if (!c || !c.reunions) return false;
     const evs = eventsOf(c); if (!evs.length) return false;
     if (evs.every((e) => c.events?.[e.key]?.doneAt)) return true;
-    const dt = compDate(c.meta); if (!dt) return false;
-    const last = Math.max(...evs.map((e) => hToMin(e.time) ?? 0));
-    // résultats incomplets : on continue de les chercher jusqu'à 12 h après la dernière épreuve, puis on s'arrête
-    return now > parisEpoch(dt.y, dt.m, dt.d) + (last + 12 * 60) * 60e3;
+    const end = endAt(c); if (!end) return false;
+    // résultats incomplets : on continue de les chercher jusqu'à 12 h après la dernière épreuve (du dernier jour), puis on s'arrête
+    return now > end + 12 * 3600e3;
   });
 }
 // après la dernière épreuve du programme (résultats encore incomplets) : on relit les résultats manquants
 function pastEnd(cfg, data, now) {
-  return cfg.comps.some((id) => {
-    const c = data.comps[id]; if (!c || !c.reunions) return false;
-    const evs = eventsOf(c); const dt = compDate(c.meta); if (!evs.length || !dt) return false;
-    const last = Math.max(...evs.map((e) => hToMin(e.time) ?? 0));
-    return now > parisEpoch(dt.y, dt.m, dt.d) + last * 60e3;
-  });
+  return cfg.comps.some((id) => { const c = data.comps[id]; const end = c && c.reunions ? endAt(c) : 0; return !!end && now > end; });
+}
+// heure de la dernière épreuve de la compétition, le jour de sa réunion (compétitions sur plusieurs jours)
+function endAt(c) {
+  let end = 0;
+  for (const r of c.reunions || []) {
+    const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) continue;
+    const last = Math.max(0, ...(r.items || []).filter((i) => i.kind === "event").map((i) => hToMin(i.time) ?? 0));
+    end = Math.max(end, parisEpoch(dt.y, dt.m, dt.d) + last * 60e3);
+  }
+  return end;
 }
 
 // Fréquence de relecture du programme : le programme officiel sort en général 3 à 4 jours avant
