@@ -883,7 +883,7 @@ function customPalette(hex){const[H,S]=rgb2hsl(hx2rgb(hex));const out={};
     if(v.startsWith("#"))out[k]=rgb2hx(fix(hx2rgb(v),main));else if(/^\d+,\s*\d+,\s*\d+$/.test(v))out[k]=fix(v.split(",").map(Number),main).join(",");else out[k]=v}
   // la couleur choisie elle-même pour --a, assombrie juste ce qu'il faut pour que le texte blanc reste lisible
   let[h,s,l]=rgb2hsl(hx2rgb(hex)),c=hx2rgb(hex);while(contrast(c,[255,255,255])<4.6&&l>.05){l-=.01;c=hsl2rgb([h,s,l])}out["--a"]=rgb2hx(c);return{vars:out,adj:rgb2hx(c)!==hex.toLowerCase()?rgb2hx(c):""}}
-function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(state.color||"");const t=cust?"custom":THEME_COL[state.theme]?state.theme:"alsace";const de=document.documentElement;de.dataset.theme=t;
+function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(state.color||"")&&!colorClash(state.color);const t=cust?"custom":THEME_COL[state.theme]?state.theme:"alsace";const de=document.documentElement;de.dataset.theme=t;
   let pal=null;if(cust){pal=customPalette(state.color);for(const[k,v]of Object.entries(pal.vars))de.style.setProperty(k,v)}else for(const k of Object.keys(BASE_PAL))de.style.removeProperty(k);
   const cm=$("#cc-msg");if(cm)cm.textContent=cust&&pal.adj?"Assombrie à "+pal.adj+" pour que le texte blanc reste lisible.":"";const cr=$("#cc-row");if(cr)cr.hidden=state.theme!=="custom";
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
@@ -1741,7 +1741,9 @@ $("#search").oninput=renderPublic;
 $("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
 $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
 $("#ev-theme").onchange=e=>{state.theme=e.target.value;if(state.theme==="custom"&&!state.color)state.color=$("#ev-color").value;applyTheme();scheduleSave()};
-$("#ev-color").oninput=e=>{state.color=e.target.value;applyTheme()};$("#ev-color").onchange=e=>{state.color=e.target.value;applyTheme();scheduleSave()};
+function colorClash(hex){const[h,s,l]=rgb2hsl(hx2rgb(hex));if(s>.35&&l>.15&&h>=28&&h<=65)return"Teinte trop proche de l'or et du bronze des podiums et de l'orange des alertes : choisis-en une autre.";if(s>.45&&l>.15&&h>=95&&h<=150)return"";return""}
+$("#ev-color").oninput=e=>{const w=colorClash(e.target.value);if(w){$("#cc-msg").textContent=w;return}state.color=e.target.value;applyTheme()};
+$("#ev-color").onchange=e=>{const w=colorClash(e.target.value);if(w){e.target.value=state.color||"#7a2bb5";applyTheme();$("#cc-msg").textContent=w;return}state.color=e.target.value;applyTheme();scheduleSave()};
 $("#ev-org").oninput=e=>{state.org=e.target.value;applyTheme();scheduleSave()};
 $("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
 $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
