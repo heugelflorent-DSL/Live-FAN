@@ -208,14 +208,14 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     if (!every) return 0; // récupération manuelle uniquement
     if (data.lastRun && now - data.lastRun < every - 5e3) return 0;
     // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
-    if (finished(config, data, now) && !(data.queue || []).length && config.comps.every((id) => Object.values((data.comps[id] || {}).events || {}).some((e) => (e.results || []).length))) {
+    if (finished(config, data, now) && !(data.queue || []).length && config.comps.every((id) => Object.values((data.comps[id] || {}).events || {}).some((e) => e.results?.rows?.length))) {
       if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); }
       return 0;
     }
   }
   if (data.finished && !finished(config, data, now)) data.finished = null;
   // compétition déjà passée dont les résultats manquent (ajoutée après coup, relecture interrompue) : on les récupère quand même
-  const missing = config.comps.some((id) => !Object.values((data.comps[id] || {}).events || {}).some((e) => (e.results || []).length));
+  const missing = config.comps.some((id) => !Object.values((data.comps[id] || {}).events || {}).some((e) => e.results?.rows?.length));
   const live = force || (missing && finished(config, data, now)) || windowOpen(config, data, now);
   data.queue = data.queue || [];
   let errors = 0, used = 0;
