@@ -521,8 +521,14 @@ body.pick{background:#e9f4f8;background-image:none}
 .co-cap{flex:0 0 100%;text-align:center;font-size:13px;font-weight:600;color:var(--muted);margin-top:2px}
 @media (max-width:700px){.foot .sigw.has-sp .cobrand{order:-1;flex:0 0 100%}.foot .sigw.has-sp .cobrand .sig{order:0;flex:0 0 auto;width:72px;height:72px}.sp-l.co{height:72px}.sp-l.co img{max-width:150px}}
 .foot{justify-content:center}.foot p{flex:0 0 100%;max-width:none;text-align:center}.foot #admin-btn{margin:0 auto}
-body.org .admin-only{display:none!important}.org-only{display:none}body.org .org-only{display:block}.orgbox{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
-.pairbox{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}.pairrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0}.pairbox code{font-family:var(--mono);font-size:12px}#jr-list a{color:var(--a)}
+body.org .admin-only{display:none!important}.org-only{display:none}body.org .org-only{display:block}
+.pairbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
+.pb-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:8px}.pb-head h4{margin:0;font-size:16px}
+.pb-steps{margin:0 0 12px;padding-left:20px;font-size:14px;color:var(--muted);line-height:1.5}.pb-steps code{font-family:var(--mono);font-size:12px;white-space:nowrap}
+.pb-row{display:flex;gap:8px}.pb-row input{flex:1;min-width:0;font-family:var(--mono);letter-spacing:.04em}
+.pairrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:14px}
+.pb-jr{margin-top:10px}#jr-list a{color:var(--a);font-weight:600}
+.orgbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 </style>
 </head>
 <body>
@@ -573,8 +579,8 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
     <div class="card evbar"><label for="ev-switch" class="admin-only">Événement géré<select class="field" id="ev-switch"></select></label>
       <div class="evbar-act admin-only"><button class="btn small" id="ev-new">+ Nouvel événement</button><button class="btn small ghost" id="ev-del">Supprimer cet événement</button></div>
       <p class="msg" id="ev-link"></p><div class="inline admin-only"><label for="ev-slug" style="flex:1">Adresse du live<input class="field" id="ev-slug" placeholder="ex. meeting-saint-louis-2026" maxlength="40"></label><button class="btn small" id="ev-slug-go" type="button">Changer l'adresse</button></div><p class="msg admin-only" id="ev-slug-msg"></p>
-      <div class="orgbox admin-only"><b>Accès organisateur</b><span class="msg" id="org-st"></span>
-        <p class="msg">Donne à l'organisateur de ce live un mot de passe à lui : il pourra gérer uniquement ce live (programme, infos, partenaires du live, direct, simulateur), sans voir les autres ni ton mot de passe général. Il sert aussi de clé pour le relais de son chronométrage, qui envoie alors automatiquement sur ce live.</p>
+      <div class="orgbox admin-only"><div class="pb-head"><h4>Accès organisateur<span class="msg" id="org-st" style="font-weight:400"></span></h4></div>
+        <p class="msg">Donne à l'organisateur de ce live un mot de passe à lui : il pourra gérer uniquement ce live (programme, infos, partenaires du live, direct, simulateur), sans voir les autres ni ton mot de passe général. Pour son chronométrage, il relie le logiciel du chrono dans le bloc « Chronométrage relié ».</p>
         <div class="inline"><input class="field" id="org-pw" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe organisateur (8 caractères min.)" style="flex:1"><button class="btn small" id="org-save" type="button">Enregistrer</button><button class="btn small ghost" id="org-del" type="button">Retirer l'accès</button></div>
         <p class="msg" id="org-msg"></p></div>
       <p class="msg org-only">Accès organisateur : tu gères uniquement ce live.</p></div>
@@ -666,11 +672,13 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
           <div class="grid2c"><label for="pool-sort">Classement de la série<select class="field" id="pool-sort"><option value="touch">dès que tous ont touché</option><option value="official">à la validation sur le Quantum</option></select></label>
           <label for="pool-hold">Ensuite, garder les résultats affichés<select class="field" id="pool-hold"><option value="0">jusqu'à la série suivante sur le Quantum (recommandé)</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select></label></div>
           <p class="msg" id="relay-state"></p>
-          <div class="pairbox"><b>Chronométrage relié</b>
-            <p class="msg"><a class="btn small ghost" href="/chrono/SwimDirect-Chrono.exe" download>Télécharger le logiciel du chrono (Windows)</a></p><p class="msg">Sur le PC du chrono, lance <b>SwimDirect-Chrono.exe</b> : il affiche une clé du type <code>SD-XXXX-XXXX-XXXX-XXXX</code>. Colle-la ici puis « Relier » : tout ce que lit le chrono arrive sur ce live, et son journal complet est gardé 14 jours.</p>
-            <div class="inline"><input class="field" id="pair-in" placeholder="SD-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" style="flex:1;font-family:var(--mono)"><button class="btn small" id="pair-go" type="button">Relier</button></div>
-            <p class="msg" id="pair-msg"></p><div id="pair-list"></div>
-            <p class="msg" id="jr-list"></p>
+          <div class="pairbox">
+            <div class="pb-head"><h4>Chronométrage relié</h4><a class="btn small ghost" href="/chrono/SwimDirect-Chrono.exe" download>Télécharger le logiciel (Windows)</a></div>
+            <ol class="pb-steps"><li>Sur le PC du chrono, lance <b>SwimDirect-Chrono.exe</b>.</li><li>Copie la clé qu'il affiche (<code>SD-XXXX-XXXX-XXXX-XXXX</code>).</li><li>Colle-la ci-dessous puis « Relier » : tout ce que lit le chrono arrive sur ce live.</li></ol>
+            <div class="pb-row"><input class="field" id="pair-in" placeholder="SD-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false"><button class="btn small" id="pair-go" type="button">Relier</button></div>
+            <p class="msg" id="pair-msg"></p>
+            <div id="pair-list"></div>
+            <p class="msg pb-jr" id="jr-list"></p>
           </div>
           <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Récupérer des records perso maintenant</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
         </div>
@@ -972,7 +980,7 @@ function bindOrg(){const sv=$("#org-save"),dl=$("#org-del"),msg=$("#org-msg");if
 
 /* ---------- chronométrage relié par clé ---------- */
 async function pairLoad(){const el=$("#pair-list");if(!el)return;try{const L=await api("/api/admin/pair");
-  el.innerHTML=L.length?L.map(x=>`<div class="pairrow"><span>Clé …${esc(x.tail)} · reliée le ${new Date(x.at).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span><button class="btn small ghost" data-unpair="${x.id}" type="button">Délier</button></div>`).join(""):`<p class="msg">Aucun chronométrage relié pour l'instant.</p>`;
+  el.innerHTML=L.length?L.map(x=>`<div class="pairrow"><span>✓ Chrono relié · clé …${esc(x.tail)} · le ${new Date(x.at).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span><button class="btn small ghost" data-unpair="${x.id}" type="button">Délier</button></div>`).join(""):`<p class="msg">Aucun chronométrage relié pour l'instant.</p>`;
   el.querySelectorAll("[data-unpair]").forEach(b=>b.onclick=async()=>{if(!confirm("Délier ce chronométrage ? Il n'enverra plus rien sur ce live."))return;try{await api("/api/admin/pair",{method:"DELETE",body:JSON.stringify({id:b.dataset.unpair})});pairLoad()}catch(e){$("#pair-msg").textContent=e.message}});
   const J=await api("/api/admin/journal");const ds=Object.entries(J.days||{}).sort((a,b)=>b[0].localeCompare(a[0]));
   $("#jr-list").innerHTML=ds.length?"Journal complet du chrono : "+ds.map(([d,n])=>`<a href="#" data-jr="${d}">${new Date(d+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"})}</a> <small>(${Math.max(1,Math.round(n/1024))} Ko)</small>`).join(" · "):"";
