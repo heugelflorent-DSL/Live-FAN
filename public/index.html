@@ -964,7 +964,7 @@ async function api(path,opt={}){path=evq(path);
 async function loadPublic(){
   try{const j=await api("/api/state");if(!j.published){state.published=false;state.loaded=true;if(!state.admin)render();return}
     RAW=j;build(j.config,j.data);if(!state.admin)render();}
-  catch(e){$("#pub-body").innerHTML=`<p class="empty">Impossible de charger les données. Nouvel essai dans quelques secondes.</p>`}
+  catch(e){console.error(e);$("#pub-body").innerHTML=`<p class="empty">Impossible de charger les données. Nouvel essai dans quelques secondes.<br><small style="opacity:.6">${esc(String(e&&e.message||e)).slice(0,160)}</small></p>`}
 }
 let EVLIST=[],PUBEV=[];
 async function loadPubEvents(){try{const r=await fetch("/api/events");if(r.ok){const j=await r.json();PUBEV=Array.isArray(j)?j:[];if(!state.admin&&state.view==="home")render()}}catch(_){}}
