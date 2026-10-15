@@ -529,6 +529,8 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .tl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)}.tl-row b{min-width:150px}.tl-prev{height:40px;max-width:120px;object-fit:contain;border-radius:7px;border:1px solid var(--line)}.tl-prev.w{background:#fff}.tl-row select{width:auto}
 .logo.custom{background:none!important;border:0!important;box-shadow:none!important;width:auto!important;display:block!important;height:auto!important}.logo.custom img{display:block;height:72px;max-width:220px;object-fit:contain;border-radius:7px}.logo.custom.w img{background:#fff;padding:2px;border:2px solid #fff;box-shadow:0 8px 24px -8px rgba(var(--a-rgb),.5)}body.v-live .top .logo.custom img{height:48px;max-width:150px}@media(max-width:560px){.logo.custom img{height:56px;max-width:150px}}
 .prow-w{display:flex;align-items:stretch;gap:6px}.prow-w .prow{flex:1;min-width:0}.swfav{flex:0 0 44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--muted);font-size:20px;cursor:pointer}.swfav.on{color:#d4a017;border-color:#e9c75a;background:#fff9e6}
+.myt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}.myt-l{font-weight:700;font-size:12.5px;color:#8a6100;margin-right:2px}.myt-c{font:700 13px var(--mono,ui-monospace,monospace);background:#fff9e6;border:1px solid #f0d78a;color:#6b4b00;border-radius:999px;padding:3px 9px}.myt-c.d{opacity:.45;text-decoration:line-through}
+.myday{padding:12px 14px}.md-row{display:flex;gap:12px;padding:9px 0;border-top:1px solid var(--line)}.md-row:first-of-type{border-top:0}.md-row.d{opacity:.75}.md-t{font:800 15px var(--mono,ui-monospace,monospace);color:var(--a);min-width:50px}.md-sw{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;margin-top:3px}.md-sw a{color:var(--ink);font-weight:600;text-decoration:none}.md-sw small{color:var(--muted)}.md-rel{font:700 11px system-ui;border-radius:999px;padding:1px 7px;background:var(--t2,#ffe4e6);color:var(--wine)}
 .pairbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 .pb-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:8px}.pb-head h4{margin:0;font-size:16px}
 .pb-steps{margin:0 0 12px;padding-left:20px;font-size:14px;color:var(--muted);line-height:1.5}.pb-steps code{font-family:var(--mono);font-size:12px;white-space:nowrap}
@@ -1341,6 +1343,12 @@ function renderLiveFfn(){
   html+=`</div><p class="msg" style="text-align:center">Données du direct Live FFN, publiées série par série${multi?", replacées dans le programme fusionné":""}. Seuls les résultats publiés sur ffnatation.fr font foi.</p>`;
   $("#pub-body").innerHTML=html;
 }
+// courses des nageurs / clubs suivis, dans l'ordre de la journée
+function myRaces(sch){if(!favCount())return[];const done=doneSet(),out=[];
+  for(const s of Object.keys(state.order))for(const k of state.order[s]){const ev=EVENTS[k];if(!ev||ev.type!=="event")continue;
+    const sw=(ev.entries||[]).filter(w=>isFav(w));if(!sw.length)continue;const isD=done.has(k);const rk=isD?ranking(ev):[];
+    out.push({key:k,s,ev,start:sch[k].start,done:isD,sw:sw.map(w=>({...w,r:isD?rk.find(x=>(w.iuf&&x.iuf===w.iuf)||(!w.iuf&&x.name===w.name))||null:null}))})}
+  return out}
 function mySwimmers(compact){
   if(!favCount())return"";const P=participants(),sch=schedule(),done=doneSet();
   const ids=Object.keys(P).filter(id=>isFavSw(id)||isFavClub(P[id].sw.club));
@@ -1362,11 +1370,15 @@ function renderHome(){
     teams+=`<div class="session">${secTitle(esc(r.name)+(sx?" · "+(sx==="F"?"Filles":"Garçons"):""),"en direct · "+b.nDone+"/"+b.nAll+" épreuves")}<div class="compline" style="margin:-2px 0 8px">${r.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="card top3">${b.now.slice(0,3).map(t=>`<div class="t3"><span class="rk r${t.rank}">${t.rank}</span><b>${esc(t.club)}</b>${moveHtml(t,b.prev)}<span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></div>`).join("")}<a href="#" class="more" data-go="rank" data-rr2="${r.id}" data-sx2="${sx||""}">Classement complet ›</a></div></div>`}
   const infos=state.infos.filter(i=>i.title||i.text);
   top+=`<div class="session" style="margin-top:4px">${secTitle("Informations")}<div class="list">${infos.map(i=>`<div class="card info${i.important?" imp":""}">${i.important?`<span class="imptag">Important</span>`:""}${i.title?`<h4>${esc(i.title)}</h4>`:""}<p>${nl(i.text)}</p></div>`).join("")||`<p class="empty">Aucune information pour le moment.</p>`}</div></div>`;
+  const MR=myRaces(sch);
   html+=`<div class="session">${secTitle("La journée")}<div class="day">${Object.keys(state.order).map(s=>{const sm={doors:state.doors[s]};const keys=state.order[s].filter(k=>EVENTS[k].type==="event");const last=keys[keys.length-1];
-    return`<div class="card reu"><div class="reu-h"><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}</span></div><ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol></div>`}).join("")}</div></div>`;
+    const mine=MR.filter(m=>keys.includes(m.key));
+    return`<div class="card reu"><div class="reu-h"><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}</span></div><ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol>${mine.length?`<div class="myt"><span class="myt-l">★ Mes courses</span>${mine.map(m=>`<span class="myt-c${m.done?" d":""}">${hm(m.start).replace(/^0/,"")}</span>`).join("")}</div>`:""}</div>`}).join("")}</div></div>`;
+  if(MR.length){const byR={};for(const m of MR)(byR[m.s]=byR[m.s]||[]).push(m);
+    html+=`<div class="session">${secTitle("★ Ma journée",plural(MR.length,"course"))}${Object.keys(byR).map(s=>`<div class="card myday"><div class="reu-h"><b>Réunion ${s}</b></div>${byR[s].map(m=>`<div class="md-row${m.done?" d":""}"><span class="md-t">${hm(m.start).replace(/^0/,"")}</span><div><b>${esc(m.ev.name)}</b>${m.ev.relay?' <span class="md-rel">relais</span>':""}<div class="md-sw">${m.sw.map(x=>`<span><a href="#" data-swimmer="${esc(x.iuf||"")}">${esc(m.ev.relay?"":x.name)}</a>${m.ev.relay?"":" "}<small>${x.r?(x.r.dsq?"DSQ":fmt(x.r.res)+(x.r.rank?" · "+x.r.rank+"e":"")):(state.phase==="eng"||m.ev.provisional?"":"S"+x.heat+" · L"+(x.lane||"—"))}</small></span>`).join("")}</div></div></div>`).join("")}</div>`).join("")}</div>`}
   html+=teams;
   html+=`<div class="session">${secTitle("Compétitions")}<div class="card comps">${state.comps.map(c=>`<a class="comprow" href="https://www.liveffn.com/cgi-bin/index.php?competition=${c.id}&langue=fra" target="_blank" rel="noopener">${compBadge(c.id)}<span class="msg">${plural(Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length,"épreuve")}</span><span class="ext">Live FFN ↗</span></a>`).join("")}</div></div>`;
-  $("#pub-body").innerHTML=top+mySwimmers(false)+html;
+  $("#pub-body").innerHTML=top+(MR.length?"":mySwimmers(false))+html;
 }
 function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCase().includes(q))}
 function getQ(){return $("#search").value.trim().toLowerCase()}
