@@ -1522,7 +1522,7 @@ function renderRes(){
   $("#pub-body").innerHTML=html||`<p class="empty">${state.phase==="eng"?"Les résultats apparaîtront ici pendant la compétition.":"Aucun résultat pour le moment."}</p>`;
 }
 let POD_SP=null;
-function podSheet(){const x=POD_SP;if(!x||!state.podSp)return"";return`<div class="sheet-bg" data-podsp-close="1"><div class="sheet" role="dialog" aria-label="Temps de passage"><div class="sheet-h"><div><b>${esc(x.w.name)}</b><small>${esc(x.ev.name)} · ${esc(x.w.club||"")}</small></div><span class="sheet-t">${fmt(x.w.res)}</span><button class="x" data-podsp-close="1" aria-label="Fermer">×</button></div>${splitsHtml(x.ev,x.w)}</div></div>`}
+function podSheet(){const x=POD_SP;if(!x||!state.podSp)return"";return`<div class="sheet-bg" data-podsp-close="1"><div class="sheet" role="dialog" aria-label="Temps de passage"><div class="sheet-h"><div><b>${esc(x.w.name)}</b><small>${esc(x.ev.name)} · ${esc(x.w.club||"")}</small></div><span class="sheet-t">${fmt(x.w.res)}</span><button class="x" data-podsp-close="1" aria-label="Fermer">×</button></div>${splitsHtml(x.ev,x.w,1)}</div></div>`}
 function podCard(list,label,places,g){
   const ranked=list.filter(x=>x.rank!=null);if(!ranked.length)return"";
   const rows=ranked.slice(0,Math.max(3,places||3));
@@ -1613,7 +1613,8 @@ function renderPod(){
     const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
     if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
   if(state.podEv&&!groups.some(g=>g.name===state.podEv))state.podEv="";
-  if(groups.length>1)html+=`<label class="evpick" for="pod-ev"><span>Épreuve</span><select class="field" id="pod-ev"><option value="">Toutes les épreuves (${groups.length})</option>${groups.map(g=>`<option value="${esc(g.name)}" ${state.podEv===g.name?"selected":""}>${hm(g.start)} · ${esc(g.name)}</option>`).join("")}</select></label>`;
+  if(groups.length>1)html+=`<label class="evpick" for="pod-ev"><span>Épreuve</span><select class="field" id="pod-ev"><option value="">Toutes les épreuves (${groups.length})</option>${(()=>{const reuOf=k=>Object.keys(state.order).find(r=>state.order[r].includes(k))||"";const by={};for(const g of groups){const r=reuOf(g.keys[0]);(by[r]=by[r]||[]).push(g)}
+      return Object.keys(by).map(r=>`<optgroup label="${r?"Réunion "+r:"Autres épreuves"}${r&&state.starts[r]?" · "+state.starts[r].replace(":","h"):""}">${by[r].map(g=>`<option value="${esc(g.name)}" ${state.podEv===g.name?"selected":""}>${hm(g.start)} — ${esc(g.name)}</option>`).join("")}</optgroup>`).join("")})()}</select></label>`;
   const list=groups.filter(g=>(!state.podEv||g.name===state.podEv)&&(!q||g.keys.some(k=>evMatches(EVENTS[k],q))));
   html+=`<div class="podwrap">`+(list.map(g=>{const relay=/^4x/i.test(g.name);
     const K=!!g.fx;const all=K?mergedRanking(EVENTS[g.keys[0]]):rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
