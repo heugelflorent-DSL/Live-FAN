@@ -417,7 +417,7 @@ export default {
       if (p === "/api/relay/hello") {
         if (!pr) return json({ linked: false });
         const c = (await env.KV.get(kk("config", pr.ev), "json")) || {};
-        return json({ linked: true, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || "quantum", now: Date.now() });
+        return json({ linked: true, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || c.chronoSys || "quantum", now: Date.now() });
       }
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
