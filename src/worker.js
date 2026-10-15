@@ -81,7 +81,17 @@ function finished(cfg, data, now) {
     if (evs.every((e) => c.events?.[e.key]?.doneAt)) return true;
     const dt = compDate(c.meta); if (!dt) return false;
     const last = Math.max(...evs.map((e) => hToMin(e.time) ?? 0));
-    return now > parisEpoch(dt.y, dt.m, dt.d) + (last + 180) * 60e3;
+    // résultats incomplets : on continue de les chercher jusqu'à 12 h après la dernière épreuve, puis on s'arrête
+    return now > parisEpoch(dt.y, dt.m, dt.d) + (last + 12 * 60) * 60e3;
+  });
+}
+// après la dernière épreuve du programme (résultats encore incomplets) : on relit les résultats manquants
+function pastEnd(cfg, data, now) {
+  return cfg.comps.some((id) => {
+    const c = data.comps[id]; if (!c || !c.reunions) return false;
+    const evs = eventsOf(c); const dt = compDate(c.meta); if (!evs.length || !dt) return false;
+    const last = Math.max(...evs.map((e) => hToMin(e.time) ?? 0));
+    return now > parisEpoch(dt.y, dt.m, dt.d) + last * 60e3;
   });
 }
 
@@ -214,7 +224,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     }
   }
   if (data.finished && !finished(config, data, now)) data.finished = null;
-  const live = force || windowOpen(config, data, now);
+  const live = force || windowOpen(config, data, now) || (pastEnd(config, data, now) && !finished(config, data, now));
   data.queue = data.queue || [];
   let errors = 0, used = 0;
   const seen = new Set();
