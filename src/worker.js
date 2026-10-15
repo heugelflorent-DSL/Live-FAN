@@ -418,8 +418,9 @@ export default {
       }
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
-      if (p === "/api/relay/event" && req.method === "POST") return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
-      if (p === "/api/relay/log" && req.method === "POST") return room.fetch(new Request("https://pool/log?day=" + (url.searchParams.get("day") || ""), { method: "POST", body: await req.arrayBuffer() }));
+      const ver = encodeURIComponent((req.headers.get("x-chrono-version") || "").slice(0, 20));
+      if (p === "/api/relay/event" && req.method === "POST") return room.fetch(new Request("https://pool/event?ver=" + ver, { method: "POST", body: await req.text() }));
+      if (p === "/api/relay/log" && req.method === "POST") return room.fetch(new Request("https://pool/log?ver=" + ver + "&day=" + (url.searchParams.get("day") || ""), { method: "POST", body: await req.arrayBuffer() }));
       return json({ error: "Inconnu" }, 404);
     }
 

@@ -82,6 +82,9 @@ export class PoolRoom {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !raw.byteLength || raw.byteLength > 120000) return new Response("bad", { status: 400 });
       const now = Date.now(); await this.ctx.storage.put(`j:${day}:${String(now).padStart(14, "0")}`, raw);
       this.s.relayAt = now; this.s.journalAt = now;
+      // version du logiciel du chrono (affichée dans l'admin : à jour ou non)
+      const ver = url.searchParams.get("ver"); if (ver && this.s.chronoVer !== ver) { this.s.chronoVer = ver; await this.ctx.storage.put("s", this.s); }
+      this.s.chronoAt = now;
       if (!this.jclean || now - this.jclean > 3600e3) { this.jclean = now; const old = new Date(now - 14 * 864e5).toISOString().slice(0, 10);
         const ks = [...(await this.ctx.storage.list({ prefix: "j:", end: "j:" + old })).keys()]; for (let i = 0; i < ks.length; i += 128) await this.ctx.storage.delete(ks.slice(i, i + 128)); }
       return Response.json({ ok: true });
@@ -96,6 +99,7 @@ export class PoolRoom {
       return new Response(out, { headers: { "content-type": "application/gzip", "content-disposition": `attachment; filename="journal-chrono-${day}.jsonl.gz"` } });
     }
     if (url.pathname.endsWith("/event") && req.method === "POST") {
+      { const ver = url.searchParams.get("ver"); if (ver) { this.s.chronoVer = ver; this.s.chronoAt = Date.now(); } }
       const body = await req.json().catch(() => null);
       const list = Array.isArray(body) ? body : body ? [body] : [];
       let n = 0; for (const ev of list.slice(0, 50)) if (ev && typeof ev === "object" && this.apply(ev)) n++;

@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.0"
+VERSION = "1.1.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -43,7 +43,7 @@ class Core:
     def __init__(self, cfg, on_log=print):
         self.cfg = cfg; self.on_log = on_log; self.paused = False; self.stop = False
         self.q = queue.Queue(maxsize=5000); self.raw = []; self.raw_lock = threading.Lock()
-        self.st = {"linked": None, "name": "", "url": "", "bassin": None, "quantum": "recherche…", "last": "", "sent": 0, "jsent": 0, "err": "", "occupied": False}
+        self.st = {"update": "", "linked": None, "name": "", "url": "", "bassin": None, "quantum": "recherche…", "last": "", "sent": 0, "jsent": 0, "err": "", "occupied": False}
         jdir = os.path.join(HOME, "journaux"); os.makedirs(jdir, exist_ok=True)
         for f in os.listdir(jdir):
             fp = os.path.join(jdir, f)
@@ -53,13 +53,19 @@ class Core:
         self.journal = open(os.path.join(jdir, datetime.now().strftime("journal-%Y%m%d-%H%M.jsonl")), "a", encoding="utf-8")
         self.fw_clients = []; self.fw_lock = threading.Lock()
 
-    def log(self, *a): self.on_log(datetime.now().strftime("%H:%M:%S") + " " + " ".join(str(x) for x in a))
+    def log(self, *a):
+        msg = " ".join(str(x) for x in a); ts = time.time()
+        self.on_log(datetime.now().strftime("%H:%M:%S") + " " + msg)
+        # les messages du logiciel vont aussi dans le journal (avec ceux du chronométrage), pour l'analyse à distance
+        try: self.journal.write(json.dumps({"ts": ts, "app": msg, "v": VERSION}, ensure_ascii=False) + "\n"); self.journal.flush()
+        except Exception: pass
+        with self.raw_lock: self.raw.append({"ts": round(ts, 3), "app": msg, "v": VERSION})
 
     # requêtes vers le site
     def call(self, path, body=None, ctype="application/json", timeout=10):
         data = body if isinstance(body, (bytes, type(None))) else json.dumps(body).encode()
         req = urllib.request.Request(self.cfg["site"].rstrip("/") + path, data=data, method="POST" if data is not None else "GET",
-                                     headers={"content-type": ctype, "x-relay-token": self.cfg["token"], "user-agent": f"SwimDirectChrono/{VERSION}"})
+                                     headers={"content-type": ctype, "x-relay-token": self.cfg["token"], "x-chrono-version": VERSION, "user-agent": f"SwimDirectChrono/{VERSION}"})
         with urllib.request.urlopen(req, timeout=timeout) as r: return json.loads(r.read() or b"{}")
 
     def hello_loop(self):
@@ -70,8 +76,23 @@ class Core:
                 self.st.update(linked=bool(j.get("linked")), name=j.get("name", ""), url=j.get("url", ""), bassin=j.get("bassin"), err="")
                 if self.st["linked"] and not was: self.log(f"✓ Relié au live « {self.st['name']} »")
                 if self.st["linked"] and j.get("bassin") is False and was is None: self.log("⚠ Sur le site, le mode du direct de ce live n'est pas « Bassin » : les temps sont reçus mais pas affichés au public.")
-            except Exception as e: self.st["err"] = f"site injoignable ({e})"
+            except Exception as e:
+                if not self.st["err"]: self.log(f"✗ Site injoignable : {e}")
+                self.st["err"] = f"site injoignable ({e})"
+            self.check_update()
             time.sleep(5 if not self.st["linked"] else 60)
+
+    # nouvelle version publiée sur le site ?
+    def check_update(self, force=False):
+        if not force and time.time() - getattr(self, "upd_at", 0) < 3600: return
+        self.upd_at = time.time()
+        try:
+            with urllib.request.urlopen(self.cfg["site"].rstrip("/") + "/chrono/version.json?t=" + str(int(time.time())), timeout=10) as r: j = json.loads(r.read())
+            latest = str(j.get("version", ""))
+            if latest and vtuple(latest) > vtuple(VERSION):
+                if self.st.get("update") != latest: self.log(f"Nouvelle version disponible : {latest} (installée : {VERSION})")
+                self.st["update"] = latest
+        except Exception: pass
 
     def send_loop(self):
         while not self.stop:
@@ -174,6 +195,45 @@ class Core:
             except Exception as e: self.log(f"✗ Passe-plat : {e}")
         threading.Thread(target=self.source_loop, args=(demo,), daemon=True).start()
 
+def vtuple(v):
+    try: return tuple(int(x) for x in str(v).split("."))
+    except ValueError: return (0,)
+
+def self_update(site, log=print):
+    """Remplace l'exe par la dernière version publiée sur le site, puis le relance (seulement en exe Windows)."""
+    if not getattr(sys, "frozen", False): log("Mise à jour automatique : seulement pour SwimDirect-Chrono.exe"); return False
+    exe = sys.executable; new = exe + ".nouveau"; old = exe + ".ancien"
+    try:
+        with urllib.request.urlopen(site.rstrip("/") + "/chrono/SwimDirect-Chrono.exe?t=" + str(int(time.time())), timeout=120) as r, open(new, "wb") as f:
+            while True:
+                b = r.read(1 << 16)
+                if not b: break
+                f.write(b)
+        if os.path.getsize(new) < 1_000_000: raise ValueError("fichier téléchargé incomplet")
+        if os.path.exists(old): os.remove(old)
+        os.rename(exe, old); os.rename(new, exe)  # un exe en cours d'exécution peut être renommé (pas écrasé)
+        import subprocess; subprocess.Popen([exe] + sys.argv[1:], close_fds=True)
+        return True
+    except Exception as e:
+        log(f"✗ Mise à jour impossible : {e}")
+        try:
+            if os.path.exists(new): os.remove(new)
+            if not os.path.exists(exe) and os.path.exists(old): os.rename(old, exe)
+        except OSError: pass
+        return False
+
+def startup_update(cfg):
+    """Au lancement (avant de se brancher au chrono) : mise à jour automatique si une nouvelle version existe."""
+    if not getattr(sys, "frozen", False): return False
+    try:
+        old = sys.executable + ".ancien"
+        if os.path.exists(old): os.remove(old)
+    except OSError: pass
+    try:
+        with urllib.request.urlopen(cfg["site"].rstrip("/") + "/chrono/version.json?t=" + str(int(time.time())), timeout=8) as r: latest = str(json.loads(r.read()).get("version", ""))
+    except Exception: return False
+    return bool(latest and vtuple(latest) > vtuple(VERSION) and self_update(cfg["site"]))
+
 # ---------- fenêtre ----------
 def gui(cfg, demo=False, close_after=0):
     import tkinter as tk
@@ -196,6 +256,14 @@ def gui(cfg, demo=False, close_after=0):
         root.clipboard_clear(); root.clipboard_append(cfg["token"]); bcopy.config(text="Copié ✓"); root.after(2000, lambda: bcopy.config(text="Copier"))
     bcopy = ttk.Button(row, text="Copier", command=copy); bcopy.pack(side="right")
 
+    upd = tk.Frame(root, bg="#ffcc29")
+    updl = tk.Label(upd, text="", bg="#ffcc29", fg="#3d2c00", font=("Segoe UI", 10, "bold")); updl.pack(side="left", padx=12, pady=6)
+    def do_update():
+        if core.st["sent"] and not messagebox.askyesno(APP, "Mettre à jour maintenant ? Le logiciel va redémarrer (quelques secondes sans envoi). À éviter pendant une course."): return
+        updl.config(text="Téléchargement de la nouvelle version…"); root.update()
+        if self_update(cfg["site"], core.log): core.stop = True; root.destroy()
+        else: updl.config(text="Mise à jour impossible : télécharge-la depuis l'admin du live.")
+    ttk.Button(upd, text="Mettre à jour", command=do_update).pack(side="right", padx=10)
     stat = tk.Frame(root, bg="#e9f4f8"); stat.pack(fill="x", padx=14)
     lines = {}
     for k, lab in (("site", "Live relié"), ("q", "Chronométrage"), ("last", "Dernier événement"), ("sent", "Envoyé")):
@@ -234,6 +302,7 @@ def gui(cfg, demo=False, close_after=0):
                              fg=RED if (s["err"] or s["linked"] is False) else BLUE)
         lines["q"].config(text=s["quantum"], fg=RED if not s["quantum"].startswith(("connecté", "démo")) else BLUE)
         lines["last"].config(text=s["last"] or "—")
+        if s.get("update") and not upd.winfo_ismapped(): updl.config(text=f"Nouvelle version {s['update']} disponible (installée : {VERSION})"); upd.pack(fill="x", before=stat)
         lines["sent"].config(text=("EN PAUSE · " if core.paused else "") + f"{s['sent']} événement(s) · journal : {s['jsent']} message(s)")
         while logs:
             txt.insert("end", logs.pop(0) + "\n")
@@ -257,6 +326,7 @@ def main():
     cfg = load_cfg()
     if a.source: cfg["source"] = a.source
     if a.site: cfg["site"] = a.site
+    if not a.console and not a.demo and startup_update(cfg): return  # nouvelle version installée et relancée
     if not a.console: return gui(cfg, a.demo, a.fermer)
     core = Core(cfg); print(f"{APP} {VERSION} — clé de liaison : {cfg['token']}")
     core.start(a.demo); t0 = time.time()
