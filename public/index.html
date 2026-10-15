@@ -925,17 +925,22 @@ let CSD=0;function schedule(){
 }
 function splitsHtml(ev,w){const sp0=w.splits||[];if(sp0.length<2)return"";
   let B=/^\d+x/i.test(ev.name)?null:bestOf(w,ev),total=totalDist(ev.name);const self=!!(B&&B.self);if(self)B=null;
+  // record établi ici : on compare la finale à la série du même nageur (même compétition, autre tour)
+  let vs="RP",prev=null;if(self&&ev.fin){prev=otherRound(ev,w);if(prev){B={t:prev.res,sp:(prev.splits||[]).map(x=>[x.dist,x.cum])};vs="série"}}
   const pill=d=>d==null?"":`<span class="rpp ${Math.abs(d)<.005?"":d<0?"fa":"sl"}">${Math.abs(d)<.005?"=":rpSg(Math.round(d*100)/100)}</span>`;
   const table=(sp,lbl)=>{const R=B?rpSeg(sp.map((x,i)=>({k:i+1,t:x.cum,dist:x.dist})),B,total,poolLen()):null;
     const mx=R?Math.max(.5,...R.seg.map(z=>Math.abs(z.df))):1;
     const bar=d=>d==null?"":`<span class="spbar"><i class="${d<0?"fa":"sl"}" style="${d<0?"right":"left"}:50%;width:${Math.min(50,Math.abs(d)/mx*50).toFixed(1)}%"></i></span>`;
-    return`<div class="sp3">${lbl?`<div class="sp3-t">${lbl}</div>`:""}${B?`<div class="sp3-h"><span></span><span>Passage <small>vs RP</small></span><span>Tronçon <small>vs RP</small></span></div>`:`<div class="sp3-h"><span></span><span>Passage</span><span>Tronçon</span></div>`}${sp.map((x,i)=>{const bv=B&&(x.dist>=total||(B.sp||[]).some(q=>q[0]===x.dist))?bestAt(B,x.dist,total||x.dist):null;const z=R?R.seg[i]:null;
+    return`<div class="sp3">${lbl?`<div class="sp3-t">${lbl}</div>`:""}${B?`<div class="sp3-h"><span></span><span>Passage <small>vs ${vs}</small></span><span>Tronçon <small>vs ${vs}</small></span></div>`:`<div class="sp3-h"><span></span><span>Passage</span><span>Tronçon</span></div>`}${sp.map((x,i)=>{const bv=B&&(x.dist>=total||(B.sp||[]).some(q=>q[0]===x.dist))?bestAt(B,x.dist,total||x.dist):null;const z=R?R.seg[i]:null;
       return`<div class="sp3-r"><span class="sp3-d">${i?sp[i-1].dist:0}–${x.dist} m</span><span class="sp3-c"><b>${fmt(x.cum)}</b>${bv!=null?pill(x.cum-bv):""}</span><span class="sp3-c"><b>${fmt(x.lap)}</b>${z?pill(z.df)+bar(z.df):""}</span></div>`}).join("")}</div>`};
   // 400 m et plus : tronçons de 100 m en plus des 50 m
   const sp100=total>=400?sp0.filter(x=>x.dist%100===0).map((x,i,a)=>({...x,lap:Math.round((x.cum-(i?a[i-1].cum:0))*100)/100})):[];
-  const note=self?`<p class="sp3-n">Record perso établi lors de cette compétition : l'ancien record n'est plus disponible sur l'Extranat pour comparer.</p>`:B&&!(B.sp&&B.sp.length>1)?`<p class="sp3-n">Passages du record perso précédent non disponibles sur l'Extranat : seule la comparaison du temps final est possible.</p>`:"";
+  const note=prev?`<p class="sp3-n">Comparaison avec ses séries (${fmt(prev.res)}) : l'ancien record perso n'est plus disponible sur l'Extranat.</p>`:self?`<p class="sp3-n">Record perso établi lors de cette compétition : l'ancien record n'est plus disponible sur l'Extranat pour comparer.</p>`:B&&!(B.sp&&B.sp.length>1)?`<p class="sp3-n">Passages du record perso précédent non disponibles sur l'Extranat : seule la comparaison du temps final est possible.</p>`:"";
   return sp100.length>1&&sp100.length<sp0.length?table(sp100,"Par 100 m")+table(sp0,"Par 50 m")+note:table(sp0,"")+note}
 // meilleur temps du nageur sur cette épreuve dans toute la compétition (séries, demi-finales, finales)
+// même nageur, même épreuve, autre tour (séries d'une finale) avec ses passages
+function otherRound(ev,w){const k=evKey(ev.name);if(!k)return null;const sx=/Dames/.test(ev.name),sy=/Messieurs/.test(ev.name);
+  for(const e of Object.values(EVENTS)){if(e===ev||e.fin||e.comp!==ev.comp||evKey(e.name)!==k||/Dames/.test(e.name)!==sx||/Messieurs/.test(e.name)!==sy)continue;const x=(e.results||[]).find(x=>!x.dsq&&x.res!=null&&x.name===w.name&&(x.year||"")==(w.year||"")&&(x.splits||[]).length>1);if(x)return x}return null}
 function bestInComp(ev,w){const k=evKey(ev.name);if(!k)return w.res;const sx=/Dames/.test(ev.name),sy=/Messieurs/.test(ev.name);let b=w.res;
   for(const e of Object.values(EVENTS)){if(e.comp!==ev.comp||evKey(e.name)!==k||/Dames/.test(e.name)!==sx||/Messieurs/.test(e.name)!==sy)continue;for(const x of e.results||[])if(!x.dsq&&x.res!=null&&x.name===w.name&&(x.year||"")==(w.year||"")&&x.res<b)b=x.res}return b}
 function isRP(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return false;const B=bestOf(w,ev);if(!B||B.t==null)return false;if(bestInComp(ev,w)<w.res-.005)return false;return B.self?true:w.res<B.t-.005}
