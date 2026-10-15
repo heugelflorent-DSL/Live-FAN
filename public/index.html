@@ -1576,6 +1576,7 @@ function renderTeam(rule,html){
   $("#pub-body").innerHTML=html;
 }
 function renderPod(){
+  POD_SP=null;
   const done=doneSet(),q=getQ(),sch=schedule();
   const rules=state.podRules.filter(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));
   if(!rules.find(r=>r.id===state.podRule)&&rules[0])state.podRule=rules[0].id;
@@ -1601,7 +1602,7 @@ function renderPod(){
       blocks=cats.map(c=>podCard(renum(all.filter(w=>{const a=ref-(+w.year);return w.year&&(c.open||a>=(+c.min||0))&&a<=(c.max===""||c.max==null?999:+c.max)}).map(w=>c.open&&ref-(+w.year)<(+c.min||0)?{...w,sur:1}:w)),c.name||`${c.min}-${c.max} ans`,rule.places,g)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
     const merged=g.keys.length>1&&!K;
     return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`)+`</div>`;
-  POD_SP=null;$("#pub-body").innerHTML=html;$("#pub-body").insertAdjacentHTML("beforeend",podSheet());
+  $("#pub-body").innerHTML=html;$("#pub-body").insertAdjacentHTML("beforeend",podSheet());
 }
 function participants(){
   const map={};
