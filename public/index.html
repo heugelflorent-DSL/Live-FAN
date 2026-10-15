@@ -895,6 +895,7 @@ function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test
 
 /* ---------- échanges avec le serveur ---------- */
 let EV=(location.pathname.match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/)||[])[1]||"main";
+if(/^\/e\/main\/?$/.test(location.pathname))fetch("/api/moved").then(r=>r.json()).then(j=>{if(j.to)location.replace("/e/"+j.to+location.search+location.hash)}).catch(()=>{});
 const evq=p=>EV==="main"?p:p+(p.includes("?")?"&":"?")+"e="+EV;
 async function api(path,opt={}){path=evq(path);
   const headers={"content-type":"application/json"};if(ADMIN_KEY)headers["x-admin-key"]=ADMIN_KEY;
@@ -911,7 +912,7 @@ async function loadPubEvents(){try{const r=await fetch("/api/events");if(r.ok){c
 function othersHtml(){const o=(Array.isArray(PUBEV)?PUBEV:[]).filter(e=>e.id!==EV);if(!o.length)return"";return`<div class="session">${secTitle("Autres compétitions suivies","")}<div class="others">${o.map(e=>`<a href="/e/${e.id}">${esc(e.name||"Compétition")} ›</a>`).join("")}</div></div>`}
 function evUrl(id){return location.origin+"/e/"+id}
 async function loadEvents(){if(ROLE==="org"){EVLIST=[];const u=evUrl(EV);const el=$("#ev-link");if(el)el.innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`;return}try{EVLIST=await api("/api/admin/events");if(!Array.isArray(EVLIST))EVLIST=[]}catch(_){EVLIST=[]}const sel=$("#ev-switch");if(!sel)return;
-  sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.id==="main"?" (adresse principale)":""}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
+  sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);{const sl=$("#ev-slug");if(sl&&document.activeElement!==sl)sl.value=EV==="main"?"":EV}$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
 async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}el.innerHTML=`<b>${j.bestN} nageurs avec records perso sur ${j.want}</b> · ${j.left?`<b>${j.left}</b> restent à chercher (dont ${j.errN||0} en échec, réessayés)`:"tous cherchés ✓"}${j.noRecN?` · ${j.noRecN} retrouvés sans record sur leurs épreuves (relus au prochain clic)`:""}${j.notFoundN?` · ${j.notFoundN} introuvables sur Extranat`:""}`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}

@@ -379,6 +379,8 @@ export default {
     if (edgeKey && req.method === "GET") { const hit = await caches.default.match(edgeKey); if (hit) return hit; }
     const edge = (res) => { if (edgeKey && res.ok) ctx.waitUntil(caches.default.put(edgeKey, res.clone())); return res; };
 
+    // ancienne adresse /e/main : où le live a été déplacé
+    if (p === "/api/moved") { const c = (await env.KV.get(kk("config", "main"), "json")) || {}; return json({ to: c.published ? "" : c.movedTo || "" }); }
     // liste publique des événements (pour l'accueil et le partage)
     if (p === "/api/events" && req.method === "GET") {
       const all = [{ id: "main" }, ...(await listEvents(env))];
@@ -548,7 +550,7 @@ export default {
       const list = await listEvents(env);
       if (req.method === "GET") {
         const out = [];
-        for (const x of [{ id: "main", name: "Événement principal" }, ...list]) { if (!ADM && x.id !== ev) continue; const c = await env.KV.get(kk("config", x.id), "json"); out.push({ id: x.id, name: (c && c.name) || x.name || "", published: !!(c && c.published), comps: (c && c.comps) || [] }); }
+        for (const x of [{ id: "main", name: "Événement principal" }, ...list]) { if (!ADM && x.id !== ev) continue; const c = await env.KV.get(kk("config", x.id), "json"); if (x.id === "main" && c && c.movedTo && !c.published && !(c.comps || []).length && ev !== "main") continue; out.push({ id: x.id, name: (c && c.name) || x.name || "", published: !!(c && c.published), comps: (c && c.comps) || [] }); }
         return json(out);
       }
       if (!ADM) return adminOnly();
@@ -571,11 +573,11 @@ export default {
         if (id === ev) return json({ ok: true, id });
         if (list.some((x) => x.id === id)) return json({ error: "Cette adresse est déjà utilisée par un autre événement." }, 400);
         const [c, d, m, sp] = await Promise.all(["config", "data", "mpp", "sponsors"].map((k) => env.KV.get(kk(k, ev))));
-        await Promise.all([c && env.KV.put(kk("config", id), c), d && env.KV.put(kk("data", id), d), m && env.KV.put(kk("mpp", id), m), sp && env.KV.put(kk("sponsors", id), sp)].filter(Boolean));
+        await Promise.all([c && env.KV.put(kk("config", id), c), d && env.KV.put(kk("data", id), d), m && env.KV.put(kk("mpp", id), m), sp && ev !== "main" && env.KV.put(kk("sponsors", id), sp)].filter(Boolean));
         const name = (c && JSON.parse(c).name) || (list.find((x) => x.id === ev) || {}).name || "";
         EVC.at = 0; await env.KV.put("events", JSON.stringify([...list.filter((x) => x.id !== ev), { id, name, createdAt: Date.now() }]));
         { const pm = (await env.KV.get("pairs", "json")) || {}; let ch = false; for (const x of Object.values(pm)) if (x.ev === ev) { x.ev = id; ch = true; } if (ch) { await env.KV.put("pairs", JSON.stringify(pm)); PAIRC.at = 0; } }
-        if (ev === "main") await Promise.all([env.KV.put(kk("config", "main"), JSON.stringify({ ...DEFAULT_CONFIG })), env.KV.delete(kk("data", "main")), env.KV.delete(kk("mpp", "main"))]);
+        if (ev === "main") await Promise.all([env.KV.put(kk("config", "main"), JSON.stringify({ ...DEFAULT_CONFIG, movedTo: id })), env.KV.delete(kk("data", "main")), env.KV.delete(kk("mpp", "main"))]);
         else await Promise.all(["config", "data", "mpp", "sponsors"].map((k) => env.KV.delete(kk(k, ev))));
         await purge();
         return json({ ok: true, id });
