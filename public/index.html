@@ -1128,8 +1128,9 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 function comp(id){return state.comps.find(x=>x.id===id)}
 let LOGOS={};
 /* ---------- Mes nageurs (favoris enregistrés sur le téléphone) ---------- */
-let FAV={sw:{},cl:{}};try{const f=JSON.parse(localStorage.getItem("sd-fav")||"null");if(f&&f.sw&&f.cl)FAV=f}catch(_){}
-function favSave(){try{localStorage.setItem("sd-fav",JSON.stringify(FAV))}catch(_){}}
+// nageurs et clubs suivis : propres à chaque live
+let FAV={sw:{},cl:{}};try{const f=JSON.parse(localStorage.getItem("sd-fav:"+EV)||"null");if(f&&f.sw&&f.cl)FAV=f}catch(_){}
+function favSave(){try{localStorage.setItem("sd-fav:"+EV,JSON.stringify(FAV))}catch(_){}}
 function favCount(){return Object.keys(FAV.sw).length+Object.keys(FAV.cl).length}
 function isFavSw(id){return!!id&&!!FAV.sw[id]}
 function isFavName(name){if(!name)return false;const n=norm(name);return Object.values(FAV.sw).some(x=>norm(x)===n)}
