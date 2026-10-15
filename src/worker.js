@@ -304,6 +304,13 @@ const same = (k, p) => { if (!p || k.length !== p.length) return false; let d = 
 function authed(req, env) { return same(req.headers.get("x-admin-key") || "", env.ADMIN_PASSWORD || ""); }
 // relais du Quantum : sa propre clé (secret RELAY_KEY), pour ne pas laisser le mot de passe admin sur le PC du chrono
 function relayAuthed(req, env) { return authed(req, env) || same(req.headers.get("x-admin-key") || "", env.RELAY_KEY || ""); }
+// accès organisateur : un mot de passe par événement (seule son empreinte salée est gardée)
+let ORGC = { at: 0, map: null };
+async function orgKeys(env) { if (ORGC.map && Date.now() - ORGC.at < 60e3) return ORGC.map; const m = (await env.KV.get("orgkeys", "json")) || {}; ORGC = { at: Date.now(), map: m }; return m; }
+async function sha(s) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, "0")).join(""); }
+async function orgMatch(env, key, ev) { const e = (await orgKeys(env))[ev]; return !!(key && e && same(await sha(e.salt + "|" + key), e.hash)); }
+// événement dont le mot de passe organisateur correspond (relais du Quantum sans « --evenement »)
+async function orgEventOf(env, key) { if (!key) return null; for (const [ev, e] of Object.entries(await orgKeys(env))) if (same(await sha(e.salt + "|" + key), e.hash)) return ev; return null; }
 // anti-essais en rafale : 10 mauvais mots de passe en 15 min depuis la même adresse = blocage 15 min
 async function tooManyFails(req, ok) {
   const ip = req.headers.get("cf-connecting-ip") || "?"; const key = new Request("https://lock.local/" + encodeURIComponent(ip));
@@ -347,9 +354,15 @@ export default {
     const url = new URL(req.url);
     const p = url.pathname;
     if (!p.startsWith("/api/")) return env.ASSETS.fetch(req);
-    if (req.headers.has("x-admin-key") && (await tooManyFails(req, authed(req, env) || (p === "/api/pool/event" && relayAuthed(req, env)))))
-      return json({ error: "Trop d'essais de mot de passe. Réessaie dans 15 minutes." }, 429);
     const ev = url.searchParams.get("e") || "main";
+    const KEY = req.headers.get("x-admin-key") || "";
+    const ADM = authed(req, env);
+    // organisateur : mot de passe propre à cet événement (ou, pour le relais sans événement, à l'événement correspondant)
+    const ORG = !ADM && !!KEY && EV_RE.test(ev) && (await orgMatch(env, KEY, ev));
+    const RELAYEV = !ADM && KEY && p === "/api/pool/event" && !url.searchParams.get("e") ? await orgEventOf(env, KEY) : null;
+    const CAN = ADM || ORG;
+    if (KEY && (await tooManyFails(req, CAN || !!RELAYEV || (p === "/api/pool/event" && relayAuthed(req, env)))))
+      return json({ error: "Trop d'essais de mot de passe. Réessaie dans 15 minutes." }, 429);
     if (!EV_RE.test(ev)) return json({ error: "Événement inconnu." }, 404);
     if (ev !== "main" && p !== "/api/admin/events" && p !== "/api/hit" && !(await listEvents(env)).some((x) => x.id === ev)) return json({ error: "Événement inconnu." }, 404);
     const ckey = (path) => new Request(url.origin + path + (path.includes("?") ? "&" : "?") + "e=" + ev);
@@ -393,16 +406,17 @@ export default {
     if (p.startsWith("/api/pool/")) {
       let rid = ev;
       // le relais sans « --evenement » : le chrono va à l'événement réglé en mode « Bassin » dans l'admin
-      if (p === "/api/pool/event" && !url.searchParams.get("e")) {
+      if (RELAYEV) rid = RELAYEV;
+      else if (p === "/api/pool/event" && !url.searchParams.get("e")) {
         for (const x of [{ id: "main" }, ...(await listEvents(env))]) { const c = await env.KV.get(kk("config", x.id), "json"); if (c && c.live === "bassin") { rid = x.id; break; } }
       }
       const { config } = await load(env, rid);
       const room = env.POOL.get(env.POOL.idFromName(rid === "main" ? "bassin" : "bassin:" + rid));
       if (p === "/api/pool/event") {
-        if (!relayAuthed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
+        if (!relayAuthed(req, env) && !ORG && !RELAYEV) return json({ error: "Mot de passe incorrect." }, 401);
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
       }
-      if (config.live !== "bassin" && !authed(req, env)) return json({ error: "Direct bassin non activé." }, 404);
+      if (config.live !== "bassin" && !CAN) return json({ error: "Direct bassin non activé." }, 404);
       if (p === "/api/pool/ws") return room.fetch(new Request("https://pool/ws", req));
       if (p === "/api/pool/state") return room.fetch(new Request("https://pool/state"));
       return json({ error: "Inconnu" }, 404);
@@ -412,7 +426,7 @@ export default {
     if (p === "/api/live" && req.method === "GET") {
       const c = url.searchParams.get("c") || "";
       const { config } = await load(env, ev);
-      if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !authed(req, env))) return json({ error: "Direct non activé." }, 404);
+      if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
       let body;
@@ -425,11 +439,11 @@ export default {
     }
 
     if (p === "/api/admin/mpp" && req.method === "GET") {
-      if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
+      if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
       return json(await mppStatus(env, ev));
     }
     if (p === "/api/admin/mpp" && req.method === "POST") {
-      if (!authed(req, env)) return json({ error: "Mot de passe incorrect." }, 401);
+      if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
       const used = await mppStep(env, ev, 6, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
       const all = Object.entries(store.sw);
       // diagnostic : quelques exemples (nom lu, licence trouvée, erreur éventuelle) pour comprendre un échec
@@ -470,17 +484,31 @@ export default {
       return edge(json(logos, 200, { "cache-control": "public, max-age=300" }));
     }
 
-    if (!authed(req, env)) return json({ error: env.ADMIN_PASSWORD ? "Mot de passe incorrect." : "Le mot de passe admin n'est pas encore configuré dans Cloudflare (variable ADMIN_PASSWORD)." }, 401);
+    if (!CAN) return json({ error: env.ADMIN_PASSWORD ? "Mot de passe incorrect." : "Le mot de passe admin n'est pas encore configuré dans Cloudflare (variable ADMIN_PASSWORD)." }, 401);
     const purge = () => Promise.all([caches.default.delete(ckey("/api/state")), caches.default.delete(new Request(url.origin + "/api/events"))]);
 
+    const adminOnly = () => json({ error: "Réservé à l'administrateur du site." }, 403);
+    // mot de passe organisateur de cet événement (défini par l'administrateur du site)
+    if (p === "/api/admin/orgkey") {
+      if (!ADM) return adminOnly();
+      const m = (await env.KV.get("orgkeys", "json")) || {};
+      if (req.method === "GET") return json({ set: !!m[ev] });
+      const { pw = "" } = await req.json(); const s2 = String(pw);
+      if (s2 && s2.length < 8) return json({ error: "Mot de passe trop court (8 caractères minimum)." }, 400);
+      if (s2 && same(s2, env.ADMIN_PASSWORD || "")) return json({ error: "Choisis un mot de passe différent du mot de passe général." }, 400);
+      if (s2) { const salt = crypto.randomUUID(); m[ev] = { salt, hash: await sha(salt + "|" + s2) }; } else delete m[ev];
+      await env.KV.put("orgkeys", JSON.stringify(m)); ORGC.at = 0;
+      return json({ ok: true, set: !!s2 });
+    }
     // gestion des événements (créer / renommer / supprimer)
     if (p === "/api/admin/events") {
       const list = await listEvents(env);
       if (req.method === "GET") {
         const out = [];
-        for (const x of [{ id: "main", name: "Événement principal" }, ...list]) { const c = await env.KV.get(kk("config", x.id), "json"); out.push({ id: x.id, name: (c && c.name) || x.name || "", published: !!(c && c.published), comps: (c && c.comps) || [] }); }
+        for (const x of [{ id: "main", name: "Événement principal" }, ...list]) { if (!ADM && x.id !== ev) continue; const c = await env.KV.get(kk("config", x.id), "json"); out.push({ id: x.id, name: (c && c.name) || x.name || "", published: !!(c && c.published), comps: (c && c.comps) || [] }); }
         return json(out);
       }
+      if (!ADM) return adminOnly();
       if (req.method === "POST") {
         const { name = "", comps = [] } = await req.json();
         let base = String(name).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "evenement";
@@ -519,10 +547,11 @@ export default {
 
     if (p === "/api/admin/state") {
       const { config, data } = await load(env, ev);
-      return json({ config, data, now: Date.now() });
+      return json({ config, data, now: Date.now(), role: ADM ? "admin" : "org" });
     }
     if (p === "/api/admin/sponsors" && req.method === "PUT") {
       const { scope, list } = await req.json();
+      if (scope === "all" && !ADM) return adminOnly();
       if (!Array.isArray(list) || list.length > 24) return json({ error: "Liste invalide (24 logos maximum)." }, 400);
       const clean = [];
       for (const x of list) {
@@ -572,7 +601,7 @@ export default {
       const { data } = await load(env, ev);
       return json({ ok: true, total: n, remaining: (data.queue || []).length, error: data.error });
     }
-    if (p === "/api/admin/audience") return audience(env, url);
+    if (p === "/api/admin/audience") return ADM ? audience(env, url) : adminOnly();
     return json({ error: "Route inconnue" }, 404);
   },
 

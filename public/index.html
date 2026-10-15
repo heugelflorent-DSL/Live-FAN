@@ -521,6 +521,7 @@ body.pick{background:#e9f4f8;background-image:none}
 .co-cap{flex:0 0 100%;text-align:center;font-size:13px;font-weight:600;color:var(--muted);margin-top:2px}
 @media (max-width:700px){.foot .sigw.has-sp .cobrand{order:-1;flex:0 0 100%}.foot .sigw.has-sp .cobrand .sig{order:0;flex:0 0 auto;width:72px;height:72px}.sp-l.co{height:72px}.sp-l.co img{max-width:150px}}
 .foot{justify-content:center}.foot p{flex:0 0 100%;max-width:none;text-align:center}.foot #admin-btn{margin:0 auto}
+body.org .admin-only{display:none!important}.org-only{display:none}body.org .org-only{display:block}.orgbox{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 </style>
 </head>
 <body>
@@ -561,15 +562,21 @@ body.pick{background:#e9f4f8;background-image:none}
     <form class="card login" id="login-form">
       <h2>Administration</h2>
       <label for="login-pw">Mot de passe<input class="field" type="password" id="login-pw" autocomplete="current-password"></label>
+      <p class="msg">Organisateur d'une compétition : connecte-toi depuis la page de ton live, avec le mot de passe que l'administrateur t'a donné.</p>
       <p class="msg" id="login-msg"></p>
       <div class="inline"><button class="btn" type="submit">Se connecter</button><button class="btn ghost" type="button" id="login-cancel">Retour</button></div>
     </form>
   </section>
   <section id="view-admin" hidden>
     <div class="admin-head"><h2>Administration</h2><button class="btn small" id="back-public">Voir la page publique</button></div>
-    <div class="card evbar"><label for="ev-switch">Événement géré<select class="field" id="ev-switch"></select></label>
-      <div class="evbar-act"><button class="btn small" id="ev-new">+ Nouvel événement</button><button class="btn small ghost" id="ev-del">Supprimer cet événement</button></div>
-      <p class="msg" id="ev-link"></p><div class="inline"><label for="ev-slug" style="flex:1">Adresse du live<input class="field" id="ev-slug" placeholder="ex. meeting-saint-louis-2026" maxlength="40"></label><button class="btn small" id="ev-slug-go" type="button">Changer l'adresse</button></div><p class="msg" id="ev-slug-msg"></p></div>
+    <div class="card evbar"><label for="ev-switch" class="admin-only">Événement géré<select class="field" id="ev-switch"></select></label>
+      <div class="evbar-act admin-only"><button class="btn small" id="ev-new">+ Nouvel événement</button><button class="btn small ghost" id="ev-del">Supprimer cet événement</button></div>
+      <p class="msg" id="ev-link"></p><div class="inline admin-only"><label for="ev-slug" style="flex:1">Adresse du live<input class="field" id="ev-slug" placeholder="ex. meeting-saint-louis-2026" maxlength="40"></label><button class="btn small" id="ev-slug-go" type="button">Changer l'adresse</button></div><p class="msg admin-only" id="ev-slug-msg"></p>
+      <div class="orgbox admin-only"><b>Accès organisateur</b><span class="msg" id="org-st"></span>
+        <p class="msg">Donne à l'organisateur de ce live un mot de passe à lui : il pourra gérer uniquement ce live (programme, infos, partenaires du live, direct, simulateur), sans voir les autres ni ton mot de passe général. Il sert aussi de clé pour le relais de son chronométrage, qui envoie alors automatiquement sur ce live.</p>
+        <div class="inline"><input class="field" id="org-pw" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe organisateur (8 caractères min.)" style="flex:1"><button class="btn small" id="org-save" type="button">Enregistrer</button><button class="btn small ghost" id="org-del" type="button">Retirer l'accès</button></div>
+        <p class="msg" id="org-msg"></p></div>
+      <p class="msg org-only">Accès organisateur : tu gères uniquement ce live.</p></div>
 
     <div class="card dash">
       <div class="dash-top">
@@ -635,8 +642,8 @@ body.pick{background:#e9f4f8;background-image:none}
           <p class="msg">Les logos s'affichent en bas de chaque page. Une image (PNG, JPG ou WebP) est réduite automatiquement ; le lien est facultatif. Chaque modification est enregistrée tout de suite.</p>
           <h4 class="sp-h">Sur ce live uniquement</h4><div class="sp-list" id="sp-ev"></div>
           <label class="btn small ghost">+ Ajouter un logo à ce live<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="sp-add-ev" hidden></label>
-          <h4 class="sp-h">Sur tous les lives (et l'accueil)</h4><div class="sp-list" id="sp-all"></div>
-          <label class="btn small ghost">+ Ajouter un logo à tous les lives<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="sp-add-all" hidden></label>
+          <div class="admin-only"><h4 class="sp-h">Sur tous les lives (et l'accueil)</h4><div class="sp-list" id="sp-all"></div>
+          <label class="btn small ghost">+ Ajouter un logo à tous les lives<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="sp-add-all" hidden></label></div>
           <p class="msg" id="sp-msg"></p>
         </div>
       </details>
@@ -695,7 +702,7 @@ body.pick{background:#e9f4f8;background-image:none}
           </div>
         </div>
       </details>
-      <details class="step">
+      <details class="step admin-only">
         <summary><span class="n">9</span>Audience<span class="hint" id="h-aud"></span></summary>
         <div class="step-body" id="aud"></div>
       </details>
@@ -874,12 +881,12 @@ let EVLIST=[],PUBEV=[];
 async function loadPubEvents(){try{const r=await fetch("/api/events");if(r.ok){const j=await r.json();PUBEV=Array.isArray(j)?j:[];if(!state.admin&&state.view==="home")render()}}catch(_){}}
 function othersHtml(){const o=(Array.isArray(PUBEV)?PUBEV:[]).filter(e=>e.id!==EV);if(!o.length)return"";return`<div class="session">${secTitle("Autres compétitions suivies","")}<div class="others">${o.map(e=>`<a href="/e/${e.id}">${esc(e.name||"Compétition")} ›</a>`).join("")}</div></div>`}
 function evUrl(id){return location.origin+"/e/"+id}
-async function loadEvents(){try{EVLIST=await api("/api/admin/events");if(!Array.isArray(EVLIST))EVLIST=[]}catch(_){EVLIST=[]}const sel=$("#ev-switch");if(!sel)return;
+async function loadEvents(){if(ROLE==="org"){EVLIST=[];const u=evUrl(EV);const el=$("#ev-link");if(el)el.innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`;return}try{EVLIST=await api("/api/admin/events");if(!Array.isArray(EVLIST))EVLIST=[]}catch(_){EVLIST=[]}const sel=$("#ev-switch");if(!sel)return;
   sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.id==="main"?" (adresse principale)":""}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);{const sl=$("#ev-slug");if(sl&&document.activeElement!==sl)sl.value=EV==="main"?"":EV}$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
 async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}el.innerHTML=`<b>${j.bestN} nageurs avec records perso sur ${j.want}</b> · ${j.left?`<b>${j.left}</b> restent à chercher (dont ${j.errN||0} en échec, réessayés)`:"tous cherchés ✓"}${j.noRecN?` · ${j.noRecN} retrouvés sans record sur leurs épreuves (relus au prochain clic)`:""}${j.notFoundN?` · ${j.notFoundN} introuvables sur Extranat`:""}`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
-async function loadAdmin(){loadSpons();const j=await api("/api/admin/state");RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
+async function loadAdmin(){const j=await api("/api/admin/state");ROLE=j.role||"admin";document.body.classList.toggle("org",ROLE==="org");loadSpons();if(ROLE==="admin")orgStatus();RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
 let lastSaved="",saveTimer=null;
 function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(markDirty,150)}
 function markDirty(){const dirty=JSON.stringify(toConfig())!==lastSaved;const el=$("#save-state"),b=$("#save-btn"),bar=$("#savebar");
@@ -948,6 +955,13 @@ function renderSponsAdmin(){for(const scope of ["ev","all"]){const el=$("#sp-"+s
   el.querySelectorAll("[data-sprm]").forEach(b=>b.onclick=()=>{SPONS[scope].splice(+b.dataset.i,1);renderSponsAdmin();saveSpons(scope)})}
   const h=$("#h-spons");if(h)h.textContent=(SPONS.ev.length+SPONS.all.length)?SPONS.ev.length+" ici · "+SPONS.all.length+" partout":""}
 function bindSpons(){for(const scope of ["ev","all"]){const inp=$("#sp-add-"+scope);if(inp)inp.onchange=async()=>{const f=inp.files[0];inp.value="";if(!f)return;try{const d=await shrink(f,360,160,80000);SPONS[scope].push({name:f.name.replace(/\.[a-z0-9]+$/i,"").replace(/[_-]+/g," "),url:"",img:d,bg:"white"});renderSponsAdmin();await saveSpons(scope)}catch(e){$("#sp-msg").textContent=e.message}}}}
+
+/* ---------- accès organisateur ---------- */
+let ROLE="admin";
+async function orgStatus(){const el=$("#org-st");if(!el)return;try{const j=await api("/api/admin/orgkey");el.textContent=j.set?" · défini ✓":" · aucun";}catch(_){el.textContent=""}}
+function bindOrg(){const sv=$("#org-save"),dl=$("#org-del"),msg=$("#org-msg");if(!sv)return;
+  sv.onclick=async()=>{const pw=$("#org-pw").value;if(pw.length<8){msg.textContent="8 caractères minimum.";return}try{await api("/api/admin/orgkey",{method:"PUT",body:JSON.stringify({pw})});$("#org-pw").value="";msg.textContent="Mot de passe organisateur enregistré. Transmets-le à l'organisateur : il se connecte avec, sur la page de ce live.";orgStatus()}catch(e){msg.textContent=e.message}};
+  dl.onclick=async()=>{if(!confirm("Retirer l'accès organisateur de ce live ?"))return;try{await api("/api/admin/orgkey",{method:"PUT",body:JSON.stringify({pw:""})});msg.textContent="Accès organisateur retiré.";orgStatus()}catch(e){msg.textContent=e.message}}}
 /* ---------- page d'accueil : choix de la compétition ---------- */
 const ARCH=/^\/archives\/?$/.test(location.pathname);const PICK=location.pathname==="/"||ARCH;
 const MOIS_P=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
@@ -1761,7 +1775,7 @@ hit();setInterval(()=>hit(),5*60e3);
 // onglet changé (au plus une fois toutes les 20 s), retour sur la page, départ (pour le temps passé)
 setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)hit()},5e3);
 document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.now()-LASTHIT>60e3)hit(true)}else if(Date.now()-LASTHIT>4*60e3)hit()});
-bindSpons();loadSpons();if(PICK)pickBoot();else{
+bindSpons();bindOrg();loadSpons();if(PICK)pickBoot();else{
 loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(state.view==="live")loadLive()};
 // toutes les 60 s, seulement quand la page est visible ; mise à jour immédiate au retour sur la page
 setInterval(()=>{if(!state.admin&&!document.hidden)pubRefresh()},60000);

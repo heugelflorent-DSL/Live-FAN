@@ -70,3 +70,13 @@ Chaque session écrit un **journal brut** (`journal-AAAAMMJJ-HHMM.jsonl`) : à g
   le numéro d'épreuve du Quantum doit correspondre au numéro d'épreuve FFN (à vérifier au premier essai).
 - Les temps affichés sont **provisoires** ; les résultats officiels restent ceux du Live FFN.
 - Si internet coupe, le relais renvoie automatiquement dès le retour de la connexion.
+
+
+## Deux chronométrages en même temps (deux compétitions)
+
+Chaque live a son propre direct bassin. Deux façons de faire tourner deux Quantum en même temps :
+
+1. **Mot de passe organisateur (le plus simple)** : l'administrateur du site donne un mot de passe organisateur à chaque live (admin → en haut, « Accès organisateur »). Sur chaque PC de chrono, lance `enregistrer_mot_de_passe.bat` et tape le mot de passe organisateur de SON live : le relais envoie automatiquement au bon live, sans autre réglage.
+2. **Clé du relais commune (RELAY_KEY)** : il faut alors préciser le live sur chaque PC, par exemple `python swim_relais.py --reseau tcp:127.0.0.1:26700 --evenement meeting-colmar` (l'identifiant est la fin de l'adresse du live, après /e/).
+
+Sans l'un ni l'autre, le relais envoie au premier live réglé en mode « Bassin ».
