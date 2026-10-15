@@ -731,7 +731,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
               <option value="1">toutes les minutes</option><option value="2">toutes les 2 minutes</option><option value="5">toutes les 5 minutes</option>
               <option value="10">toutes les 10 minutes</option><option value="15">toutes les 15 minutes</option><option value="30">toutes les 30 minutes</option><option value="0">manuellement uniquement</option>
             </select></label>
-          <label class="chk" style="color:#fff"><input type="checkbox" id="sc-live">Seulement pendant les réunions (de l'ouverture des portes à la fin estimée)</label>
+          <label class="chk"><input type="checkbox" id="sc-live">Seulement pendant les réunions (de l'ouverture des portes à la fin estimée)</label>
           <p class="msg">Une minute est le délai le plus court possible avec Cloudflare.</p>
           <div class="rule" id="rs-box">
             <b>Tout récupérer à nouveau</b>
@@ -1696,7 +1696,7 @@ function renderAdmin(){renderLogos();renderFinRules();
   $("#info-list").innerHTML=state.infos.map((i,ix)=>`<div class="rule">
     <div class="inline"><input class="field" data-if="title" data-iid="${i.id}" value="${esc(i.title)}" placeholder="Titre" aria-label="Titre de l'information"><span class="mv"><button data-imv="${i.id}" data-d="-1" aria-label="Monter">↑</button><button data-imv="${i.id}" data-d="1" aria-label="Descendre">↓</button></span><button class="x" data-idel="${i.id}" aria-label="Supprimer">×</button></div>
     <textarea class="field" rows="3" data-if="text" data-iid="${i.id}" placeholder="Texte de l'information" aria-label="Texte de l'information">${esc(i.text)}</textarea>
-    <label class="chk" style="color:#fff"><input type="checkbox" data-if="important" data-iid="${i.id}" ${i.important?"checked":""}>Important</label></div>`).join("")||`<p class="msg">Aucune information.</p>`;
+    <label class="chk"><input type="checkbox" data-if="important" data-iid="${i.id}" ${i.important?"checked":""}>Important</label></div>`).join("")||`<p class="msg">Aucune information.</p>`;
   $("#h1b").textContent=plural(state.infos.length,"information");
   renderAudience();rsScopeOpts();$("#phase-txt").textContent=state.phase==="eng"?"Phase : engagements en cours":"Phase : liste de départ publiée";
   {const sch2=schedule(),dn=doneSet(),ks=allKeys(),nk=ks.find(k=>!dn.has(k));
@@ -1832,7 +1832,7 @@ function rsScopeOpts(){const sel=$("#rs-scope");if(!sel)return;const cur=sel.val
   sel.value=[...sel.options].some(o=>o.value===cur)?cur:"all"}
 function rsLabel(){const sc=$("#rs-scope"),wh=$("#rs-what");return sc.options[sc.selectedIndex].text.toLowerCase()+" · "+wh.options[wh.selectedIndex].text.toLowerCase()}
 $("#rs-box").addEventListener("click",e=>{const id=e.target.id,box=$("#rs-act");
-  if(id==="rs-go")box.innerHTML=`<p class="msg" style="color:#fff">Effacer puis relire : <b>${esc(rsLabel())}</b> ?</p><div class="inline"><button class="btn small" id="rs-yes">Oui, tout récupérer</button><button class="btn small ghost" id="rs-no">Annuler</button></div>`;
+  if(id==="rs-go")box.innerHTML=`<p class="msg">Effacer puis relire : <b>${esc(rsLabel())}</b> ?</p><div class="inline"><button class="btn small" id="rs-yes">Oui, tout récupérer</button><button class="btn small ghost" id="rs-no">Annuler</button></div>`;
   if(id==="rs-no")box.innerHTML=`<button class="btn small" id="rs-go">Tout récupérer à nouveau…</button>`;
   if(id==="rs-yes"){const label=rsLabel();box.innerHTML=`<div class="rsprog"><span id="rs-txt">Effacement et première lecture…</span><span class="prog"><i id="rs-bar" style="width:5%"></i></span></div>`;
     (async()=>{try{await saveNow();const r=await api("/api/rescrape",{method:"POST",body:JSON.stringify({scope:$("#rs-scope").value,what:$("#rs-what").value})});
