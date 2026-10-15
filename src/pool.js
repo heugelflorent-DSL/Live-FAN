@@ -76,6 +76,25 @@ export class PoolRoom {
       pair[1].send(this.snapshot());
       return new Response(null, { status: 101, webSocket: pair[0] });
     }
+    // journal brut du chrono (tout ce que lit le relais), compressé, gardé 14 jours : pour analyser un souci après coup
+    if (url.pathname.endsWith("/log") && req.method === "POST") {
+      const day = url.searchParams.get("day") || ""; const raw = await req.arrayBuffer();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !raw.byteLength || raw.byteLength > 120000) return new Response("bad", { status: 400 });
+      const now = Date.now(); await this.ctx.storage.put(`j:${day}:${String(now).padStart(14, "0")}`, raw);
+      this.s.relayAt = now; this.s.journalAt = now;
+      if (!this.jclean || now - this.jclean > 3600e3) { this.jclean = now; const old = new Date(now - 14 * 864e5).toISOString().slice(0, 10);
+        const ks = [...(await this.ctx.storage.list({ prefix: "j:", end: "j:" + old })).keys()]; for (let i = 0; i < ks.length; i += 128) await this.ctx.storage.delete(ks.slice(i, i + 128)); }
+      return Response.json({ ok: true });
+    }
+    if (url.pathname.endsWith("/journal")) {
+      const day = url.searchParams.get("day");
+      const all = await this.ctx.storage.list({ prefix: "j:" });
+      if (!day) { const days = {}; for (const [k, v] of all) { const d = k.slice(2, 12); days[d] = (days[d] || 0) + v.byteLength; } return Response.json({ days }); }
+      // morceaux compressés (gzip) mis bout à bout : un seul fichier .jsonl.gz lisible tel quel
+      const parts = [...all].filter(([k]) => k.startsWith("j:" + day + ":")).map(([, v]) => new Uint8Array(v));
+      const out = new Uint8Array(parts.reduce((a, x) => a + x.length, 0)); let o = 0; for (const x of parts) { out.set(x, o); o += x.length; }
+      return new Response(out, { headers: { "content-type": "application/gzip", "content-disposition": `attachment; filename="journal-chrono-${day}.jsonl.gz"` } });
+    }
     if (url.pathname.endsWith("/event") && req.method === "POST") {
       const body = await req.json().catch(() => null);
       const list = Array.isArray(body) ? body : body ? [body] : [];

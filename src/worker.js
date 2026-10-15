@@ -311,6 +311,11 @@ async function sha(s) { return [...new Uint8Array(await crypto.subtle.digest("SH
 async function orgMatch(env, key, ev) { const e = (await orgKeys(env))[ev]; return !!(key && e && same(await sha(e.salt + "|" + key), e.hash)); }
 // événement dont le mot de passe organisateur correspond (relais du Quantum sans « --evenement »)
 async function orgEventOf(env, key) { if (!key) return null; for (const [ev, e] of Object.entries(await orgKeys(env))) if (same(await sha(e.salt + "|" + key), e.hash)) return ev; return null; }
+// chronométrage relié par clé : l'exe du PC du chrono génère une clé, l'organisateur la colle dans l'admin de son live
+const PAIR_RE = /^SD(-[A-Z2-9]{4}){4}$/;
+let PAIRC = { at: 0, map: null };
+async function pairs(env) { if (PAIRC.map && Date.now() - PAIRC.at < 30e3) return PAIRC.map; const m = (await env.KV.get("pairs", "json")) || {}; PAIRC = { at: Date.now(), map: m }; return m; }
+async function pairOf(env, token) { if (!PAIR_RE.test(token || "")) return null; const h = await sha("pair|" + token); return (await pairs(env))[h] ? { h, ...(await pairs(env))[h] } : null; }
 // anti-essais en rafale : 10 mauvais mots de passe en 15 min depuis la même adresse = blocage 15 min
 async function tooManyFails(req, ok) {
   const ip = req.headers.get("cf-connecting-ip") || "?"; const key = new Request("https://lock.local/" + encodeURIComponent(ip));
@@ -402,6 +407,22 @@ export default {
       return res;
     }
 
+    // logiciel du chrono relié par clé de liaison
+    const TOKEN = req.headers.get("x-relay-token") || "";
+    if (TOKEN && p.startsWith("/api/relay/")) {
+      const pr = await pairOf(env, TOKEN);
+      if (p === "/api/relay/hello") {
+        if (!pr) return json({ linked: false });
+        const c = (await env.KV.get(kk("config", pr.ev), "json")) || {};
+        return json({ linked: true, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", now: Date.now() });
+      }
+      if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
+      const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
+      if (p === "/api/relay/event" && req.method === "POST") return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
+      if (p === "/api/relay/log" && req.method === "POST") return room.fetch(new Request("https://pool/log?day=" + (url.searchParams.get("day") || ""), { method: "POST", body: await req.arrayBuffer() }));
+      return json({ error: "Inconnu" }, 404);
+    }
+
     // Direct « Bassin » (Quantum) : salle temps réel. Le relais envoie les événements avec le mot de passe admin.
     if (p.startsWith("/api/pool/")) {
       let rid = ev;
@@ -488,6 +509,24 @@ export default {
     const purge = () => Promise.all([caches.default.delete(ckey("/api/state")), caches.default.delete(new Request(url.origin + "/api/events"))]);
 
     const adminOnly = () => json({ error: "Réservé à l'administrateur du site." }, 403);
+    if (p === "/api/admin/pair") {
+      const m = (await env.KV.get("pairs", "json")) || {};
+      if (req.method === "GET") return json(Object.entries(m).filter(([, x]) => x.ev === ev).map(([h, x]) => ({ id: h.slice(0, 12), tail: x.tail, at: x.at })));
+      const body = await req.json().catch(() => ({}));
+      if (req.method === "PUT") {
+        const t = String(body.token || "").toUpperCase().replace(/\s+/g, "").replace(/^SD-?/, "SD-").replace(/[^A-Z0-9-]/g, "");
+        const tok = t.replace(/^SD-/, "").replace(/-/g, "").match(/.{1,4}/g); const norm = tok ? "SD-" + tok.join("-") : "";
+        if (!PAIR_RE.test(norm)) return json({ error: "Clé invalide : copie-la telle qu'affichée par le logiciel du chrono (SD-XXXX-XXXX-XXXX-XXXX)." }, 400);
+        const h = await sha("pair|" + norm); const was = m[h] && m[h].ev !== ev ? m[h].ev : null;
+        m[h] = { ev, at: Date.now(), tail: norm.slice(-4) }; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0;
+        return json({ ok: true, moved: was });
+      }
+      if (req.method === "DELETE") { for (const h of Object.keys(m)) if (h.startsWith(String(body.id || "-")) && m[h].ev === ev) delete m[h]; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0; return json({ ok: true }); }
+    }
+    if (p === "/api/admin/journal") {
+      const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));
+      const d = url.searchParams.get("day"); return room.fetch(new Request("https://pool/journal" + (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? "?day=" + d : "")));
+    }
     // mot de passe organisateur de cet événement (défini par l'administrateur du site)
     if (p === "/api/admin/orgkey") {
       if (!ADM) return adminOnly();
@@ -531,6 +570,7 @@ export default {
         await Promise.all([c && env.KV.put(kk("config", id), c), d && env.KV.put(kk("data", id), d), m && env.KV.put(kk("mpp", id), m), sp && env.KV.put(kk("sponsors", id), sp)].filter(Boolean));
         const name = (c && JSON.parse(c).name) || (list.find((x) => x.id === ev) || {}).name || "";
         EVC.at = 0; await env.KV.put("events", JSON.stringify([...list.filter((x) => x.id !== ev), { id, name, createdAt: Date.now() }]));
+        { const pm = (await env.KV.get("pairs", "json")) || {}; let ch = false; for (const x of Object.values(pm)) if (x.ev === ev) { x.ev = id; ch = true; } if (ch) { await env.KV.put("pairs", JSON.stringify(pm)); PAIRC.at = 0; } }
         if (ev === "main") await Promise.all([env.KV.put(kk("config", "main"), JSON.stringify({ ...DEFAULT_CONFIG })), env.KV.delete(kk("data", "main")), env.KV.delete(kk("mpp", "main"))]);
         else await Promise.all(["config", "data", "mpp", "sponsors"].map((k) => env.KV.delete(kk(k, ev))));
         await purge();
