@@ -1762,7 +1762,10 @@ hit();setInterval(()=>hit(),5*60e3);
 setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)hit()},5e3);
 document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.now()-LASTHIT>60e3)hit(true)}else if(Date.now()-LASTHIT>4*60e3)hit()});
 bindSpons();loadSpons();if(PICK)pickBoot();else{
-loadLogos();loadMpp();setInterval(loadMpp,10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});setInterval(()=>{if(state.view==="live"&&!state.admin)loadLive()},30000);setInterval(()=>{if(!state.admin)loadPublic().then(scTick)},30000);}
+loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(state.view==="live")loadLive()};
+// toutes les 60 s, seulement quand la page est visible ; mise à jour immédiate au retour sur la page
+setInterval(()=>{if(!state.admin&&!document.hidden)pubRefresh()},60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!state.admin&&Date.now()-PUBAT>20e3)pubRefresh()});}
 </script>
 <!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
 </body>
