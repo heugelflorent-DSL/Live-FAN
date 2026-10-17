@@ -183,7 +183,7 @@ let ENV = null;
 async function get(url, opt = {}) {
   if (!ENV || !ENV.POOL) return getDirect(url, opt);
   if (opt.delay) await new Promise((r) => setTimeout(r, opt.delay));
-  const r = await ENV.POOL.get(ENV.POOL.idFromName("ffnfetch")).fetch(new Request("https://pool/ffnget?u=" + encodeURIComponent(url)));
+  const r = await ENV.POOL.get(ENV.POOL.idFromName("ffnlive:" + ((url.match(/competition=(\d+)/) || [])[1] || ""))).fetch(new Request("https://pool/ffnget?u=" + encodeURIComponent(url)));
   const j = await r.json(); if (j.error) throw new Error(j.error); return j.raw;
 }
 async function runTask(task, data, now) {
