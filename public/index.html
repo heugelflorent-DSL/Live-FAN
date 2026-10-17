@@ -1364,7 +1364,7 @@ function liveToday(){if(state.live==="bassin")return true;const d=new Date();d.s
 function liveUpcoming(){const t=new Date();t.setHours(0,0,0,0);const rs=state.comps.map(compRange).filter(Boolean).filter(r=>r.end>=t).sort((a,b)=>a.start-b.start);return rs[0]||null}
 // onglet visible dès que le programme définitif est publié, jusqu'à la fin de la compétition
 function liveOn(){if(state.live!=="ffn"&&state.live!=="bassin")return false;if(liveToday())return true;return !!liveUpcoming()&&Object.values(EVENTS).some(e=>e.type==="event"&&!e.provisional)}
-async function loadLive(){if(!liveOn()||!liveToday())return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch(evq("/api/live?c="+c.id),{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok){if(LIVE[c.id])LIVE[c.id].stale=true;return}const j=await r.json();const old=LIVE[c.id];if((j.error||!j.cur)&&old&&old.cur&&!old.error){LIVE[c.id]={...old,stale:true,staleSince:old.staleSince||Date.now()};return}const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j;try{const h=await fetch(evq("/api/liveheats?c="+c.id));if(h.ok)LH[c.id]=await h.json()}catch(_){}}catch(_){}}));if(["live","res","pod","home"].includes(state.view)&&!state.admin)render()}
+async function loadLive(){if(!liveOn()||!liveToday())return;if(state.live==="ffn"&&!liveSlot().on)return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch(evq("/api/live?c="+c.id),{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok){if(LIVE[c.id])LIVE[c.id].stale=true;return}const j=await r.json();const old=LIVE[c.id];if((j.error||!j.cur)&&old&&old.cur&&!old.error){LIVE[c.id]={...old,stale:true,staleSince:old.staleSince||Date.now()};return}const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j;try{const h=await fetch(evq("/api/liveheats?c="+c.id));if(h.ok)LH[c.id]=await h.json()}catch(_){}}catch(_){}}));if(["live","res","pod","home"].includes(state.view)&&!state.admin)render()}
 function lvSplits(w){const sp=w.splits||[];if(sp.length<2)return"";return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.d} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
 function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=null;
   for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||ev.comp!==id)continue;const bn=ev.base||ev.name,n=norm(bn+" "+(ev.round||"")+(ev.roundLabel&&ev.round&&ev.roundLabel!==ev.round?" "+ev.roundLabel.slice(ev.round.length):""));if(t===n||t.startsWith(norm(bn)+" ")&&(!best||n.length>norm((best.base||best.name)+" "+(best.round||"")).length))best=ev;if(t===n)return ev}
@@ -1400,6 +1400,11 @@ function renderLiveFfn(){
       <p class="msg">Le direct s'ouvrira ici automatiquement au début de la réunion.</p>
       <div class="lvs-g">${tile("⏱","Série en cours","Temps et passages dès l'arrivée")}${tile("🏊","Série suivante","Couloirs et nageurs au départ")}${tile("📋","Programme","Horaires recalculés en direct")}</div>
       <div class="lvs-a"><a href="#" class="btn small" data-go="prog">Voir le programme</a><a href="#" class="btn small ghost" data-go="part">Choisir mes nageurs ★</a></div></div></div>`;return}
+  if(state.live==="ffn"){const sl=liveSlot();if(!sl.on){const n=sl.next;const today=n&&new Date().toDateString()===n.d.toDateString();
+    $("#pub-body").innerHTML=`<div class="session">${secTitle("En direct","")}<div class="card lvs"><div class="lvs-h"><span class="lv-tag">Pause</span>${n?`<span class="lvs-cd">${today?"Aujourd'hui":frDate(n.d)}</span>`:""}</div>
+      <h3>${n?`Rendez-vous à <span class="lvs-at">${hm(Math.round((n.at-n.d.getTime())/1000)).replace(/^0/,"")}</span>`:"Le direct est terminé"}</h3>
+      <p class="msg">${n?`Reprise du direct avec la réunion ${esc(n.s)}${n.doors?" · ouverture des portes à "+esc(n.doors.replace(/^0/,"")):""}. En attendant, les résultats et les podiums restent disponibles.`:"Toutes les réunions sont terminées : retrouvez les résultats et les podiums."}</p>
+      <div class="lvs-a"><a href="#" class="btn small" data-go="res">Voir les résultats</a><a href="#" class="btn small ghost" data-go="pod">Podiums</a><a href="#" class="btn small ghost" data-go="prog">Programme</a></div></div></div>`;return}}
   const ids=state.comps.map(c=>c.id).filter(id=>LIVE[id]&&!LIVE[id].error);
   if(!ids.length){$("#pub-body").innerHTML=`<p class="empty">${state.comps.some(c=>LIVE[c.id])?"Le direct du Live FFN ne répond pas pour le moment. Nouvel essai automatique.":"Connexion au direct du Live FFN…"}</p>`;return}
   const order=allKeys(),pos=k=>order.indexOf(k);
@@ -1460,6 +1465,14 @@ function mySwimmers(compact){
   const list=compact?rows.slice(0,6):rows;
   return`<div class="card lv-card myswim"><span class="lv-tag">★ Mes nageurs</span>${list.map(r=>r.html).join("")||`<p class="msg">Plus de course à venir pour tes nageurs suivis.</p>`}${compact&&rows.length>6?`<p class="msg">+ ${rows.length-6} autres · <a href="#" data-go="home">voir tout</a></p>`:""}</div>`}
 // la réunion a lieu aujourd'hui (date du Live FFN, ex. « Samedi 17 Octobre 2026 »)
+// réunion en cours (portes − 30 min → fin des résultats) ou prochaine réunion : le direct se met en pause entre les deux
+function reuDate(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return null;const i=MOIS.indexOf(m[2]);return i<0?null:new Date(+m[3],i,+m[1])}
+function liveSlot(){const sch=schedule(),done=doneSet(),now=Date.now();let next=null;
+  for(const s of Object.keys(state.order).sort((a,b)=>a-b)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");if(!ks.length)continue;const d=reuDate(s);if(!d)continue;
+    if(ks.every(k=>done.has(k)))continue;const at=sec=>d.getTime()+sec*1000;const doorsS=state.doors[s]?toMin(state.doors[s].replace("h",":"))*60:sch[ks[0]].start-3600;
+    const a=at(doorsS-1800),b=at((sch[ks[ks.length-1]].end||sch[ks[ks.length-1]].start)+7200);
+    if(now>=a&&now<=b)return{on:true,s};if(now<a&&!next)next={s,at:at(sch[ks[0]].start),doors:state.doors[s]||"",d}}
+  return{on:false,next}}
 function reuToday(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return false;const d=new Date(),i=MOIS.indexOf(m[2]);return i>=0&&d.getFullYear()===+m[3]&&d.getMonth()===i&&d.getDate()===+m[1]}
 function renderHome(){
   const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k)&&!EVENTS[k].provisional);let html="",top=engBanner(),teams="";

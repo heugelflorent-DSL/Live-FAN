@@ -537,8 +537,10 @@ export default {
     // Direct « Live FFN » : dernière série publiée et série suivante, relues au plus toutes les 30 s (cache)
     if (p === "/api/live" && req.method === "GET") {
       const c = url.searchParams.get("c") || "";
-      const { config } = await load(env, ev);
+      const { config, data } = await load(env, ev);
       if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
+      // entre deux réunions : le direct est en pause, on ne dérange pas le Live FFN
+      if (!windowOpen({ ...config, comps: [c], scrape: { onlyLive: true } }, data, Date.now())) return json({ at: Date.now(), pause: true }, 200, { "cache-control": "public, max-age=60" });
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
       let body = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
