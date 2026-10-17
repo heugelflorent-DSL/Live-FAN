@@ -1426,8 +1426,9 @@ function renderLiveFfn(){
   if(!cur){$("#pub-body").innerHTML=`<p class="empty">Aucune série publiée pour le moment sur le direct du Live FFN.</p>`;return}
   const L=cur.L,since=Math.min(...ids.map(id=>LIVE[id].changedAt?Math.round((Date.now()-LIVE[id].changedAt)/60000):0));
   html+=`<div class="session">${secTitle("En direct",esc(L.reunion||""))}<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
-  if(L.stale)html+=`<p class="lv-warn">Le Live FFN ne répond pas en ce moment : derniers résultats reçus affichés, nouvel essai automatique.</p>`;
-  if(since>=8)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
+  if(L.stale&&!(state.live==="ffn"&&liveSlot().grace))html+=`<p class="lv-warn">Le Live FFN ne répond pas en ce moment : derniers résultats reçus affichés, nouvel essai automatique.</p>`;
+  const GR=state.live==="ffn"&&liveSlot().grace;if(GR)html+=`<p class="lv-warn" style="background:#eef6ee;color:#1d5c2a">Réunion terminée · dernière série affichée encore quelques minutes</p>`;
+  if(since>=8&&!GR)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
   // réunion qui commence : la dernière série affichée est celle de la réunion précédente → on ne montre que la série à venir
   {const sl=state.live==="ffn"?liveSlot():null;const rk=sl&&sl.on?state.order[sl.s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"):null;
    if(rk&&!(cur.ev&&rk.includes(cur.ev.key))){const k=rk[0],ev=EVENTS[k],sch=schedule();const m2=L.next&&liveMatch(cur.id,L.next.event);
@@ -1487,7 +1488,8 @@ function mySwimmers(compact){
 function reuDate(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return null;const i=MOIS.indexOf(m[2]);return i<0?null:new Date(+m[3],i,+m[1])}
 function liveSlot(){const sch=schedule(),done=doneSet(),now=Date.now();let next=null;
   for(const s of Object.keys(state.order).sort((a,b)=>a-b)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");if(!ks.length)continue;const d=reuDate(s);if(!d)continue;
-    if(ks.every(k=>done.has(k)))continue;const at=sec=>d.getTime()+sec*1000;const doorsS=state.doors[s]?toMin(state.doors[s].replace("h",":"))*60:sch[ks[0]].start-3600;
+    if(ks.every(k=>done.has(k))){const end=Math.max(...ks.map(k=>EVENTS[k].doneAt||0));if(end&&now-end<30*60e3)return{on:true,s,grace:true};continue} // dernière série visible 30 min après la fin de la réunion
+    const at=sec=>d.getTime()+sec*1000;const doorsS=state.doors[s]?toMin(state.doors[s].replace("h",":"))*60:sch[ks[0]].start-3600;
     const a=at(sch[ks[0]].start-1800),b=at((sch[ks[ks.length-1]].end||sch[ks[ks.length-1]].start)+7200);
     if(now>=a&&now<=b)return{on:true,s};if(now<a&&!next)next={s,at:at(sch[ks[0]].start),doors:state.doors[s]||"",d}}
   return{on:false,next}}

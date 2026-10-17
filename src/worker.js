@@ -589,7 +589,12 @@ export default {
       const { config, data } = await load(env, ev);
       if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
       // entre deux réunions : le direct est en pause, on ne dérange pas le Live FFN
-      if (!liveOpen(data.comps[c], Date.now())) return json({ at: Date.now(), pause: true }, 200, { "cache-control": "public, max-age=60" });
+      if (!liveOpen(data.comps[c], Date.now())) {
+        // réunion qui vient de se terminer : la dernière série reste affichée 30 min (copie gardée, sans redemander au Live FFN)
+        const cc = data.comps[c]; const lastDone = Math.max(0, ...Object.values(cc?.events || {}).map((e) => e.doneAt || 0));
+        if (lastDone && Date.now() - lastDone < 30 * 60e3) { const last = await caches.default.match(new Request(url.origin + "/api/live-ok?c=" + c)); if (last) return json({ ...(await last.json()), grace: true }, 200, { "cache-control": "public, max-age=60" }); }
+        return json({ at: Date.now(), pause: true }, 200, { "cache-control": "public, max-age=60" });
+      }
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
       let body = null;
