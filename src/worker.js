@@ -103,7 +103,7 @@ function endAt(c) {
 function progEvery(c, now) {
   const dt = c && compDate(c.meta); if (!dt) return PROG_EVERY;
   const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
-  if (days > 5) return 24 * 3600e3;   // plus de 5 jours avant : une fois par jour
+  if (days > 5) return Infinity;     // plus de 5 jours avant : lu une seule fois, à l'ajout du live
   if (days > 1) return 3 * 3600e3;    // de 5 jours à la veille : toutes les 3 h
   if (days > 0) return PROG_EVERY;     // veille : toutes les 30 min
   return 10 * 60e3;                    // jour J : toutes les 10 min (horaires modifiables jusqu'à 20 min avant la réunion)
