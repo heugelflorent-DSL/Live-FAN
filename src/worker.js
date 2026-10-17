@@ -58,9 +58,11 @@ function eventsOf(comp) {
 function windowOpen(cfg, data, now) {
   if (!cfg.scrape?.onlyLive) return true;
   for (const id of cfg.comps) {
-    const c = data.comps[id]; const dt = c && compDate(c.meta);
-    if (!dt) return true; // pas encore de programme : on le récupère
+    const c = data.comps[id]; const dt0 = c && compDate(c.meta);
+    if (!dt0) return true; // pas encore de programme : on le récupère
     for (const r of c.reunions || []) {
+      // date de la réunion elle-même (« Du Samedi 17 au Dimanche 18 Octobre » : la date générale ne donne que le 18)
+      const dt = compDate({ date: r.day }) || dt0;
       const evs = r.items.filter((i) => i.kind === "event" && i.time);
       const first = hToMin(r.doors) ?? hToMin(evs[0]?.time); const last = hToMin(evs[evs.length - 1]?.time);
       if (first == null) continue;
@@ -104,7 +106,7 @@ function progEvery(c, now) {
   // pas encore de programme complet (absent ou provisoire) : on réessaie toutes les 3 h jusqu'à l'avoir
   const evs = (c?.reunions || []).flatMap((r) => r.items.filter((i) => i.kind === "event"));
   if (!evs.length || evs.some((e) => e.provisional)) return 3 * 3600e3;
-  const dt = compDate(c.meta); if (!dt) return 24 * 3600e3;
+  const dt = compDate({ date: c.reunions?.[0]?.day }) || compDate(c.meta); if (!dt) return 24 * 3600e3; // 1er jour de compétition
   const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
   if (days > 0) return 24 * 3600e3;    // programme obtenu : une relecture par jour jusqu'au début de la compétition
   return Infinity;                     // jours de compétition : voir progDue (environ 3 lectures par réunion)
