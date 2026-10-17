@@ -531,10 +531,14 @@ export default {
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
       let body;
-      try { body = { at: Date.now(), ...parseLive(await get(urls.live(c), { delay: 0, tries: 1 })) }; }
+      try { body = { at: Date.now(), ...parseLive(await get(urls.live(c), { delay: 0, tries: 2 })) }; }
       catch (e) { body = { at: Date.now(), error: String(e.message || e) }; }
-      // page absente (direct pas commencé) : on ne redemande pas au Live FFN avant 10 min
-      const res = json(body, 200, { "cache-control": `public, max-age=${body.error ? 600 : 30}` });
+      // Live FFN qui ne répond pas un instant : on garde la dernière version reçue (marquée « stale ») plutôt qu'un direct vide,
+      // et on réessaie 1 min plus tard (et non 10 min)
+      const okKey = new Request(url.origin + "/api/live-ok?c=" + c);
+      if (body.error) { const last = await cache.match(okKey); if (last) { const old = await last.json(); body = { ...old, stale: true, staleError: body.error }; } }
+      else ctx.waitUntil(cache.put(okKey, json(body, 200, { "cache-control": "public, max-age=1800" })));
+      const res = json(body, 200, { "cache-control": `public, max-age=${body.error || body.stale ? 60 : 30}` });
       ctx.waitUntil(cache.put(key, res.clone()));
       // série en cours avec des temps : gardée pour le classement provisoire de l'onglet Résultats
       const cur = body.cur; if (cur && cur.heat && cur.rows.some((r) => r.time != null || r.timeTxt))
