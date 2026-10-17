@@ -23,24 +23,33 @@ export class StatsRoom {
       const { day, ev, k, v } = await req.json();
       if (!day || !ev || !k) return new Response("bad", { status: 400 });
       const tab = TABS.has(v) ? v : null;
-      const ins = "INSERT OR IGNORE INTO u (day, ev, k) VALUES (?, ?, ?)";
-      this.sql(ins, day, ev, k); this.sql(ins, day, "*", k);
-      this.sql("INSERT INTO seen (k, ev, at) VALUES (?, ?, ?) ON CONFLICT (k, ev) DO UPDATE SET at = excluded.at", k, ev, now);
-      this.sql("INSERT INTO now2 (k, ev, v, at) VALUES (?, ?, ?, ?) ON CONFLICT (k) DO UPDATE SET ev = excluded.ev, v = excluded.v, at = excluded.at", k, ev, tab, now);
-      if (tab) this.sql("INSERT OR IGNORE INTO tabs (day, v, k) VALUES (?, ?, ?)", day, tab, k);
+      // Économie d'écritures (quota gratuit de 100 000 lignes / jour) :
+      // « connectés en ce moment » et le pic restent en mémoire ; seul ce qui doit durer va dans la base,
+      // et une seule fois par visiteur et par jour (sauf le temps passé, mis à jour au plus toutes les 10 min).
+      const live = (this.live = this.live || new Map()); live.set(k, { ev, v: tab, at: now });
+      const mem = (this.mem = this.mem || new Map()); const mk = day + "|" + k; const m = mem.get(mk);
+      if (!m) {
+        const ins = "INSERT OR IGNORE INTO u (day, ev, k) VALUES (?, ?, ?)";
+        this.sql(ins, day, ev, k); this.sql(ins, day, "*", k);
+      } else if (!m.evs.has(ev)) this.sql("INSERT OR IGNORE INTO u (day, ev, k) VALUES (?, ?, ?)", day, ev, k);
+      const st = m || { evs: new Set(), tabs: new Set(), saved: 0 }; st.evs.add(ev); mem.set(mk, st);
+      if (tab && !st.tabs.has(tab)) { st.tabs.add(tab); this.sql("INSERT OR IGNORE INTO tabs (day, v, k) VALUES (?, ?, ?)", day, tab, k); }
       // temps passé : une nouvelle visite commence après 30 min sans signe de vie
-      const r = this.sql("SELECT last FROM vis WHERE day = ? AND k = ?", day, k).toArray()[0];
-      if (!r) this.sql("INSERT INTO vis (day, k, first, last, dur, sess) VALUES (?, ?, ?, ?, 0, 1)", day, k, now, now);
-      else if (now - r.last > SESSION_GAP) this.sql("UPDATE vis SET last = ?, sess = sess + 1 WHERE day = ? AND k = ?", now, day, k);
-      else this.sql("UPDATE vis SET dur = dur + ?, last = ? WHERE day = ? AND k = ?", now - r.last, now, day, k);
-      // pic de connectés : maximum par tranche de 5 minutes
-      const n = this.sql("SELECT COUNT(*) AS n FROM now2 WHERE at >= ?", now - NOW_WIN).toArray()[0].n;
-      this.sql("INSERT INTO conc (day, slot, n) VALUES (?, ?, ?) ON CONFLICT (day, slot) DO UPDATE SET n = MAX(n, excluded.n)", day, Math.floor(now / SLOT) * SLOT, n);
-      // ménage : connexions inactives, et données de plus de 400 jours
-      if (!this.swept || now - this.swept > 10 * 60e3) { this.swept = now; this.sql("DELETE FROM seen WHERE at < ?", now - 30 * 60e3); this.sql("DELETE FROM now2 WHERE at < ?", now - 30 * 60e3); }
+      if (!st.vis) st.vis = this.sql("SELECT first, last, dur, sess FROM vis WHERE day = ? AND k = ?", day, k).toArray()[0] || null;
+      if (!st.vis) { st.vis = { first: now, last: now, dur: 0, sess: 1 }; this.sql("INSERT OR IGNORE INTO vis (day, k, first, last, dur, sess) VALUES (?, ?, ?, ?, 0, 1)", day, k, now, now); st.saved = now; }
+      else { const newSess = now - st.vis.last > SESSION_GAP; if (newSess) st.vis.sess++; else st.vis.dur += now - st.vis.last; st.vis.last = now;
+        if (newSess || now - st.saved > 10 * 60e3) { st.saved = now; this.sql("UPDATE vis SET last = ?, dur = ?, sess = ? WHERE day = ? AND k = ?", now, st.vis.dur, st.vis.sess, day, k); } }
+      // pic de connectés : calculé en mémoire, écrit au plus une fois par tranche de 5 minutes
+      for (const [x, y] of live) if (now - y.at > NOW_WIN) live.delete(x);
+      const slot = Math.floor(now / SLOT) * SLOT; this.peak = this.peak && this.peak.slot === slot ? this.peak : { slot, n: 0, w: 0 };
+      if (live.size > this.peak.n) this.peak.n = live.size;
+      if (this.peak.n > this.peak.w && (!this.peak.at || now - this.peak.at > 60e3)) { this.peak.w = this.peak.n; this.peak.at = now;
+        this.sql("INSERT INTO conc (day, slot, n) VALUES (?, ?, ?) ON CONFLICT (day, slot) DO UPDATE SET n = MAX(n, excluded.n)", day, slot, this.peak.n); }
+      if (mem.size > 20000) mem.clear();
       if (!this.cleaned || now - this.cleaned > DAY) {
         this.cleaned = now; const old = new Date(now - 400 * DAY).toISOString().slice(0, 10);
         for (const t of ["u", "tabs", "conc", "vis"]) this.sql(`DELETE FROM ${t} WHERE day < ?`, old);
+        this.sql("DELETE FROM seen"); this.sql("DELETE FROM now2");
       }
       return new Response(null, { status: 204 });
     }
@@ -48,9 +57,8 @@ export class StatsRoom {
       const from = url.searchParams.get("from"), to = url.searchParams.get("to");
       const uniq = {}; for (const r of this.sql("SELECT ev, COUNT(DISTINCT k) AS n FROM u WHERE day >= ? AND day <= ? GROUP BY ev", from, to)) uniq[r.ev] = r.n;
       const days = this.sql("SELECT day, COUNT(DISTINCT k) AS n FROM u WHERE ev = '*' AND day >= ? AND day <= ? GROUP BY day ORDER BY day", from, to).toArray();
-      const nowBy = {}; const nowAll = new Set();
-      for (const r of this.sql("SELECT k, ev FROM seen WHERE at >= ?", now - NOW_WIN)) { nowBy[r.ev] = (nowBy[r.ev] || 0) + 1; nowAll.add(r.k); }
-      const tabsNow = {}; for (const r of this.sql("SELECT v, COUNT(*) AS n FROM now2 WHERE at >= ? AND v IS NOT NULL GROUP BY v", now - NOW_WIN)) tabsNow[r.v] = r.n;
+      const nowBy = {}; const nowAll = new Set(); const tabsNow = {};
+      for (const [k, y] of this.live || []) if (now - y.at <= NOW_WIN) { nowAll.add(k); nowBy[y.ev] = (nowBy[y.ev] || 0) + 1; if (y.v) tabsNow[y.v] = (tabsNow[y.v] || 0) + 1; }
       const tabs = {}; for (const r of this.sql("SELECT v, COUNT(DISTINCT k) AS n FROM tabs WHERE day >= ? AND day <= ? GROUP BY v", from, to)) tabs[r.v] = r.n;
       const conc = this.sql("SELECT slot, n FROM conc WHERE day >= ? AND day <= ? ORDER BY slot", from, to).toArray();
       const peak = conc.reduce((m, x) => (x.n > (m ? m.n : 0) ? x : m), null);

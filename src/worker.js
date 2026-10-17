@@ -460,6 +460,7 @@ export default {
       const room = env.POOL.get(env.POOL.idFromName(rid === "main" ? "bassin" : "bassin:" + rid));
       if (p === "/api/pool/event") {
         if (!relayAuthed(req, env) && !ORG && !RELAYEV) return json({ error: "Mot de passe incorrect." }, 401);
+        if (url.searchParams.get("sim") && !ADM) return adminOnly(); // simulateur : réservé à l'administrateur du site
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
       }
       if (config.live !== "bassin" && !CAN) return json({ error: "Direct bassin non activé." }, 404);
@@ -489,6 +490,7 @@ export default {
       return json(await mppStatus(env, ev));
     }
     if (p === "/api/admin/mpp" && req.method === "POST") {
+      if (!ADM) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
       const body = await req.json().catch(() => ({}));
       // tout écraser : on oublie les records lus (en gardant les licences retrouvées) pour tout relire sur l'Extranat
@@ -662,6 +664,7 @@ export default {
       const body = await req.json();
       const cfg = { ...DEFAULT_CONFIG, ...body };
       const prev = await env.KV.get(kk("config", ev), "json");
+      if (!ADM) cfg.scrape = (prev && prev.scrape) || DEFAULT_CONFIG.scrape; // fréquence de lecture du Live FFN : réglée par l'administrateur
       await env.KV.put(kk("config", ev), JSON.stringify(cfg));
       // passage en mode « Bassin » : on repart d'un direct vide (les tests chrono d'avant ne s'affichent pas)
       if (cfg.live === "bassin" && (!prev || prev.live !== "bassin"))
@@ -673,11 +676,13 @@ export default {
       return json({ ok: true });
     }
     if (p === "/api/refresh" && req.method === "POST") {
+      if (!ADM) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
       await cycle(env, { force: true, ev }); await purge();
       const { data } = await load(env, ev);
       return json({ ok: !data.error, lastOk: data.lastOk, error: data.error, queue: (data.queue || []).length });
     }
     if (p === "/api/rescrape" && req.method === "POST") {
+      if (!ADM) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
       const { scope = "all", what = "all" } = await req.json();
       const n = await rescrape(env, scope, what, ev);
       await cycle(env, { force: true, ev }); await purge();

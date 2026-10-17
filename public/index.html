@@ -608,7 +608,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         <span class="dash-phase" id="phase-txt"></span>
       </div>
       <div class="kpis3" id="dash-kpis"></div>
-      <div class="sc-status"><span id="sc-text"></span><button class="btn small" id="sc-now">Actualiser maintenant</button></div>
+      <div class="sc-status"><span id="sc-text"></span><button class="btn small admin-only" id="sc-now">Actualiser maintenant</button></div>
       <div id="delay-box" class="grid2c"></div>
     </div>
 
@@ -650,7 +650,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
           <div><button class="btn small ghost" id="pod-add">+ Ajouter un classement</button></div>
         </div>
       </details>
-      <details class="step">
+      <details class="step admin-only">
         <summary><span class="n"></span>Records perso des engagés</summary>
         <div class="step-body">
           <div class="inline"><button class="btn small ghost" id="mpp-go" type="button">Lire les records perso manquants</button><button class="btn small ghost" id="mpp-reset" type="button">Tout relire et écraser</button><span class="msg" id="mpp-msg" style="font-weight:400">Records personnels des engagés (FFN Extranat), lus automatiquement de 5 jours avant à 2 jours après la compétition (toujours pour l'épreuve test), quelques nageurs par minute.</span></div><div class="msg" id="mpp-stat" style="font-weight:600;margin-top:6px"></div>
@@ -720,7 +720,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
           </div>
         </div>
       </details>
-      <details class="step sim">
+      <details class="step sim admin-only">
         <summary><span class="n"></span>Simulateur de course<span class="hint">tester l'affichage sans Quantum</span></summary>
         <div class="step-body">
           <p class="msg">Envoie une course au direct bassin de <b>cet événement</b>, comme le ferait le Quantum : série au départ, chrono, passages, arrivées, validation. Si la série a déjà des résultats sur le Live FFN, ses vrais temps sont rejoués. Garde cette page ouverte pendant la course, et regarde le résultat sur la page publique (onglet Direct), idéalement sur un téléphone.</p>
@@ -732,7 +732,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
         </div>
       </details>
     <h3 class="grp">Suivre la compétition</h3>
-      <details class="step">
+      <details class="step admin-only">
         <summary><span class="n"></span>Actualisation des données<span class="hint" id="h0"></span></summary>
         <div class="step-body">
           <label for="sc-every">Récupérer les données du Live FFN
@@ -990,7 +990,7 @@ let SIM=[];
 async function relayState(){const el=$("#relay-state");if(!el)return;if(state.live!=="bassin"){el.textContent="";return}try{const r=await fetch(evq("/api/pool/state"),{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});const m=await r.json();const ago=m.relayAt?Math.round((m.now-m.relayAt)/1000):null;el.textContent=ago==null?"Aucun signal reçu pour cet événement.":"Dernière donnée reçue (relais ou simulateur) : "+(ago<90?"il y a "+ago+" s":ago<5400?"il y a "+Math.round(ago/60)+" min":"le "+new Date(m.relayAt).toLocaleString("fr-FR"))}catch(_){}}
 function simHeats(){const out=[];for(const s of Object.keys(state.order))for(const k of state.order[s]){const ev=EVENTS[k];if(!ev||ev.type!=="event")continue;const n=Math.max(1,ev.series.length);for(let i=0;i<n;i++)out.push({key:k,heat:i+1,label:`${ev.numEp?"N°"+ev.numEp+" · ":""}${ev.name} · série ${i+1}/${n}`})}return out}
 function simFill(){const sel=$("#sim-heat");if(!sel)return;const hs=simHeats();sel.innerHTML=hs.length?hs.map((h,i)=>`<option value="${i}">${esc(h.label)}</option>`).join(""):`<option value="-1">100 Nage Libre (sans programme)</option>`}
-async function simSend(list){try{await api("/api/pool/event",{method:"POST",body:JSON.stringify(list.map(e=>({...e,sent:Date.now()})))})}catch(e){$("#sim-msg").textContent="Envoi refusé : "+e.message}}
+async function simSend(list){try{await api("/api/pool/event?sim=1",{method:"POST",body:JSON.stringify(list.map(e=>({...e,sent:Date.now()})))})}catch(e){$("#sim-msg").textContent="Envoi refusé : "+e.message}}
 let SB=null,SBT=null;
 function simDraw(){const el=$("#sim-board");if(!el||!SB)return;el.hidden=false;const cols=SB.laps;
   const t=SB.start?(SB.end??(Date.now()-SB.start)/1000):0;
