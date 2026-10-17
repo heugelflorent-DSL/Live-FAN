@@ -101,11 +101,12 @@ function endAt(c) {
 
 // Fréquence de relecture du programme : le programme officiel sort en général 3 à 4 jours avant
 function progEvery(c, now) {
-  const dt = c && compDate(c.meta); if (!dt) return PROG_EVERY;
+  // pas encore de programme complet (absent ou provisoire) : on réessaie toutes les 3 h jusqu'à l'avoir
+  const evs = (c?.reunions || []).flatMap((r) => r.items.filter((i) => i.kind === "event"));
+  if (!evs.length || evs.some((e) => e.provisional)) return 3 * 3600e3;
+  const dt = compDate(c.meta); if (!dt) return 24 * 3600e3;
   const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
-  if (days > 5) return Infinity;     // plus de 5 jours avant : lu une seule fois, à l'ajout du live
-  if (days > 1) return 3 * 3600e3;    // de 5 jours à la veille : toutes les 3 h
-  if (days > 0) return PROG_EVERY;     // veille : toutes les 30 min
+  if (days > 0) return 24 * 3600e3;    // programme obtenu : une relecture par jour jusqu'au début de la compétition
   return 10 * 60e3;                    // jour J : toutes les 10 min (horaires modifiables jusqu'à 20 min avant la réunion)
 }
 
