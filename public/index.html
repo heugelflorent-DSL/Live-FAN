@@ -548,7 +548,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 #view-admin{counter-reset:st}#view-admin details.step>summary .n::before{counter-increment:st;content:counter(st)}
 .tl2 li.mid:not(.cur) i{background:#fff}.tl2 li.cur i{background:var(--red)!important;border-color:var(--red)!important;border-radius:50%!important;transform:none!important;width:14px;height:14px;top:-1px;box-shadow:0 0 0 0 rgba(220,38,38,.5);animation:tlp 1.6s infinite}.tl2 li.cur b{color:var(--red);text-decoration:none}.tl2 li.cur{opacity:1!important}.tl2 li.cur span::after{content:" · en cours";font-weight:700;color:var(--red)}.tl2 li.mid.cur span::after,.tl2 li:last-child.cur span::after{content:""}@keyframes tlp{70%{box-shadow:0 0 0 7px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}@media (prefers-reduced-motion:reduce){.tl2 li.cur i{animation:none}}
 .md-sr[data-goheat]{cursor:pointer;border-radius:8px}.md-sr[data-goheat]:hover{background:rgba(var(--l-rgb),.06)}.md-sr[data-goheat] .md-sl::after{content:" ›";color:var(--a);font-weight:700}.heat.flash{animation:hfl 2.2s ease-out}@keyframes hfl{0%,40%{background:#fff3c4;box-shadow:0 0 0 3px #f5c542}100%{background:transparent;box-shadow:none}}
-.sw-when{white-space:nowrap}.sw-when small{color:var(--muted);font-family:system-ui}
+.sw-when{white-space:nowrap}.sw-leg{color:var(--muted)}.sw-when small{color:var(--muted);font-family:system-ui}
 .rk-who small .clogo,td.club .clogo{width:auto;height:20px;max-width:56px;margin:-3px 6px -2px 0;vertical-align:middle;object-fit:contain}.pool .cl .clogo{width:22px;height:22px}
 .mpp-err{margin-top:8px;font-size:13px}.mpp-err summary{cursor:pointer;font-weight:700;color:var(--a)}.mpp-err ul{margin:2px 0 8px;padding-left:18px;max-height:220px;overflow:auto;columns:2 220px}.mpp-err small{color:var(--muted)}
 .lvs{padding:18px 18px 16px}.lvs-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}.lvs-cd{font:700 12px system-ui;background:var(--red,#c8102e);color:#fff;border-radius:999px;padding:3px 10px}.lvs h3{margin:0;font-size:22px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}.lvs-at{font:800 20px var(--mono,ui-monospace,monospace);color:var(--a)}.lvs .msg{margin:6px 0 14px}.lvs-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.lvs-t{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}.lvs-i{font-size:20px}.lvs-t b{font-size:14px}.lvs-t small{color:var(--muted);font-size:12.5px;line-height:1.3}.lvs-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}@media (max-width:560px){.lvs-g{grid-template-columns:1fr;gap:8px}.lvs-t{display:grid;grid-template-columns:30px 1fr;column-gap:8px;row-gap:1px;padding:10px 12px}.lvs-i{grid-row:span 2;align-self:center}}
@@ -1667,7 +1667,13 @@ function renderPod(){
 }
 function participants(){
   const map={};
-  for(const k of allKeys()){const ev=EVENTS[k];for(const w of ev.entries){if(!w.iuf)continue;(map[w.iuf]=map[w.iuf]||{sw:SWIMMERS[w.iuf],items:[]}).items.push({ev,w})}}
+  for(const k of allKeys()){const ev=EVENTS[k];for(const w of ev.entries){if(!w.iuf)continue;(map[w.iuf]=map[w.iuf]||{sw:SWIMMERS[w.iuf],items:[]}).items.push({ev,w})}
+    // relais : chaque relayeur connu (liste de départ ou résultats) retrouve le relais dans son programme
+    if(ev.relay){const got=new Set();const add=(m,team,i,club)=>{if(!m||!m.name)return;const id=swId(m.name,m.year);if(got.has(id))return;
+        if(!SWIMMERS[id])SWIMMERS[id]={iuf:id,name:m.name,year:m.year||"",club:club||String(team||"").replace(/\s+\d+$/,""),sex:ev.sex,comp:ev.comp,relayOnly:true};got.add(id);
+        const w=ev.entries.find(x=>x.name===team)||{name:team,heat:null,lane:null,time:null};(map[id]=map[id]||{sw:SWIMMERS[id],items:[]}).items.push({ev,w,leg:i+1})};
+      for(const w of ev.entries)(w.members||[]).forEach((m,i)=>add(m,w.name,i));
+      for(const x of ev.results)(x.members||[]).forEach((m,i)=>add(m,x.name,i,x.club))}}
   return map;
 }
 function renderPart(){
@@ -1692,8 +1698,8 @@ function swimmerDetail(p){
   const items=p.items.sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
   return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><div style="display:flex;gap:8px;align-items:center">${favBtn("s",p.sw.iuf,p.sw.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div>
   <div class="tbl"><table><thead><tr><th>Date · heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Écart</th><th>Pl.</th></tr></thead><tbody>
-  ${items.map(({ev,w})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>x.iuf===w.iuf)||null:null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
-    return`<tr><td class="num sw-when">${evDay(ev.key)?`<small>${evDay(ev.key)}</small> `:""}${hm(state.phase==="eng"?sch[ev.key].start:heatStart(ev,sch[ev.key].start,ev.fin?1:w.heat))}</td><td>${esc(ev.name)}</td><td class="num">${state.phase==="eng"?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${engT(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${r&&!r.dsq?diffHtml(r.res,w.time)||"—":"—"}</td><td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="6">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
+  ${items.map(({ev,w,leg})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>leg?x.name===w.name:x.iuf===w.iuf)||null:null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
+    return`<tr><td class="num sw-when">${evDay(ev.key)?`<small>${evDay(ev.key)}</small> `:""}${hm(state.phase==="eng"?sch[ev.key].start:heatStart(ev,sch[ev.key].start,ev.fin?1:w.heat))}</td><td>${esc(ev.name)}${leg?`<br><small class="sw-leg">relais · ${leg}${leg===1?"er":"e"} relayeur</small>`:""}</td><td class="num">${state.phase==="eng"||(leg&&!w.heat)?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${engT(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${r&&!r.dsq?diffHtml(r.res,w.time)||"—":"—"}</td><td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="6">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
   </tbody></table></div></div>`;
 }
 function renderClub(){
