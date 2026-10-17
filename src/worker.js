@@ -140,7 +140,7 @@ function reuDue(c, r, now, lastAt) {
   return !lastAt || lastAt < a || now - lastAt >= step - 60e3;
 }
 
-function plan(cfg, data, now, live) {
+function plan(cfg, data, now, live, LI = {}) {
   const tasks = [];
   for (const id of cfg.comps) {
     const c = data.comps[id];
@@ -169,7 +169,16 @@ function plan(cfg, data, now, live) {
       // épreuves en cours : la première non terminée de la réunion et la suivante
       if (evs.some((e) => e.provisional)) continue;
       const idx = evs.findIndex((e) => !c.events?.[e.key]?.doneAt);
-      if (idx >= 0) for (const e of evs.slice(idx, idx + 2)) tasks.push({ t: "res", c: id, epr: e.epr }); // épreuve en cours et suivante seulement (moins de pages demandées)
+      if (idx < 0) continue;
+      // résultats lus seulement quand il y a du nouveau d'après le direct : une série vient de se terminer, ou l'épreuve est finie
+      const li = LI[id]; const nrm = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+      const liIdx = li ? evs.findIndex((e) => nrm(li.event).startsWith(nrm(e.name))) : -1;
+      for (const e of evs.slice(idx, idx + 2)) {
+        const st = c.events?.[e.key] || {}; const k = evs.indexOf(e);
+        if (liIdx < 0) { tasks.push({ t: "res", c: id, epr: e.epr }); continue; } // direct indisponible : lecture au rythme réglé
+        if (k === liIdx && li.heat > (st.resHeat || 0)) tasks.push({ t: "res", c: id, epr: e.epr, heat: li.heat, key: e.key }); // nouvelle série terminée
+        else if ((k < liIdx || (k === liIdx && li.of && li.heat >= li.of)) && !st.doneAt && (!st.resFinalAt || now - st.resFinalAt > 5 * 60e3)) tasks.push({ t: "res", c: id, epr: e.epr, final: 1, key: e.key }); // épreuve finie : classement définitif
+      }
     }
   }
   // résultats d'abord, puis programme, puis séries ; une seule lecture par page (tous les tours d'une épreuve sont sur la même page de résultats)
@@ -179,7 +188,16 @@ function plan(cfg, data, now, live) {
 
 // Lecture d'une page du Live FFN : passe par le Durable Object « ffn » (une seule adresse de sortie, stable),
 // la lecture directe depuis la tâche de chaque minute étant refusée (HTTP 403) par le Live FFN
-let ENV = null;
+let ENV = null, LIVEINFO = {};
+// série affichée en ce moment sur la page « En direct » (lue par le relais, partagée avec les spectateurs)
+async function liveInfo(env, config) {
+  const out = {};
+  for (const c of config.comps) {
+    try { const b = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
+      if (b.raw != null) { const L = parseLive(b.raw); if (L.cur && L.cur.heat) out[c] = { event: L.cur.event, heat: L.cur.heat, of: L.cur.of }; } } catch (e) {}
+  }
+  return out;
+}
 const RELAY_OK = {}; // dernier relais accepté par compétition (mémoire de l'instance)
 const FFN_RELAYS = (c) => { const all = ["ffnlive:" + c, "ffnB:" + c, "ffnC:" + c]; const ok = RELAY_OK[c]; return ok ? [ok, ...all.filter((x) => x !== ok)] : all; };
 async function get(url, opt = {}) {
@@ -235,6 +253,8 @@ async function runTask(task, data, now) {
       if (n !== st.nRows) st.changedAt = now;
       if (JSON.stringify(res) !== JSON.stringify(st.results || null)) { st.results = res; data.dirty = true; }
       st.resultsAt = now; st.nRows = n;
+      if (task.key === ev.key && task.heat && st.resHeat !== task.heat) { st.resHeat = task.heat; data.dirty = true; }
+      if (task.key === ev.key && task.final) { st.resFinalAt = now; data.dirty = true; }
       const exp = expected({ ...ev, heats: st.heats });
       if (n && !st.doneAt && (n >= exp || exp === 0)) st.doneAt = now;
     }
@@ -327,7 +347,8 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   // deux tours : le programme lu au premier tour permet de planifier les séries et résultats au second
   for (let round = 0; round < 2 && used < budget && !errors; round++) {
     const fromQueue = data.queue.length > 0;
-    const tasks = (fromQueue ? data.queue : plan(config, data, now, live)).filter((t) => !seen.has(JSON.stringify(t)));
+    if (round === 0 && live && !fromQueue) LIVEINFO = await liveInfo(env, config);
+    const tasks = (fromQueue ? data.queue : plan(config, data, now, live, LIVEINFO)).filter((t) => !seen.has(JSON.stringify(t)));
     if (!tasks.length) break;
     const todo = tasks.slice(0, budget - used);
     if (fromQueue) data.queue = data.queue.slice(todo.length);
