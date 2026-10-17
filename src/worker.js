@@ -285,6 +285,8 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
       return 0;
     }
   }
+  // le Live FFN nous a refusé l'accès (HTTP 403) il y a moins de 3 min : on le laisse tranquille
+  if (!force && data.errorAt && now - data.errorAt < 3 * 60e3 && /HTTP 403/.test(data.error || "")) return 0;
   if (data.finished && !finished(config, data, now)) data.finished = null;
   const live = force || windowOpen(config, data, now) || (pastEnd(config, data, now) && !finished(config, data, now));
   if (!force) await markHot(env, ev, finished(config, data, now) ? [] : liveWins(config, data), pastEnd(config, data, now) && !finished(config, data, now));
@@ -536,13 +538,12 @@ export default {
       if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
-      let body;
-      try { body = { at: Date.now(), ...parseLive(await get(urls.live(c), { delay: 0, tries: 2 })) }; }
-      catch (e) { body = { at: Date.now(), error: String(e.message || e) }; }
+      let body = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
+      if (body.raw != null) { const b0 = body; try { body = { at: b0.at, ...parseLive(b0.raw), ...(b0.error ? { stale: true, staleError: b0.error, fresh: b0.fresh } : {}) }; } catch (e) { body = { at: Date.now(), error: String(e.message || e) }; } }
       // Live FFN qui ne répond pas un instant : on garde la dernière version reçue (marquée « stale ») plutôt qu'un direct vide,
       // et on réessaie 1 min plus tard (et non 10 min)
       const okKey = new Request(url.origin + "/api/live-ok?c=" + c);
-      if (body.error) ctx.waitUntil(logErr(env, ev, "direct Live FFN (comp. " + c + ")", body.error));
+      if ((body.error || body.staleError) && body.fresh) ctx.waitUntil(logErr(env, ev, "direct Live FFN (comp. " + c + ")", body.error || body.staleError));
       if (body.error) { const last = await cache.match(okKey); if (last) { const old = await last.json(); body = { ...old, stale: true, staleError: body.error }; } }
       else ctx.waitUntil(cache.put(okKey, json(body, 200, { "cache-control": "public, max-age=1800" })));
       const res = json(body, 200, { "cache-control": `public, max-age=${body.error || body.stale ? 60 : 30}` });

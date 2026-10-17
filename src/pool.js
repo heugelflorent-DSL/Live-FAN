@@ -1,3 +1,4 @@
+import { get as ffnGet } from "./ffn.js";
 // Direct « Bassin » : une salle temps réel (Durable Object) alimentée par le relais branché sur le Quantum.
 // Le relais envoie chaque événement (série prête, départ, réaction, passage, arrivée, fin officielle) ;
 // les spectateurs reçoivent l'état complet par WebSocket. Le chrono tourne sur chaque téléphone à partir de l'heure de départ.
@@ -90,6 +91,22 @@ export class PoolRoom {
       const all = await this.ctx.storage.list({ prefix: "lg:" });
       if (url.searchParams.get("clear")) { const ks = [...all.keys()]; for (let i = 0; i < ks.length; i += 128) await this.ctx.storage.delete(ks.slice(i, i + 128)); return Response.json([]); }
       return Response.json([...all.values()].slice(-300).reverse());
+    }
+    // page « En direct » du Live FFN, lue une seule fois pour tous les spectateurs (tous centres Cloudflare confondus)
+    if (url.pathname.endsWith("/ffnlive")) {
+      const now = Date.now(); const u = url.searchParams.get("u");
+      const c = this.fl || (this.fl = { at: 0, raw: null, err: null, errAt: 0 });
+      if (c.raw != null && now - c.at < 25e3) return Response.json({ at: c.at, raw: c.raw });
+      if (c.errAt && now - c.errAt < (/403/.test(c.err) ? 90e3 : 30e3)) return Response.json(c.raw != null ? { at: c.at, raw: c.raw } : { at: now, error: c.err });
+      if (this.flBusy) { await this.flBusy; return Response.json(c.raw != null ? { at: c.at, raw: c.raw } : { at: now, error: c.err || "lecture en cours" }); }
+      let fresh = false;
+      this.flBusy = (async () => {
+        try { c.raw = await ffnGet(u, { delay: 0, tries: 1 }); c.at = Date.now(); c.err = null; c.errAt = 0; }
+        catch (e) { c.err = String(e.message || e); c.errAt = Date.now(); fresh = true; }
+      })();
+      await this.flBusy; this.flBusy = null;
+      if (c.err && c.raw == null) return Response.json({ at: now, error: c.err, fresh });
+      return Response.json({ at: c.at, raw: c.raw, ...(c.err ? { error: c.err, fresh } : {}) });
     }
     if (url.pathname.endsWith("/lhs")) {
       const all = await this.ctx.storage.list({ prefix: "lh:" });

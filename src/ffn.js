@@ -255,7 +255,8 @@ export async function get(url, { delay = 400, tries = 3 } = {}) {
     const res = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "fr-FR,fr;q=0.9", Accept: "text/html" } });
     if (res.ok) return decode(await res.arrayBuffer());
     last = "HTTP " + res.status;
-    if (res.status === 403 || res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, wait)); wait *= 3; continue; }
+    if (res.status === 403) break; // refus du Live FFN : on n'insiste pas (réessayer aggraverait le blocage)
+    if (res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, wait)); wait *= 3; continue; }
     throw new Error(`HTTP ${res.status} sur ${url}`);
   }
   throw new Error(`Live FFN indisponible (${last}, ${url})`);
