@@ -285,8 +285,8 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
       return 0;
     }
   }
-  // le Live FFN nous a refusé l'accès (HTTP 403) il y a moins de 3 min : on le laisse tranquille
-  if (!force && data.errorAt && now - data.errorAt < 3 * 60e3 && /HTTP 403/.test(data.error || "")) return 0;
+  // le Live FFN nous a refusé l'accès (HTTP 403) il y a moins de 90 s : on le laisse souffler avant de réessayer
+  if (!force && data.errorAt && now - data.errorAt < 90e3 && /HTTP 403/.test(data.error || "")) return 0;
   if (data.finished && !finished(config, data, now)) data.finished = null;
   const live = force || windowOpen(config, data, now) || (pastEnd(config, data, now) && !finished(config, data, now));
   if (!force) await markHot(env, ev, finished(config, data, now) ? [] : liveWins(config, data), pastEnd(config, data, now) && !finished(config, data, now));
