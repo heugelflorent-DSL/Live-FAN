@@ -180,11 +180,19 @@ function plan(cfg, data, now, live) {
 // Lecture d'une page du Live FFN : passe par le Durable Object « ffn » (une seule adresse de sortie, stable),
 // la lecture directe depuis la tâche de chaque minute étant refusée (HTTP 403) par le Live FFN
 let ENV = null;
+const RELAY_OK = {}; // dernier relais accepté par compétition (mémoire de l'instance)
+const FFN_RELAYS = (c) => { const all = ["ffnlive:" + c, "ffnB:" + c, "ffnC:" + c]; const ok = RELAY_OK[c]; return ok ? [ok, ...all.filter((x) => x !== ok)] : all; };
 async function get(url, opt = {}) {
   if (!ENV || !ENV.POOL) return getDirect(url, opt);
   if (opt.delay) await new Promise((r) => setTimeout(r, opt.delay));
-  const r = await ENV.POOL.get(ENV.POOL.idFromName("ffnlive:" + ((url.match(/competition=(\d+)/) || [])[1] || ""))).fetch(new Request("https://pool/ffnget?u=" + encodeURIComponent(url)));
-  const j = await r.json(); if (j.error) throw new Error(j.error); return j.raw;
+  // plusieurs relais (Durable Objects) qui peuvent sortir par des adresses différentes : si l'un est refusé (403), on passe au suivant
+  const c = (url.match(/competition=(\d+)/) || [])[1] || ""; let err = null;
+  for (const n of FFN_RELAYS(c)) {
+    const j = await (await ENV.POOL.get(ENV.POOL.idFromName(n)).fetch(new Request("https://pool/ffnget?u=" + encodeURIComponent(url)))).json();
+    if (!j.error) { RELAY_OK[c] = n; return j.raw; }
+    err = j.error; if (!/403/.test(err)) break;
+  }
+  throw new Error(err);
 }
 async function runTask(task, data, now) {
   const c = (data.comps[task.c] = data.comps[task.c] || { events: {} });
@@ -563,7 +571,12 @@ export default {
       if (!liveOpen(data.comps[c], Date.now())) return json({ at: Date.now(), pause: true }, 200, { "cache-control": "public, max-age=60" });
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
-      let body = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
+      let body = null;
+      for (const n of ["ffnlive:" + c, "ffnB:" + c, "ffnC:" + c]) { // relais de secours si le premier est refusé par le Live FFN
+        const b = await (await env.POOL.get(env.POOL.idFromName(n)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
+        if (!body || (b.raw != null && !b.error) || (body.raw == null && b.raw != null)) body = b;
+        if (b.raw != null && !b.error) break;
+      }
       if (body.raw != null) { const b0 = body; try { body = { at: b0.at, ...parseLive(b0.raw), ...(b0.error ? { stale: true, staleError: b0.error, fresh: b0.fresh } : {}) }; } catch (e) { body = { at: Date.now(), error: String(e.message || e) }; } }
       // Live FFN qui ne répond pas un instant : on garde la dernière version reçue (marquée « stale ») plutôt qu'un direct vide,
       // et on réessaie 1 min plus tard (et non 10 min)
