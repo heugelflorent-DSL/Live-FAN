@@ -169,7 +169,7 @@ function plan(cfg, data, now, live) {
       // épreuves en cours : la première non terminée de la réunion et la suivante
       if (evs.some((e) => e.provisional)) continue;
       const idx = evs.findIndex((e) => !c.events?.[e.key]?.doneAt);
-      if (idx >= 0) for (const e of evs.slice(Math.max(0, idx - 1), idx + 2)) tasks.push({ t: "res", c: id, epr: e.epr });
+      if (idx >= 0) for (const e of evs.slice(idx, idx + 2)) tasks.push({ t: "res", c: id, epr: e.epr }); // épreuve en cours et suivante seulement (moins de pages demandées)
     }
   }
   // résultats d'abord, puis programme, puis séries ; une seule lecture par page (tous les tours d'une épreuve sont sur la même page de résultats)
@@ -181,13 +181,13 @@ async function runTask(task, data, now) {
   const c = (data.comps[task.c] = data.comps[task.c] || { events: {} });
   c.events = c.events || {};
   if (task.t === "prog") {
-    const p = parseProgramme(await get(urls.programme(task.c)));
+    const p = parseProgramme(await get(urls.programme(task.c), { delay: 1500 }));
     if (!p.reunions.length) throw new Error(`Programme vide pour la compétition ${task.c}`);
     if (JSON.stringify([p.meta, p.reunions]) !== JSON.stringify([c.meta, c.reunions])) data.dirty = true;
     c.meta = p.meta; c.reunions = p.reunions; c.progAt = now;
     if (p.reunions.some((r) => (r.items || []).some((i) => i.provisional))) {
       try {
-        const e = parseEntries(await get(urls.entries(task.c)));
+        const e = parseEntries(await get(urls.entries(task.c), { delay: 1500 }));
         if (e.days != null) c.entryList = new Date(now + e.days * 864e5).toISOString().slice(0, 10);
         c.entriesOpen = e.open;
       } catch {}
@@ -198,14 +198,14 @@ async function runTask(task, data, now) {
     const ev = eventsOf(c).find((e) => e.key === (task.key || String(task.epr)));
     if (!ev) return;
     const st = (c.events[ev.key] = c.events[ev.key] || {});
-    const hs = parseHeats(await get(urls.heats(task.c, ev))).map((h) => ({ n: h.n, of: h.of, time: h.time, lanes: h.lanes.map(packLane) }));
+    const hs = parseHeats(await get(urls.heats(task.c, ev), { delay: 1500 })).map((h) => ({ n: h.n, of: h.of, time: h.time, lanes: h.lanes.map(packLane) }));
     if (JSON.stringify(hs) !== JSON.stringify(st.heats || null)) { st.heats = hs; data.dirty = true; }
     st.heatsAt = now; return;
   }
   if (task.t === "res") {
     const evs = eventsOf(c).filter((e) => e.epr === task.epr);
     if (!evs.length) return;
-    const r = parseResults(await get(urls.results(task.c, task.epr)));
+    const r = parseResults(await get(urls.results(task.c, task.epr), { delay: 1500 }));
     // le Live FFN peut renvoyer une autre page quand l'épreuve n'a pas encore de résultats : on vérifie le titre
     const nrm = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
     for (const ev of evs) {
@@ -809,7 +809,8 @@ export default {
       for (let i = 0; i < 1 && left > 0; i++) {
         const ev = pool[(start + i) % pool.length];
         let used = 0;
-        try { used = (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; left -= used; } catch (e) { await logErr(env, ev, "tâche de chaque minute", (e && e.stack) || e); /* un événement en erreur ne bloque pas les autres */ }
+        // tâche automatique : 5 pages au plus, espacées de 1,5 s (le Live FFN refuse les rafales)
+        try { used = (await cycle(env, { ev, budget: Math.min(5, left) })) || 0; left -= used; } catch (e) { await logErr(env, ev, "tâche de chaque minute", (e && e.stack) || e); /* un événement en erreur ne bloque pas les autres */ }
         // records personnels : seulement quand la relecture du Live FFN n'a rien eu à faire (temps de calcul limité)
         if (!used) { try { await mppStep(env, ev, 4); } catch (e) {} }
       }
