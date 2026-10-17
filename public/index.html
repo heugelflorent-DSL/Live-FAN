@@ -552,7 +552,8 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .rk-who small .clogo,td.club .clogo{width:auto;height:20px;max-width:56px;margin:-3px 6px -2px 0;vertical-align:middle;object-fit:contain}.pool .cl .clogo{width:22px;height:22px}
 .mpp-err{margin-top:8px;font-size:13px}.mpp-err summary{cursor:pointer;font-weight:700;color:var(--a)}.mpp-err ul{margin:2px 0 8px;padding-left:18px;max-height:220px;overflow:auto;columns:2 220px}.mpp-err small{color:var(--muted)}
 .lvs{padding:18px 18px 16px}.lvs-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}.lvs-cd{font:700 12px system-ui;background:var(--red,#c8102e);color:#fff;border-radius:999px;padding:3px 10px}.lvs h3{margin:0;font-size:22px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}.lvs-at{font:800 20px var(--mono,ui-monospace,monospace);color:var(--a)}.lvs .msg{margin:6px 0 14px}.lvs-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.lvs-t{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}.lvs-i{font-size:20px}.lvs-t b{font-size:14px}.lvs-t small{color:var(--muted);font-size:12.5px;line-height:1.3}.lvs-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}@media (max-width:560px){.lvs-g{grid-template-columns:1fr;gap:8px}.lvs-t{display:grid;grid-template-columns:30px 1fr;column-gap:8px;row-gap:1px;padding:10px 12px}.lvs-i{grid-row:span 2;align-self:center}}
-.provtag{font:700 11px system-ui;background:#fff3c4;color:#7a5500;border-radius:999px;padding:1px 8px}.lane.prov .row{border-left:3px solid #f5c542}
+.deftag{font:700 11px system-ui;background:#dcf5e3;color:#11643a;border-radius:999px;padding:1px 8px;vertical-align:middle}.provtag{vertical-align:middle;font:700 11px system-ui;background:#fff3c4;color:#7a5500;border-radius:999px;padding:1px 8px}.lane.prov .row{border-left:3px solid #f5c542}
+.lv-cls .rk-row.lv-new{box-shadow:inset 3px 0 0 var(--a)}.lv-cls .btn{margin-top:8px}
 </style>
 </head>
 <body>
@@ -1346,7 +1347,7 @@ function liveToday(){if(state.live==="bassin")return true;const d=new Date();d.s
 function liveUpcoming(){const t=new Date();t.setHours(0,0,0,0);const rs=state.comps.map(compRange).filter(Boolean).filter(r=>r.end>=t).sort((a,b)=>a.start-b.start);return rs[0]||null}
 // onglet visible dès que le programme définitif est publié, jusqu'à la fin de la compétition
 function liveOn(){if(state.live!=="ffn"&&state.live!=="bassin")return false;if(liveToday())return true;return !!liveUpcoming()&&Object.values(EVENTS).some(e=>e.type==="event"&&!e.provisional)}
-async function loadLive(){if(!liveOn()||!liveToday())return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch(evq("/api/live?c="+c.id),{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok)return;const j=await r.json();const old=LIVE[c.id];const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j;try{const h=await fetch(evq("/api/liveheats?c="+c.id));if(h.ok)LH[c.id]=await h.json()}catch(_){}}catch(_){}}));if((state.view==="live"||state.view==="res")&&!state.admin)render()}
+async function loadLive(){if(!liveOn()||!liveToday())return;await Promise.all(state.comps.map(async c=>{try{const r=await fetch(evq("/api/live?c="+c.id),{headers:ADMIN_KEY?{"x-admin-key":ADMIN_KEY}:{}});if(!r.ok)return;const j=await r.json();const old=LIVE[c.id];const sig=j.cur?j.cur.title+"|"+j.cur.rows.length+"|"+(j.cur.rows[0]||{}).timeTxt:"";j.sig=sig;j.changedAt=old&&old.sig===sig?old.changedAt:(old?Date.now():null);j.seenAt=Date.now();LIVE[c.id]=j;try{const h=await fetch(evq("/api/liveheats?c="+c.id));if(h.ok)LH[c.id]=await h.json()}catch(_){}}catch(_){}}));if(["live","res","pod"].includes(state.view)&&!state.admin)render()}
 function lvSplits(w){const sp=w.splits||[];if(sp.length<2)return"";return`<table class="sptab"><thead><tr><th>Distance</th><th>Passage</th><th>Tronçon</th></tr></thead><tbody>${sp.map(x=>`<tr><td>${x.d} m</td><td>${fmt(x.cum)}</td><td>${fmt(x.lap)}</td></tr>`).join("")}</tbody></table>`}
 function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=null;
   for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||ev.comp!==id)continue;const bn=ev.base||ev.name,n=norm(bn+" "+(ev.round||"")+(ev.roundLabel&&ev.round&&ev.roundLabel!==ev.round?" "+ev.roundLabel.slice(ev.round.length):""));if(t===n||t.startsWith(norm(bn)+" ")&&(!best||n.length>norm((best.base||best.name)+" "+(best.round||"")).length))best=ev;if(t===n)return ev}
@@ -1355,7 +1356,7 @@ function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=
 function yr4(w,ev){if(/^\d{4}$/.test(w.year||""))return w.year;const y=yearOf({...w,year:""},ev);if(/^\d{4}$/.test(y||""))return y;const m=String(w.year||"").match(/^(\d{2})$/);return m?(+m[1]>40?"19":"20")+m[1]:(w.year||"")}
 function yearOf(w,ev){if(w.year)return w.year;const all=[...(ev&&ev.series?ev.series.flatMap(x=>x.swimmers||[]):[]),...(ev&&ev.results||[])];const r=all.find(x=>norm(x.name)===norm(w.name));return r&&r.year||""}
 function lvRows(rows,id,title){const lev=liveMatch(id,title)||{name:title};return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1,w2={...w,year:yr4(w,lev),res:w.time,splits:(w.splits||[]).map(x=>({dist:x.d,cum:x.cum,lap:x.lap}))},rpx=w.time!=null?rpRes(lev,w2):"";
-  return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
+  return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}${w.hl?" lv-new":""}"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
   <span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
   <span class="rk-res"><b>${esc(w.timeTxt||"—")}</b><small>${[w.rank?esc(w.rank)+" au provisoire":"",rpx].filter(Boolean).join(" · ")}</small></span>
   ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
@@ -1394,6 +1395,8 @@ function renderLiveFfn(){
   html+=`<div class="session">${secTitle("En direct",esc(L.reunion||""))}<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
   if(since>=8)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
   html+=`<div class="card lv-card"><span class="lv-tag">Dernière série terminée</span><h3>${esc(cur.ev?cur.ev.name:L.cur.event)}</h3><div class="sub">${multi?compBadge(cur.id)+" · ":""}Série ${L.cur.heat||"?"} / ${L.cur.of||"?"}</div>${lvRows(L.cur.rows,cur.id,L.cur.title)}</div>`;
+  {const P=cur.ev&&provRes()[cur.ev.key];if(P&&P.n>1){const all=!!state.open.lvall,rows=all?P.rows:P.rows.slice(0,8);const inCur=new Set(L.cur.rows.map(w=>w.name));
+    html+=`<div class="card lv-card lv-cls"><span class="lv-tag">Classement de l'épreuve · provisoire</span><h3>${esc(cur.ev.name)}</h3><div class="sub">après ${P.n} série${P.n>1?"s":""}${P.of?" sur "+P.of:""}</div>${lvRows(rows.map(w=>({...w,hl:inCur.has(w.name)})),cur.id,P.title)}${P.rows.length>8?`<button class="btn small ghost" data-lvall="1">${all?"Réduire":"Voir les "+P.rows.length+" nageurs"}</button>`:""}</div>`}}
   // série suivante selon le programme fusionné
   let nx=null;
   if(L.cur.heat&&L.cur.of&&L.cur.heat<L.cur.of&&L.next&&L.next.lanes.length)nx={comp:cur.id,name:cur.ev?cur.ev.name:L.next.event,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes};
@@ -1553,7 +1556,7 @@ function renderRanking(ev,q){
 }
 
 // classement provisoire d'une épreuve pas encore publiée dans les résultats : les séries terminées vues dans le direct
-function provRes(){const out={};for(const [id,hs] of Object.entries(LH))for(const h of hs||[]){const ev=liveMatch(id,h.event);if(!ev)continue;(out[ev.key]=out[ev.key]||{id,title:h.event,heats:{},of:h.of}).heats[h.heat]=h.rows;if(h.of)out[ev.key].of=h.of}
+function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[id,[...(LH[id]||[]),...(LIVE[id]&&LIVE[id].cur&&LIVE[id].cur.heat&&LIVE[id].cur.rows.length?[{event:LIVE[id].cur.event,heat:LIVE[id].cur.heat,of:LIVE[id].cur.of,rows:LIVE[id].cur.rows}]:[])]]);for(const [id,hs] of src)for(const h of hs||[]){const ev=liveMatch(id,h.event);if(!ev)continue;(out[ev.key]=out[ev.key]||{id,title:h.event,heats:{},of:h.of}).heats[h.heat]=h.rows;if(h.of)out[ev.key].of=h.of}
   for(const p of Object.values(out)){const all=Object.values(p.heats).flat();const ok=all.filter(w=>w.time!=null).sort((a,b)=>a.time-b.time);let r=0;ok.forEach((w,i)=>{if(!i||w.time!==ok[i-1].time)r=i+1;w.pl=r});p.rows=[...ok,...all.filter(w=>w.time==null)].map(w=>({...w,place:w.pl??null}));p.n=Object.keys(p.heats).length}
   return out}
 function renderRes(){
@@ -1653,11 +1656,11 @@ function renderPod(){
   let html=rules.length>1?`<div class="subtabs">${rules.map(r=>`<button data-pr="${r.id}" aria-selected="${r.id===state.podRule}">${esc(r.name)}</button>`).join("")}</div>`:"";
   if(!rule){$("#pub-body").innerHTML=html+`<p class="empty">Aucun podium paramétré.</p>`;return}
   // regroupe les épreuves terminées du même nom sur les compétitions de la règle
-  const groups=[];const byName={};
+  const groups=[];const byName={};const PRv=provRes();for(const k of done)delete PRv[k];
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
-    else if(!done.has(k)||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
+    else if((!done.has(k)&&!PRv[k])||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
     const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
     if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
   if(state.podEv&&!groups.some(g=>g.name===state.podEv))state.podEv="";
@@ -1665,13 +1668,17 @@ function renderPod(){
       return Object.keys(by).map(r=>`<optgroup label="${r?"Réunion "+r:"Autres épreuves"}${r&&state.starts[r]?" · "+state.starts[r].replace(":","h"):""}">${by[r].map(g=>`<option value="${esc(g.name)}" ${state.podEv===g.name?"selected":""}>${hm(g.start)} — ${esc(g.name)}</option>`).join("")}</optgroup>`).join("")})()}</select></label>`;
   const list=groups.filter(g=>(!state.podEv||g.name===state.podEv)&&(!q||g.keys.some(k=>evMatches(EVENTS[k],q))));
   html+=`<div class="podwrap">`+(list.map(g=>{const relay=/^4x/i.test(g.name);
-    const K=!!g.fx;const all=K?mergedRanking(EVENTS[g.keys[0]]):rerank(g.keys.flatMap(k=>ranking(EVENTS[k])));let blocks="";
+    const K=!!g.fx;
+    // épreuve pas encore publiée : podium provisoire d'après les séries terminées du direct
+    const provL=k=>{const ev=EVENTS[k];return PRv[k].rows.filter(w=>w.time!=null).map(w=>({name:w.name,club:w.club,year:yr4(w,ev),res:w.time,rank:w.place,iuf:swId(w.name,yr4(w,ev))}))};
+    const prov=g.keys.filter(k=>PRv[k]);const provTxt=prov.length?prov.map(k=>PRv[k].n+(PRv[k].of?"/"+PRv[k].of:"")).join(" + ")+" séries":"";
+    const all=K?mergedRanking(EVENTS[g.keys[0]]):rerank(g.keys.flatMap(k=>PRv[k]?provL(k):ranking(EVENTS[k])));let blocks="";
     if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places,g);
     else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(renum(all.filter(w=>rule.upOpen?(+w.year>=+y):w.year===y).map(w=>rule.upOpen&&w.year!==y?{...w,sur:1}:w),K),"Né(e)s en "+y,rule.places,g)).join("")}
     else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
       blocks=cats.map(c=>podCard(renum(all.filter(w=>{const a=ref-(+w.year);return w.year&&(c.open||a>=(+c.min||0))&&a<=(c.max===""||c.max==null?999:+c.max)}).map(w=>c.open&&ref-(+w.year)<(+c.min||0)?{...w,sur:1}:w)),c.name||`${c.min}-${c.max} ans`,rule.places,g)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
     const merged=g.keys.length>1&&!K;
-    return`<div class="session">${secTitle(esc(g.name),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`)+`</div>`;
+    return`<div class="session${prov.length?" podprov":""}">${secTitle(esc(g.name)+(prov.length?` <span class="provtag">provisoire · ${provTxt}</span>`:` <span class="deftag">définitif</span>`),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`)+`</div>`;
   $("#pub-body").innerHTML=html;$("#pub-body").insertAdjacentHTML("beforeend",podSheet());
 }
 function participants(){
@@ -1848,7 +1855,7 @@ function render(){if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=s
   if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
-$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(state.view==="res")loadLive()});
+$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(state.view==="res"||state.view==="pod")loadLive()});
 $("#admin-btn").onclick=()=>openAdmin();
 async function openAdmin(){if(PICK){location.href="/e/main#admin";return}
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();loadEvents();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
@@ -1870,6 +1877,7 @@ $("#pub-body").addEventListener("click",e=>{
   const pr=e.target.closest("[data-pr]");if(pr){state.podRule=pr.dataset.pr;renderPublic();return}
   if(e.target.closest("[data-tv]")){tvToggle();return}
   const ps=e.target.closest("[data-psel]");if(ps){const ev=poolEvent(POOL&&POOL.heat);const i=+ps.dataset.psel;state.psel=state.psel&&state.psel.k===(ev&&ev.key)&&state.psel.i===i?null:{k:ev&&ev.key,i};renderPublic();return}
+  const la=e.target.closest("[data-lvall]");if(la){state.open.lvall=!state.open.lvall;render();return}
   const gh=e.target.closest("[data-goheat]");if(gh&&!e.target.closest("[data-swimmer]")){e.preventDefault();const [k,h]=gh.dataset.goheat.split("|");state.view="prog";state.sel=null;state.reu=Object.keys(state.order).find(r=>state.order[r].includes(k))||null;state.open[k]=true;render();
     const el=document.getElementById("h-"+k+"-"+h)||document.querySelector(`[data-open="${k}"]`);if(el){el.scrollIntoView({block:"start"});window.scrollBy(0,-80);el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),2200)}else window.scrollTo(0,0);return}
   const gr=e.target.closest("[data-goto-res]");if(gr){const k=gr.dataset.gotoRes;state.view="res";state.sel=null;state.reu=null;if(k)state.open["r"+k]=true;render();const el=k&&document.querySelector(`[data-open="r${k}"]`);el?el.scrollIntoView({block:"start"}):window.scrollTo(0,0);return}
@@ -2025,7 +2033,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.no
 // onglet ouvert gardé dans l'adresse (#res, #prog…) : un rafraîchissement reste sur le même onglet
 {const h=location.hash.slice(1);if(["live","prog","res","pod","part","rank"].includes(h))state.view=h}
 bindSpons();bindOrg();bindPair();loadSpons();if(PICK)pickBoot();else{
-loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(state.view==="live"||state.view==="res")loadLive()};
+loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(["live","res","pod"].includes(state.view))loadLive()};
 // toutes les 60 s, seulement quand la page est visible ; mise à jour immédiate au retour sur la page
 setInterval(()=>{if(!state.admin&&!document.hidden)pubRefresh()},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!state.admin&&Date.now()-PUBAT>20e3)pubRefresh()});}
