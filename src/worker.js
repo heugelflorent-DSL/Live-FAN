@@ -112,6 +112,8 @@ function progEvery(c, now) {
 // Jours de compétition : pour chaque réunion, environ 3 lectures du programme entre l'ouverture des portes
 // et 20 min avant la 1re course (dernières modifications d'horaires possibles), puis plus rien.
 function progDue(c, now) { return (c?.reunions || []).some((r) => reuDue(c, r, now, c.progAt)); }
+// avant le jour de la réunion (séries publiées à l'avance : relues une fois par jour)
+function beforeDay(c, r, now) { const dt = compDate({ date: r.day }) || compDate(c.meta); return !!dt && now < parisEpoch(dt.y, dt.m, dt.d); }
 // une réunion : vrai si une relecture est due dans sa fenêtre « ouverture des portes → 20 min avant la 1re course »
 function reuDue(c, r, now, lastAt) {
   const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) return false;
@@ -146,7 +148,7 @@ function plan(cfg, data, now, live) {
         // dès qu'elle est publiée, les autres épreuves sont lues une fois
         const lead = c.events?.[evs.find((x) => !x.provisional)?.key] || {};
         const waitDue = e === evs.find((x) => !x.provisional) ? now - st.heatsAt > 3 * 3600e3 : pubOf(lead) && st.heatsAt < lead.heatsAt;
-        const due = !st.heatsAt || (fin && !pub ? now - st.heatsAt > HEATS_EVERY : !started && (pub ? reuDue(c, r, now, st.heatsAt) : waitDue));
+        const due = !st.heatsAt || (fin && !pub ? now - st.heatsAt > HEATS_EVERY : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
         if (due) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
       if (!live) continue;
