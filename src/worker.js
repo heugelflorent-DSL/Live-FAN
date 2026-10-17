@@ -107,14 +107,29 @@ function progEvery(c, now) {
   const dt = compDate(c.meta); if (!dt) return 24 * 3600e3;
   const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
   if (days > 0) return 24 * 3600e3;    // programme obtenu : une relecture par jour jusqu'au début de la compétition
-  return 10 * 60e3;                    // jour J : toutes les 10 min (horaires modifiables jusqu'à 20 min avant la réunion)
+  return Infinity;                     // jours de compétition : voir progDue (environ 3 lectures par réunion)
+}
+// Jours de compétition : pour chaque réunion, environ 3 lectures du programme entre l'ouverture des portes
+// et 20 min avant la 1re course (dernières modifications d'horaires possibles), puis plus rien.
+function progDue(c, now) {
+  for (const r of c?.reunions || []) {
+    const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) continue;
+    const evs = r.items.filter((i) => i.kind === "event" && i.time);
+    const start = hToMin(evs[0]?.time); if (start == null) continue;
+    const day = parisEpoch(dt.y, dt.m, dt.d);
+    const b = day + (start - 20) * 60e3, a = Math.min(b - 15 * 60e3, day + (hToMin(r.doors) ?? start - 60) * 60e3);
+    if (now < a || now > b) continue;
+    const step = Math.max(10 * 60e3, (b - a) / 2); // 3 lectures : aux portes, au milieu, 20 min avant
+    if (!c.progAt || c.progAt < a || now - c.progAt >= step - 60e3) return true;
+  }
+  return false;
 }
 
 function plan(cfg, data, now, live) {
   const tasks = [];
   for (const id of cfg.comps) {
     const c = data.comps[id];
-    if (!c || !c.progAt || now - c.progAt > progEvery(c, now)) tasks.push({ t: "prog", c: id });
+    if (!c || !c.progAt || now - c.progAt > progEvery(c, now) || progDue(c, now)) tasks.push({ t: "prog", c: id });
     if (!c) continue;
     for (const r of c.reunions || []) {
       const evs = r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, key: i.key || String(i.epr) }));
