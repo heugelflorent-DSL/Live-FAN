@@ -79,6 +79,18 @@ export class PoolRoom {
       if (JSON.stringify(old && { event: old.event, heat: old.heat, of: old.of, rows: old.rows }) !== JSON.stringify(val)) await this.ctx.storage.put(key, { ...val, at: Date.now() });
       return new Response(null, { status: 204 });
     }
+    if (url.pathname.endsWith("/log") && req.method === "POST") {
+      const b = await req.json().catch(() => ({})); const now = Date.now();
+      await this.ctx.storage.put("lg:" + String(now).padStart(14, "0") + Math.random().toString(36).slice(2, 5), { t: now, ev: b.ev || "", src: b.src || "", msg: b.msg || "" });
+      // 300 lignes au plus
+      if (Math.random() < 0.1) { const ks = [...(await this.ctx.storage.list({ prefix: "lg:" })).keys()]; if (ks.length > 300) await this.ctx.storage.delete(ks.slice(0, ks.length - 300).slice(0, 128)); }
+      return new Response(null, { status: 204 });
+    }
+    if (url.pathname.endsWith("/logs")) {
+      const all = await this.ctx.storage.list({ prefix: "lg:" });
+      if (url.searchParams.get("clear")) { const ks = [...all.keys()]; for (let i = 0; i < ks.length; i += 128) await this.ctx.storage.delete(ks.slice(i, i + 128)); return Response.json([]); }
+      return Response.json([...all.values()].slice(-300).reverse());
+    }
     if (url.pathname.endsWith("/lhs")) {
       const all = await this.ctx.storage.list({ prefix: "lh:" });
       return Response.json([...all.values()]);

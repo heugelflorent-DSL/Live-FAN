@@ -262,6 +262,11 @@ async function markHot(env, ev, wins, catchup) {
   if (nxt) h[ev] = nxt; else delete h[ev];
   await env.KV.put("hot", JSON.stringify(h));
 }
+// Journal des incidents (lecture du Live FFN ratée, erreur du serveur…) : gardé dans un Durable Object,
+// écrit seulement en cas de souci, lisible et copiable depuis l'admin
+function logErr(env, ev, src, msg) {
+  try { return env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/log", { method: "POST", body: JSON.stringify({ ev, src, msg: String(msg || "").slice(0, 400) }) })).catch(() => {}); } catch (e) { return Promise.resolve(); }
+}
 export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
   const { config, data } = await load(env, ev);
   // compétitions retirées de l'événement : leurs données ne servent plus et alourdissent chaque lecture
@@ -299,6 +304,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
       try { await runTask(t, data, now); }
       catch (e) {
         errors++; data.error = String(e.message || e); data.errorAt = now;
+        await logErr(env, ev, "lecture " + t.t + (t.epr ? " épreuve " + t.epr : "") + " (comp. " + t.c + ")", data.error);
         // Live FFN indisponible : la tâche ratée et les suivantes reviennent dans la file, rien n'est perdu
         if (/indisponible/.test(data.error)) { if (fromQueue) data.queue = [...todo.slice(ti), ...data.queue]; break; }
       }
@@ -536,6 +542,7 @@ export default {
       // Live FFN qui ne répond pas un instant : on garde la dernière version reçue (marquée « stale ») plutôt qu'un direct vide,
       // et on réessaie 1 min plus tard (et non 10 min)
       const okKey = new Request(url.origin + "/api/live-ok?c=" + c);
+      if (body.error) ctx.waitUntil(logErr(env, ev, "direct Live FFN (comp. " + c + ")", body.error));
       if (body.error) { const last = await cache.match(okKey); if (last) { const old = await last.json(); body = { ...old, stale: true, staleError: body.error }; } }
       else ctx.waitUntil(cache.put(okKey, json(body, 200, { "cache-control": "public, max-age=1800" })));
       const res = json(body, 200, { "cache-control": `public, max-age=${body.error || body.stale ? 60 : 30}` });
@@ -761,6 +768,11 @@ export default {
       const { data } = await load(env, ev);
       return json({ ok: true, total: n, remaining: (data.queue || []).length, error: data.error });
     }
+    if (p === "/api/admin/log") {
+      if (!ADM) return adminOnly();
+      const r = await env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/logs" + (req.method === "DELETE" ? "?clear=1" : "")));
+      return json(await r.json());
+    }
     if (p === "/api/admin/audience") return ADM ? audience(env, url) : adminOnly();
     return json({ error: "Route inconnue" }, 404);
   },
@@ -781,7 +793,7 @@ export default {
       for (let i = 0; i < 1 && left > 0; i++) {
         const ev = pool[(start + i) % pool.length];
         let used = 0;
-        try { used = (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; left -= used; } catch (e) { /* un événement en erreur ne bloque pas les autres */ }
+        try { used = (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; left -= used; } catch (e) { await logErr(env, ev, "tâche de chaque minute", (e && e.stack) || e); /* un événement en erreur ne bloque pas les autres */ }
         // records personnels : seulement quand la relecture du Live FFN n'a rien eu à faire (temps de calcul limité)
         if (!used) { try { await mppStep(env, ev, 4); } catch (e) {} }
       }
