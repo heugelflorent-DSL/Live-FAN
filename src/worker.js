@@ -236,6 +236,13 @@ export function pickSection(ev, r) {
   return best;
 }
 
+// lives « chauds » (réunion en cours) : ils passent avant les autres dans la tâche de chaque minute.
+// La liste n'est réécrite que lorsqu'elle change (quelques écritures KV par jour).
+async function markHot(env, ev, hot) {
+  const h = (await env.KV.get("hot", "json")) || { ids: [] };
+  const has = h.ids.includes(ev); if (has === !!hot) return;
+  h.ids = hot ? [...h.ids, ev] : h.ids.filter((x) => x !== ev); await env.KV.put("hot", JSON.stringify(h));
+}
 export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
   const { config, data } = await load(env, ev);
   // compétitions retirées de l'événement : leurs données ne servent plus et alourdissent chaque lecture
@@ -256,6 +263,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   }
   if (data.finished && !finished(config, data, now)) data.finished = null;
   const live = force || windowOpen(config, data, now) || (pastEnd(config, data, now) && !finished(config, data, now));
+  if (!force) await markHot(env, ev, live && !finished(config, data, now));
   data.queue = data.queue || [];
   let errors = 0, used = 0;
   const seen = new Set();
@@ -725,10 +733,13 @@ export default {
     ctx.waitUntil((async () => {
       const ids = ["main", ...(await listEvents(env)).map((x) => x.id)];
       // un seul événement par minute, à tour de rôle : le temps de calcul gratuit (10 ms) est limité par exécution
-      const start = Math.floor(Date.now() / 60e3) % ids.length;
+      // les lives en pleine réunion passent 3 minutes sur 4 ; la 4e minute, tous les lives à tour de rôle (programme, séries…)
+      const m = Math.floor(Date.now() / 60e3); const hot = (((await env.KV.get("hot", "json")) || {}).ids || []).filter((x) => ids.includes(x));
+      const pool = hot.length && m % 4 ? hot : ids;
+      const start = (hot.length && m % 4 ? m : Math.floor(m / 4)) % pool.length;
       let left = BUDGET;
       for (let i = 0; i < 1 && left > 0; i++) {
-        const ev = ids[(start + i) % ids.length];
+        const ev = pool[(start + i) % pool.length];
         let used = 0;
         try { used = (await cycle(env, { ev, budget: Math.min(BUDGET, left) })) || 0; left -= used; } catch (e) { /* un événement en erreur ne bloque pas les autres */ }
         // records personnels : seulement quand la relecture du Live FFN n'a rien eu à faire (temps de calcul limité)
