@@ -105,7 +105,8 @@ function progEvery(c, now) {
   const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
   if (days > 5) return 24 * 3600e3;   // plus de 5 jours avant : une fois par jour
   if (days > 1) return 3 * 3600e3;    // de 5 jours à la veille : toutes les 3 h
-  return PROG_EVERY;                  // veille et jour J : toutes les 30 min
+  if (days > 0) return PROG_EVERY;     // veille : toutes les 30 min
+  return 10 * 60e3;                    // jour J : toutes les 10 min (horaires modifiables jusqu'à 20 min avant la réunion)
 }
 
 function plan(cfg, data, now, live) {
@@ -286,9 +287,9 @@ function mppWant(config, data, ev, now, force) {
 async function mppStatus(env, ev) {
   const { config, data } = await load(env, ev); const now = Date.now();
   const want = mppWant(config, data, ev, now, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
-  let done = 0, found = 0, best = 0, err = 0, noRec = 0, notFound = 0;
-  for (const k of want.keys()) { const x = store.sw[k]; if (!x || !x.at) continue; if (x.err) { err++; continue; } done++; if (x.iuf) found++; const has = x.b && Object.keys(x.b).length; if (has) best++; else if (x.iuf) noRec++; else notFound++; }
-  return { want: want.size, done, left: want.size - done, foundN: found, bestN: best, errN: err, noRecN: noRec, notFoundN: notFound };
+  let done = 0, found = 0, best = 0, err = 0, noRec = 0, notFound = 0; const issues = [];
+  for (const k of want.keys()) { const x = store.sw[k]; if (!x || !x.at) continue; if (x.err) { err++; issues.push({ k, why: "err", msg: String(x.err).slice(0, 80) }); continue; } done++; if (x.iuf) found++; const has = x.b && Object.keys(x.b).length; if (has) best++; else if (x.iuf) { noRec++; issues.push({ k, why: "norec" }); } else { notFound++; issues.push({ k, why: "notfound" }); } }
+  return { want: want.size, done, left: want.size - done, foundN: found, bestN: best, errN: err, noRecN: noRec, notFoundN: notFound, issues: issues.slice(0, 400) };
 }
 async function mppStep(env, ev, max = 2, force = false) {
   const { config, data } = await load(env, ev); const now = Date.now();

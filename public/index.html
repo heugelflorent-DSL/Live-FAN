@@ -546,6 +546,12 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .orgbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 .pb-ver{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--card)}.pb-ver.ok{background:#dcfce7;color:#166534}.pb-ver.old{background:#fef3c7;color:#7a5200}
 #view-admin{counter-reset:st}#view-admin details.step>summary .n::before{counter-increment:st;content:counter(st)}
+.tl2 li.mid:not(.cur) i{background:#fff}.tl2 li.cur i{background:var(--red)!important;border-color:var(--red)!important;border-radius:50%!important;transform:none!important;width:14px;height:14px;top:-1px;box-shadow:0 0 0 0 rgba(220,38,38,.5);animation:tlp 1.6s infinite}.tl2 li.cur b{color:var(--red);text-decoration:none}.tl2 li.cur{opacity:1!important}.tl2 li.cur span::after{content:" · en cours";font-weight:700;color:var(--red)}.tl2 li.mid.cur span::after,.tl2 li:last-child.cur span::after{content:""}@keyframes tlp{70%{box-shadow:0 0 0 7px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}@media (prefers-reduced-motion:reduce){.tl2 li.cur i{animation:none}}
+.md-sr[data-goheat]{cursor:pointer;border-radius:8px}.md-sr[data-goheat]:hover{background:rgba(var(--l-rgb),.06)}.md-sr[data-goheat] .md-sl::after{content:" ›";color:var(--a);font-weight:700}.heat.flash{animation:hfl 2.2s ease-out}@keyframes hfl{0%,40%{background:#fff3c4;box-shadow:0 0 0 3px #f5c542}100%{background:transparent;box-shadow:none}}
+.sw-when{white-space:nowrap}.sw-when small{color:var(--muted);font-family:system-ui}
+.rk-who small{display:flex;align-items:center;gap:0}.rk-who small .clogo,td.club .clogo{width:28px;height:28px;flex:0 0 28px;margin-right:7px}.pool .cl .clogo{width:22px;height:22px}
+.mpp-err{margin-top:8px;font-size:13px}.mpp-err summary{cursor:pointer;font-weight:700;color:var(--a)}.mpp-err ul{margin:2px 0 8px;padding-left:18px;max-height:220px;overflow:auto;columns:2 220px}.mpp-err small{color:var(--muted)}
+.lvs{padding:18px 18px 16px}.lvs-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}.lvs-cd{font:700 12px system-ui;background:var(--red,#c8102e);color:#fff;border-radius:999px;padding:3px 10px}.lvs h3{margin:0;font-size:22px;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}.lvs-at{font:800 20px var(--mono,ui-monospace,monospace);color:var(--a)}.lvs .msg{margin:6px 0 14px}.lvs-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.lvs-t{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}.lvs-i{font-size:20px}.lvs-t b{font-size:14px}.lvs-t small{color:var(--muted);font-size:12.5px;line-height:1.3}.lvs-a{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}@media (max-width:560px){.lvs-g{grid-template-columns:1fr;gap:8px}.lvs-t{display:grid;grid-template-columns:30px 1fr;column-gap:8px;row-gap:1px;padding:10px 12px}.lvs-i{grid-row:span 2;align-self:center}}
 </style>
 </head>
 <body>
@@ -766,6 +772,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 <script>
 /* ---------- données (lues sur /api/state, alimentées par le Live FFN) ---------- */
 function fmt(sec){if(sec==null)return"—";const m=Math.floor(sec/60),s=sec%60;return m?m+":"+s.toFixed(2).padStart(5,"0"):s.toFixed(2)}
+function engT(t){return t?fmt(t):"NT"} // sans temps d'engagement : No Time
 const state={view:"home",open:{},sp:{},sel:null,admin:false,rankSex:"F",podRule:null,rankRule:null,
   name:"",published:false,heatGap:40,eventGap:40,comps:[],order:{},lines:{},starts:{},timing:"elec",delay:{},phase:"start",
   scrape:{every:2,onlyLive:true},doors:{},infos:[],podRules:[],lastOk:null,error:null,queue:0,loaded:false};
@@ -791,8 +798,12 @@ function build(cfg,data){
     state.comps.push({id,k:(i%4)+1,name:meta.name||("Compétition "+id),city:meta.city||"",bassin:meta.pool||"",date:meta.date||"",entryList:(c&&c.entryList)||"",entriesOpen:!!(c&&c.entriesOpen),splits:true,loading:!c||!c.meta});
     if(!c||!c.reunions)return;
     for(const r of c.reunions){
-      (byReu[r.n]=byReu[r.n]||{doors:r.doors,keys:[]});if(!byReu[r.n].doors)byReu[r.n].doors=r.doors;
-      for(const it of r.items){if(it.kind!=="event")continue;
+      (byReu[r.n]=byReu[r.n]||{doors:r.doors,keys:[]});if(!byReu[r.n].doors)byReu[r.n].doors=r.doors;if(r.day&&!byReu[r.n].day)byReu[r.n].day=r.day;
+      let prevK=null,ni=0;
+      for(const it of r.items){
+        // lignes non sportives du Live FFN (podiums, cérémonie protocolaire, pause…) : reprises dans le programme avec une durée modifiable
+        if(it.kind==="note"){const t=String(it.text||"").trim();if(!t){continue}const nk=id+"-n"+r.n+"-"+(++ni);(byReu[r.n].notes=byReu[r.n].notes||[]).push({key:nk,after:prevK,text:t});continue}
+        if(it.kind!=="event")continue;prevK=id+"-"+(it.key||String(it.epr));
         const ik=it.key||String(it.epr),key=id+"-"+ik,st=(c.events||{})[ik]||{};const rlab=/^s[ée]ries$/i.test(it.round||"")||!it.round?"":((it.alias||it.round)+(it.category?" "+it.category:""));const relay=/^\d+x/i.test(it.name);const sex=/Dames/.test(it.name)?"F":/Messieurs/.test(it.name)?"M":"X";
         const heats=st.heats||[];if(heats.some(h=>h.lanes.some(l=>l.lane>0)))anyLane=true;
         const nrmT=x=>norm(x).toLowerCase();const okTitle=st.results&&st.results.title&&nrmT(st.results.title).startsWith(nrmT(it.name));
@@ -836,24 +847,34 @@ function build(cfg,data){
   for(const ev of Object.values(EVENTS))for(const w of [...ev.entries,...ev.results])if(w.iuf&&SWIMMERS[w.iuf])w.team=SWIMMERS[w.iuf].team;
   state.phase=anyLane||!Object.keys(EVENTS).length?"start":"eng";
   // ordre du programme : celui de l'admin, complété par les nouvelles épreuves rangées à leur heure FFN
-  const order={};
+  const order={};state.ffnNotes=[];
+  const noteMin=t=>{const m=t.match(/(\d{1,3})\s*(?:min|mn|'|’)/i);if(m)return Math.min(180,+m[1]);return/c[ée]r[ée]monie|protocol|remise|hommage|pr[ée]sentation/i.test(t)?10:/podium/i.test(t)?5:/pause|entracte/i.test(t)?15:0};
+  for(const n of Object.keys(byReu))for(const x of byReu[n].notes||[]){state.ffnNotes.push(x.key);if(!state.lines[x.key])state.lines[x.key]={name:x.text,min:noteMin(x.text),ffn:1}}
   for(const n of Object.keys(byReu)){
     const saved=((cfg.order||{})[n]||[]).filter(k=>EVENTS[k]||state.lines[k]);
     const fresh=byReu[n].keys.filter(k=>!saved.includes(k)).sort((a,b)=>(EVENTS[a].ffnSec??0)-(EVENTS[b].ffnSec??0));
     const list=[...saved];
     for(const k of fresh){const t=EVENTS[k].ffnSec??0;let i=list.findIndex(x=>EVENTS[x]&&(EVENTS[x].ffnSec??0)>t);if(i<0)i=list.length;list.splice(i,0,k)}
+    const off=new Set(cfg.linesOff||[]);
+    for(const x of byReu[n].notes||[]){if(list.includes(x.key)||off.has(x.key))continue;let i=x.after?list.indexOf(x.after)+1:0;
+      while(i>0&&i<list.length&&state.lines[list[i]]&&state.lines[list[i]].ffn)i++; // plusieurs lignes à la suite : gardées dans l'ordre
+      list.splice(i,0,x.key)}
     order[n]=list;
     const first=Math.min(...byReu[n].keys.map(k=>EVENTS[k].ffnSec??1e9));
-    state.starts[n]=(cfg.starts||{})[n]||(first<1e9?secToHHMM(first):"10:00");
+    // heure de début : celle du Live FFN, sauf si l'admin l'a changée depuis la dernière heure FFN connue
+    // (si le Live FFN change son horaire après coup, c'est le nouvel horaire FFN qui l'emporte)
+    const ffnH=first<1e9?secToHHMM(first):"",sv=(cfg.starts||{})[n];state.startsFfn=state.startsFfn||{};state.startsFfn[n]=ffnH;
+    state.starts[n]=sv&&(!ffnH||(cfg.startsFfn||{})[n]===ffnH)?sv:(ffnH||sv||"10:00");
   }
-  for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0};
-  state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));
+  for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn};
+  state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));state.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
   if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
   state.loaded=true;
 }
 function toConfig(){
-  const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min};
-  return{name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
+  const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min,...(EVENTS[k].ffn?{ffn:1}:{})};
+  const inOrd=new Set(Object.values(state.order).flat());const linesOff=(state.ffnNotes||[]).filter(k=>!inOrd.has(k));
+  return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
     rankings:state.podRules,finals:state.finals||{},infos:state.infos,published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -908,13 +929,15 @@ let CSD=0;function schedule(){
     let t=toMin(state.starts[s]||"10:00")*60;let first=true;let delayed=false;
     for(const key of state.order[s]){
       const ev=EVENTS[key];if(!ev)continue;
-      if(!first)t+=state.eventGap;first=false;
+      if(!first&&!(ev.type==="pause"&&!ev.min))t+=state.eventGap;first=false;
       if(ev.type==="pause"){out[key]={start:t};t+=ev.min*60;continue}
       if(state.timing==="manual"&&!delayed&&!doneNow.has(key)){t+=(state.delay[s]||0)*60;delayed=true}
       // direct bassin : la série en cours dans l'eau donne l'heure réelle, tout le programme suivant se recale dessus
       if(pa&&pa.key===key){const before=ev.series.slice(0,pa.heat-1).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=pa.sec-before;anchored=true}
       // finales : horaires fixes (cérémonies, podiums) → jamais avant l'heure annoncée par le Live FFN
       if((ev.fin||ev.typ===61)&&ev.ffnSec!=null&&!(pa&&pa.key===key))t=Math.max(t,ev.ffnSec);
+      // avant le début de la réunion : aucune épreuve n'est annoncée avant l'heure du Live FFN
+      else if(ev.ffnSec!=null&&!anchored&&!state.order[s].some(x=>doneNow.has(x))&&!(pa&&pa.key===key)&&ev.ffnSec-t<3*3600)t=Math.max(t,ev.ffnSec);
       out[key]={start:t};t+=duration(ev);out[key].end=t;
       if(anchored&&pa.key===key&&pa.done){const rest=ev.series.slice(pa.heat).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=Math.max(t,parisSec(Date.now())+rest);out[key].end=t}
       // chronométrage électronique : on se recale sur l'heure réelle d'arrivée des résultats
@@ -974,7 +997,9 @@ async function loadEvents(){if(ROLE==="org"){EVLIST=[];const u=evUrl(EV);const e
   sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);{const sl=$("#ev-slug");if(sl&&document.activeElement!==sl)sl.value=EV==="main"?"":EV}$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
-async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}const nRP=rpCount();el.innerHTML=`<b>${j.done} nageurs sur ${j.want} lus sur l'Extranat</b> · ${j.bestN} ont un record perso sur leurs épreuves${j.left?` · <b>${j.left}</b> encore à lire`:" · tout est lu ✓"}${j.notFoundN?` · ${j.notFoundN} introuvables (nom ou année différents sur l'Extranat)`:""}<br><b>${nRP} record${nRP>1?"s":""} perso battu${nRP>1?"s":""}</b> pendant la compétition (pancartes violettes)`}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
+async function mppStat(j){const el=$("#mpp-stat");if(!el)return;try{if(!j||j.want==null)j=await api("/api/admin/mpp");if(!j.want){el.textContent="Records perso : aucun nageur à chercher pour l'instant (il faut les listes de départ ou les résultats).";return}const nRP=rpCount();el.innerHTML=`<b>${j.done} nageurs sur ${j.want} lus sur l'Extranat</b> · ${j.bestN} ont un record perso sur leurs épreuves${j.left?` · <b>${j.left}</b> encore à lire`:" · tout est lu ✓"}${j.notFoundN?` · ${j.notFoundN} introuvables (nom ou année différents sur l'Extranat)`:""}<br><b>${nRP} record${nRP>1?"s":""} perso battu${nRP>1?"s":""}</b> pendant la compétition (pancartes violettes)`+(()=>{const I=j.issues||[];if(j.left||!I.length)return"";const L={notfound:"Introuvable sur l'Extranat (nom ou année différents)",norec:"Trouvé, mais aucun record sur ses épreuves",err:"Erreur de lecture"};
+    const g=Object.keys(L).map(w=>[w,I.filter(x=>x.why===w)]).filter(([,a])=>a.length);
+    return`<details class="mpp-err"><summary>Voir les ${I.length} nageur${I.length>1?"s":""} sans record perso</summary>${g.map(([w,a])=>`<p><b>${L[w]} · ${a.length}</b></p><ul>${a.map(x=>{const[n,y]=x.k.split("|");return`<li>${esc(n)}${y?` <small>${esc(y)}</small>`:""}${x.msg?` <small>— ${esc(x.msg)}</small>`:""}</li>`}).join("")}</ul>`).join("")}</details>`})()}catch(e){el.textContent="Compteur des records indisponible : "+e.message}}
 async function loadAdmin(){const j=await api("/api/admin/state");ROLE=j.role||"admin";document.body.classList.toggle("org",ROLE==="org");loadSpons();if(ROLE==="admin")orgStatus();pairLoad();RAW=j;build(j.config,j.data);lastSaved=JSON.stringify(toConfig());render();mppStat()}
 let lastSaved="",saveTimer=null;
 function scheduleSave(){if(!state.admin||!ADMIN_KEY)return;clearTimeout(saveTimer);saveTimer=setTimeout(markDirty,150)}
@@ -1254,7 +1279,7 @@ function poolNext(ev,heat){if(!ev)return null;let nev=ev,nh=heat+1;
   if(nh>ev.series.length){const sk=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));const ks=sk?state.order[sk].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"):[];const i=ks.indexOf(ev.key);nev=i>=0&&ks[i+1]?EVENTS[ks[i+1]]:null;nh=1}
   const ns=nev&&nev.series[nh-1];if(!ns)return null;const sch=schedule()[nev.key];const before=nev.series.slice(0,nh-1).reduce((a,x)=>a+x.slowest+state.heatGap,0);return{ev:nev,heat:nh,se:ns,at:sch?sch.start+before:null}}
 const atTxt=at=>at==null?"":hhmm(new Date(new Date().setHours(0,0,0,0)+at*1000));
-function startList(se){return[...se.swimmers].sort((a,b)=>a.lane-b.lane).map(w=>{const nm=splitName(w.name);return`<div class="pn${isFav(w)?" fav":""}${w.dns?" dns":""}" ${w.dns?'title="Forfait déclaré"':""}><span class="lane-n">${w.lane}</span><span class="who"><span class="nm">${isFav(w)?`<span class="favstar">★</span>`:""}<b>${esc(nm.last)}</b> ${esc(nm.first)}</span><small class="cl">${logo(w.club)}${esc(w.club||"")}${w.time?" · eng. "+fmt(w.time):""}</small></span></div>`}).join("")}
+function startList(se){return[...se.swimmers].sort((a,b)=>a.lane-b.lane).map(w=>{const nm=splitName(w.name);return`<div class="pn${isFav(w)?" fav":""}${w.dns?" dns":""}" ${w.dns?'title="Forfait déclaré"':""}><span class="lane-n">${w.lane}</span><span class="who"><span class="nm">${isFav(w)?`<span class="favstar">★</span>`:""}<b>${esc(nm.last)}</b> ${esc(nm.first)}</span><small class="cl">${logo(w.club)}${esc(w.club||"")}${" · eng. "+engT(w.time)}</small></span></div>`}).join("")}
 // séries de l'épreuve en cours : terminées (résultats du bassin ou du Live FFN), en cours, à venir (liste de départ)
 function poolSeries(h,ev,len){if(!ev||ev.series.length<2)return"";const N=ev.series.length,sel=state.psel&&state.psel.k===ev.key?state.psel.i:null;
   const chips=Array.from({length:N},(_,i)=>{const n=i+1,st=n<h.heat?"done":n===h.heat?"cur":"todo";return`<button class="sch ${st}${sel===n?" on":""}" data-psel="${n}" aria-pressed="${sel===n}">${st==="done"?"✓ ":""}S${n}</button>`}).join("");
@@ -1343,7 +1368,14 @@ function poolFlip(){const now={};document.querySelectorAll(".pool .prow[data-pk]
 let PSN={},PSS={};function renderLive(){document.querySelectorAll(".pool .tvsp[data-l]").forEach(e=>PSS[e.dataset.l]=e.scrollLeft);const oc=document.querySelector(".pmain>.pool:not(.pghost)");PGHOST=oc?{el:oc.cloneNode(true),r:oc.getBoundingClientRect()}:null;renderLiveFfn();if(liveToday()){const m=mySwimmers(true);if(m)$("#pub-body").insertAdjacentHTML("afterbegin",m)}if(state.live==="bassin"&&liveToday()){const h=poolHtml();if(h){const b=$("#pub-body");if(/Connexion au direct|ne répond pas|Aucune série publiée/.test(b.textContent))b.innerHTML="";b.insertAdjacentHTML("afterbegin",h);poolFlip();document.querySelectorAll(".pool .tvsp[data-l]").forEach(e=>{const l=e.dataset.l,c=+e.dataset.c,o=PSN[l];PSN[l]=c;const sc=!e.classList.contains("cut");if(o!=null&&c>o){const sp=[...e.children].filter(x=>!x.classList.contains("more")&&!x.classList.contains("tvsp-sp")).pop();if(sp)sp.classList.add("nw");PUSR[l]=0;if(sc){e.scrollLeft=PSS[l]||0;requestAnimationFrame(()=>tvspFit(e,true))}}else if(sc){if(PUSR[l]&&PSS[l]!=null)e.scrollLeft=PSS[l];else tvspFit(e)}});poolSwapAnim()}poolTick()}}
 function renderLiveFfn(){
   if(!liveToday()){const r=liveUpcoming();const s0=Object.keys(state.order).sort((a,b)=>a-b)[0];const ks=(state.order[s0]||[]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event");const sch=schedule();const first=ks[0]&&sch[ks[0]];
-    $("#pub-body").innerHTML=`<div class="session">${secTitle("En direct","")}<div class="card lv-card"><span class="lv-tag">Bientôt</span><h3>Le direct commencera ${r?"le "+frDate(r.start):"le jour de la compétition"}${first?" vers "+hm(first.start):""}</h3><p class="msg">Dernière série terminée avec les passages, série suivante avec ses couloirs et programme de la réunion, mis à jour automatiquement pendant la compétition. En attendant, le programme détaillé est dans l'onglet Programme.</p><p><a href="#" data-go="prog">Voir le programme ›</a></p></div></div>`;return}
+    const when=r?r.start:null,days=when?Math.round((new Date(when).setHours(0,0,0,0)-new Date().setHours(0,0,0,0))/864e5):null;
+    const cd=days==null?"":days<=0?"Aujourd'hui":days===1?"Demain":"Dans "+days+" jours";
+    const tile=(ic,t,d)=>`<div class="lvs-t"><span class="lvs-i" aria-hidden="true">${ic}</span><b>${t}</b><small>${d}</small></div>`;
+    $("#pub-body").innerHTML=`<div class="session">${secTitle("En direct","")}<div class="card lvs"><div class="lvs-h"><span class="lv-tag">Bientôt</span>${cd?`<span class="lvs-cd">${cd}</span>`:""}</div>
+      <h3>${r?frDate(r.start).replace(/^./,c=>c.toUpperCase()):"Le jour de la compétition"}${first?`<span class="lvs-at">dès ${hm(first.start).replace(/^0/,"")}</span>`:""}</h3>
+      <p class="msg">Le direct s'ouvrira ici automatiquement au début de la réunion.</p>
+      <div class="lvs-g">${tile("⏱","Série en cours","Temps et passages dès l'arrivée")}${tile("🏊","Série suivante","Couloirs et nageurs au départ")}${tile("📋","Programme","Horaires recalculés en direct")}</div>
+      <div class="lvs-a"><a href="#" class="btn small" data-go="prog">Voir le programme</a><a href="#" class="btn small ghost" data-go="part">Choisir mes nageurs ★</a></div></div></div>`;return}
   const ids=state.comps.map(c=>c.id).filter(id=>LIVE[id]&&!LIVE[id].error);
   if(!ids.length){$("#pub-body").innerHTML=`<p class="empty">${state.comps.some(c=>LIVE[c.id])?"Le direct du Live FFN ne répond pas pour le moment. Nouvel essai automatique.":"Connexion au direct du Live FFN…"}</p>`;return}
   const order=allKeys(),pos=k=>order.indexOf(k);
@@ -1413,14 +1445,18 @@ function renderHome(){
     const tlItem=(cls,time,lbl,attr)=>`<li class="${cls}"${attr||""}><i></i><b>${time}</b><span>${lbl}</span></li>`;
     const short=n=>String(n).replace(/\s*(Dames|Messieurs|Mixte)$/i,(x,g)=>" "+g[0]+".").replace("Nage Libre","NL").replace("4 Nages","4N").replace("Papillon","Pap.");
     const prov=keys.some(k=>EVENTS[k].provisional);
-    const frise=keys.length&&!prov?`<ol class="tl2">${tlItem("",sm&&sm.doors?sm.doors.replace(/^0/,""):"—","Portes")}${tlItem("mid",(state.starts[s]||"").replace(":","h").replace(/^0/,""),"Début")}${keys.map(k=>`<li class="mr${done.has(k)?" d":""}${state.open["mt"+k]?" on":""}" data-mt="${k}" role="button" tabindex="0"><i></i><b>${hm(sch[k].start).replace(/^0/,"")}</b><span>${esc(short(EVENTS[k].name))}</span></li>`).join("")}${tlItem("",last?"~"+hm(sch[last].end).replace(/^0/,""):"—","Fin estimée")}</ol>`
+    // point rouge « on en est là » : l'épreuve en cours (1re non terminée) de la réunion en cours ; avant le début, sur « Début » ; après, sur « Fin »
+    const nowK=s===curR&&keys.some(k=>done.has(k))?keys.find(k=>!done.has(k)):null,allD=keys.length&&keys.every(k=>done.has(k));
+    const frise=keys.length&&!prov?`<ol class="tl2">${tlItem("",sm&&sm.doors?sm.doors.replace(/^0/,""):"—","Portes")}${tlItem(nowK||allD?"":"mid cur",(state.starts[s]||"").replace(":","h").replace(/^0/,""),"Début")}${keys.map(k=>`<li class="mr${done.has(k)?" d":""}${k===nowK?" cur":""}${state.open["mt"+k]?" on":""}" data-mt="${k}" role="button" tabindex="0"><i></i><b>${hm(sch[k].start).replace(/^0/,"")}</b><span>${esc(short(EVENTS[k].name))}</span></li>`).join("")}${tlItem(allD?"cur":"",last?"~"+hm(sch[last].end).replace(/^0/,""):"—",allD?"Terminé":"Fin estimée")}</ol>`
       :`<ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol>`;
     return`<div class="card reu${isOpen(s)?"":" shut"}"><div class="reu-h"${multi?` data-reutog="${s}" role="button" tabindex="0"`:""}><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}${multi?`<span class="reu-chev">${isOpen(s)?"▲":"▼"}</span>`:""}</span></div>${isOpen(s)?frise:""}${openK&&isOpen(s)?`<div class="mt-pop"><b>${hm(sch[openK].start).replace(/^0/,"")} · ${esc(EVENTS[openK].name)}</b><div class="md-sw"><span>${plural((EVENTS[openK].series||[]).length,"série")} · fin ~${hm(sch[openK].end).replace(/^0/,"")}${done.has(openK)?" · terminée":""}</span><span><a href="#" data-go="${done.has(openK)?"res":"prog"}">${done.has(openK)?"Voir les résultats ›":"Voir les séries ›"}</a></span></div></div>`:""}</div>`}).join("")}</div></div>`;
   if(MR.length){const byR={};for(const m of MR)(byR[m.s]=byR[m.s]||[]).push(m);
     html+=`<div class="session">${secTitle("★ Ma journée",plural(MR.length,"course"))}${Object.keys(byR).map(s=>`<div class="card myday${isOpen(s)?"":" shut"}"><div class="reu-h"${multi?` data-reutog="${s}" role="button" tabindex="0"`:""}><b>Réunion ${s}</b><span>${plural(byR[s].length,"course")}${multi?`<span class="reu-chev">${isOpen(s)?"▲":"▼"}</span>`:""}</span></div>${isOpen(s)?byR[s].map(m=>{const nope=state.phase==="eng"||m.ev.provisional;const sw=[...m.sw].sort((a,b)=>(a.heat||0)-(b.heat||0)||(a.lane||0)-(b.lane||0));
-      return`<div class="md-ev${m.done?" d":""}"><div class="md-h"><b>${esc(m.ev.name)}</b>${m.ev.relay?' <span class="md-rel">relais</span>':""}<span class="md-et">épreuve ${hm(m.start).replace(/^0/,"")}</span></div><div class="md-list">${sw.map(x=>`<div class="md-sr"><span class="md-t">${nope?"—":"~"+hm(heatStart(m.ev,m.start,x.heat)).replace(/^0/,"")}</span><div class="md-who"><a href="#" data-swimmer="${esc(x.iuf||"")}">${esc(m.ev.relay?"Relais "+(x.name||""):x.name)}</a><div class="md-sl">${nope?"Série et couloir pas encore publiés":`Série ${x.heat||"—"} · Couloir ${x.lane||"—"}`}${x.time?` · engagé ${fmt(x.time)}`:""}</div></div></div>`).join("")}</div></div>`}).join(""):""}</div>`).join("")}</div>`}
+      return`<div class="md-ev${m.done?" d":""}"><div class="md-h"><b>${esc(m.ev.name)}</b>${m.ev.relay?' <span class="md-rel">relais</span>':""}<span class="md-et">épreuve ${hm(m.start).replace(/^0/,"")}</span></div><div class="md-list">${sw.map(x=>`<div class="md-sr"${nope?"":` data-goheat="${esc(m.key)}|${x.heat||1}" role="button" tabindex="0" title="Voir la série dans le programme"`}><span class="md-t">${nope?"—":"~"+hm(heatStart(m.ev,m.start,x.heat)).replace(/^0/,"")}</span><div class="md-who"><a href="#" data-swimmer="${esc(x.iuf||"")}">${esc(m.ev.relay?"Relais "+(x.name||""):x.name)}</a><div class="md-sl">${nope?"Série et couloir pas encore publiés":`Série ${x.heat||"—"} · Couloir ${x.lane||"—"}`}${m.ev.relay&&!x.time?"":` · engagé ${engT(x.time)}`}</div></div></div>`).join("")}</div></div>`}).join(""):""}</div>`).join("")}</div>`}
   html+=`<div class="session">${secTitle("Compétitions")}<div class="card comps">${state.comps.map(c=>`<a class="comprow" href="https://www.liveffn.com/cgi-bin/index.php?competition=${c.id}&langue=fra" target="_blank" rel="noopener">${compBadge(c.id)}<span class="msg">${plural(Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length,"épreuve")}</span><span class="ext">Live FFN ↗</span></a>`).join("")}</div></div>`;
   $("#pub-body").innerHTML=top+html;
+  // frise qui défile : l'étape en cours est ramenée au milieu
+  for(const n of document.querySelectorAll(".tl2 li.cur")){const ol=n.parentElement;ol.scrollLeft=n.offsetLeft-ol.clientWidth/2+n.offsetWidth/2}
 }
 function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCase().includes(q))}
 function getQ(){return $("#search").value.trim().toLowerCase()}
@@ -1439,7 +1475,7 @@ function keyDates(){const out=[];const today=new Date();today.setHours(0,0,0,0);
 function engBanner(){if(Object.values(EVENTS).some(e=>e.provisional)){const k=keyDates();return`<div class="card engban"><b>Programme provisoire</b><span>Le Live FFN n'a publié que la liste des courses. Les horaires, séries et engagés apparaîtront ici dès leur publication.</span>${k.length?`<span class="kd">${k.join(" · ")}</span>`:""}</div>`}
 return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b><span>Les séries et les lignes d'eau seront publiées après la réunion technique. Les horaires sont provisoires.</span></div>`:""}
 function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries.filter(x=>!x.dns).slice().sort((a,b)=>a.time-b.time);
-  return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${logo(w.club)}${esc(w.club)}</td>`}<td class="num">${fmt(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
+  return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${logo(w.club)}${esc(w.club)}</td>`}<td class="num">${engT(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
 // réunion affichée : celle en cours (première avec une épreuve non terminée), sinon la dernière ; « tout » sur demande ou en recherche
 function reuList(){return Object.keys(state.order)}
 function currentReu(done){const rs=reuList();for(const r of rs)if(state.order[r].some(k=>EVENTS[k]&&EVENTS[k].type==="event"&&!done.has(k)))return r;return rs[rs.length-1]}
@@ -1477,11 +1513,11 @@ function renderSeries(ev,q){
   const relay=/^4x/i.test(ev.name);
   const st=(schedule()[ev.key]||{}).start||0;let acc=st;const starts=ev.series.map(se=>{const t=acc;acc+=se.slowest+state.heatGap;return t});
   const fin=!!ev.fin||ev.typ===61;
-  return`<div class="inner">${ev.qualProv?`<p class="qprov">${ev.qualProb?"Qualifiés probables d'après les temps des séries (qualifications pas encore publiées)":"Qualifiés d'après les séries"} · liste de départ et couloirs pas encore publiés</p>`:""}${ev.series.map((se,i)=>`<div class="heat"><h4><span class="htime">${hm(starts[i])}</span>${fin?esc(ev.roundLabel||"Finale"):`Série ${se.n} / ${ev.series.length}`}</h4>
+  return`<div class="inner">${ev.qualProv?`<p class="qprov">${ev.qualProb?"Qualifiés probables d'après les temps des séries (qualifications pas encore publiées)":"Qualifiés d'après les séries"} · liste de départ et couloirs pas encore publiés</p>`:""}${ev.series.map((se,i)=>`<div class="heat" id="h-${esc(ev.key)}-${se.n}"><h4><span class="htime">${hm(starts[i])}</span>${fin?esc(ev.roundLabel||"Finale"):`Série ${se.n} / ${ev.series.length}`}</h4>
    <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${isFav(w)?"fav ":""}${hit(w,q)}${w.dns?" dns":""}">
      <span class="lane-n">${w.lane||"—"}</span>
      <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+logo(w.club)+esc(w.club||"")}</small></span>
-     <span class="rk-res"><b>${w.time!=null?fmt(w.time):"—"}</b><small>${ev.fin||ev.typ===61?"séries":"engag."}</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
+     <span class="rk-res"><b>${w.time?fmt(w.time):(ev.fin||ev.typ===61?"—":"NT")}</b><small>${ev.fin||ev.typ===61?"séries":"engag."}</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
 }
 
 // médailles par catégorie : selon le classement « course par course » paramétré pour la compétition
@@ -1646,13 +1682,15 @@ function renderPart(){
      ${c.open?`<div class="inner"><div style="padding:6px 4px">${favBtn("c",clubKey(c.name),c.name)}</div><div class="list">${isFavClub(c.name)?`<p class="msg" style="margin:0 4px 6px">Tout le club est suivi. Pour ne suivre que quelques nageurs, retire le club puis coche les ☆ des nageurs.</p>`:`<p class="msg" style="margin:0 4px 6px">Ou ne suis que certains nageurs : touche leur ☆.</p>`}${c.shown.map(p=>{const on=isFavSw(p.sw.iuf);return`<div class="prow-w"><button class="prow inprow${isFav(p.sw)?" fav":""}" data-swimmer="${p.sw.iuf}"><b>${isFav(p.sw)?'<span class="favstar">★</span>':""}${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")} ›</span></button><button class="swfav${on?" on":""}" data-fav="s" data-favkey="${esc(p.sw.iuf)}" data-favname="${esc(p.sw.name)}" aria-pressed="${on}" aria-label="${on?"Ne plus suivre":"Suivre"} ${esc(p.sw.name)}">${on?"★":"☆"}</button></div>`}).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
   $("#pub-body").innerHTML=html;
 }
+// date courte d'une épreuve d'après sa réunion (« Samedi 18 octobre 2025 » → « sam. 18 oct. »)
+function evDay(key){const r=Object.keys(state.order).find(x=>state.order[x].includes(key));const d=((state.reuDay||{})[r]||"").toLowerCase().match(/([a-zéû]+)\s+(\d{1,2})\s+([a-zéèûô]+)/);if(!d)return"";const M=d[3];return d[1].slice(0,3)+". "+d[2]+" "+(M.length<=4?M:M.slice(0,M==="juillet"||M==="septembre"?4:3)+".")}
 function swimmerDetail(p){
   const sch=schedule(),done=doneSet();
   const items=p.items.sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
   return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><div style="display:flex;gap:8px;align-items:center">${favBtn("s",p.sw.iuf,p.sw.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div>
-  <div class="tbl"><table><thead><tr><th>Heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Écart</th><th>Pl.</th></tr></thead><tbody>
+  <div class="tbl"><table><thead><tr><th>Date · heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Écart</th><th>Pl.</th></tr></thead><tbody>
   ${items.map(({ev,w})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>x.iuf===w.iuf)||null:null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
-    return`<tr><td class="num">${hm(sch[ev.key].start)}</td><td>${esc(ev.name)}</td><td class="num">${state.phase==="eng"?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${fmt(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${r&&!r.dsq?diffHtml(r.res,w.time)||"—":"—"}</td><td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="6">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
+    return`<tr><td class="num sw-when">${evDay(ev.key)?`<small>${evDay(ev.key)}</small> `:""}${hm(state.phase==="eng"?sch[ev.key].start:heatStart(ev,sch[ev.key].start,ev.fin?1:w.heat))}</td><td>${esc(ev.name)}</td><td class="num">${state.phase==="eng"?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${engT(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td><td class="num">${r&&!r.dsq?diffHtml(r.res,w.time)||"—":"—"}</td><td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="6">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
   </tbody></table></div></div>`;
 }
 function renderClub(){
@@ -1785,7 +1823,10 @@ function pRelease(){clearTimeout(PREL);PREL=setTimeout(()=>{PTOUCH=0;if(PPEND){P
 document.addEventListener("touchstart",e=>{if(e.target.closest&&e.target.closest(".pool .tvsp")){PTOUCH=1;clearTimeout(PREL)}},{passive:true,capture:true});
 document.addEventListener("touchend",()=>{if(PTOUCH)pRelease()},{passive:true,capture:true});document.addEventListener("touchcancel",()=>{if(PTOUCH)pRelease()},{passive:true,capture:true});
 document.addEventListener("scroll",e=>{if(e.target.classList&&e.target.classList.contains("tvsp")){tvspMask(e.target);if(PTOUCH&&e.target.dataset.l)PUSR[e.target.dataset.l]=1;if(PTOUCH&&!PDRAG)pRelease()}},{passive:true,capture:true});
-function render(){if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history.replaceState(null,"",location.pathname+location.search+want)}catch(_){}}
+// retour arrière du navigateur : chaque changement d'onglet est une étape de l'historique
+let RV="",POPPING=false;
+addEventListener("popstate",()=>{if(state.admin||PICK)return;const h=location.hash.slice(1);const v=["live","prog","res","pod","part","rank"].includes(h)?h:"home";if(v!==state.view){POPPING=true;state.view=v;try{render()}finally{POPPING=false}window.scrollTo(0,0)}});
+function render(){if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history[RV&&RV!==state.view&&!POPPING?"pushState":"replaceState"](null,"",location.pathname+location.search+want)}catch(_){}RV=state.view}
   if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
@@ -1811,6 +1852,8 @@ $("#pub-body").addEventListener("click",e=>{
   const pr=e.target.closest("[data-pr]");if(pr){state.podRule=pr.dataset.pr;renderPublic();return}
   if(e.target.closest("[data-tv]")){tvToggle();return}
   const ps=e.target.closest("[data-psel]");if(ps){const ev=poolEvent(POOL&&POOL.heat);const i=+ps.dataset.psel;state.psel=state.psel&&state.psel.k===(ev&&ev.key)&&state.psel.i===i?null:{k:ev&&ev.key,i};renderPublic();return}
+  const gh=e.target.closest("[data-goheat]");if(gh&&!e.target.closest("[data-swimmer]")){e.preventDefault();const [k,h]=gh.dataset.goheat.split("|");state.view="prog";state.sel=null;state.reu=Object.keys(state.order).find(r=>state.order[r].includes(k))||null;state.open[k]=true;render();
+    const el=document.getElementById("h-"+k+"-"+h)||document.querySelector(`[data-open="${k}"]`);if(el){el.scrollIntoView({block:"start"});window.scrollBy(0,-80);el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),2200)}else window.scrollTo(0,0);return}
   const gr=e.target.closest("[data-goto-res]");if(gr){const k=gr.dataset.gotoRes;state.view="res";state.sel=null;state.reu=null;if(k)state.open["r"+k]=true;render();const el=k&&document.querySelector(`[data-open="r${k}"]`);el?el.scrollIntoView({block:"start"}):window.scrollTo(0,0);return}
   const spb=e.target.closest("[data-sp]");if(spb){const k=spb.dataset.sp.replace(/&amp;/g,"&");state.sp[k]=!state.sp[k];renderPublic();return}
   if(e.target.closest("[data-podsp-close]")&&!e.target.closest(".sheet")||e.target.closest(".sheet .x")){e.preventDefault();state.podSp=null;render();return}
