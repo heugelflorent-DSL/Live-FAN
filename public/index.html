@@ -563,6 +563,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .lane.past>.row{opacity:.45;filter:grayscale(.85)}.lane.past>.row .time{text-decoration:line-through;text-decoration-thickness:1px}.lane.past{background:transparent}
 .heat.hpast{opacity:.45;filter:grayscale(.9)}.heat.hpast h4::after{content:" · nagée";font-weight:600;color:var(--muted)}
 .md-sr.sdone{opacity:.42;filter:grayscale(1)}.md-sr.sdone .md-t{text-decoration:line-through}.md-ev.d{opacity:1}
+.sw-sheet .detail{border:0;padding:0;margin:0;box-shadow:none;background:none}.sw-sheet .sheet{max-height:88vh}
 </style>
 </head>
 <body>
@@ -1755,7 +1756,8 @@ function participants(){
 function renderPart(){
   const q=getQ(),fc=$("#filter-comp").value,P=participants();const clubs={};
   for(const p of Object.values(P)){if(fc&&p.sw.comp!==fc)continue;(clubs[p.sw.club]=clubs[p.sw.club]||{name:p.sw.club,sw:[],eng:0});clubs[p.sw.club].sw.push(p);clubs[p.sw.club].eng+=p.items.length}
-  let html=state.sel&&P[state.sel]?swimmerDetail(P[state.sel]):"";
+  // fiche du nageur : fenêtre par-dessus la liste (on reste au même endroit dans la liste en la fermant)
+  let html="";const sheet=state.sel&&P[state.sel]?`<div class="sheet-bg sw-sheet" data-close="1"><div class="sheet" role="dialog" aria-label="Fiche du nageur">${swimmerDetail(P[state.sel])}</div></div>`:"";
   const list=Object.values(clubs).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{
     const clubHit=q&&c.name.toLowerCase().includes(q);
     const sw=c.sw.filter(p=>!q||clubHit||p.sw.name.toLowerCase().includes(q)).sort((a,b)=>a.sw.name.localeCompare(b.sw.name));
@@ -1765,7 +1767,7 @@ function renderPart(){
   html+=`<div class="session">${secTitle(q?"Recherche":"Clubs",plural(list.length,"club")+" · "+plural(nSw,"nageur"))}<div class="list">
    ${list.map(c=>`<div class="lane"><button class="row clubrow" data-open="c${esc(c.name)}" aria-expanded="${c.open}"><span class="ev"><b>${logo(c.name)}${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</span></span><span class="chev" aria-hidden="true">▼</span></button>
      ${c.open?`<div class="inner"><div style="padding:6px 4px">${favBtn("c",clubKey(c.name),c.name)}</div><div class="list">${isFavClub(c.name)?`<p class="msg" style="margin:0 4px 6px">Tout le club est suivi. Pour ne suivre que quelques nageurs, retire le club puis coche les ☆ des nageurs.</p>`:`<p class="msg" style="margin:0 4px 6px">Ou ne suis que certains nageurs : touche leur ☆.</p>`}${c.shown.map(p=>{const on=isFavSw(p.sw.iuf);return`<div class="prow-w"><button class="prow inprow${isFav(p.sw)?" fav":""}" data-swimmer="${p.sw.iuf}"><b>${isFav(p.sw)?'<span class="favstar">★</span>':""}${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${plural(p.items.length,"course")} ›</span></button><button class="swfav${on?" on":""}" data-fav="s" data-favkey="${esc(p.sw.iuf)}" data-favname="${esc(p.sw.name)}" aria-pressed="${on}" aria-label="${on?"Ne plus suivre":"Suivre"} ${esc(p.sw.name)}">${on?"★":"☆"}</button></div>`}).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
-  $("#pub-body").innerHTML=html;
+  $("#pub-body").innerHTML=html+sheet;
 }
 // date courte d'une épreuve d'après sa réunion (« Samedi 18 octobre 2025 » → « sam. 18 oct. »)
 function evDay(key){const r=Object.keys(state.order).find(x=>state.order[x].includes(key));const d=((state.reuDay||{})[r]||"").toLowerCase().match(/([a-zéû]+)\s+(\d{1,2})\s+([a-zéèûô]+)/);if(!d)return"";const M=d[3];return d[1].slice(0,3)+". "+d[2]+" "+(M.length<=4?M:M.slice(0,M==="juillet"||M==="septembre"?4:3)+".")}
@@ -1947,9 +1949,9 @@ $("#pub-body").addEventListener("click",e=>{
   const rt=e.target.closest("[data-reutog]");if(rt){e.preventDefault();const r=rt.dataset.reutog,k="reu"+r;const cur=document.querySelector(`.reu-h[data-reutog="${r}"]`).parentElement.classList.contains("shut");state.open[k]=cur;render();return}
   const mt=e.target.closest("[data-mt]");if(mt){e.preventDefault();const k="mt"+mt.dataset.mt,was=state.open[k];for(const x of Object.keys(state.open))if(x.startsWith("mt"))delete state.open[x];if(!was)state.open[k]=1;render();return}
   const fb=e.target.closest("[data-fav]");if(fb){e.preventDefault();const k=fb.dataset.favkey,n=fb.dataset.favname;const box=fb.dataset.fav==="s"?FAV.sw:FAV.cl;if(box[k])delete box[k];else box[k]=n;favSave();render();return}
-  const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();state.view="part";state.sel=sw.dataset.swimmer;$("#search").value="";render();window.scrollTo(0,0);return}
+  const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();const stay=state.view==="part",y=window.scrollY;state.view="part";state.sel=sw.dataset.swimmer;if(!stay)$("#search").value="";render();window.scrollTo(0,stay?y:0);return}
   
-  if(e.target.closest("[data-close]")){state.sel=null;renderPublic();return}
+  if(e.target.closest("[data-close]")&&(!e.target.closest(".sheet")||e.target.closest("button[data-close]"))){const y=window.scrollY;state.sel=null;renderPublic();window.scrollTo(0,y);return}
   const b=e.target.closest("[data-open]");if(b){const k=b.dataset.open;state.open[k]=!state.open[k];renderPublic()}
 });
 $("#search").oninput=renderPublic;
