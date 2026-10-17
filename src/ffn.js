@@ -313,7 +313,7 @@ export function parseLive(html) {
       rws.push({
         place: parseInt(one(cs[0].html)) || null, name: legs.length ? club0 : fullName(cs[1].html), year: legs.length ? "" : one(cs[2].html), nat: one(cs[3].html),
         club: club0, time: toSec(timeTxt), timeTxt, splits: tc ? liveSplits(tc.html) : [], ...(legs.length ? { relay: legs } : {}),
-        rank: one((cs.find((c) => c.cls === "placeClassementPro") || { html: "" }).html.replace(/<b[\s\S]*?<\/b>/, "")),
+        rank: one((cs.find((c) => c.cls === "placeClassementPro") || { html: "" }).html.replace(/<b[\s\S]*?<\/b>/g, "")).trim(),
       });
     }
     out.cur = { title: t, event: m ? m[1].trim() : t, heat: m ? +m[2] : null, of: m ? +m[3] : null, rows: rws };
