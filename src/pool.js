@@ -70,6 +70,19 @@ export class PoolRoom {
 
   async fetch(req) {
     const url = new URL(req.url);
+    // séries terminées vues sur la page « En direct » du Live FFN : gardées pour un classement provisoire dans Résultats
+    if (url.pathname.endsWith("/lh") && req.method === "POST") {
+      const b = await req.json().catch(() => null); if (!b || !b.event || !b.heat || !Array.isArray(b.rows)) return new Response("bad", { status: 400 });
+      const key = "lh:" + String(b.event).toLowerCase().replace(/\s+/g, " ").trim() + "|" + String(b.heat).padStart(3, "0");
+      const val = { event: b.event, heat: b.heat, of: b.of || null, rows: b.rows.slice(0, 12) };
+      const old = await this.ctx.storage.get(key);
+      if (JSON.stringify(old && { event: old.event, heat: old.heat, of: old.of, rows: old.rows }) !== JSON.stringify(val)) await this.ctx.storage.put(key, { ...val, at: Date.now() });
+      return new Response(null, { status: 204 });
+    }
+    if (url.pathname.endsWith("/lhs")) {
+      const all = await this.ctx.storage.list({ prefix: "lh:" });
+      return Response.json([...all.values()]);
+    }
     if (url.pathname.endsWith("/ws")) {
       if (req.headers.get("Upgrade") !== "websocket") return new Response("WebSocket attendu", { status: 426 });
       const pair = new WebSocketPair(); this.ctx.acceptWebSocket(pair[1]);

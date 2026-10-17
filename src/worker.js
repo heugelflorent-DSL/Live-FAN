@@ -534,6 +534,20 @@ export default {
       // page absente (direct pas commencé) : on ne redemande pas au Live FFN avant 10 min
       const res = json(body, 200, { "cache-control": `public, max-age=${body.error ? 600 : 30}` });
       ctx.waitUntil(cache.put(key, res.clone()));
+      // série en cours avec des temps : gardée pour le classement provisoire de l'onglet Résultats
+      const cur = body.cur; if (cur && cur.heat && cur.rows.some((r) => r.time != null || r.timeTxt))
+        ctx.waitUntil(env.POOL.get(env.POOL.idFromName("lh:" + ev + ":" + c)).fetch(new Request("https://pool/lh", { method: "POST", body: JSON.stringify({ event: cur.event, heat: cur.heat, of: cur.of, rows: cur.rows.map(({ rank, ...r }) => r) }) })).catch(() => {}));
+      return res;
+    }
+    if (p === "/api/liveheats" && req.method === "GET") {
+      const c = url.searchParams.get("c") || "";
+      const { config } = await load(env, ev);
+      if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
+      const cache = caches.default; const key = new Request(url.origin + "/api/liveheats?e=" + ev + "&c=" + c);
+      const hit = await cache.match(key); if (hit) return hit;
+      const r = await env.POOL.get(env.POOL.idFromName("lh:" + ev + ":" + c)).fetch(new Request("https://pool/lhs"));
+      const res = json(await r.json(), 200, { "cache-control": "public, max-age=30" });
+      ctx.waitUntil(cache.put(key, res.clone()));
       return res;
     }
 
