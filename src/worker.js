@@ -236,12 +236,29 @@ export function pickSection(ev, r) {
   return best;
 }
 
-// lives « chauds » (réunion en cours) : ils passent avant les autres dans la tâche de chaque minute.
-// La liste n'est réécrite que lorsqu'elle change (quelques écritures KV par jour).
-async function markHot(env, ev, hot) {
-  const h = (await env.KV.get("hot", "json")) || { ids: [] };
-  const has = h.ids.includes(ev); if (has === !!hot) return;
-  h.ids = hot ? [...h.ids, ev] : h.ids.filter((x) => x !== ev); await env.KV.put("hot", JSON.stringify(h));
+// Plannings des lives : pour chacun, ses créneaux de réunion (de 30 min avant les portes à 2 h après la dernière épreuve).
+// La tâche de chaque minute s'en sert pour donner la priorité au live en cours, sans avoir à charger les autres.
+// Réécrit seulement quand il change (quelques écritures KV par jour).
+function liveWins(cfg, data) {
+  const out = [];
+  if (cfg.scrape?.onlyLive === false) return [[0, 9e15]];
+  for (const id of cfg.comps) {
+    const c = data.comps[id]; if (!c) continue;
+    for (const r of c.reunions || []) {
+      const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) continue;
+      const evs = r.items.filter((i) => i.kind === "event" && i.time);
+      const first = hToMin(r.doors) ?? hToMin(evs[0]?.time); const last = hToMin(evs[evs.length - 1]?.time); if (first == null) continue;
+      const day = parisEpoch(dt.y, dt.m, dt.d); out.push([day + (first - 30) * 60e3, day + ((last ?? first) + 120) * 60e3]);
+    }
+  }
+  return out;
+}
+async function markHot(env, ev, wins, catchup) {
+  const h = (await env.KV.get("hot", "json")) || {}; const cur = JSON.stringify(h[ev] || null);
+  const nxt = wins.length || catchup ? { w: wins, c: catchup ? 1 : 0 } : null;
+  if (cur === JSON.stringify(nxt)) return;
+  if (nxt) h[ev] = nxt; else delete h[ev];
+  await env.KV.put("hot", JSON.stringify(h));
 }
 export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
   const { config, data } = await load(env, ev);
@@ -257,13 +274,13 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     if (data.lastRun && now - data.lastRun < every - 5e3) return 0;
     // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
     if (finished(config, data, now) && !(data.queue || []).length) {
-      if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); }
+      if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); await markHot(env, ev, [], false); }
       return 0;
     }
   }
   if (data.finished && !finished(config, data, now)) data.finished = null;
   const live = force || windowOpen(config, data, now) || (pastEnd(config, data, now) && !finished(config, data, now));
-  if (!force) await markHot(env, ev, live && !finished(config, data, now));
+  if (!force) await markHot(env, ev, finished(config, data, now) ? [] : liveWins(config, data), pastEnd(config, data, now) && !finished(config, data, now));
   data.queue = data.queue || [];
   let errors = 0, used = 0;
   const seen = new Set();
@@ -733,10 +750,13 @@ export default {
     ctx.waitUntil((async () => {
       const ids = ["main", ...(await listEvents(env)).map((x) => x.id)];
       // un seul événement par minute, à tour de rôle : le temps de calcul gratuit (10 ms) est limité par exécution
-      // les lives en pleine réunion passent 3 minutes sur 4 ; la 4e minute, tous les lives à tour de rôle (programme, séries…)
-      const m = Math.floor(Date.now() / 60e3); const hot = (((await env.KV.get("hot", "json")) || {}).ids || []).filter((x) => ids.includes(x));
-      const pool = hot.length && m % 4 ? hot : ids;
-      const start = (hot.length && m % 4 ? m : Math.floor(m / 4)) % pool.length;
+      // un live en cours (réunion en cours ou résultats encore attendus) passe en priorité, chaque minute ;
+      // les autres lives n'ont que des lectures rares (programme, séries 1 fois par jour) : une minute sur 10 leur suffit
+      const now = Date.now(), m = Math.floor(now / 60e3); const H = (await env.KV.get("hot", "json")) || {};
+      const hot = ids.filter((x) => H[x] && (H[x].c || (H[x].w || []).some(([a, b]) => now >= a && now <= b)));
+      const cold = !hot.length || m % 10 === 0;
+      const pool = cold ? ids : hot;
+      const start = (cold && hot.length ? Math.floor(m / 10) : m) % pool.length;
       let left = BUDGET;
       for (let i = 0; i < 1 && left > 0; i++) {
         const ev = pool[(start + i) % pool.length];
