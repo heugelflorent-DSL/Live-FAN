@@ -555,6 +555,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .deftag{font:700 11px system-ui;background:#dcf5e3;color:#11643a;border-radius:999px;padding:1px 8px;vertical-align:middle}.provtag{vertical-align:middle;font:700 11px system-ui;background:#fff3c4;color:#7a5500;border-radius:999px;padding:1px 8px}.lane.prov .row{border-left:3px solid #f5c542}
 .lv-cls .rk-row.lv-new{box-shadow:inset 3px 0 0 var(--a)}.lv-cls .btn{margin-top:8px}
 .lv-side{display:none}@media (min-width:1024px){.lv-side{display:flex}.lv-cls-m{display:none}}.lvgrid.lv1{grid-template-columns:minmax(0,1fr)}.lv-side .lv-card{margin:0}
+@media (max-width:600px){.rk-res{max-width:58vw;min-width:0}.rk-res small{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:3px 6px;text-align:right;line-height:1.35;white-space:normal}.rk-res small>*{position:static;margin:0}.rk-who small{white-space:nowrap}}
 </style>
 </head>
 <body>
@@ -1571,7 +1572,7 @@ function renderRanking(ev,q){
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}${isFav(w)?" fav":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}">${w.rank??"—"}</span>
       <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
-      <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",(d=>d?"engag. "+d:"")(diffHtml(w.res,ent[w.iuf||w.name])),rpRes(ev,w)].filter(Boolean).join(" · ")}</small></span>
+      <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",((e,B)=>B&&B.t!=null&&e!=null&&Math.abs(B.t-e)<.005?"":(d=>d?"engag. "+d:"")(diffHtml(w.res,e)))(ent[w.iuf||w.name],/^\d+x/i.test(ev.name)?null:bestOf(w,ev)),rpRes(ev,w)].filter(Boolean).join(" · ")}</small></span>
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
       ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w,1)}</div>`:""}
     </li>`}).join("")}
@@ -1580,7 +1581,15 @@ function renderRanking(ev,q){
 
 // classement provisoire d'une épreuve pas encore publiée dans les résultats : les séries terminées vues dans le direct
 function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[id,[...(LH[id]||[]),...(LIVE[id]&&LIVE[id].cur&&LIVE[id].cur.heat&&LIVE[id].cur.rows.length?[{event:LIVE[id].cur.event,heat:LIVE[id].cur.heat,of:LIVE[id].cur.of,rows:LIVE[id].cur.rows}]:[])]]);for(const [id,hs] of src)for(const h of hs||[]){const ev=liveMatch(id,h.event);if(!ev)continue;(out[ev.key]=out[ev.key]||{id,title:h.event,heats:{},of:h.of}).heats[h.heat]=h.rows;if(h.of)out[ev.key].of=h.of}
-  for(const p of Object.values(out)){const all=Object.values(p.heats).flat();const ok=all.filter(w=>w.time!=null).sort((a,b)=>a.time-b.time);let r=0;ok.forEach((w,i)=>{if(!i||w.time!==ok[i-1].time)r=i+1;w.pl=r});p.rows=[...ok,...all.filter(w=>w.time==null)].map(w=>({...w,place:w.pl??null}));p.n=Object.keys(p.heats).length}
+  // résultats officiels déjà publiés série par série sur le Live FFN (lus toutes les 2 min) : ils complètent les séries manquées par le direct
+  const done=doneSet();
+  for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||done.has(ev.key)||!(ev.results||[]).length)continue;
+    const p=out[ev.key]=out[ev.key]||{id:ev.comp,title:ev.base+(ev.round?" "+ev.round:""),heats:{},of:(ev.series||[]).length||null};
+    const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const hOf=n=>{const e=(ev.entries||[]).find(x=>norm(x.name)===norm(n));return e&&e.heat||"r"};
+    for(const r of ev.results){if(seen.has(norm(r.name)))continue;const h=hOf(r.name);(p.heats[h]=p.heats[h]||[]).push({name:r.name,club:r.club,year:r.year,time:r.dsq?null:r.res,timeTxt:r.dsq?(r.status||"DSQ"):fmt(r.res),splits:(r.splits||[]).map(x=>({d:x.dist,cum:x.cum,lap:x.lap}))})}
+    if(!p.of)p.of=(ev.series||[]).length||null}
+  for(const p of Object.values(out)){const all=Object.values(p.heats).flat().map(({rank,...w})=>w);; /* pas de « Xe au provisoire » du Live FFN : notre propre classement fait foi ici */
+    const ok=all.filter(w=>w.time!=null).sort((a,b)=>a.time-b.time);let r=0;ok.forEach((w,i)=>{if(!i||w.time!==ok[i-1].time)r=i+1;w.pl=r});p.rows=[...ok,...all.filter(w=>w.time==null)].map(w=>({...w,place:w.pl??null}));p.n=Object.keys(p.heats).filter(h=>h!=="r").length}
   return out}
 function renderRes(){
   const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();const PR=provRes();for(const k of done)delete PR[k];
