@@ -56,6 +56,16 @@ function eventsOf(comp) {
   return (comp.reunions || []).flatMap((r) => r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, key: i.key || String(i.epr), reunion: r.n })));
 }
 function reuDone(c, r) { const evs = (r.items || []).filter((i) => i.kind === "event" && !i.provisional); return evs.length > 0 && evs.every((i) => c.events?.[i.key || String(i.epr)]?.doneAt); }
+// direct : de 30 min avant la 1re course d'une réunion jusqu'à ses derniers résultats (2 h après la dernière épreuve au plus)
+function liveOpen(c, now) {
+  if (!c || !c.reunions) return true;
+  for (const r of c.reunions) {
+    const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt || reuDone(c, r)) continue;
+    const evs = r.items.filter((i) => i.kind === "event" && i.time); const first = hToMin(evs[0]?.time), last = hToMin(evs[evs.length - 1]?.time); if (first == null) continue;
+    const day = parisEpoch(dt.y, dt.m, dt.d); if (now >= day + (first - 30) * 60e3 && now <= day + ((last ?? first) + 120) * 60e3) return true;
+  }
+  return false;
+}
 function windowOpen(cfg, data, now) {
   if (!cfg.scrape?.onlyLive) return true;
   for (const id of cfg.comps) {
@@ -540,7 +550,7 @@ export default {
       const { config, data } = await load(env, ev);
       if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
       // entre deux réunions : le direct est en pause, on ne dérange pas le Live FFN
-      if (!windowOpen({ ...config, comps: [c], scrape: { onlyLive: true } }, data, Date.now())) return json({ at: Date.now(), pause: true }, 200, { "cache-control": "public, max-age=60" });
+      if (!liveOpen(data.comps[c], Date.now())) return json({ at: Date.now(), pause: true }, 200, { "cache-control": "public, max-age=60" });
       const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
       const hit = await cache.match(key); if (hit) return hit;
       let body = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();

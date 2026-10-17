@@ -1418,6 +1418,13 @@ function renderLiveFfn(){
   html+=`<div class="session">${secTitle("En direct",esc(L.reunion||""))}<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
   if(L.stale)html+=`<p class="lv-warn">Le Live FFN ne répond pas en ce moment : derniers résultats reçus affichés, nouvel essai automatique.</p>`;
   if(since>=8)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
+  // réunion qui commence : la dernière série affichée est celle de la réunion précédente → on ne montre que la série à venir
+  {const sl=state.live==="ffn"?liveSlot():null;const rk=sl&&sl.on?state.order[sl.s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"):null;
+   if(rk&&!(cur.ev&&rk.includes(cur.ev.key))){const k=rk[0],ev=EVENTS[k],sch=schedule();const m2=L.next&&liveMatch(cur.id,L.next.event);
+     const nx2=m2&&rk.includes(m2.key)&&L.next.lanes.length?{name:m2.name,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes}
+       :(()=>{const se=ev.series[0]||{n:1,swimmers:[]};return{name:ev.name,heat:se.n,of:ev.series.length,hm:sch[k]?hm(sch[k].start):null,lanes:se.swimmers.map(w=>({lane:w.lane,name:w.name,club:w.club,year:w.year,entry:w.time}))}})();
+     html+=`<div class="card lv-card"><span class="lv-tag">Série à venir${nx2.hm?" · vers "+esc(nx2.hm):""}</span><h3>${esc(nx2.name)}</h3><div class="sub">Réunion ${esc(sl.s)} · Série ${nx2.heat||"?"} / ${nx2.of||"?"}</div>${nx2.lanes.length?lvLanes(nx2.lanes):`<p class="msg">Composition pas encore publiée.</p>`}</div></div>`;
+     $("#pub-body").innerHTML=html.replace(/<p class="lv-warn">[\s\S]*?<\/p>/g,"");return}}
   let side="";html+=`<div class="pgrid lvgrid"><div class="pmain">`;
   html+=`<div class="card lv-card"><span class="lv-tag">Dernière série terminée</span><h3>${esc(cur.ev?cur.ev.name:L.cur.event)}</h3><div class="sub">${multi?compBadge(cur.id)+" · ":""}Série ${L.cur.heat||"?"} / ${L.cur.of||"?"}</div>${lvRows(L.cur.rows,cur.id,L.cur.title)}</div>`;
   {const P=cur.ev&&provRes()[cur.ev.key];if(P&&P.n>1){const all=!!state.open.lvall,rows=all?P.rows:P.rows.slice(0,8);const inCur=new Set(L.cur.rows.map(w=>w.name));
@@ -1471,7 +1478,7 @@ function reuDate(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d
 function liveSlot(){const sch=schedule(),done=doneSet(),now=Date.now();let next=null;
   for(const s of Object.keys(state.order).sort((a,b)=>a-b)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");if(!ks.length)continue;const d=reuDate(s);if(!d)continue;
     if(ks.every(k=>done.has(k)))continue;const at=sec=>d.getTime()+sec*1000;const doorsS=state.doors[s]?toMin(state.doors[s].replace("h",":"))*60:sch[ks[0]].start-3600;
-    const a=at(doorsS-1800),b=at((sch[ks[ks.length-1]].end||sch[ks[ks.length-1]].start)+7200);
+    const a=at(sch[ks[0]].start-1800),b=at((sch[ks[ks.length-1]].end||sch[ks[ks.length-1]].start)+7200);
     if(now>=a&&now<=b)return{on:true,s};if(now<a&&!next)next={s,at:at(sch[ks[0]].start),doors:state.doors[s]||"",d}}
   return{on:false,next}}
 function reuToday(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return false;const d=new Date(),i=MOIS.indexOf(m[2]);return i>=0&&d.getFullYear()===+m[3]&&d.getMonth()===i&&d.getDate()===+m[1]}
