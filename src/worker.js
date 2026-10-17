@@ -1,7 +1,7 @@
 // Swim Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 export { PoolRoom } from "./pool.js";
 export { StatsRoom } from "./stats.js";
-import { get, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
+import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 import { normEvent, findIuf, fetchMpp } from "./extranat.js";
 
 const BUDGET = 15;            // pages Live FFN lues au maximum par passage (le reste attend le passage suivant)
@@ -177,6 +177,15 @@ function plan(cfg, data, now, live) {
   return tasks.filter((t) => { const k = t.t + "|" + t.c + "|" + (t.t === "heats" ? t.key : t.epr); if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => rank[a.t] - rank[b.t]);
 }
 
+// Lecture d'une page du Live FFN : passe par le Durable Object « ffn » (une seule adresse de sortie, stable),
+// la lecture directe depuis la tâche de chaque minute étant refusée (HTTP 403) par le Live FFN
+let ENV = null;
+async function get(url, opt = {}) {
+  if (!ENV || !ENV.POOL) return getDirect(url, opt);
+  if (opt.delay) await new Promise((r) => setTimeout(r, opt.delay));
+  const r = await ENV.POOL.get(ENV.POOL.idFromName("ffnfetch")).fetch(new Request("https://pool/ffnget?u=" + encodeURIComponent(url)));
+  const j = await r.json(); if (j.error) throw new Error(j.error); return j.raw;
+}
 async function runTask(task, data, now) {
   const c = (data.comps[task.c] = data.comps[task.c] || { events: {} });
   c.events = c.events || {};
@@ -281,6 +290,7 @@ function logErr(env, ev, src, msg) {
   try { return env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/log", { method: "POST", body: JSON.stringify({ ev, src, msg: String(msg || "").slice(0, 400) }) })).catch(() => {}); } catch (e) { return Promise.resolve(); }
 }
 export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
+  ENV = env;
   const { config, data } = await load(env, ev);
   // compétitions retirées de l'événement : leurs données ne servent plus et alourdissent chaque lecture
   let pruned = false;

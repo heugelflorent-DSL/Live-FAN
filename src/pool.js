@@ -110,6 +110,10 @@ export class PoolRoom {
       if (c.err && c.raw == null) return Response.json({ at: now, error: c.err, fresh });
       return Response.json({ at: c.at, raw: c.raw, ...(c.err ? { error: c.err, fresh } : {}) });
     }
+    if (url.pathname.endsWith("/ffnget")) {
+      try { return Response.json({ raw: await ffnGet(url.searchParams.get("u"), { delay: 0, tries: 2 }) }); }
+      catch (e) { return Response.json({ error: String(e.message || e) }); }
+    }
     if (url.pathname.endsWith("/lhs")) {
       const all = await this.ctx.storage.list({ prefix: "lh:" });
       return Response.json([...all.values()]);
