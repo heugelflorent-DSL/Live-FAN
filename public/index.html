@@ -799,11 +799,11 @@ function build(cfg,data){
     if(!c||!c.reunions)return;
     for(const r of c.reunions){
       (byReu[r.n]=byReu[r.n]||{doors:r.doors,keys:[]});if(!byReu[r.n].doors)byReu[r.n].doors=r.doors;if(r.day&&!byReu[r.n].day)byReu[r.n].day=r.day;
-      let prevK=null,ni=0;
+      let prevK=null,ni=0,pendN=[];
       for(const it of r.items){
         // lignes non sportives du Live FFN (podiums, cérémonie protocolaire, pause…) : reprises dans le programme avec une durée modifiable
-        if(it.kind==="note"){const t=String(it.text||"").trim();if(!t){continue}const nk=id+"-n"+r.n+"-"+(++ni);(byReu[r.n].notes=byReu[r.n].notes||[]).push({key:nk,after:prevK,text:t});continue}
-        if(it.kind!=="event")continue;prevK=id+"-"+(it.key||String(it.epr));
+        if(it.kind==="note"){const t=String(it.text||"").trim();if(!t){continue}const nk=id+"-n"+r.n+"-"+(++ni);const nx={key:nk,after:prevK,text:t};(byReu[r.n].notes=byReu[r.n].notes||[]).push(nx);pendN.push(nx);continue}
+        if(it.kind!=="event")continue;prevK=id+"-"+(it.key||String(it.epr));for(const x of pendN)x.next=prevK;pendN=[];
         const ik=it.key||String(it.epr),key=id+"-"+ik,st=(c.events||{})[ik]||{};const rlab=/^s[ée]ries$/i.test(it.round||"")||!it.round?"":((it.alias||it.round)+(it.category?" "+it.category:""));const relay=/^\d+x/i.test(it.name);const sex=/Dames/.test(it.name)?"F":/Messieurs/.test(it.name)?"M":"X";
         const heats=st.heats||[];if(heats.some(h=>h.lanes.some(l=>l.lane>0)))anyLane=true;
         const nrmT=x=>norm(x).toLowerCase();const okTitle=st.results&&st.results.title&&nrmT(st.results.title).startsWith(nrmT(it.name));
@@ -849,7 +849,10 @@ function build(cfg,data){
   // ordre du programme : celui de l'admin, complété par les nouvelles épreuves rangées à leur heure FFN
   const order={};state.ffnNotes=[];
   const noteMin=t=>{const m=t.match(/(\d{1,3})\s*(?:min|mn|'|’)/i);if(m)return Math.min(180,+m[1]);return/c[ée]r[ée]monie|protocol|remise|hommage|pr[ée]sentation/i.test(t)?10:/podium/i.test(t)?5:/pause|entracte/i.test(t)?15:0};
-  for(const n of Object.keys(byReu))for(const x of byReu[n].notes||[]){state.ffnNotes.push(x.key);if(!state.lines[x.key])state.lines[x.key]={name:x.text,min:noteMin(x.text),ffn:1}}
+  // durée d'une ligne FFN : le créneau laissé par le Live FFN entre la fin estimée de l'épreuve d'avant et l'heure FFN de l'épreuve d'après
+  const slotMin=x=>{const a=EVENTS[x.after],b=EVENTS[x.next];if(!a||!b||a.ffnSec==null||b.ffnSec==null)return null;const m=(b.ffnSec-(a.ffnSec+duration(a)+state.eventGap))/60;const nb=Object.values(byReu).flatMap(r=>r.notes||[]).filter(y=>y.after===x.after&&y.next===x.next).length||1;return Math.max(0,Math.min(120,Math.round(m/nb)))}; // plusieurs lignes dans le même créneau : il est partagé
+  for(const n of Object.keys(byReu))for(const x of byReu[n].notes||[]){state.ffnNotes.push(x.key);const L=state.lines[x.key];
+    if(!L||!L.man){const sm=slotMin(x);state.lines[x.key]={...(L||{}),name:L?L.name:x.text,min:sm!=null?sm:(L?L.min:noteMin(x.text)),ffn:1}}}
   for(const n of Object.keys(byReu)){
     const saved=((cfg.order||{})[n]||[]).filter(k=>EVENTS[k]||state.lines[k]);
     const fresh=byReu[n].keys.filter(k=>!saved.includes(k)).sort((a,b)=>(EVENTS[a].ffnSec??0)-(EVENTS[b].ffnSec??0));
@@ -866,13 +869,13 @@ function build(cfg,data){
     const ffnH=first<1e9?secToHHMM(first):"",sv=(cfg.starts||{})[n];state.startsFfn=state.startsFfn||{};state.startsFfn[n]=ffnH;
     state.starts[n]=sv&&(!ffnH||(cfg.startsFfn||{})[n]===ffnH)?sv:(ffnH||sv||"10:00");
   }
-  for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn};
+  for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn,man:!!l.man};
   state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));state.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
   if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
   state.loaded=true;
 }
 function toConfig(){
-  const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min,...(EVENTS[k].ffn?{ffn:1}:{})};
+  const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min,...(EVENTS[k].ffn?{ffn:1}:{}),...(EVENTS[k].man?{man:1}:{})};
   const inOrd=new Set(Object.values(state.order).flat());const linesOff=(state.ffnNotes||[]).filter(k=>!inOrd.has(k));
   return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
     rankings:state.podRules,finals:state.finals||{},infos:state.infos,published:state.published,scrape:state.scrape};
@@ -1929,7 +1932,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{const t=e.target;
   if(t.dataset.start){state.starts[t.dataset.start]=t.value||state.starts[t.dataset.start];render()}
-  if(t.dataset.pmin){EVENTS[t.dataset.pmin].min=Math.max(0,+t.value||0);render()}
+  if(t.dataset.pmin){EVENTS[t.dataset.pmin].min=Math.max(0,+t.value||0);EVENTS[t.dataset.pmin].man=true;render()}
   if(t.dataset.ptxt){EVENTS[t.dataset.ptxt].name=t.value;scheduleSave()}
   if(t.dataset.fr){const[id,f,k,mm]=t.dataset.fr.split("|");const r=(state.finals=state.finals||{})[id]=state.finals[id]||{};
     if(f==="places"){if(t.value==="")delete r.places;else r.places=Math.max(1,Math.min(10,+t.value))}else if(f==="double")r.double=t.checked;
