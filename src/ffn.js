@@ -307,9 +307,12 @@ export function parseLive(html) {
       const cs = cells(tr); if (cs.length < 6) continue;
       const tc = cs.find((c) => /^temps/.test(c.cls));
       const timeTxt = tc ? one(tc.html.replace(/<b[\s\S]*<\/b>/, "")) : "";
+      // relais : chaque relayeur est indiqué dans les passages (« [30.23] NOM Prénom ») ; la ligne n'a pas de nom de nageur
+      const legs = tc ? [...tc.html.matchAll(/<td class="relay">\s*(?:<nobr>)?\s*\[([^\]]*)\]\s*([^<]*)/g)].map((m) => ({ name: one(m[2]).trim(), leg: toSec(m[1].trim()) })).filter((x) => x.name) : [];
+      const club0 = fullName(cs[4].html);
       rws.push({
-        place: parseInt(one(cs[0].html)) || null, name: fullName(cs[1].html), year: one(cs[2].html), nat: one(cs[3].html),
-        club: fullName(cs[4].html), time: toSec(timeTxt), timeTxt, splits: tc ? liveSplits(tc.html) : [],
+        place: parseInt(one(cs[0].html)) || null, name: legs.length ? club0 : fullName(cs[1].html), year: legs.length ? "" : one(cs[2].html), nat: one(cs[3].html),
+        club: club0, time: toSec(timeTxt), timeTxt, splits: tc ? liveSplits(tc.html) : [], ...(legs.length ? { relay: legs } : {}),
         rank: one((cs.find((c) => c.cls === "placeClassementPro") || { html: "" }).html.replace(/<b[\s\S]*?<\/b>/, "")),
       });
     }

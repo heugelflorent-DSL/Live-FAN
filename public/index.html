@@ -572,6 +572,8 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .lv-side .rk-res b{font-size:15px}.lv-side .rk-res small{font-size:11.5px}
 .lv-side .spbtn{font-size:0;width:28px;height:28px;padding:0;display:grid;place-items:center}.lv-side .spbtn::after{content:"▾";font-size:14px}.lv-side .spbtn[aria-expanded="true"]::after{content:"▴"}
 .lv-side .rk-sp{grid-column:1/-1}}
+.rk-who .lv-relay,.lv-side .rk-who .lv-relay{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;max-width:260px;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}.rk-who .lv-relay>span{display:contents}.lv-relay{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12.5px;color:var(--muted);margin-top:2px}.lv-relay i{font-style:normal;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.lv-relay em{white-space:nowrap}.lv-relay em{font-style:normal;font-family:var(--mono);font-size:12px}
+.rk-row .lv-relay.rl-full{grid-column:2/-1;display:grid!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 14px;max-width:none;margin-top:-2px}.rk-row .rl-full>span{display:flex;gap:6px;justify-content:space-between;min-width:0}
 </style>
 </head>
 <body>
@@ -1383,10 +1385,10 @@ function yr4(w,ev){if(/^\d{4}$/.test(w.year||""))return w.year;const y=yearOf({.
 function yearOf(w,ev){if(w.year)return w.year;const all=[...(ev&&ev.series?ev.series.flatMap(x=>x.swimmers||[]):[]),...(ev&&ev.results||[])];const r=all.find(x=>norm(x.name)===norm(w.name));return r&&r.year||""}
 function lvRows(rows,id,title){const lev=liveMatch(id,title)||{name:title};return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1,w2={...w,year:yr4(w,lev),res:w.time,splits:(w.splits||[]).map(x=>({dist:x.d,cum:x.cum,lap:x.lap}))},rpx=w.time!=null?rpRes(lev,w2):"";
   return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}${w.hl?" lv-new":""}"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
-  <span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
+  <span class="rk-who"><b>${esc(w.name)}</b>${(w.relay||[]).length?"":`<small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small>`}</span>
   <span class="rk-res"><b>${esc(w.timeTxt||"—")}</b><small>${[w.rank?esc(w.rank)+" au provisoire":"",rpx].filter(Boolean).join(" · ")}</small></span>
   ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
-  ${has&&o?`<div class="rk-sp">${splitsHtml(lev,w2,1)}</div>`:""}</li>`}).join("")}</ol>`}
+  ${has&&o?`<div class="rk-sp">${splitsHtml(lev,w2,1)}</div>`:""}${(w.relay||[]).length?`<span class="lv-relay rl-full">${w.relay.map(x=>`<span><i>${esc(x.name)}</i>${x.leg!=null?` <em>${fmt(x.leg)}</em>`:""}</span>`).join("")}</span>`:""}</li>`}).join("")}</ol>`}
 function lvLanes(lanes){return`<ol class="rk-list">${lanes.map(w=>`<li class="rk-row ln-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}"><span class="lane-n">${w.lane||"—"}</span><span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+esc(w.year):""}</small></span><span class="rk-res"><b>${w.entry!=null?fmt(w.entry):"—"}</b><small>engagement</small></span></li>`).join("")}</ol>`}
 // glissement des lignes quand le classement change (technique FLIP : on part de l'ancienne position)
 let PPOS={},PLAST=null,PGHOST=null;
@@ -1585,7 +1587,7 @@ function renderSeries(ev,q){
   return`<div class="inner">${ev.qualProv?`<p class="qprov">${ev.qualProb?"Qualifiés probables d'après les temps des séries (qualifications pas encore publiées)":"Qualifiés d'après les séries"} · liste de départ et couloirs pas encore publiés</p>`:""}${ev.series.map((se,i)=>`<div class="heat${heatDone(ev,se.n)?" hpast":""}" id="h-${esc(ev.key)}-${se.n}"><h4><span class="htime">${hm(starts[i])}</span>${fin?esc(ev.roundLabel||"Finale"):`Série ${se.n} / ${ev.series.length}`}</h4>
    <ol class="rk-list">${se.swimmers.map(w=>`<li class="rk-row ln-row ${isFav(w)?"fav ":""}${hit(w,q)}${w.dns?" dns":""}">
      <span class="lane-n">${w.lane||"—"}</span>
-     <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay?esc((w.members||[]).map(m=>m.name).join(", ")):(w.year?w.year+" · ":"")+logo(w.club)+esc(w.club||"")}</small></span>
+     <span class="rk-who"><b>${nameCell(w)}${w.dns?` <span class="fft">Forfait</span>`:""}</b><small>${relay&&(w.members||[]).length?`</small><span class="lv-relay">${w.members.map(m=>`<span><i>${esc(m.name)}</i>${m.leg!=null?` <em>${fmt(m.leg)}</em>`:""}</span>`).join("")}</span><small>`:relay?"":(w.year?w.year+" · ":"")+logo(w.club)+esc(w.club||"")}</small></span>
      <span class="rk-res"><b>${w.time?fmt(w.time):(ev.fin||ev.typ===61?"—":"NT")}</b><small>${ev.fin||ev.typ===61?"séries":"engag."}</small></span></li>`).join("")}</ol></div>`).join("")}</div>`;
 }
 
@@ -1607,11 +1609,11 @@ function renderRanking(ev,q){
   ${rows.map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k],has=!w.dsq&&sp&&(w.splits||[]).length>1;
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}${isFav(w)?" fav":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}">${w.rank??"—"}</span>
-      <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${esc(relay?(w.members||[]).map(m=>m.name).join(", "):w.club||"")}</small></span>
+      <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${relay?"":esc(w.club||"")}</small></span>
       <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",((e,B)=>B&&B.t!=null&&e!=null&&Math.abs(B.t-e)<.005?"":(d=>d?"engag. "+d:"")(diffHtml(w.res,e)))(ent[w.iuf||w.name],/^\d+x/i.test(ev.name)?null:bestOf(w,ev)),rpRes(ev,w)].filter(Boolean).join(" · ")}</small></span>
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
       ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w,1)}</div>`:""}
-    </li>`}).join("")}
+    ${relay&&(w.members||[]).length?`<span class="lv-relay rl-full">${w.members.map(m=>`<span><i>${esc(m.name)}</i>${m.leg!=null?` <em>${fmt(m.leg)}</em>`:""}</span>`).join("")}</span>`:""}</li>`}).join("")}
   </ol>${(()=>{const fo=ev.results.filter(x=>x.status&&/forf|dns|np/i.test(x.status));return fo.length?`<p class="forcomp">${plural(fo.length,"forfait")}</p><ol class="rk-list">${fo.map(w=>`<li class="rk-row dsq"><span class="rk-pl">—</span><span class="rk-who"><b>${nameCell(w)}</b><small>${relay?"":(w.year?w.year+" · ":"")+logo(w.club)}${esc(w.club||"")}</small></span><span class="rk-res"><b>${/dec/i.test(w.status)?"Forfait déclaré":/nd/i.test(w.status)?"Forfait non déclaré":esc(w.reason||w.status)}</b><small>${esc(w.status)}</small></span><span></span></li>`).join("")}</ol>`:""})()}${ev.fin&&finalsDone(ev)&&epGroup(ev).filter(x=>x.fin).sort((a,b)=>(b.ffnSec||0)-(a.ffnSec||0))[0]===ev?`<p class="forcomp">Classement final de l'épreuve · finales puis séries</p><ol class="rk-list">${mergedRanking(ev).map(w=>`<li class="rk-row ${hit(w,q)}${isFav(w)?" fav":""}"><span class="rk-pl ${w.rank<=3?"m"+w.rank:""}">${w.rank}</span><span class="rk-who"><b>${nameCell(w)}</b><small>${w.year?w.year+" · ":""}${logo(w.club)}${esc(w.club||"")}</small></span><span class="rk-res"><b>${fmt(w.res)}</b><small>${esc(w.round)}</small></span><span></span></li>`).join("")}</ol>`:""}${(ev.barrages||[]).map(b=>`<p class="forcomp">${esc(b.title.replace(/^.*? - /,""))}${b.when?` · ${esc((b.when.match(/\d{1,2}h\d{2}/)||[""])[0])}`:""}</p><ol class="rk-list">${b.rows.map(w=>`<li class="rk-row"><span class="rk-pl">${w.rank??"—"}</span><span class="rk-who"><b>${nameCell(w)}</b><small>${w.year?w.year+" · ":""}${logo(w.club)}${esc(w.club||"")}</small></span><span class="rk-res"><b>${w.dsq?esc(w.status||"DSQ"):fmt(w.res)}</b><small></small></span><span></span></li>`).join("")}</ol>`).join("")}</div>`;
 }
 
@@ -1627,7 +1629,7 @@ function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[
   for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||done.has(ev.key)||!(ev.results||[]).some(swum))continue;
     const p=out[ev.key]=out[ev.key]||{id:ev.comp,title:ev.base+(ev.round?" "+ev.round:""),heats:{},of:(ev.series||[]).length||null};
     const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const hOf=n=>{const e=(ev.entries||[]).find(x=>norm(x.name)===norm(n));return e&&e.heat||"r"};
-    for(const r of ev.results){if(seen.has(norm(r.name))||!swum(r))continue;const h=hOf(r.name);(p.heats[h]=p.heats[h]||[]).push({name:r.name,club:r.club,year:r.year,time:r.dsq?null:r.res,timeTxt:r.dsq?(r.status||"DSQ"):fmt(r.res),splits:(r.splits||[]).map(x=>({d:x.dist,cum:x.cum,lap:x.lap}))})}
+    for(const r of ev.results){if(seen.has(norm(r.name))||!swum(r))continue;const h=hOf(r.name);(p.heats[h]=p.heats[h]||[]).push({name:r.name,club:r.club,year:r.year,relay:(r.members||[]).length?r.members.map(m=>({name:m.name,leg:m.leg})):undefined,time:r.dsq?null:r.res,timeTxt:r.dsq?(r.status||"DSQ"):fmt(r.res),splits:(r.splits||[]).map(x=>({d:x.dist,cum:x.cum,lap:x.lap}))})}
     if(!p.of)p.of=(ev.series||[]).length||null}
   for(const p of Object.values(out)){const all=Object.values(p.heats).flat().map(({rank,...w})=>w);; /* pas de « Xe au provisoire » du Live FFN : notre propre classement fait foi ici */
     const ok=all.filter(w=>w.time!=null).sort((a,b)=>a.time-b.time);let r=0;ok.forEach((w,i)=>{if(!i||w.time!==ok[i-1].time)r=i+1;w.pl=r});p.rows=[...ok,...all.filter(w=>w.time==null)].map(w=>({...w,place:w.pl??null}));p.n=Object.keys(p.heats).filter(h=>h!=="r").length}
