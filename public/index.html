@@ -1383,7 +1383,7 @@ function yr4(w,ev){if(/^\d{4}$/.test(w.year||""))return w.year;const y=yearOf({.
 function yearOf(w,ev){if(w.year)return w.year;const all=[...(ev&&ev.series?ev.series.flatMap(x=>x.swimmers||[]):[]),...(ev&&ev.results||[])];const r=all.find(x=>norm(x.name)===norm(w.name));return r&&r.year||""}
 function lvRows(rows,id,title){const lev=liveMatch(id,title)||{name:title};return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1,w2={...w,year:yr4(w,lev),res:w.time,splits:(w.splits||[]).map(x=>({dist:x.d,cum:x.cum,lap:x.lap}))},rpx=w.time!=null?rpRes(lev,w2):"";
   return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}${w.hl?" lv-new":""}"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
-  <span class="rk-who"><b>${esc(w.name)}${w.hl?'<span class="lv-new-t">dernière série</span>':""}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
+  <span class="rk-who"><b>${esc(w.name)}</b><small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(w.year):""}</small></span>
   <span class="rk-res"><b>${esc(w.timeTxt||"—")}</b><small>${[w.rank?esc(w.rank)+" au provisoire":"",rpx].filter(Boolean).join(" · ")}</small></span>
   ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
   ${has&&o?`<div class="rk-sp">${splitsHtml(lev,w2,1)}</div>`:""}</li>`}).join("")}</ol>`}
