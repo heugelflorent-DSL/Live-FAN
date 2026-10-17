@@ -55,6 +55,7 @@ function expected(ev) {
 function eventsOf(comp) {
   return (comp.reunions || []).flatMap((r) => r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, key: i.key || String(i.epr), reunion: r.n })));
 }
+function reuDone(c, r) { const evs = (r.items || []).filter((i) => i.kind === "event" && !i.provisional); return evs.length > 0 && evs.every((i) => c.events?.[i.key || String(i.epr)]?.doneAt); }
 function windowOpen(cfg, data, now) {
   if (!cfg.scrape?.onlyLive) return true;
   for (const id of cfg.comps) {
@@ -63,6 +64,7 @@ function windowOpen(cfg, data, now) {
     for (const r of c.reunions || []) {
       // date de la réunion elle-même (« Du Samedi 17 au Dimanche 18 Octobre » : la date générale ne donne que le 18)
       const dt = compDate({ date: r.day }) || dt0;
+      if (reuDone(c, r)) continue; // réunion terminée (tous les résultats lus) : plus rien à suivre jusqu'à la suivante
       const evs = r.items.filter((i) => i.kind === "event" && i.time);
       const first = hToMin(r.doors) ?? hToMin(evs[0]?.time); const last = hToMin(evs[evs.length - 1]?.time);
       if (first == null) continue;
@@ -248,6 +250,7 @@ function liveWins(cfg, data) {
     const c = data.comps[id]; if (!c) continue;
     for (const r of c.reunions || []) {
       const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) continue;
+      if (reuDone(c, r)) continue;
       const evs = r.items.filter((i) => i.kind === "event" && i.time);
       const first = hToMin(r.doors) ?? hToMin(evs[0]?.time); const last = hToMin(evs[evs.length - 1]?.time); if (first == null) continue;
       const day = parisEpoch(dt.y, dt.m, dt.d); out.push([day + (first - 30) * 60e3, day + ((last ?? first) + 120) * 60e3]);
