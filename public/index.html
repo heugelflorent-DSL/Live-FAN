@@ -1720,6 +1720,9 @@ function renderPod(){
     else if((!done.has(k)&&!PRv[k])||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
     const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
     if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
+  // tri par réunion, comme dans Résultats (puces R1, R2… Tout)
+  {const reuOf=k=>Object.keys(state.order).find(r=>state.order[r].includes(k));const shown=reuShown(done);html+=reuChips(done);
+   for(let i=groups.length-1;i>=0;i--)if(!groups[i].keys.some(k=>shown.includes(reuOf(k))))groups.splice(i,1)}
   if(state.podEv&&!groups.some(g=>g.name===state.podEv))state.podEv="";
   if(groups.length>1)html+=`<label class="evpick" for="pod-ev"><span>Épreuve</span><select class="field" id="pod-ev"><option value="">Toutes les épreuves (${groups.length})</option>${(()=>{const reuOf=k=>Object.keys(state.order).find(r=>state.order[r].includes(k))||"";const by={};for(const g of groups){const r=reuOf(g.keys[0]);(by[r]=by[r]||[]).push(g)}
       return Object.keys(by).map(r=>`<optgroup label="${r?"Réunion "+r:"Autres épreuves"}${r&&state.starts[r]?" · "+state.starts[r].replace(":","h"):""}">${by[r].map(g=>`<option value="${esc(g.name)}" ${state.podEv===g.name?"selected":""}>${hm(g.start)} — ${esc(g.name)}</option>`).join("")}</optgroup>`).join("")})()}</select></label>`;
