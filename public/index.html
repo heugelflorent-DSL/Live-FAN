@@ -556,6 +556,10 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .lv-cls .rk-row.lv-new{box-shadow:inset 3px 0 0 var(--a)}.lv-cls .btn{margin-top:8px}
 .lv-side{display:none}@media (min-width:1024px){.lv-side{display:flex}.lv-cls-m{display:none}}.lvgrid.lv1{grid-template-columns:minmax(0,1fr)}.lv-side .lv-card{margin:0}
 @media (max-width:600px){.rk-res{max-width:58vw;min-width:0}.rk-res small{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:3px 6px;text-align:right;line-height:1.35;white-space:normal}.rk-res small>*{position:static;margin:0}.rk-who small{white-space:nowrap}}
+/* passages : colonnes identiques sur toutes les lignes (chaque ligne est sa propre grille) */
+.sp3-h,.sp3-r{grid-template-columns:78px minmax(0,1fr) minmax(0,1.35fr)}.sp3-h.w4,.sp3-r.w4{grid-template-columns:78px minmax(0,1fr) minmax(0,1.35fr) 76px}.sp3-c{min-width:0}.sp3-d{white-space:nowrap}.sp100{justify-content:flex-end}
+@media(max-width:560px){.sp3-h,.sp3-r{grid-template-columns:62px minmax(0,1fr) minmax(0,1fr);gap:6px}.sp3-h.w4,.sp3-r.w4{grid-template-columns:60px minmax(0,1.1fr) minmax(0,1fr) 54px;gap:4px}
+.sp3-r .spbar{display:none}.sp3-r .sp3-c{flex-direction:column;align-items:flex-start;gap:2px}.sp3-r .sp3-c b{font-size:13.5px;white-space:nowrap;flex:none}.sp3-r .sp100{align-items:flex-end}.sp3-r .rpp{font-size:10px;padding:1px 4px}.sp3-d{font-size:10.5px;letter-spacing:-.2px}}
 </style>
 </head>
 <body>
