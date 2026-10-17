@@ -111,18 +111,17 @@ function progEvery(c, now) {
 }
 // Jours de compétition : pour chaque réunion, environ 3 lectures du programme entre l'ouverture des portes
 // et 20 min avant la 1re course (dernières modifications d'horaires possibles), puis plus rien.
-function progDue(c, now) {
-  for (const r of c?.reunions || []) {
-    const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) continue;
-    const evs = r.items.filter((i) => i.kind === "event" && i.time);
-    const start = hToMin(evs[0]?.time); if (start == null) continue;
-    const day = parisEpoch(dt.y, dt.m, dt.d);
-    const b = day + (start - 20) * 60e3, a = Math.min(b - 15 * 60e3, day + (hToMin(r.doors) ?? start - 60) * 60e3);
-    if (now < a || now > b) continue;
-    const step = Math.max(10 * 60e3, (b - a) / 2); // 3 lectures : aux portes, au milieu, 20 min avant
-    if (!c.progAt || c.progAt < a || now - c.progAt >= step - 60e3) return true;
-  }
-  return false;
+function progDue(c, now) { return (c?.reunions || []).some((r) => reuDue(c, r, now, c.progAt)); }
+// une réunion : vrai si une relecture est due dans sa fenêtre « ouverture des portes → 20 min avant la 1re course »
+function reuDue(c, r, now, lastAt) {
+  const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) return false;
+  const evs = r.items.filter((i) => i.kind === "event" && i.time);
+  const start = hToMin(evs[0]?.time); if (start == null) return false;
+  const day = parisEpoch(dt.y, dt.m, dt.d);
+  const b = day + (start - 20) * 60e3, a = Math.min(b - 15 * 60e3, day + (hToMin(r.doors) ?? start - 60) * 60e3);
+  if (now < a || now > b) return false;
+  const step = Math.max(10 * 60e3, (b - a) / 2); // 3 lectures : aux portes, au milieu, 20 min avant
+  return !lastAt || lastAt < a || now - lastAt >= step - 60e3;
 }
 
 function plan(cfg, data, now, live) {
@@ -139,7 +138,16 @@ function plan(cfg, data, now, live) {
         const st = c.events?.[e.key] || {};
         // finales : la liste de départ est publiée entre les séries et la finale → relue jusqu'à ses résultats
         const fin = e.key !== String(e.epr) && !st.results?.rows?.length;
-        if (!st.heatsAt || ((!started || fin) && now - st.heatsAt > HEATS_EVERY)) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
+        // séries : tant qu'elles ne sont pas publiées (pas de couloirs), relues toutes les 3 h ; une fois publiées,
+        // seulement 3 fois le jour J (portes → 20 min avant la réunion) pour les forfaits ; finales : relues jusqu'à leur liste de départ
+        const pubOf = (x) => (x?.heats || []).some((h) => h.lanes?.some((l) => l.lane > 0));
+        const pub = pubOf(st);
+        // séries pas encore publiées : seule la 1re épreuve de la réunion sert de témoin (1 page toutes les 3 h) ;
+        // dès qu'elle est publiée, les autres épreuves sont lues une fois
+        const lead = c.events?.[evs.find((x) => !x.provisional)?.key] || {};
+        const waitDue = e === evs.find((x) => !x.provisional) ? now - st.heatsAt > 3 * 3600e3 : pubOf(lead) && st.heatsAt < lead.heatsAt;
+        const due = !st.heatsAt || (fin && !pub ? now - st.heatsAt > HEATS_EVERY : !started && (pub ? reuDue(c, r, now, st.heatsAt) : waitDue));
+        if (due) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
       if (!live) continue;
       // épreuves en cours : la première non terminée de la réunion et la suivante
