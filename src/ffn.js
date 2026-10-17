@@ -249,15 +249,16 @@ export function parseResults(html) {
 // --- Récupération polie : une requête à la fois, délai entre deux pages, recul en cas d'erreur ---
 export const UA = "SwimDirect/1.0";
 export async function get(url, { delay = 400, tries = 3 } = {}) {
-  let wait = 2000;
+  let wait = 2000, last = "";
   for (let i = 0; i < tries; i++) {
     if (delay) await new Promise((r) => setTimeout(r, delay));
     const res = await fetch(url, { headers: { "User-Agent": UA, "Accept-Language": "fr-FR,fr;q=0.9", Accept: "text/html" } });
     if (res.ok) return decode(await res.arrayBuffer());
+    last = "HTTP " + res.status;
     if (res.status === 403 || res.status === 429 || res.status >= 500) { await new Promise((r) => setTimeout(r, wait)); wait *= 3; continue; }
     throw new Error(`HTTP ${res.status} sur ${url}`);
   }
-  throw new Error(`Live FFN indisponible (${url})`);
+  throw new Error(`Live FFN indisponible (${last}, ${url})`);
 }
 export const urls = {
   programme: (c) => `${BASE}/programme.php?competition=${c}&langue=fra`,
