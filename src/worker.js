@@ -189,24 +189,27 @@ function plan(cfg, data, now, live, LI = {}) {
 // Lecture d'une page du Live FFN : passe par le Durable Object « ffn » (une seule adresse de sortie, stable),
 // la lecture directe depuis la tâche de chaque minute étant refusée (HTTP 403) par le Live FFN
 let ENV = null, LIVEINFO = {};
+const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}; // mémoire de l'instance (direct)
 // série affichée en ce moment sur la page « En direct » (lue par le relais, partagée avec les spectateurs)
 async function liveInfo(env, config) {
   const out = {};
   for (const c of config.comps) {
+    const mm = LIVEMEMO[c]; if (mm && Date.now() - mm.t < 60e3 && mm.body.cur) { if (mm.body.cur.heat) out[c] = { event: mm.body.cur.event, heat: mm.body.cur.heat, of: mm.body.cur.of }; continue; }
     try { const b = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
       if (b.raw != null) { const L = parseLive(b.raw); if (L.cur && L.cur.heat) out[c] = { event: L.cur.event, heat: L.cur.heat, of: L.cur.of }; } } catch (e) {}
   }
   return out;
 }
 const RELAY_OK = {}; // dernier relais accepté par compétition (mémoire de l'instance)
-const FFN_RELAYS = (c) => { const all = ["ffnlive:" + c, "ffnB:" + c, "ffnC:" + c]; const ok = RELAY_OK[c]; return ok ? [ok, ...all.filter((x) => x !== ok)] : all; };
+const FFN_RELAYS = (c) => { const all = ["ffnlive:" + c, "ffnB:" + c]; const ok = RELAY_OK[c]; return ok ? [ok, ...all.filter((x) => x !== ok)] : all; };
 async function get(url, opt = {}) {
   if (!ENV || !ENV.POOL) return getDirect(url, opt);
   if (opt.delay) await new Promise((r) => setTimeout(r, opt.delay));
   // plusieurs relais (Durable Objects) qui peuvent sortir par des adresses différentes : si l'un est refusé (403), on passe au suivant
   const c = (url.match(/competition=(\d+)/) || [])[1] || ""; let err = null;
   for (const n of FFN_RELAYS(c)) {
-    const j = await (await ENV.POOL.get(ENV.POOL.idFromName(n)).fetch(new Request("https://pool/ffnget?u=" + encodeURIComponent(url)))).json();
+    let j; try { j = await (await ENV.POOL.get(ENV.POOL.idFromName(n)).fetch(new Request("https://pool/ffnget?u=" + encodeURIComponent(url)))).json(); }
+    catch (e) { return getDirect(url, { delay: 0, tries: 1 }); } // relais indisponible (quota) : lecture directe
     if (!j.error) { RELAY_OK[c] = n; return j.raw; }
     err = j.error; if (!/403/.test(err)) break;
   }
@@ -588,45 +591,40 @@ export default {
       const c = url.searchParams.get("c") || "";
       const { config, data } = await load(env, ev);
       if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
+      const now = Date.now();
       // entre deux réunions : le direct est en pause, on ne dérange pas le Live FFN
-      if (!liveOpen(data.comps[c], Date.now())) {
-        // réunion qui vient de se terminer : la dernière série reste affichée 30 min (copie gardée, sans redemander au Live FFN)
+      if (!liveOpen(data.comps[c], now)) {
+        // réunion qui vient de se terminer : la dernière série reste affichée 30 min (copie gardée en mémoire, sans redemander)
         const cc = data.comps[c]; const lastDone = Math.max(0, ...Object.values(cc?.events || {}).map((e) => e.doneAt || 0));
-        if (lastDone && Date.now() - lastDone < 30 * 60e3) { const last = await caches.default.match(new Request(url.origin + "/api/live-ok?c=" + c)); if (last) return json({ ...(await last.json()), grace: true }, 200, { "cache-control": "public, max-age=60" }); }
-        return json({ at: Date.now(), pause: true }, 200, { "cache-control": "public, max-age=60" });
+        if (lastDone && now - lastDone < 30 * 60e3 && LIVEOK[c]) return json({ ...LIVEOK[c], grace: true }, 200, { "cache-control": "public, max-age=60" });
+        return json({ at: now, pause: true }, 200, { "cache-control": "public, max-age=60" });
       }
-      const cache = caches.default; const key = new Request(url.origin + "/api/live?c=" + c);
-      const hit = await cache.match(key); if (hit) return hit;
+      // mémoire de l'instance : un seul appel au relais toutes les 30 s par instance (le cache Cloudflare ne marche pas sur workers.dev)
+      const m = LIVEMEMO[c]; if (m && now - m.t < 30e3) return json(m.body, 200, { "cache-control": "public, max-age=20" });
       let body = null;
-      for (const n of ["ffnlive:" + c, "ffnB:" + c, "ffnC:" + c]) { // relais de secours si le premier est refusé par le Live FFN
-        const b = await (await env.POOL.get(env.POOL.idFromName(n)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
-        if (!body || (b.raw != null && !b.error) || (body.raw == null && b.raw != null)) body = b;
-        if (b.raw != null && !b.error) break;
-      }
-      if (body.raw != null) { const b0 = body; try { body = { at: b0.at, ...parseLive(b0.raw), ...(b0.error ? { stale: true, staleError: b0.error, fresh: b0.fresh } : {}) }; } catch (e) { body = { at: Date.now(), error: String(e.message || e) }; } }
-      // Live FFN qui ne répond pas un instant : on garde la dernière version reçue (marquée « stale ») plutôt qu'un direct vide,
-      // et on réessaie 1 min plus tard (et non 10 min)
-      const okKey = new Request(url.origin + "/api/live-ok?c=" + c);
+      try {
+        for (const n of ["ffnlive:" + c, "ffnB:" + c]) { // relais de secours si le premier est refusé par le Live FFN
+          const b = await (await env.POOL.get(env.POOL.idFromName(n)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
+          if (!body || (b.raw != null && !b.error) || (body.raw == null && b.raw != null)) body = b;
+          if (b.raw != null && !b.error) break;
+        }
+      } catch (e) { body = { at: now, error: "relais indisponible : " + String(e.message || e).slice(0, 80) }; }
+      const heats = body.heats || null;
+      if (body.raw != null) { const b0 = body; try { body = { at: b0.at, ...parseLive(b0.raw), ...(b0.error ? { stale: true, staleError: b0.error, fresh: b0.fresh } : {}) }; } catch (e) { body = { at: now, error: String(e.message || e) }; } }
       if ((body.error || body.staleError) && body.fresh) ctx.waitUntil(logErr(env, ev, "direct Live FFN (comp. " + c + ")", body.error || body.staleError));
-      if (body.error) { const last = await cache.match(okKey); if (last) { const old = await last.json(); body = { ...old, stale: true, staleError: body.error }; } }
-      else ctx.waitUntil(cache.put(okKey, json(body, 200, { "cache-control": "public, max-age=1800" })));
-      const res = json(body, 200, { "cache-control": `public, max-age=${body.error || body.stale ? 60 : 30}` });
-      ctx.waitUntil(cache.put(key, res.clone()));
-      // série en cours avec des temps : gardée pour le classement provisoire de l'onglet Résultats
-      const cur = body.cur; if (cur && cur.heat && cur.rows.some((r) => r.time != null || r.timeTxt))
-        ctx.waitUntil(env.POOL.get(env.POOL.idFromName("lh:" + ev + ":" + c)).fetch(new Request("https://pool/lh", { method: "POST", body: JSON.stringify({ event: cur.event, heat: cur.heat, of: cur.of, rows: cur.rows.map(({ rank, ...r }) => r) }) })).catch(() => {}));
-      return res;
+      if (body.error) { if (LIVEOK[c]) body = { ...LIVEOK[c], stale: true, staleError: body.error }; }
+      else LIVEOK[c] = body;
+      if (heats) body = { ...body, heats }; else if (m && m.body.heats) body = { ...body, heats: m.body.heats };
+      LIVEMEMO[c] = { t: now, body };
+      // série en cours avec des temps : gardée (une fois par série) pour le classement provisoire de l'onglet Résultats
+      const cur = body.cur; const sig = cur && cur.heat ? cur.event + "|" + cur.heat + "|" + cur.rows.filter((r) => r.time != null).length : "";
+      if (sig && sig !== LHSIG[c] && cur.rows.some((r) => r.time != null)) { LHSIG[c] = sig;
+        ctx.waitUntil(env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/lh", { method: "POST", body: JSON.stringify({ event: cur.event, heat: cur.heat, of: cur.of, rows: cur.rows.map(({ rank, ...r }) => r) }) })).catch(() => {})); }
+      return json(body, 200, { "cache-control": "public, max-age=20" });
     }
-    if (p === "/api/liveheats" && req.method === "GET") {
-      const c = url.searchParams.get("c") || "";
-      const { config } = await load(env, ev);
-      if (!["ffn", "bassin"].includes(config.live) || !config.comps.includes(c) || (!config.published && !CAN)) return json({ error: "Direct non activé." }, 404);
-      const cache = caches.default; const key = new Request(url.origin + "/api/liveheats?e=" + ev + "&c=" + c);
-      const hit = await cache.match(key); if (hit) return hit;
-      const r = await env.POOL.get(env.POOL.idFromName("lh:" + ev + ":" + c)).fetch(new Request("https://pool/lhs"));
-      const res = json(await r.json(), 200, { "cache-control": "public, max-age=30" });
-      ctx.waitUntil(cache.put(key, res.clone()));
-      return res;
+    if (p === "/api/liveheats" && req.method === "GET") { // ancienne page : les séries arrivent maintenant avec /api/live
+      const c = url.searchParams.get("c") || ""; const m = LIVEMEMO[c];
+      return json((m && m.body.heats) || [], 200, { "cache-control": "public, max-age=60" });
     }
 
     if (p === "/api/admin/mpp" && req.method === "GET") {

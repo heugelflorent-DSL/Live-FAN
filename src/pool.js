@@ -96,7 +96,8 @@ export class PoolRoom {
     if (url.pathname.endsWith("/ffnlive")) {
       const now = Date.now(); const u = url.searchParams.get("u");
       const c = this.fl || (this.fl = { at: 0, raw: null, err: null, errAt: 0 });
-      if (c.raw != null && now - c.at < 40e3) return Response.json({ at: c.at, raw: c.raw });
+      const heats = async () => [...(await this.ctx.storage.list({ prefix: "lh:" })).values()];
+      if (c.raw != null && now - c.at < 40e3) return Response.json({ at: c.at, raw: c.raw, heats: await heats() });
       // refus du Live FFN : on attend 30 s, puis 60 s, puis 2 min au plus entre deux essais (retour à la normale dès qu'il répond)
       const pause = /403/.test(c.err || "") ? Math.min(120e3, 30e3 * 2 ** Math.max(0, (c.fails || 1) - 1)) : 20e3;
       if (c.errAt && now - c.errAt < pause) return Response.json(c.raw != null ? { at: c.at, raw: c.raw, error: c.err } : { at: now, error: c.err });
@@ -108,7 +109,7 @@ export class PoolRoom {
       })();
       await this.flBusy; this.flBusy = null;
       if (c.err && c.raw == null) return Response.json({ at: now, error: c.err, fresh });
-      return Response.json({ at: c.at, raw: c.raw, ...(c.err ? { error: c.err, fresh } : {}) });
+      return Response.json({ at: c.at, raw: c.raw, heats: await heats(), ...(c.err ? { error: c.err, fresh } : {}) });
     }
     if (url.pathname.endsWith("/ffnget")) {
       try { return Response.json({ raw: await ffnGet(url.searchParams.get("u"), { delay: 0, tries: 2 }) }); }
