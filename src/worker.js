@@ -221,9 +221,9 @@ async function lastHeat(env, c, now) {
 async function liveInfo(env, config) {
   const out = {};
   for (const c of config.comps) {
-    const mm = LIVEMEMO[c]; if (mm && Date.now() - mm.t < 60e3 && mm.body.cur) { if (mm.body.cur.heat) out[c] = { event: mm.body.cur.event, heat: mm.body.cur.heat, of: mm.body.cur.of }; continue; }
+    const mm = LIVEMEMO[c]; if (mm && Date.now() - mm.t < 60e3 && mm.body.cur) { if (mm.body.cur.event) out[c] = { event: mm.body.cur.event, heat: mm.body.cur.heat || 0, of: mm.body.cur.of }; continue; }
     try { const b = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/ffnlive?u=" + encodeURIComponent(urls.live(c))))).json();
-      if (b.raw != null) { const L = parseLive(b.raw); if (L.cur && L.cur.heat) out[c] = { event: L.cur.event, heat: L.cur.heat, of: L.cur.of }; } } catch (e) {}
+      if (b.raw != null) { const L = parseLive(b.raw); if (L.cur && L.cur.event) out[c] = { event: L.cur.event, heat: L.cur.heat || 0, of: L.cur.of }; // numéro de série illisible : on sait au moins quelle épreuve est en cours } } catch (e) {}
   }
   return out;
 }

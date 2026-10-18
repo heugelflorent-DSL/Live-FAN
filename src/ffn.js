@@ -309,7 +309,8 @@ export function parseLive(html) {
   const cur = block(html, 'class="ResultatsCourseEnCours"', 'class="ResultatsCourseSuivante"') || block(html, 'class="ResultatsCourseEnCours"', 'class="programmeLive"');
   if (cur) {
     const t = one((cur.match(/<td[^>]*class="epreuve"[^>]*>([\s\S]*?)<\/td>/) || [])[1]).replace(/Survolez.*$/i, "").trim();
-    const m = t.match(/^(.*?)\s*\((\d+)\/(\d+)\)/);
+    // séries doublées (deux séries nagées ensemble) : « (3 et 4/6) », « (3-4/6) »… → on garde la dernière
+    const m = t.match(/^(.*?)\s*\(\s*(?:\d+\s*(?:et|&|\+|-|,|\/(?=\s*\d+\s*(?:et|&|\+|-|,)))\s*)*(\d+)\s*\/\s*(\d+)\s*\)/i);
     const rws = [];
     for (const tr of rows(cur)) {
       if (!/class="survol"/.test(tr.slice(0, 40))) continue;
@@ -336,12 +337,12 @@ export function parseLive(html) {
         rws.push({ place: parseInt(cs[0]) || null, name: nm[0], year: "", nat: "", club: nm[nm.length - 1], time: toSec(cs[ti]), timeTxt: cs[ti], splits: [], rank: (cs[ti + 1] || "").trim(), ...(relay ? { relay: [] } : {}) });
       }
     }
-    out.cur = { title: t, event: m ? m[1].trim() : t, heat: m ? +m[2] : null, of: m ? +m[3] : null, rows: rws };
+    out.cur = { title: t, event: m ? m[1].trim() : t.replace(/\s*\([^()]*\)\s*$/, "").trim(), heat: m ? +m[2] : null, of: m ? +m[3] : null, rows: rws };
   }
   const nx = block(html, 'class="ResultatsCourseSuivante"', 'class="programmeLive"');
   if (nx) {
     const t = one((nx.match(/<td[^>]*class="epreuve"[^>]*>([\s\S]*?)<\/td>/) || [])[1]);
-    const m = t.match(/^(\d{1,2})h(\d{2})\s*-\s*(.*?)\s*\((\d+)\/(\d+)\)/);
+    const m = t.match(/^(\d{1,2})h(\d{2})\s*-\s*(.*?)\s*\(\s*(?:\d+\s*(?:et|&|\+|-|,|\/(?=\s*\d+\s*(?:et|&|\+|-|,)))\s*)*(\d+)\s*\/\s*(\d+)\s*\)/i);
     const lanes = [];
     for (const tr of rows(nx)) {
       if (!/class="survol"/.test(tr.slice(0, 40))) continue;
