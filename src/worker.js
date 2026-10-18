@@ -194,7 +194,7 @@ function plan(cfg, data, now, live, LI = {}) {
 let ENV = null, LIVEINFO = {};
 // lectures refusées : chaque page ratée attend de plus en plus longtemps avant d'être retentée (5, 10, 20, 40 min… jusqu'à 3 h)
 const failKey = (ev, t) => t.t + "|" + t.c + "|" + (t.key || t.epr || "");
-const failWait = (f) => Math.min(3 * 3600e3, 5 * 60e3 * 2 ** Math.max(0, f.n - 1));
+const failWait = (f, t) => t && t.t === "prog" && f.n >= 3 ? 12 * 3600e3 : Math.min(3 * 3600e3, 5 * 60e3 * 2 ** Math.max(0, f.n - 1)); // programme refusé 3 fois (compétition pas encore publiée) : 2 essais par jour
 const HITIP = {}; const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}, LHMEMO = {}; // mémoire de l'instance (direct)
 // dernière série enregistrée par le relais (stockage durable) : relue au plus une fois par minute par instance
 async function lastHeat(env, c, now) {
@@ -364,11 +364,11 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   // deux tours : le programme lu au premier tour permet de planifier les séries et résultats au second
   // pages refusées : gardées dans les données de l'événement (écrites de toute façon après une erreur), pour survivre aux redémarrages
   const FAILS = (data.fails = data.fails || {});
-  for (const k of Object.keys(FAILS)) if (now - FAILS[k].at > 6 * 3600e3) delete FAILS[k];
+  for (const k of Object.keys(FAILS)) if (now - FAILS[k].at > 24 * 3600e3) delete FAILS[k];
   for (let round = 0; round < 2 && used < budget && !errors; round++) {
     const fromQueue = data.queue.length > 0;
     if (round === 0 && live && !fromQueue) LIVEINFO = await liveInfo(env, config);
-    const tasks = (fromQueue ? data.queue : plan(config, data, now, live, LIVEINFO)).filter((t) => !seen.has(JSON.stringify(t)) && (force || fromQueue || !FAILS[failKey(ev, t)] || now - FAILS[failKey(ev, t)].at >= failWait(FAILS[failKey(ev, t)])));
+    const tasks = (fromQueue ? data.queue : plan(config, data, now, live, LIVEINFO)).filter((t) => !seen.has(JSON.stringify(t)) && (force || fromQueue || !FAILS[failKey(ev, t)] || now - FAILS[failKey(ev, t)].at >= failWait(FAILS[failKey(ev, t)], t)));
     if (!tasks.length) break;
     const todo = tasks.slice(0, budget - used);
     if (fromQueue) data.queue = data.queue.slice(todo.length);
