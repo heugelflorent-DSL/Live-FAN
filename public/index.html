@@ -2121,12 +2121,12 @@ if(location.hash==="#admin")openAdmin();
 if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
 let LASTHIT=0,LASTV="";
-function hit(force){if(state.admin)return;if(document.hidden&&!force)return;const v=PICK?(ARCH?"archives":"pick"):state.view;LASTHIT=Date.now();LASTV=v;
+function statHit(force){if(state.admin)return;if(document.hidden&&!force)return;const v=PICK?(ARCH?"archives":"pick"):state.view;LASTHIT=Date.now();LASTV=v;
   try{fetch("/api/hit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname,v})}).catch(()=>{})}catch(_){}}
-hit();setInterval(()=>hit(),5*60e3);
+statHit();setInterval(()=>statHit(),5*60e3);
 // onglet changé (au plus une fois toutes les 20 s), retour sur la page, départ (pour le temps passé)
-setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)hit()},5e3);
-document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.now()-LASTHIT>60e3)hit(true)}else if(Date.now()-LASTHIT>4*60e3)hit()});
+setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)statHit()},5e3);
+document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.now()-LASTHIT>60e3)statHit(true)}else if(Date.now()-LASTHIT>4*60e3)statHit()});
 // onglet ouvert gardé dans l'adresse (#res, #prog…) : un rafraîchissement reste sur le même onglet
 {const h=location.hash.slice(1);if(["live","prog","res","pod","part","rank"].includes(h))state.view=h}
 bindSpons();bindOrg();bindPair();loadSpons();if(PICK)pickBoot();else{
