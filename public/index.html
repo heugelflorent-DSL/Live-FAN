@@ -2122,7 +2122,7 @@ if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
 let LASTHIT=0,LASTV="";
 function hit(force){if(state.admin)return;if(document.hidden&&!force)return;const v=PICK?(ARCH?"archives":"pick"):state.view;LASTHIT=Date.now();LASTV=v;
-  try{fetch("/api/hit",{method:"POST",keepalive:true,headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname,v})}).catch(()=>{})}catch(_){}}
+  try{fetch("/api/hit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname,v})}).catch(()=>{})}catch(_){}}
 hit();setInterval(()=>hit(),5*60e3);
 // onglet changé (au plus une fois toutes les 20 s), retour sur la page, départ (pour le temps passé)
 setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)hit()},5e3);
