@@ -281,7 +281,7 @@ async function runTask(task, data, now) {
 const strip0 = (o) => { for (const k of Object.keys(o)) if (o[k] == null || o[k] === "" || (Array.isArray(o[k]) && !o[k].length)) delete o[k]; return o; };
 export function packRow(r) {
   const sp = []; for (const x of r.splits || []) if (x.d && x.cum != null) sp.push(x.d, x.cum);
-  return strip0({ place: r.place, name: r.name, iuf: r.iuf, year: r.year, club: r.club, time: r.time, status: r.status, reason: r.reason, points: r.points, qual: r.qual, team: r.team,
+  return strip0({ place: r.place, name: r.name, iuf: r.iuf, year: r.year, club: r.club, time: r.time, status: r.status, reason: r.reason, points: r.points, qual: r.qual, team: r.team, hc: r.hc ? 1 : null,
     relay: r.relay ? r.relay.map((m) => strip0({ name: m.name, iuf: m.iuf, year: m.year, leg: m.leg })) : null, sp });
 }
 export const packLane = (l) => strip0({ lane: l.lane, name: l.name, year: l.year, club: l.club, entry: l.entry, members: l.members });

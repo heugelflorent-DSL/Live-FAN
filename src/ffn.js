@@ -178,6 +178,7 @@ function parseSplits(html) {
 // « 200 Nage Libre Dames - Finale B   U16 : 10-16 ans » → { kind: "final", fin: "B", cat: "U16 : 10-16 ans" }
 export function sectionKind(title) {
   const t = String(title || "").replace(/\s+/g, " "); const i = t.indexOf(" - "); const r = i >= 0 ? t.slice(i + 3).trim() : t;
+  if (/hors[- ]?concours/i.test(r)) return { kind: "hc", fin: "", cat: r };
   if (/barrage/i.test(r)) return { kind: "barrage", fin: "", cat: r };
   // libellés saisis à la main : « 50 Dos Dames (Finale A) », « 50 Dos Dames U15 et moins (Finale D) », « Finale rouge »
   const base = i >= 0 ? t.slice(0, i).trim() : "";
@@ -239,6 +240,12 @@ export function parseResults(html) {
   delete out.sec;
   if (sections.length) {
     for (const sc of sections) { const bc = {}; for (const r of sc.rows) if (r.relay) { bc[r.club] = (bc[r.club] || 0) + 1; r.teamNo = bc[r.club]; } for (const r of sc.rows) if (r.relay) r.team = bc[r.club] > 1 ? `${r.club} ${r.teamNo}` : r.club; }
+    // « Hors-Concours » : nageurs ou relais classés à part, rattachés à la section juste au-dessus (sans place ni points)
+    for (let i = sections.length - 1; i > 0; i--) if (sections[i].kind === "hc") {
+      const host = sections.slice(0, i).reverse().find((x) => x.kind !== "hc"); if (!host) continue;
+      for (const r of sections[i].rows) { r.hc = true; r.place = null; r.points = null; host.rows.push(r); }
+      sections.splice(i, 1);
+    }
     const main = sections.find((x) => x.kind === "series") || sections[sections.length - 1];
     out.title = main.title; out.rows = main.rows; out.when = main.when;
     if (sections.length > 1) out.sections = sections;
