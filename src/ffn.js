@@ -323,6 +323,17 @@ export function parseLive(html) {
         rank: one((cs.find((c) => c.cls === "placeClassementPro") || { html: "" }).html.replace(/<b[\s\S]*?<\/b>/g, "")).trim(),
       });
     }
+    // présentation simplifiée (fin de compétition, certains relais) : place · nom/club · temps · rang, sans les colonnes habituelles
+    if (!rws.length) {
+      const k = cur.search(/Classement de l.[ée]preuve|class="ClassementEpreuve/i); const zone = k > 0 ? cur.slice(0, k) : cur;
+      for (const tr of rows(zone)) {
+        const cs = cells(tr).map((c) => one(c.html.replace(/<b[\s\S]*?<\/b>/g, "")).trim()); if (cs.length < 3) continue;
+        const ti = cs.findIndex((x) => /^\d{1,2}:\d{2}[.,]\d{2}$|^\d{1,2}[.,]\d{2}$/.test(x)); if (ti < 1) continue;
+        const nm = cs.slice(1, ti).filter((x) => x && !/^\d{4}$|^[A-Z]{3}$/.test(x)); if (!nm.length) continue;
+        const relay = /^\s*\d+\s*x\s*\d+/i.test(t);
+        rws.push({ place: parseInt(cs[0]) || null, name: nm[0], year: "", nat: "", club: nm[nm.length - 1], time: toSec(cs[ti]), timeTxt: cs[ti], splits: [], rank: (cs[ti + 1] || "").trim(), ...(relay ? { relay: [] } : {}) });
+      }
+    }
     out.cur = { title: t, event: m ? m[1].trim() : t, heat: m ? +m[2] : null, of: m ? +m[3] : null, rows: rws };
   }
   const nx = block(html, 'class="ResultatsCourseSuivante"', 'class="programmeLive"');
