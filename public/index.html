@@ -1796,7 +1796,7 @@ function renderPart(){
   const nSw=list.reduce((a,c)=>a+c.shown.length,0);
   html+=`<div class="session">${secTitle(q?"Recherche":"Clubs",plural(list.length,"club")+" · "+plural(nSw,"nageur"))}<div class="list">
    ${list.map(c=>`<div class="lane"><button class="row clubrow" data-open="c${esc(c.name)}" aria-expanded="${c.open}"><span class="ev"><b>${logo(c.name)}${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</span>${(()=>{const g=progClub(c.sw);return g.all?`<span class="pg-line">${g.n?`<span class="pct ${pctCls(g.avg)}">${pctTxt(g.avg)}</span><span class="pg-rp">${g.rp} RP</span>`:""}${g.nNew?`<span class="pg-new">${g.nNew} nouv.</span>`:""}<span class="pg-n">${plural(g.all,"course")} nagée${g.all>1?"s":""}</span></span>`:""})()}</span><span class="chev" aria-hidden="true">▼</span></button>
-     ${c.open?`<div class="inner">${(()=>{const g=progClub(c.sw);return g.all?progKpis(g)+`<p class="msg pg-note">Progression et RP : seulement les épreuves déjà nagées avant la compétition (écart avec le record perso d'avant). Nouvelle épreuve = première fois sur cette course. Forfaits et disqualifications ne comptent pas.</p>`:""})()}<div style="padding:6px 4px">${favBtn("c",clubKey(c.name),c.name)}</div><div class="list">${isFavClub(c.name)?`<p class="msg" style="margin:0 4px 6px">Tout le club est suivi. Pour ne suivre que quelques nageurs, retire le club puis coche les ☆ des nageurs.</p>`:`<p class="msg" style="margin:0 4px 6px">Ou ne suis que certains nageurs : touche leur ☆.</p>`}${c.shown.map(p=>{const on=isFavSw(p.sw.iuf);return`<div class="prow-w"><button class="prow inprow${isFav(p.sw)?" fav":""}" data-swimmer="${p.sw.iuf}"><b>${isFav(p.sw)?'<span class="favstar">★</span>':""}${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${(()=>{const g=progOf(p);return g.n?`${g.rp?`<span class="pg-rpb">${g.rp} RP</span> `:""}<span class="pct ${pctCls(g.avg)}">${pctTxt(g.avg)}</span>`:plural(p.items.length,"course")+" ›"})()}</span></button><button class="swfav${on?" on":""}" data-fav="s" data-favkey="${esc(p.sw.iuf)}" data-favname="${esc(p.sw.name)}" aria-pressed="${on}" aria-label="${on?"Ne plus suivre":"Suivre"} ${esc(p.sw.name)}">${on?"★":"☆"}</button></div>`}).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
+     ${c.open?`<div class="inner">${(()=>{const g=progClub(c.sw);return g.all?progKpis(g)+`<p class="msg pg-note">Progression et RP : seulement les épreuves déjà nagées avant la compétition (écart avec le record perso d'avant). Nouvelle épreuve = première fois sur cette course. Forfaits et disqualifications ne comptent pas.</p>`:""})()}<div style="padding:4px 4px 0"><button class="btn small" data-recap="c:${esc(c.name)}">Récap PDF du club</button></div><div style="padding:6px 4px">${favBtn("c",clubKey(c.name),c.name)}</div><div class="list">${isFavClub(c.name)?`<p class="msg" style="margin:0 4px 6px">Tout le club est suivi. Pour ne suivre que quelques nageurs, retire le club puis coche les ☆ des nageurs.</p>`:`<p class="msg" style="margin:0 4px 6px">Ou ne suis que certains nageurs : touche leur ☆.</p>`}${c.shown.map(p=>{const on=isFavSw(p.sw.iuf);return`<div class="prow-w"><button class="prow inprow${isFav(p.sw)?" fav":""}" data-swimmer="${p.sw.iuf}"><b>${isFav(p.sw)?'<span class="favstar">★</span>':""}${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${(()=>{const g=progOf(p);return g.n?`${g.rp?`<span class="pg-rpb">${g.rp} RP</span> `:""}<span class="pct ${pctCls(g.avg)}">${pctTxt(g.avg)}</span>`:plural(p.items.length,"course")+" ›"})()}</span></button><button class="swfav${on?" on":""}" data-fav="s" data-favkey="${esc(p.sw.iuf)}" data-favname="${esc(p.sw.name)}" aria-pressed="${on}" aria-label="${on?"Ne plus suivre":"Suivre"} ${esc(p.sw.name)}">${on?"★":"☆"}</button></div>`}).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
   $("#pub-body").innerHTML=html+sheet;
 }
 // date courte d'une épreuve d'après sa réunion (« Samedi 18 octobre 2025 » → « sam. 18 oct. »)
@@ -1804,7 +1804,7 @@ function evDay(key){const r=Object.keys(state.order).find(x=>state.order[x].incl
 function swimmerDetail(p){
   const sch=schedule(),done=doneSet();
   const items=p.items.sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
-  return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><div style="display:flex;gap:8px;align-items:center">${favBtn("s",p.sw.iuf,p.sw.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div>
+  return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button class="btn small" data-recap="s" title="Récap PDF à partager">Récap PDF</button>${favBtn("s",p.sw.iuf,p.sw.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div>
   ${(()=>{const g=progOf(p);return g.all?progKpis(g,(g.gain>0?"−":"+")+Math.abs(g.gain).toFixed(2).replace(".",",")):""})()}
   <div class="tbl"><table><thead><tr><th>Date · heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Ancien RP</th><th>Progr.</th><th>Pl.</th></tr></thead><tbody>
   ${items.map(({ev,w,leg})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>leg?x.name===w.name:x.iuf===w.iuf)||null:null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
@@ -2136,5 +2136,91 @@ setInterval(()=>{if(!state.admin&&!document.hidden)pubRefresh()},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!state.admin&&Date.now()-PUBAT>20e3)pubRefresh()});}
 </script>
 <!-- Cloudflare Web Analytics (sans cookie) --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "38c6fbee940546fd977652d12601f26c"}'></script>
+<script>
+/* ---------- Récap PDF à partager (nageur, nageurs suivis, club) — généré dans le navigateur, rien n'est envoyé ---------- */
+let RECAP=null;
+function recapPeople(kind,key){const P=participants();const fc=$("#filter-comp")?$("#filter-comp").value:"";
+  if(kind==="c")return Object.values(P).filter(p=>p.sw.club===key&&(!fc||p.sw.comp===fc)&&p.items.some(x=>recapRow(x)));
+  return key.map(id=>P[id]).filter(Boolean)}
+function recapRow({ev,w,leg}){if(!doneSet().has(ev.key)||w.dns)return null;const r=ranking(ev).find(x=>leg?x.name===w.name:x.iuf===w.iuf);return r&&(r.res!=null||r.dsq)?r:null}
+function recapOpen(kind,key){const P=participants();let opts=null;
+  if(kind==="s"){const me=P[key];if(!me)return;const fav=Object.keys(FAV.sw).filter(id=>P[id]&&id!==key);
+    opts=fav.length&&FAV.sw[key]?[{id:"one",lab:"Seulement "+me.sw.name,ids:[key]},{id:"fav",lab:"Mes nageurs suivis ("+(fav.length+1)+")",ids:[key,...fav]}]:[{id:"one",lab:me.sw.name,ids:[key]}]}
+  RECAP={kind,key,opts,pick:opts?opts[opts.length-1].id:null,photo:null,title:""};recapRender()}
+function recapRender(){let el=document.getElementById("recap-bg");if(!RECAP){el&&el.remove();return}
+  if(!el){el=document.createElement("div");el.id="recap-bg";el.className="sheet-bg";document.body.appendChild(el)}
+  const R=RECAP;const who=R.kind==="c"?esc(R.key):"";
+  el.innerHTML=`<div class="sheet" role="dialog" aria-label="Récap PDF"><div class="detail-head"><div><h3>Récap PDF à partager</h3><div class="meta">${R.kind==="c"?"Bilan du club "+who:"Courses, temps, places et records perso"}</div></div><button class="btn small ghost" data-rc="close">Fermer</button></div>
+   ${R.opts&&R.opts.length>1?`<p class="msg" style="margin:10px 0 4px"><b>Nageurs inclus</b></p>${R.opts.map(o=>`<label style="display:block;margin:4px 0"><input type="radio" name="rc-pick" value="${o.id}"${R.pick===o.id?" checked":""}> ${esc(o.lab)}</label>`).join("")}`:""}
+   <p class="msg" style="margin:12px 0 4px"><b>Photo</b> (facultative) — elle reste sur ton téléphone</p>
+   <input type="file" accept="image/*" id="rc-photo" class="field">${R.photo?`<img src="${R.photo}" alt="" style="display:block;width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-top:8px">`:""}
+   <p class="msg" style="margin:12px 0 4px"><b>Petit mot</b> (facultatif)</p>
+   <input class="field" id="rc-title" maxlength="80" placeholder="${R.kind==="c"?"Bravo à toute l'équipe !":"Super week-end !"}" value="${esc(R.title)}">
+   <div style="display:flex;gap:8px;margin-top:14px"><button class="btn" data-rc="go" id="rc-go">Créer le PDF</button></div><p class="msg" id="rc-msg" style="margin-top:8px"></p></div>`}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-recap]");if(b){e.preventDefault();e.stopPropagation();const v=b.dataset.recap;if(v==="s")recapOpen("s",state.sel);else recapOpen("c",v.slice(2));return}
+  const c=e.target.closest("[data-rc]");if(c){e.preventDefault();if(c.dataset.rc==="close"){RECAP=null;recapRender()}else recapMake();return}
+  if(e.target.id==="recap-bg"){RECAP=null;recapRender()}},true);
+document.addEventListener("change",e=>{if(!RECAP)return;if(e.target.name==="rc-pick"){RECAP.pick=e.target.value}
+  if(e.target.id==="rc-photo"&&e.target.files[0]){const f=e.target.files[0];const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const W=1600,H=Math.round(W*120/190);const cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d");const s=Math.max(W/im.width,H/im.height);g.drawImage(im,(W-im.width*s)/2,(H-im.height*s)/2,im.width*s,im.height*s);RECAP.photo=cv.toDataURL("image/jpeg",.85);RECAP.title=$("#rc-title").value;recapRender()};im.src=rd.result};rd.readAsDataURL(f)}});
+document.addEventListener("input",e=>{if(RECAP&&e.target.id==="rc-title")RECAP.title=e.target.value});
+function loadJsPdf(){if(window.jspdf)return Promise.resolve();return new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";s.onload=ok;s.onerror=()=>ko(new Error("bibliothèque PDF non chargée (connexion ?)"));document.head.appendChild(s)})}
+async function imgData(src){try{const im=new Image();im.crossOrigin="anonymous";await new Promise((ok,ko)=>{im.onload=ok;im.onerror=ko;im.src=src});const cv=document.createElement("canvas");const k=Math.min(1,300/Math.max(im.width,im.height));cv.width=Math.max(1,Math.round(im.width*k));cv.height=Math.max(1,Math.round(im.height*k));cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);return{d:cv.toDataURL("image/png"),w:cv.width,h:cv.height}}catch(_){return null}}
+async function recapMake(){const R=RECAP;const msg=$("#rc-msg");const go=$("#rc-go");go.disabled=true;msg.textContent="Préparation du PDF…";
+  try{await loadJsPdf();
+    const ids=R.kind==="s"?(R.opts.find(o=>o.id===R.pick)||R.opts[0]).ids:null;const people=recapPeople(R.kind,R.kind==="c"?R.key:ids).sort((a,b)=>a.sw.name.localeCompare(b.sw.name));
+    if(!people.length)throw new Error("aucune course nagée pour l'instant");
+    const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"mm",format:"a4"});const W=210,M=12;
+    const T=s=>String(s==null?"":s).replace(/[−–]/g,"-").replace(/[’]/g,"'").replace(/[^\x20-\x7E\xA0-\xFF€]/g,"");
+    const css=getComputedStyle(document.documentElement);let hex=(css.getPropertyValue("--a")||"").trim();if(!/^#[0-9a-f]{6}$/i.test(hex))hex="#c8102e";const rgb=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+    const c0=comp(people[0].sw.comp)||state.comps[0]||{};const evName=state.comps.length>1?($("#pub-title")?.textContent||c0.name):c0.name;
+    // en-tête
+    doc.setFillColor(...rgb);doc.rect(0,0,W,30,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(17);doc.text(T(evName||"Compétition"),M,13,{maxWidth:W-2*M-30});
+    doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(T([c0.city,c0.bassin,c0.date].filter(Boolean).join(" · ")),M,21);
+    let y=36;
+    if(R.photo){doc.addImage(R.photo,"JPEG",M,y,W-2*M,(W-2*M)*120/190);y+=(W-2*M)*120/190+6}
+    // titre + logo du club
+    const clubName=R.kind==="c"?R.key:(people.length===1?people[0].sw.club:"");const lg=clubName&&logoFind(clubName)?await imgData(logoFind(clubName)):null;
+    doc.setTextColor(30);doc.setFont("helvetica","bold");doc.setFontSize(15);
+    const head=R.kind==="c"?R.key:people.length===1?people[0].sw.name:people.map(p=>p.sw.name.split(" ").slice(-1)[0]).join(", ");
+    let tx=M;if(lg){const h=12,w=Math.min(30,h*lg.w/lg.h);doc.addImage(lg.d,"PNG",M,y-1,w,h);tx=M+w+4}
+    doc.text(T(head),tx,y+5,{maxWidth:W-tx-M});y+=8;
+    doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(90);
+    if(R.kind==="s"&&people.length===1)doc.text(T([people[0].sw.year,people[0].sw.club].filter(Boolean).join(" · ")),tx,y+3);
+    if(R.title){y+=6;doc.setFont("helvetica","italic");doc.setFontSize(12);doc.setTextColor(...rgb);doc.text(T(R.title),M,y+3,{maxWidth:W-2*M});}
+    y+=9;
+    // chiffres clés
+    let nRace=0,nRp=0,nNew=0,pod=[0,0,0],pcts=[];
+    const rowsOf=p=>{const pr=progOf(p);const byK={};for(const x of pr.races)byK[x.ev.key]=x;const sch=schedule();
+      return p.items.slice().sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start).map(it=>{const r=recapRow(it);if(!r)return null;const g=!it.leg?byK[it.ev.key]:null;
+        const o={ev:it.ev.name+(it.leg?" (relais, "+it.leg+(it.leg===1?"er":"e")+" relayeur)":""),t:r.dsq?(r.status||"DSQ"):fmt(r.res),pl:r.dsq?"":r.rank||"",ref:g&&g.ref!=null?fmt(g.ref):"",pct:g&&g.pct!=null?g.pct:null,rp:!!(g&&g.rp),nw:!!(g&&g.ref==null&&!r.dsq),pod:!r.dsq&&r.rank&&r.rank<=3?r.rank:0};
+        if(!it.leg&&!r.dsq){nRace++;if(o.rp)nRp++;if(o.nw)nNew++;if(o.pct!=null)pcts.push(o.pct)}if(o.pod)pod[o.pod-1]++;return o}).filter(Boolean)};
+    const blocks=people.map(p=>({p,rows:rowsOf(p)})).filter(b=>b.rows.length);
+    const avg=pcts.length?pcts.reduce((a,b)=>a+b,0)/pcts.length:null;
+    const kp=[[R.kind==="c"?String(blocks.length):String(nRace),R.kind==="c"?"nageurs":"courses"],[String(nRp),"records perso"],[pod.reduce((a,b)=>a+b,0)?pod.join(" / "):"0","podiums (or/arg/br)"],[avg==null?"-":(avg>=0?"+":"-")+Math.abs(avg).toFixed(1).replace(".",",")+" %","progression moy."]];
+    if(nNew)kp.push([String(nNew),"nouvelles épreuves"]);
+    const bw=(W-2*M-(kp.length-1)*3)/kp.length;kp.forEach(([v,l],i)=>{const x=M+i*(bw+3);doc.setFillColor(245,243,246);doc.roundedRect(x,y,bw,17,2.5,2.5,"F");doc.setTextColor(...rgb);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text(T(v),x+bw/2,y+8,{align:"center"});doc.setTextColor(110);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(T(l),x+bw/2,y+13.5,{align:"center"})});
+    y+=23;
+    // courses
+    const cols=[M,M+78,M+102,M+116,M+140];const foot=()=>{doc.setFontSize(8);doc.setTextColor(140);doc.setFont("helvetica","normal");doc.text(T("Résultats issus du Live FFN · seuls les résultats publiés sur ffnatation.fr font foi · Swim Direct · © Mat-et-Flo"),W/2,290,{align:"center"})};
+    const need=h=>{if(y+h>282){foot();doc.addPage();y=M}};
+    for(const b of blocks){need(18);
+      if(R.kind==="c"||blocks.length>1){doc.setFont("helvetica","bold");doc.setFontSize(11.5);doc.setTextColor(30);doc.text(T(b.p.sw.name),M,y+4);doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(120);doc.text(T(" "+(b.p.sw.year||"")+(R.kind==="c"?"":" · "+b.p.sw.club)),M+doc.getTextWidth(T(b.p.sw.name))*11.5/9+1,y+4);y+=10}
+      doc.setFontSize(8);doc.setTextColor(130);["Épreuve","Temps","Place","Ancien RP","Progression"].forEach((h,i)=>doc.text(T(h),cols[i],y));doc.setDrawColor(225);doc.line(M,y+1.5,W-M,y+1.5);y+=5.5;
+      for(const o of b.rows){need(7);doc.setFontSize(9.5);doc.setTextColor(30);doc.setFont("helvetica","normal");doc.text(T(o.ev),cols[0],y,{maxWidth:76});
+        doc.setFont("helvetica","bold");doc.text(T(o.t),cols[1],y);doc.setFont("helvetica","normal");
+        if(o.pod){doc.setFillColor(...[[212,160,23],[160,160,170],[176,110,60]][o.pod-1]);doc.circle(cols[2]+2,y-1.2,2.4,"F");doc.setTextColor(255);doc.setFontSize(8);doc.text(String(o.pod),cols[2]+2,y-0.1,{align:"center"});doc.setTextColor(30);doc.setFontSize(9.5)}else doc.text(T(o.pl?o.pl+"e":""),cols[2],y);
+        doc.setTextColor(110);doc.text(T(o.ref),cols[3],y);
+        let x=cols[4];if(o.pct!=null){doc.setTextColor(...(o.pct>0.05?[30,122,62]:o.pct<-0.05?[179,38,30]:[110,110,110]));doc.text(T((o.pct>=0?"+":"-")+Math.abs(o.pct).toFixed(1).replace(".",",")+" %"),x,y);x+=19}
+        const tag=(s,c)=>{doc.setFont("helvetica","bold");doc.setFontSize(7.5);const w=doc.getTextWidth(s)+4;doc.setFillColor(...c);doc.roundedRect(x,y-3.3,w,4.4,2,2,"F");doc.setTextColor(255);doc.text(s,x+2,y-0.2);x+=w+2;doc.setFont("helvetica","normal");doc.setFontSize(9.5)};
+        if(o.rp)tag("RP",[91,63,214]);if(o.nw)tag("Nouvelle",[31,111,209]);
+        y+=6.2}
+      y+=4}
+    foot();
+    const name=("recap-"+(R.kind==="c"?R.key:people.map(p=>p.sw.name.split(" ")[0]).join("-"))+"-"+(c0.name||"competition")).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,80)+".pdf";
+    const blob=doc.output("blob");const file=new File([blob],name,{type:"application/pdf"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){msg.innerHTML="";try{await navigator.share({files:[file],title:T(head)});msg.textContent="PDF prêt.";go.disabled=false;return}catch(e){if(e&&e.name==="AbortError"){go.disabled=false;msg.textContent="";return}}}
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);msg.textContent="PDF téléchargé.";
+  }catch(e){msg.textContent="Impossible de créer le PDF : "+(e.message||e)}go.disabled=false}
+</script>
 </body>
 </html>
