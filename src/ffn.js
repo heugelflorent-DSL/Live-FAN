@@ -304,6 +304,8 @@ function block(html, from, to) {
 export function parseLive(html) {
   html = strip(html);
   const out = { reunion: one((html.match(/class="liveReunionDate">([\s\S]*?)<\/div>/) || [])[1]), cur: null, next: null, prog: [] };
+  // le Live FFN annonce la fin : « La compétition est maintenant terminée… » (ou la fin de la réunion)
+  if (/comp[ée]tition est maintenant termin[ée]e|r[ée]union est (maintenant )?termin[ée]e/i.test(html)) out.ended = true;
   const cur = block(html, 'class="ResultatsCourseEnCours"', 'class="ResultatsCourseSuivante"') || block(html, 'class="ResultatsCourseEnCours"', 'class="programmeLive"');
   if (cur) {
     const t = one((cur.match(/<td[^>]*class="epreuve"[^>]*>([\s\S]*?)<\/td>/) || [])[1]).replace(/Survolez.*$/i, "").trim();

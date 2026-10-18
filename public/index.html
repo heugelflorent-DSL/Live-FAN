@@ -1429,8 +1429,8 @@ function renderLiveFfn(){
   if(!cur){$("#pub-body").innerHTML=`<p class="empty">Aucune série publiée pour le moment sur le direct du Live FFN.</p>`;return}
   const L=cur.L,since=Math.min(...ids.map(id=>LIVE[id].changedAt?Math.round((Date.now()-LIVE[id].changedAt)/60000):0));
   html+=`<div class="session">${secTitle("En direct",esc(L.reunion||""))}<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
-  if(L.stale&&!(state.live==="ffn"&&liveSlot().grace))html+=`<p class="lv-warn">Le Live FFN ne répond pas en ce moment : derniers résultats reçus affichés, nouvel essai automatique.</p>`;
-  const GR=state.live==="ffn"&&liveSlot().grace;if(GR)html+=`<p class="lv-warn" style="background:#eef6ee;color:#1d5c2a">Réunion terminée · dernière série affichée encore quelques minutes</p>`;
+  if(L.stale&&!(state.live==="ffn"&&(liveSlot().grace||L.ended)))html+=`<p class="lv-warn">Le Live FFN ne répond pas en ce moment : derniers résultats reçus affichés, nouvel essai automatique.</p>`;
+  const GR=state.live==="ffn"&&(liveSlot().grace||state.comps.some(c=>LIVE[c.id]&&LIVE[c.id].ended));if(GR)html+=`<p class="lv-warn" style="background:#eef6ee;color:#1d5c2a">Réunion terminée · dernière série affichée encore quelques minutes</p>`;
   if(since>=8&&!GR)html+=`<p class="lv-warn">Aucune nouvelle série publiée depuis ${since} min : pause, cérémonie ou retard de publication.</p>`;
   // réunion qui commence : la dernière série affichée est celle de la réunion précédente → on ne montre que la série à venir
   {const sl=state.live==="ffn"?liveSlot():null;const rk=sl&&sl.on?state.order[sl.s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"):null;
