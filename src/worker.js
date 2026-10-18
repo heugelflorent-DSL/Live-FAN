@@ -193,7 +193,7 @@ function plan(cfg, data, now, live, LI = {}) {
 // la lecture directe depuis la tâche de chaque minute étant refusée (HTTP 403) par le Live FFN
 let ENV = null, LIVEINFO = {};
 // lectures refusées : chaque page ratée attend de plus en plus longtemps avant d'être retentée (5, 10, 20, 40 min… jusqu'à 3 h)
-const FAILS = {}; const failKey = (ev, t) => ev + "|" + t.t + "|" + t.c + "|" + (t.key || t.epr || "");
+const failKey = (ev, t) => t.t + "|" + t.c + "|" + (t.key || t.epr || "");
 const failWait = (f) => Math.min(3 * 3600e3, 5 * 60e3 * 2 ** Math.max(0, f.n - 1));
 const HITIP = {}; const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}, LHMEMO = {}; // mémoire de l'instance (direct)
 // dernière série enregistrée par le relais (stockage durable) : relue au plus une fois par minute par instance
@@ -362,6 +362,9 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   let errors = 0, used = 0;
   const seen = new Set();
   // deux tours : le programme lu au premier tour permet de planifier les séries et résultats au second
+  // pages refusées : gardées dans les données de l'événement (écrites de toute façon après une erreur), pour survivre aux redémarrages
+  const FAILS = (data.fails = data.fails || {});
+  for (const k of Object.keys(FAILS)) if (now - FAILS[k].at > 6 * 3600e3) delete FAILS[k];
   for (let round = 0; round < 2 && used < budget && !errors; round++) {
     const fromQueue = data.queue.length > 0;
     if (round === 0 && live && !fromQueue) LIVEINFO = await liveInfo(env, config);
@@ -372,7 +375,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     for (let ti = 0; ti < todo.length; ti++) {
       const t = todo[ti];
       seen.add(JSON.stringify(t)); used++;
-      try { await runTask(t, data, now); delete FAILS[failKey(ev, t)]; }
+      try { await runTask(t, data, now); if (FAILS[failKey(ev, t)]) { delete FAILS[failKey(ev, t)]; data.dirty = true; } }
       catch (e) {
         const fk = failKey(ev, t); FAILS[fk] = { n: (FAILS[fk]?.n || 0) + 1, at: now };
         errors++; data.error = String(e.message || e); data.errorAt = now;
@@ -722,7 +725,9 @@ export default {
     if (p === "/api/admin/journal") {
       if (!ADM) return adminOnly(); // journal brut du chrono : réservé à l'administrateur du site
       const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));
-      const d = url.searchParams.get("day"); return room.fetch(new Request("https://pool/journal" + (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? "?day=" + d : "")));
+      const d = url.searchParams.get("day");
+      try { return await room.fetch(new Request("https://pool/journal" + (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? "?day=" + d : ""))); }
+      catch (e) { return json({ error: "Journal indisponible pour le moment (quota Cloudflare du jour atteint ?) : " + String(e.message || e).slice(0, 120) }, 503); }
     }
     // mot de passe organisateur de cet événement (défini par l'administrateur du site)
     if (p === "/api/admin/orgkey") {
@@ -856,8 +861,8 @@ export default {
     }
     if (p === "/api/admin/log") {
       if (!ADM) return adminOnly();
-      const r = await env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/logs" + (req.method === "DELETE" ? "?clear=1" : "")));
-      return json(await r.json());
+      try { const r = await env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/logs" + (req.method === "DELETE" ? "?clear=1" : ""))); return json(await r.json()); }
+      catch (e) { return json({ error: "Journal indisponible pour le moment (quota Cloudflare du jour atteint ?) : " + String(e.message || e).slice(0, 120) }, 503); }
     }
     if (p === "/api/admin/audience") return ADM ? audience(env, url) : adminOnly();
     return json({ error: "Route inconnue" }, 404);
