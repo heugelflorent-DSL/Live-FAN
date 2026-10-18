@@ -335,9 +335,10 @@ function liveWins(cfg, data) {
   }
   return out;
 }
-async function markHot(env, ev, wins, catchup) {
+async function markHot(env, ev, wins, catchup, done = false) {
   const h = (await env.KV.get("hot", "json")) || {}; const cur = JSON.stringify(h[ev] || null);
-  const nxt = wins.length || catchup ? { w: wins, c: catchup ? 1 : 0 } : null;
+  // done : compétition terminée → plus jamais visitée par la tâche de chaque minute (jusqu'à une modification des réglages)
+  const nxt = done ? { f: 1 } : wins.length || catchup ? { w: wins, c: catchup ? 1 : 0 } : null;
   if (cur === JSON.stringify(nxt)) return;
   if (nxt) h[ev] = nxt; else delete h[ev];
   await env.KV.put("hot", JSON.stringify(h));
@@ -362,7 +363,7 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     if (data.lastRun && now - data.lastRun < every - 5e3) return 0;
     // compétitions terminées : plus de synchronisation automatique, seulement à la demande depuis l'admin
     if (finished(config, data, now) && !(data.queue || []).length) {
-      if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); await markHot(env, ev, [], false); }
+      if (!data.finished) { data.finished = now; await saveData(env, data, "", ev); } await markHot(env, ev, [], false, true);
       return 0;
     }
   }
@@ -849,6 +850,8 @@ export default {
       const prev = await env.KV.get(kk("config", ev), "json");
       if (!ADM) cfg.scrape = (prev && prev.scrape) || DEFAULT_CONFIG.scrape; // fréquence de lecture du Live FFN : réglée par l'administrateur
       await env.KV.put(kk("config", ev), JSON.stringify(cfg));
+      // réglages modifiés : un live marqué terminé est de nouveau suivi (la tâche vérifiera s'il l'est toujours)
+      { const h = (await env.KV.get("hot", "json")) || {}; if (h[ev] && h[ev].f) { delete h[ev]; await env.KV.put("hot", JSON.stringify(h)); } }
       // passage en mode « Bassin » : on repart d'un direct vide (les tests chrono d'avant ne s'affichent pas)
       if (cfg.live === "bassin" && (!prev || prev.live !== "bassin"))
         await env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev)).fetch(new Request("https://pool/event", { method: "POST", body: JSON.stringify([{ k: "clear" }]) }));
@@ -891,7 +894,9 @@ export default {
       const now = Date.now(), m = Math.floor(now / 60e3); const H = (await env.KV.get("hot", "json")) || {};
       const hot = ids.filter((x) => H[x] && (H[x].c || (H[x].w || []).some(([a, b]) => now >= a && now <= b)));
       const cold = !hot.length || m % 10 === 0;
-      const pool = cold ? ids : hot;
+      const live = ids.filter((x) => !(H[x] && H[x].f)); // lives terminés / archivés : plus aucune visite
+      if (!live.length) return;
+      const pool = cold ? live : hot;
       const start = (cold && hot.length ? Math.floor(m / 10) : m) % pool.length;
       let left = BUDGET;
       for (let i = 0; i < 1 && left > 0; i++) {
