@@ -443,6 +443,9 @@ async function mppStep(env, ev, max = 2, force = false) {
   const { config, data } = await load(env, ev); const now = Date.now();
   // compétition terminée : plus aucune relecture automatique des records, seulement à la demande
   if (!force && finished(config, data, now)) return 0;
+  // records lus au plus tard la veille : plus aucune lecture automatique à partir du 1er jour de compétition (écritures économisées)
+  if (!force) { let first = Infinity; for (const id of config.comps) { const c = data.comps[id]; for (const r of c?.reunions || []) { const dt = compDate({ date: r.day }) || compDate(c.meta); if (dt) first = Math.min(first, parisEpoch(dt.y, dt.m, dt.d)); } }
+    if (now >= first) return 0; }
   const want = mppWant(config, data, ev, now, force);
   if (!want.size) return 0;
   const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
