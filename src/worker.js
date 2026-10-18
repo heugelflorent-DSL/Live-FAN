@@ -195,7 +195,15 @@ let ENV = null, LIVEINFO = {};
 // lectures refusées : chaque page ratée attend de plus en plus longtemps avant d'être retentée (5, 10, 20, 40 min… jusqu'à 3 h)
 const FAILS = {}; const failKey = (ev, t) => ev + "|" + t.t + "|" + t.c + "|" + (t.key || t.epr || "");
 const failWait = (f) => Math.min(3 * 3600e3, 5 * 60e3 * 2 ** Math.max(0, f.n - 1));
-const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}; // mémoire de l'instance (direct)
+const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}, LHMEMO = {}; // mémoire de l'instance (direct)
+// dernière série enregistrée par le relais (stockage durable) : relue au plus une fois par minute par instance
+async function lastHeat(env, c, now) {
+  const m = LHMEMO[c]; if (m && now - m.t < 60e3) return m.v;
+  let v = null; try { const all = await (await env.POOL.get(env.POOL.idFromName("ffnlive:" + c)).fetch(new Request("https://pool/lhs"))).json();
+    for (const h of all || []) if (h && h.at && (!v || h.at > v.at)) v = h; } catch (e) {}
+  if (v && !v.title) v = { ...v, title: v.event + " - Série " + v.heat + (v.of ? "/" + v.of : "") };
+  LHMEMO[c] = { t: now, v }; return v;
+}
 // série affichée en ce moment sur la page « En direct » (lue par le relais, partagée avec les spectateurs)
 async function liveInfo(env, config) {
   const out = {};
@@ -603,7 +611,9 @@ export default {
       if (!liveOpen(data.comps[c], now)) {
         // réunion qui vient de se terminer : la dernière série reste affichée 30 min (copie gardée en mémoire, sans redemander)
         const cc = data.comps[c]; const lastDone = Math.max(0, ...Object.values(cc?.events || {}).map((e) => e.doneAt || 0));
-        if (lastDone && now - lastDone < 30 * 60e3 && LIVEOK[c]) return json({ ...LIVEOK[c], grace: true }, 200, { "cache-control": "public, max-age=60" });
+        if (lastDone && now - lastDone < 30 * 60e3 && LIVEOK[c]?.cur?.heat) return json({ ...LIVEOK[c], grace: true }, 200, { "cache-control": "public, max-age=60" });
+        // sinon (mémoire de l'instance perdue, résultats pas encore lus) : dernière série gardée par le relais, si elle a moins de 30 min
+        const lh = await lastHeat(env, c, now); if (lh && now - lh.at < 30 * 60e3) return json({ at: lh.at, cur: lh, grace: true }, 200, { "cache-control": "public, max-age=60" });
         return json({ at: now, pause: true }, 200, { "cache-control": "public, max-age=60" });
       }
       // mémoire de l'instance : un seul appel au relais toutes les 30 s par instance (le cache Cloudflare ne marche pas sur workers.dev)
@@ -619,7 +629,10 @@ export default {
       const heats = body.heats || null;
       if (body.raw != null) { const b0 = body; try { body = { at: b0.at, ...parseLive(b0.raw), ...(b0.error ? { stale: true, staleError: b0.error, fresh: b0.fresh } : {}) }; } catch (e) { body = { at: now, error: String(e.message || e) }; } }
       if ((body.error || body.staleError) && body.fresh) ctx.waitUntil(logErr(env, ev, "direct Live FFN (comp. " + c + ")", body.error || body.staleError));
-      if (body.error) { if (LIVEOK[c]) body = { ...LIVEOK[c], stale: true, staleError: body.error }; }
+      if (body.error) {
+        if (LIVEOK[c]) body = { ...LIVEOK[c], stale: true, staleError: body.error };
+        else { const lh = await lastHeat(env, c, now); if (lh) body = { at: lh.at, cur: lh, stale: true, staleError: body.error }; }
+      } else if (!body.cur?.heat && LIVEOK[c]?.cur?.heat) body = { ...body, cur: LIVEOK[c].cur, held: true }; // page du Live FFN vide entre deux épreuves : on garde la dernière série
       else LIVEOK[c] = body;
       if (heats) body = { ...body, heats }; else if (m && m.body.heats) body = { ...body, heats: m.body.heats };
       LIVEMEMO[c] = { t: now, body };
