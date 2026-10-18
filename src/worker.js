@@ -883,7 +883,7 @@ export default {
       try { const r = await env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/logs" + (req.method === "DELETE" ? "?clear=1" : ""))); return json(await r.json()); }
       catch (e) { return json({ error: "Journal indisponible pour le moment (quota Cloudflare du jour atteint ?) : " + String(e.message || e).slice(0, 120) }, 503); }
     }
-    if (p === "/api/admin/audience") return ADM ? audience(env, url) : adminOnly();
+    if (p === "/api/admin/audience") return ADM ? audience(env, url, ev) : adminOnly();
     return json({ error: "Route inconnue" }, 404);
   },
 
@@ -915,7 +915,8 @@ export default {
 };
 
 // ---------- audience (Cloudflare Web Analytics, lecture seule) ----------
-async function audience(env, url) {
+async function audience(env, url, ev = "main") {
+  const evOnly = ev && ev !== "main" ? ev : ""; // statistiques d'un seul live (sinon : tout le site)
   const day = (x) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(x || ""); return m ? [+m[1], +m[2], +m[3]] : null; };
   const pp = parisParts(); const today = [pp.y, pp.m, pp.d];
   let f = day(url.searchParams.get("from")), t = day(url.searchParams.get("to"));
@@ -926,10 +927,10 @@ async function audience(env, url) {
   const iso = (a) => `${a[0]}-${String(a[1]).padStart(2, "0")}-${String(a[2]).padStart(2, "0")}`;
   // personnes différentes / connectés (stockage maison) : même sans jeton Cloudflare
   let own = null;
-  if (env.STATS) { try { const r = await env.STATS.get(env.STATS.idFromName("stats")).fetch(new Request(`https://stats/q?from=${iso(f)}&to=${iso(t)}`)); if (r.ok) own = await r.json(); } catch (e) {} }
+  if (env.STATS) { try { const r = await env.STATS.get(env.STATS.idFromName("stats")).fetch(new Request(`https://stats/q?from=${iso(f)}&to=${iso(t)}${evOnly ? "&ev=" + encodeURIComponent(evOnly) : ""}`)); if (r.ok) own = await r.json(); } catch (e) {} }
   if (!env.CF_API_TOKEN) return json({ setup: true, own });
   const host = url.hostname;
-  const filter = `{datetime_geq: "${start.toISOString()}", datetime_leq: "${end.toISOString()}", requestHost: "${host}"}`;
+  const filter = `{datetime_geq: "${start.toISOString()}", datetime_leq: "${end.toISOString()}", requestHost: "${host}"${evOnly ? `, requestPath_like: "/e/${evOnly}%"` : ""}}`;
   const block = (alias, dim, order, ds = "rumPageloadEventsAdaptiveGroups") => `${alias}: ${ds}(limit: 500, filter: ${filter}, orderBy: [${order}]) { count sum { visits } dimensions { ${dim} } }`;
   const gql = async (inner) => {
     const query = `query { viewer { accounts(filter: {accountTag: "${env.CF_ACCOUNT_ID}"}) { ${inner} } } }`;
