@@ -145,6 +145,14 @@ function reuDue(c, r, now, lastAt) {
   return !lastAt || lastAt < a || now - lastAt >= step - 60e3;
 }
 
+// finales pas encore publiées : leur liste sort en général à la fin de la réunion du matin → seulement le jour même,
+// de 3 h avant leur réunion jusqu'à 20 min avant, une lecture toutes les 40 min au plus (3 à 4 lectures)
+function finDue(c, r, now, lastAt) {
+  const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) return false;
+  const start = hToMin(r.items.find((i) => i.kind === "event" && i.time)?.time); if (start == null) return false;
+  const day = parisEpoch(dt.y, dt.m, dt.d); const a = day + (start - 180) * 60e3, b = day + (start - 20) * 60e3;
+  return now >= a && now <= b && (!lastAt || now - lastAt >= 40 * 60e3);
+}
 function plan(cfg, data, now, live, LI = {}) {
   const tasks = [];
   for (const id of cfg.comps) {
@@ -167,7 +175,7 @@ function plan(cfg, data, now, live, LI = {}) {
         // dès qu'elle est publiée, les autres épreuves sont lues une fois
         const lead = c.events?.[evs.find((x) => !x.provisional)?.key] || {};
         const waitDue = e === evs.find((x) => !x.provisional) ? now - st.heatsAt > 3 * 3600e3 : pubOf(lead) && st.heatsAt < lead.heatsAt;
-        const due = !st.heatsAt || (fin && !pub ? now - st.heatsAt > HEATS_EVERY : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
+        const due = (!st.heatsAt && !fin) || (fin && !pub ? finDue(c, r, now, st.heatsAt) : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
         if (due) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
       if (!live) continue;
