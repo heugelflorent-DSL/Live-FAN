@@ -632,8 +632,8 @@ export default {
       if (body.error) {
         if (LIVEOK[c]) body = { ...LIVEOK[c], stale: true, staleError: body.error };
         else { const lh = await lastHeat(env, c, now); if (lh) body = { at: lh.at, cur: lh, stale: true, staleError: body.error }; }
-      } else if (!body.cur?.heat && LIVEOK[c]?.cur?.heat) body = { ...body, cur: LIVEOK[c].cur, held: true }; // page du Live FFN vide entre deux épreuves : on garde la dernière série
-      else LIVEOK[c] = body;
+      } else if (!body.cur?.title && LIVEOK[c]?.cur && now - (LIVEOK[c].okAt || 0) < 15 * 60e3) body = { ...body, cur: LIVEOK[c].cur, held: true }; // page du Live FFN vide entre deux épreuves : on garde la dernière série (15 min au plus)
+      else LIVEOK[c] = { ...body, okAt: now };
       if (heats) body = { ...body, heats }; else if (m && m.body.heats) body = { ...body, heats: m.body.heats };
       LIVEMEMO[c] = { t: now, body };
       // série en cours avec des temps : gardée (une fois par série) pour le classement provisoire de l'onglet Résultats
