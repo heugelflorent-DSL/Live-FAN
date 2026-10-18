@@ -175,7 +175,7 @@ function plan(cfg, data, now, live, LI = {}) {
       const liIdx = li ? evs.findIndex((e) => nrm(li.event).startsWith(nrm(e.name))) : -1;
       for (const e of evs.slice(idx, idx + 2)) {
         const st = c.events?.[e.key] || {}; const k = evs.indexOf(e);
-        if (liIdx < 0) { tasks.push({ t: "res", c: id, epr: e.epr }); continue; } // direct indisponible : lecture au rythme réglé
+        if (liIdx < 0) { if (!st.resultsAt || now - st.resultsAt > 10 * 60e3) tasks.push({ t: "res", c: id, epr: e.epr }); continue; } // direct indisponible : au plus une lecture toutes les 10 min
         if (k === liIdx && li.heat > (st.resHeat || 0)) tasks.push({ t: "res", c: id, epr: e.epr, heat: li.heat, key: e.key }); // nouvelle série terminée
         else if ((k < liIdx || (k === liIdx && li.of && li.heat >= li.of)) && !st.doneAt && (!st.resFinalAt || now - st.resFinalAt > 5 * 60e3)) tasks.push({ t: "res", c: id, epr: e.epr, final: 1, key: e.key }); // épreuve finie : classement définitif
       }
@@ -183,12 +183,18 @@ function plan(cfg, data, now, live, LI = {}) {
   }
   // résultats d'abord, puis programme, puis séries ; une seule lecture par page (tous les tours d'une épreuve sont sur la même page de résultats)
   const rank = { res: 0, prog: 1, heats: 2 }; const seen = new Set();
-  return tasks.filter((t) => { const k = t.t + "|" + t.c + "|" + (t.t === "heats" ? t.key : t.epr); if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => rank[a.t] - rank[b.t]);
+  // la nuit (22 h → 6 h, heure de Paris), hors live : ni programme ni séries, rien ne bouge à ces heures-là
+  const h = +new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23" }).format(now);
+  const night = !live && (h >= 22 || h < 6);
+  return tasks.filter((t) => { if (night && t.t !== "res") return false; const k = t.t + "|" + t.c + "|" + (t.t === "heats" ? t.key : t.epr); if (seen.has(k)) return false; seen.add(k); return true; }).sort((a, b) => rank[a.t] - rank[b.t]);
 }
 
 // Lecture d'une page du Live FFN : passe par le Durable Object « ffn » (une seule adresse de sortie, stable),
 // la lecture directe depuis la tâche de chaque minute étant refusée (HTTP 403) par le Live FFN
 let ENV = null, LIVEINFO = {};
+// lectures refusées : chaque page ratée attend de plus en plus longtemps avant d'être retentée (5, 10, 20, 40 min… jusqu'à 3 h)
+const FAILS = {}; const failKey = (ev, t) => ev + "|" + t.t + "|" + t.c + "|" + (t.key || t.epr || "");
+const failWait = (f) => Math.min(3 * 3600e3, 5 * 60e3 * 2 ** Math.max(0, f.n - 1));
 const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}; // mémoire de l'instance (direct)
 // série affichée en ce moment sur la page « En direct » (lue par le relais, partagée avec les spectateurs)
 async function liveInfo(env, config) {
@@ -351,15 +357,16 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
   for (let round = 0; round < 2 && used < budget && !errors; round++) {
     const fromQueue = data.queue.length > 0;
     if (round === 0 && live && !fromQueue) LIVEINFO = await liveInfo(env, config);
-    const tasks = (fromQueue ? data.queue : plan(config, data, now, live, LIVEINFO)).filter((t) => !seen.has(JSON.stringify(t)));
+    const tasks = (fromQueue ? data.queue : plan(config, data, now, live, LIVEINFO)).filter((t) => !seen.has(JSON.stringify(t)) && (force || fromQueue || !FAILS[failKey(ev, t)] || now - FAILS[failKey(ev, t)].at >= failWait(FAILS[failKey(ev, t)])));
     if (!tasks.length) break;
     const todo = tasks.slice(0, budget - used);
     if (fromQueue) data.queue = data.queue.slice(todo.length);
     for (let ti = 0; ti < todo.length; ti++) {
       const t = todo[ti];
       seen.add(JSON.stringify(t)); used++;
-      try { await runTask(t, data, now); }
+      try { await runTask(t, data, now); delete FAILS[failKey(ev, t)]; }
       catch (e) {
+        const fk = failKey(ev, t); FAILS[fk] = { n: (FAILS[fk]?.n || 0) + 1, at: now };
         errors++; data.error = String(e.message || e); data.errorAt = now;
         await logErr(env, ev, "lecture " + t.t + (t.epr ? " épreuve " + t.epr : "") + " (comp. " + t.c + ")", data.error);
         // Live FFN indisponible : la tâche ratée et les suivantes reviennent dans la file, rien n'est perdu
