@@ -2144,7 +2144,7 @@ function recapClubs(){const P=participants();const s=new Set();for(const p of Ob
 function recapFavIds(){const P=participants();return Object.keys(FAV.sw).filter(id=>P[id])}
 // carte « Fais ton récap » (onglet Direct, compétition terminée)
 function recapCard(){const cl=recapClubs();if(!cl.length)return"";const fav=recapFavIds();const mine=Object.keys(FAV.cl||{}).map(k=>FAV.cl[k]).find(n=>cl.includes(n));
-  return`<div class="card lvs" style="margin-top:12px"><div class="lvs-h"><span class="lv-tag" style="background:#1f6fd1">Récap</span></div><h3>Fais ton récap du week-end</h3><p class="msg">Un PDF ou une image pour les réseaux sociaux, avec ta photo : temps, places, records perso et progression.</p>
+  return`<div class="card lvs" style="margin-top:12px"><div class="lvs-h"><span class="lv-tag">Récap</span></div><h3>Fais ton récap du week-end</h3><p class="msg">Un PDF ou une image pour les réseaux sociaux, avec ta photo : temps, places, records perso et progression.</p>
    <div class="lvs-a" style="flex-wrap:wrap;align-items:center">${fav.length?`<a href="#" class="btn small" data-recap="f">Mes nageurs suivis (${fav.length})</a>`:""}<select class="field" id="rc-club" style="max-width:240px">${cl.map(c=>`<option${c===mine?" selected":""}>${esc(c)}</option>`).join("")}</select><a href="#" class="btn small ghost" data-recap="cs">Récap du club</a></div>
    ${fav.length?"":`<p class="msg" style="margin-top:6px">Pour le récap de tes enfants : suis-les avec ☆ dans « Nageurs & clubs », ou ouvre leur fiche.</p>`}</div>`}
 function recapOpen(kind,key){const P=participants();let opts=null;
