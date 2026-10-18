@@ -117,6 +117,11 @@ function endAt(c) {
 function progEvery(c, now) {
   // pas encore de programme complet (absent ou provisoire) : on réessaie toutes les 3 h jusqu'à l'avoir
   const evs = (c?.reunions || []).flatMap((r) => r.items.filter((i) => i.kind === "event"));
+  // engagements en cours : rien ne bouge avant la publication de la liste des engagés → on attend ce jour-là (sinon 1 fois par jour)
+  if (c?.entriesOpen) {
+    if (c.entryList) { const [y, m, d] = c.entryList.split("-").map(Number); const at = parisEpoch(y, m, d, 6); if (now < at) return Math.max(3 * 3600e3, at - (c.progAt || 0)); return 3 * 3600e3; }
+    return 24 * 3600e3;
+  }
   if (!evs.length || evs.some((e) => e.provisional)) return 3 * 3600e3;
   const dt = compDate({ date: c.reunions?.[0]?.day }) || compDate(c.meta); if (!dt) return 24 * 3600e3; // 1er jour de compétition
   const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
