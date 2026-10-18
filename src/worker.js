@@ -195,7 +195,7 @@ let ENV = null, LIVEINFO = {};
 // lectures refusées : chaque page ratée attend de plus en plus longtemps avant d'être retentée (5, 10, 20, 40 min… jusqu'à 3 h)
 const FAILS = {}; const failKey = (ev, t) => ev + "|" + t.t + "|" + t.c + "|" + (t.key || t.epr || "");
 const failWait = (f) => Math.min(3 * 3600e3, 5 * 60e3 * 2 ** Math.max(0, f.n - 1));
-const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}, LHMEMO = {}; // mémoire de l'instance (direct)
+const HITIP = {}; const LIVEMEMO = {}, LIVEOK = {}, LHSIG = {}, LHMEMO = {}; // mémoire de l'instance (direct)
 // dernière série enregistrée par le relais (stockage durable) : relue au plus une fois par minute par instance
 async function lastHeat(env, c, now) {
   const m = LHMEMO[c]; if (m && now - m.t < 60e3) return m.v;
@@ -676,6 +676,9 @@ export default {
     // audience sans cookie : une empreinte hachée (IP + navigateur + semaine) par visiteur, rien de lisible n'est gardé
     if (p === "/api/hit" && req.method === "POST") {
       if (!env.STATS) return new Response(null, { status: 204 });
+      // au plus une visite comptée toutes les 15 s par adresse (un robot qui mitraille ne coûte plus rien)
+      { const ip = req.headers.get("cf-connecting-ip") || ""; const t = Date.now(); if (HITIP[ip] && t - HITIP[ip] < 15e3) return new Response(null, { status: 204 }); HITIP[ip] = t;
+        if (Object.keys(HITIP).length > 5000) for (const k in HITIP) if (t - HITIP[k] > 15e3) delete HITIP[k]; }
       let body = {}; try { body = await req.json(); } catch (e) {}
       const path = String(body.p || "/");
       const m = path.match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/); const where = m ? m[1] : /^\/archives/.test(path) ? "~archives" : "~accueil";
