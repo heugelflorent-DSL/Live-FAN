@@ -576,7 +576,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .rk-row .lv-relay.rl-full{grid-column:2/-1;display:grid!important;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 14px;max-width:none;margin-top:-2px}.rk-row .rl-full>span{display:flex;gap:6px;justify-content:space-between;min-width:0}
 .pct{font:800 12.5px var(--mono,ui-monospace,monospace);border-radius:999px;padding:2px 8px;white-space:nowrap}.pct.up{background:#e3f4e8;color:#1e7a3e}.pct.down{background:#fbe6e4;color:#b3261e}.pct.eq{background:#f1ecec;color:var(--muted)}
 .pg-line{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:4px;font-size:12.5px}.pg-rp,.pg-rpb{font:800 10.5px system-ui;background:#5b3fd6;color:#fff;border-radius:999px;padding:1px 7px}.pg-n{color:var(--muted)}
-.pg-k{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 4px 4px}.pg-k>div{background:rgba(var(--l-rgb),.05);border-radius:12px;padding:8px 6px;text-align:center}.pg-k b{display:block;font:800 18px var(--mono,ui-monospace,monospace)}.pg-k small{font-size:11px;color:var(--muted)}.pg-k .up b{color:#1e7a3e}.pg-k .down b{color:#b3261e}.pg-k .rp b{color:#5b3fd6}.pg-k .nw b{color:#1f6fd1}@media(max-width:420px){.pg-k{gap:5px}.pg-k b{font-size:15px}.pg-k small{font-size:10px}}.pg-new{font:800 10.5px system-ui;background:#1f6fd1;color:#fff;border-radius:999px;padding:1px 7px}.pg-note{margin:2px 4px 6px;font-size:11.5px}
+.pg-k{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 4px 4px}.pg-k>div{background:rgba(var(--l-rgb),.05);border-radius:12px;padding:8px 6px;text-align:center}.pg-k b{display:block;font:800 18px var(--mono,ui-monospace,monospace)}.pg-k small{font-size:11px;color:var(--muted)}.pg-k .up b{color:#1e7a3e}.pg-k .down b{color:#b3261e}.pg-k .rp b{color:#5b3fd6}.pg-sec{font:600 11px var(--mono,ui-monospace,monospace);white-space:nowrap}.pg-sec.up{color:#1e7a3e}.pg-sec.down{color:#b3261e}.pg-sec.eq{color:var(--muted)}.pg-k .nw b{color:#1f6fd1}@media(max-width:420px){.pg-k{gap:5px}.pg-k b{font-size:15px}.pg-k small{font-size:10px}}.pg-new{font:800 10.5px system-ui;background:#1f6fd1;color:#fff;border-radius:999px;padding:1px 7px}.pg-note{margin:2px 4px 6px;font-size:11.5px}
 </style>
 </head>
 <body>
@@ -851,6 +851,11 @@ function build(cfg,data){
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
           res:x.time,dsq:!!x.status||!!x.hc,hc:!!x.hc,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
           splits:unSp(x),qual:x.qual||null}));
+        // listes de départ aux prénoms abrégés (« IRION-REUTENAUER M. ») : le résultat (« … Maëlys ») est rattaché au même nageur
+        {const ids=new Set(entries.map(e=>e.iuf).filter(Boolean));const nm=x=>norm(x).split(/\s+/);
+          const same=(a,b)=>{const A=nm(a),B=nm(b);if(A.length!==B.length||!A.length)return false;return A.every((t,i)=>t===B[i]||(t.length<=2&&B[i].startsWith(t))||(B[i].length<=2&&t.startsWith(B[i])))};
+          for(const x of results){if(!x.iuf||ids.has(x.iuf))continue;const e=entries.find(e=>e.iuf&&String(e.year||"")===String(x.year||"")&&same(e.name.replace(/\./g,""),x.name));
+            if(e)x.iuf=e.iuf}}
         const barrages=(st.barrages||[]).map(b=>({title:b.title,when:b.when,rows:(b.rows||[]).map(x=>({iuf:swId(x.name,x.year),name:x.name,year:x.year,club:x.club,res:x.time,dsq:!!x.status,status:x.status,rank:x.place,qual:x.qual||null,splits:unSp(x)}))}));
         EVENTS[key]={key,comp:id,num:it.epr,epr:it.epr,numEp:it.num,base:it.name,name:it.name+(rlab?" · "+rlab:""),round:it.round,roundLabel:rlab,fin:it.fin||"",typ:it.typ||60,catId:it.cat||0,barrages,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
           doneAt:st.doneAt||null,nPart:it.nPart,relay,sex,type:"event"};
@@ -858,6 +863,7 @@ function build(cfg,data){
         // fichier des nageurs
         for(const w of entries)if(w.iuf){const s=SWIMMERS[w.iuf]=SWIMMERS[w.iuf]||{iuf:w.iuf,name:w.name,year:w.year,club:w.club,sex,comp:id};}
         for(const w of results)if(w.iuf&&!SWIMMERS[w.iuf])SWIMMERS[w.iuf]={iuf:w.iuf,name:w.name,year:w.year,club:w.club,sex,comp:id};
+        for(const w of results){const s=w.iuf&&SWIMMERS[w.iuf];if(s&&/\.$/.test(s.name)&&w.name&&!/\.$/.test(w.name))s.name=w.name} // prénom complet tiré des résultats
       }
     }
   });
@@ -1254,7 +1260,7 @@ function renderRank(){
   if(true)html+=`<div class="subtabs">${[["F","Filles"],["M","Garçons"]].map(([v,l])=>`<button data-rsex="${v}" aria-selected="${sex===v}">${l}</button>`).join("")}</div>`;
   const b=teamBoard(rule,sex);const max=b.now[0]?b.now[0].total:1;
   html+=`<div class="card board-head"><div><div class="lbl">${esc(rule.name)}${sex?" · "+(sex==="F"?"Filles":"Garçons"):""}</div><div class="compline">${rule.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="bh-ev">${b.last?"Après "+esc(EVENTS[b.last].name):"En attente des premiers résultats"}</div></div><div class="kpi"><b>${b.nDone}<small>/${b.nAll}</small></b><span>épreuves</span></div><div class="prog"><i style="width:${b.nAll?Math.round(100*b.nDone/b.nAll):0}%"></i></div><button class="btn small ghost" id="tv-btn">Plein écran</button></div>`;
-  const rows=b.now.filter(t=>!q||t.club.toLowerCase().includes(q));
+  const rows=b.now.filter(t=>!q||qm(t.club,q));
   html+=`<div class="list board">${rows.map(t=>{const open=state.open["t"+t.club];return`<div class="lane"><button class="row brow" data-open="t${esc(t.club)}" aria-expanded="${!!open}"><span class="rk r${t.rank}">${t.rank}</span><span class="ev"><b>${logo(t.club)}${esc(t.club)} ${moveHtml(t,b.prev)}</b>${t.nc?`<span class="msg nc-note">Non classée · relais manquant : ${esc(t.nc.join(", "))}</span>`:""}<span class="bar"><i style="width:${Math.max(4,Math.round(100*t.total/max))}%"></i></span></span><span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></button>${open?teamDetail(t,rule,sex):""}</div>`}).join("")||`<p class="empty">${q?"Aucune équipe ne correspond.":"Le classement démarrera après la première épreuve."}</p>`}</div>`;
   $("#pub-body").innerHTML=html;
   const tv=$("#tv-btn");if(tv)tv.onclick=()=>{document.body.classList.toggle("tv");tv.textContent=document.body.classList.contains("tv")?"Quitter le plein écran":"Plein écran";try{document.body.classList.contains("tv")?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}};
@@ -1534,8 +1540,10 @@ function renderHome(){
   // frise qui défile : l'étape en cours est ramenée au milieu
   for(const n of document.querySelectorAll(".tl2 li.cur")){const ol=n.parentElement;ol.scrollLeft=n.offsetLeft-ol.clientWidth/2+n.offsetWidth/2}
 }
-function evMatches(ev,q){return ev.entries.some(w=>(w.name+" "+w.club).toLowerCase().includes(q))}
+function evMatches(ev,q){return ev.entries.some(w=>qm(w.name+" "+w.club+" "+((SWIMMERS[w.iuf]||{}).name||""),q))||ev.results.some(w=>qm(w.name+" "+w.club,q))}
 function getQ(){return $("#search").value.trim().toLowerCase()}
+// recherche souple : sans accents ni tirets, dans n'importe quel ordre (« maelys irion » trouve « IRION-REUTENAUER Maëlys »)
+function qm(t,q){if(!q)return false;const T=norm(t);return norm(q).split(" ").filter(Boolean).every(w=>T.includes(w))}
 function secTitle(t,sub){return`<div class="sec-title"><h3>${t}</h3>${sub?`<span>${sub}</span>`:""}</div>`}
 function plural(n,w){return n+" "+w+(n>1?"s":"")}
 const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],JOURS=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
@@ -1583,7 +1591,7 @@ function renderProg(){
   }
   $("#pub-body").innerHTML=html;
 }
-function hit(w,q){return q&&(w.name+" "+w.club).toLowerCase().includes(q)?"hit":""}
+function hit(w,q){return q&&qm(w.name+" "+w.club,q)?"hit":""}
 function nameCell(w){return w.iuf?`<a href="#" data-swimmer="${w.iuf}">${esc(w.name)}</a>`:esc(w.name)}
 function renderSeries(ev,q){
   const relay=/^4x/i.test(ev.name);
@@ -1789,8 +1797,8 @@ function renderPart(){
   // fiche du nageur : fenêtre par-dessus la liste (on reste au même endroit dans la liste en la fermant)
   let html="";const sheet=state.sel&&P[state.sel]?`<div class="sheet-bg sw-sheet" data-close="1"><div class="sheet" role="dialog" aria-label="Fiche du nageur">${swimmerDetail(P[state.sel])}</div></div>`:"";
   const list=Object.values(clubs).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>{
-    const clubHit=q&&c.name.toLowerCase().includes(q);
-    const sw=c.sw.filter(p=>!q||clubHit||p.sw.name.toLowerCase().includes(q)).sort((a,b)=>a.sw.name.localeCompare(b.sw.name));
+    const clubHit=q&&qm(c.name,q);
+    const sw=c.sw.filter(p=>!q||clubHit||qm(p.sw.name,q)).sort((a,b)=>a.sw.name.localeCompare(b.sw.name));
     return{...c,shown:sw,open:!!q||state.open["c"+c.name]};
   }).filter(c=>c.shown.length);
   const nSw=list.reduce((a,c)=>a+c.shown.length,0);
@@ -1808,13 +1816,13 @@ function swimmerDetail(p){
   ${(()=>{const g=progOf(p);return g.all?progKpis(g,(g.gain>0?"−":"+")+Math.abs(g.gain).toFixed(2).replace(".",",")):""})()}
   <div class="tbl"><table><thead><tr><th>Date · heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Ancien RP</th><th>Progr.</th><th>Pl.</th></tr></thead><tbody>
   ${items.map(({ev,w,leg})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>leg?x.name===w.name:x.iuf===w.iuf)||null:null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
-    return`<tr><td class="num sw-when">${evDay(ev.key)?`<small>${evDay(ev.key)}</small> `:""}${hm(state.phase==="eng"?sch[ev.key].start:heatStart(ev,sch[ev.key].start,ev.fin?1:w.heat))}</td><td>${esc(ev.name)}${leg?`<br><small class="sw-leg">relais · ${leg}${leg===1?"er":"e"} relayeur</small>`:""}</td><td class="num">${state.phase==="eng"||(leg&&!w.heat)?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${engT(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td>${(()=>{let B=leg?null:bestOf(w,ev);if(B&&B.self)B=null;const ref=B&&B.t!=null?B.t:null;const v=ref&&r&&!r.dsq&&r.res!=null?(ref-r.res)/ref*100:null;return`<td class="num">${ref?fmt(ref):"—"}</td><td class="num">${v!=null?`<span class="pct ${pctCls(v)}">${pctTxt(v)}</span>`:!ref&&!leg&&r&&!r.dsq&&r.res!=null?`<span class="pg-new" title="Première fois sur cette épreuve">Nouvelle</span>`:"—"}</td>`})()}<td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="7">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
+    return`<tr><td class="num sw-when">${evDay(ev.key)?`<small>${evDay(ev.key)}</small> `:""}${hm(state.phase==="eng"?sch[ev.key].start:heatStart(ev,sch[ev.key].start,ev.fin?1:w.heat))}</td><td>${esc(ev.name)}${leg?`<br><small class="sw-leg">relais · ${leg}${leg===1?"er":"e"} relayeur</small>`:""}</td><td class="num">${state.phase==="eng"||(leg&&!w.heat)?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${engT(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td>${(()=>{let B=leg?null:bestOf(w,ev);if(B&&B.self)B=null;const ref=B&&B.t!=null?B.t:null;const v=ref&&r&&!r.dsq&&r.res!=null?(ref-r.res)/ref*100:null;return`<td class="num">${ref?fmt(ref):"—"}</td><td class="num">${v!=null?`<span class="pct ${pctCls(v)}">${pctTxt(v)}</span><br><small class="pg-sec ${pctCls(v)}">${(()=>{const d=r.res-ref;return(d<-0.004?"−":d>0.004?"+":"±")+Math.abs(d).toFixed(2).replace(".",",")+" s"})()}</small>`:!ref&&!leg&&r&&!r.dsq&&r.res!=null?`<span class="pg-new" title="Première fois sur cette épreuve">Nouvelle</span>`:"—"}</td>`})()}<td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="7">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
   </tbody></table></div></div>`;
 }
 function renderClub(){
   const q=getQ(),fc=$("#filter-comp").value,P=participants();const clubs={};
   for(const p of Object.values(P)){if(fc&&p.sw.comp!==fc)continue;(clubs[p.sw.club]=clubs[p.sw.club]||{name:p.sw.club,sw:[],eng:0});clubs[p.sw.club].sw.push(p);clubs[p.sw.club].eng+=p.items.length}
-  const list=Object.values(clubs).filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  const list=Object.values(clubs).filter(c=>!q||qm(c.name,q)).sort((a,b)=>a.name.localeCompare(b.name));
   let html="";
   if(state.sel&&clubs[state.sel]){const c=clubs[state.sel];
     html=`<div class="detail" id="detail"><div class="detail-head"><div><h3>${logo(c.name,1)}${esc(c.name)}</h3><div class="meta">${plural(c.sw.length,"nageur")} · ${plural(c.eng,"engagement")}</div></div><div style="display:flex;gap:8px;align-items:center">${favBtn("c",clubKey(c.name),c.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div><div class="list">
