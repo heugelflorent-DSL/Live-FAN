@@ -693,6 +693,24 @@ export default {
       return edge(json({ at: store.at || null, sw: out }, 200, { "cache-control": "public, max-age=300" }));
     }
 
+    // records perso au format tableur (pour le livestream, les coachs…) : un nageur × une épreuve par ligne
+    if (p === "/api/records.csv" && req.method === "GET") {
+      const [{ config, data }, store] = await Promise.all([load(env, ev), env.KV.get(kk("mpp", ev), "json")]);
+      const sw = (store && store.sw) || {}; const who = {};
+      for (const id of config.comps) { const c = data.comps[id]; if (!c) continue;
+        for (const e of eventsOf(c)) { const st = c.events?.[e.key] || {};
+          for (const l of [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)]) {
+            if (!l.name || l.members || !l.year) continue; const k = mppKey(l.name, l.year); if (!who[k] || (l.name.length > who[k].name.length && !/\.$/.test(l.name))) who[k] = { name: l.name, year: l.year, club: l.club || (who[k] && who[k].club) || "" }; } } }
+      const f = (t) => { if (t == null) return ""; const m = Math.floor(t / 60), s = t - m * 60; return (m ? m + ":" + s.toFixed(2).padStart(5, "0") : s.toFixed(2)); };
+      const q = (x) => { x = String(x ?? ""); return /[";\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
+      const lines = [["Nom", "Année", "Club", "Épreuve", "Record perso", "Date du record", "IUF"].join(";")];
+      const rows = [];
+      for (const k in sw) { const x = sw[k]; if (!x.b) continue; const w = who[k] || { name: k.split("|")[0], year: k.split("|")[1] || "", club: "" };
+        for (const evk in x.b) { const r = x.b[evk]; rows.push([w.name, w.year, w.club, evk, f(r.t), r.d ? r.d.split("-").reverse().join("/") : "", x.iuf || ""]); } }
+      rows.sort((a, b) => a[0].localeCompare(b[0]) || a[3].localeCompare(b[3]));
+      for (const r of rows) lines.push(r.map(q).join(";"));
+      return new Response("\ufeff" + lines.join("\r\n") + "\r\n", { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="records-${ev}.csv"`, "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
+    }
     // audience sans cookie : une empreinte hachée (IP + navigateur + semaine) par visiteur, rien de lisible n'est gardé
     if (p === "/api/hit" && req.method === "POST") {
       if (!env.STATS) return new Response(null, { status: 204 });
