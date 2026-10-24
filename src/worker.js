@@ -3,6 +3,7 @@ export { PoolRoom } from "./pool.js";
 export { StatsRoom } from "./stats.js";
 import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
 import { normEvent, findIuf, fetchMpp } from "./extranat.js";
+import { euEnv } from "./eu.js";
 
 const BUDGET = 15;            // pages Live FFN lues au maximum par passage (le reste attend le passage suivant)
 const PROG_EVERY = 30 * 60e3; // programme relu toutes les 30 min
@@ -530,6 +531,7 @@ async function rescrape(env, scope, what, ev = "main") {
 
 export default {
   async fetch(req, env, ctx) {
+    env = euEnv(env); // données et relais en Europe
     const url = new URL(req.url);
     const p = url.pathname;
     if (!p.startsWith("/api/")) return env.ASSETS.fetch(req);
@@ -900,6 +902,13 @@ export default {
       const { data } = await load(env, ev);
       return json({ ok: true, total: n, remaining: (data.queue || []).length, error: data.error });
     }
+    // passage en Europe : recopie de l'ancien stockage vers la base UE (puis vidage de l'ancien avec ?purge=1)
+    if (p === "/api/admin/migrate-eu") {
+      if (!ADM) return adminOnly();
+      if (!env.OLDKV || !env.KV.migrateAll) return json({ error: "Base Europe non branchée." }, 400);
+      if (req.method !== "POST") return json({ ready: true });
+      return json(await env.KV.migrateAll(url.searchParams.get("purge") === "1"));
+    }
     if (p === "/api/admin/log") {
       if (!ADM) return adminOnly();
       try { const r = await env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/logs" + (req.method === "DELETE" ? "?clear=1" : ""))); return json(await r.json()); }
@@ -910,6 +919,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
+    env = euEnv(env);
     // chaque minute : tous les événements à tour de rôle, dans la limite de 45 pages (50 sous-requêtes max en gratuit)
     ctx.waitUntil((async () => {
       const ids = ["main", ...(await listEvents(env)).map((x) => x.id)];
