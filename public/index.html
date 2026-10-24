@@ -1325,7 +1325,7 @@ function bindPair(){const go=$("#pair-go");if(!go)return;const ps=$("#pair-sys")
 /* ---------- page d'accueil : choix de la compétition ---------- */
 const ARCH=/^\/archives\/?$/.test(location.pathname);const PICK=location.pathname==="/"||ARCH;
 const MOIS_P=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
-function pickDates(txt){const t=(txt||"").toLowerCase();const m=t.match(/(\d{1,2})(?:er)?\s+([a-zéèûô]+)\s+(\d{4})/);if(!m)return null;const mo=MOIS_P.indexOf(m[2]);if(mo<0)return null;
+function pickDates(txt){const t=(txt||"").toLowerCase();const m=t.match(/(\d{1,2})(?:\s*er)?\s+([a-zéèûô]+)\s+(\d{4})/);if(!m)return null;const mo=MOIS_P.indexOf(m[2]);if(mo<0)return null;
   const end=new Date(+m[3],mo,+m[1]);const d0=(t.match(/^\D*?(\d{1,2})\b/)||[])[1];let start=new Date(end);if(d0&&+d0!==+m[1]){start=new Date(+m[3],+d0>+m[1]?mo-1:mo,+d0)}return{start,end}}
 function pickStatus(e){let s=null,en=null;for(const c of e.comps||[]){const d=pickDates(c.date);if(!d)continue;if(!s||d.start<s)s=d.start;if(!en||d.end>en)en=d.end}
   const t=new Date();t.setHours(0,0,0,0);if(!s)return{k:"na",lab:"Dates à venir",ord:1,t:9e15};if(t>en)return{k:"done",lab:"Terminée",ord:2,t:-en.getTime()};if(t>=s)return{k:"live",lab:"En cours",ord:0,t:s.getTime()};
@@ -1548,7 +1548,7 @@ function poolDoneEvents(ev){if(!ev)return"";const done=doneSet();const sk=Object
 
 /* ---------- Direct (Live FFN, série par série) ---------- */
 let LIVE={},LH={};
-function compRange(c){const t=(c.date||"").toLowerCase();const ends=[...t.matchAll(/(\d{1,2})(?:er)?\s+([a-zéûô]+)\s+(\d{4})/g)].filter(m=>MOIS.includes(m[2]));if(!ends.length)return null;const e=ends[ends.length-1];const end=new Date(+e[3],MOIS.indexOf(e[2]),+e[1]);const f=t.match(/\b(\d{1,2})\b/);let start=new Date(end);if(f&&+f[1]!==+e[1]){const st=ends.length>1?ends[0]:null;start=st?new Date(+st[3],MOIS.indexOf(st[2]),+st[1]):new Date(end.getFullYear(),end.getMonth(),+f[1]);if(start>end)start.setMonth(start.getMonth()-1)}return{start,end}}
+function compRange(c){const t=(c.date||"").toLowerCase();const ends=[...t.matchAll(/(\d{1,2})(?:\s*er)?\s+([a-zéûô]+)\s+(\d{4})/g)].filter(m=>MOIS.includes(m[2]));if(!ends.length)return null;const e=ends[ends.length-1];const end=new Date(+e[3],MOIS.indexOf(e[2]),+e[1]);const f=t.match(/\b(\d{1,2})\b/);let start=new Date(end);if(f&&+f[1]!==+e[1]){const st=ends.length>1?ends[0]:null;start=st?new Date(+st[3],MOIS.indexOf(st[2]),+st[1]):new Date(end.getFullYear(),end.getMonth(),+f[1]);if(start>end)start.setMonth(start.getMonth()-1)}return{start,end}}
 function liveToday(){if(state.live==="bassin")return true;const d=new Date();d.setHours(12,0,0,0);return state.comps.some(c=>{const r=compRange(c);if(!r)return false;const a=new Date(r.start),b=new Date(r.end);a.setHours(0,0,0,0);b.setHours(23,59,0,0);return d>=a&&d<=b})}
 function liveUpcoming(){const t=new Date();t.setHours(0,0,0,0);const rs=state.comps.map(compRange).filter(Boolean).filter(r=>r.end>=t).sort((a,b)=>a.start-b.start);return rs[0]||null}
 // onglet visible dès que le programme définitif est publié, jusqu'à la fin de la compétition
@@ -1663,7 +1663,7 @@ function mySwimmers(compact){
   return`<div class="card lv-card myswim"><span class="lv-tag">★ Mes nageurs</span>${list.map(r=>r.html).join("")||`<p class="msg">Plus de course à venir pour tes nageurs suivis.</p>`}${compact&&rows.length>6?`<p class="msg">+ ${rows.length-6} autres · <a href="#" data-go="home">voir tout</a></p>`:""}</div>`}
 // la réunion a lieu aujourd'hui (date du Live FFN, ex. « Samedi 17 Octobre 2026 »)
 // réunion en cours (portes − 30 min → fin des résultats) ou prochaine réunion : le direct se met en pause entre les deux
-function reuDate(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})(?:er)?\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return null;const i=MOIS.indexOf(m[2]);return i<0?null:new Date(+m[3],i,+m[1])}
+function reuDate(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})(?:\s*er)?\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return null;const i=MOIS.indexOf(m[2]);return i<0?null:new Date(+m[3],i,+m[1])}
 function liveSlot(){const sch=schedule(),done=doneSet(),now=Date.now();let next=null;
   for(const s of Object.keys(state.order).sort((a,b)=>a-b)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");if(!ks.length)continue;const d=reuDate(s);if(!d)continue;
     if(ks.every(k=>done.has(k))){const end=Math.max(...ks.map(k=>EVENTS[k].doneAt||0));if(end&&now-end<30*60e3)return{on:true,s,grace:true};continue} // dernière série visible 30 min après la fin de la réunion
@@ -1671,7 +1671,7 @@ function liveSlot(){const sch=schedule(),done=doneSet(),now=Date.now();let next=
     const a=at(sch[ks[0]].start-1800),b=at((sch[ks[ks.length-1]].end||sch[ks[ks.length-1]].start)+7200);
     if(now>=a&&now<=b)return{on:true,s};if(now<a&&!next)next={s,at:at(sch[ks[0]].start),doors:state.doors[s]||"",d}}
   return{on:false,next}}
-function reuToday(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})(?:er)?\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return false;const d=new Date(),i=MOIS.indexOf(m[2]);return i>=0&&d.getFullYear()===+m[3]&&d.getMonth()===i&&d.getDate()===+m[1]}
+function reuToday(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})(?:\s*er)?\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return false;const d=new Date(),i=MOIS.indexOf(m[2]);return i>=0&&d.getFullYear()===+m[3]&&d.getMonth()===i&&d.getDate()===+m[1]}
 function renderHome(){
   const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k)&&!EVENTS[k].provisional);let html="",top=engBanner(),teams="";
   if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
@@ -1717,7 +1717,7 @@ function secTitle(t,sub){return`<div class="sec-title"><h3>${t}</h3>${sub?`<span
 function plural(n,w){return n+" "+w+(n>1?"s":"")}
 const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],JOURS=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
 function frDate(d){return JOURS[d.getDay()]+" "+d.getDate()+" "+MOIS[d.getMonth()]}
-function compStartDate(){for(const c of state.comps){const m=(c.date||"").toLowerCase().match(/(\d{1,2})(?:er)?\s+([a-zéèûô]+)\s+(\d{4})/);if(m){const i=MOIS.indexOf(m[2]);if(i>=0)return new Date(+m[3],i,+m[1])}}return null}
+function compStartDate(){for(const c of state.comps){const m=(c.date||"").toLowerCase().match(/(\d{1,2})(?:\s*er)?\s+([a-zéèûô]+)\s+(\d{4})/);if(m){const i=MOIS.indexOf(m[2]);if(i>=0)return new Date(+m[3],i,+m[1])}}return null}
 function keyDates(){const out=[];const today=new Date();today.setHours(0,0,0,0);
   const auto=state.comps.find(c=>c.entryList);
   if(state.engEnd){const d=new Date(state.engEnd+"T12:00");out.push(d<today?`Engagements clos depuis le ${frDate(d)}`:`Fin des engagements : <b>${frDate(d)}</b>`)}
@@ -1977,7 +1977,7 @@ function renderPart(){
   $("#pub-body").innerHTML=html+sheet;
 }
 // date courte d'une épreuve d'après sa réunion (« Samedi 18 octobre 2025 » → « sam. 18 oct. »)
-function evDay(key){const r=Object.keys(state.order).find(x=>state.order[x].includes(key));const d=((state.reuDay||{})[r]||"").toLowerCase().match(/([a-zéû]+)\s+(\d{1,2})(?:er)?\s+([a-zéèûô]+)/);if(!d)return"";const M=d[3];return d[1].slice(0,3)+". "+d[2]+" "+(M.length<=4?M:M.slice(0,M==="juillet"||M==="septembre"?4:3)+".")}
+function evDay(key){const r=Object.keys(state.order).find(x=>state.order[x].includes(key));const d=((state.reuDay||{})[r]||"").toLowerCase().match(/([a-zéû]+)\s+(\d{1,2})(?:\s*er)?\s+([a-zéèûô]+)/);if(!d)return"";const M=d[3];return d[1].slice(0,3)+". "+d[2]+" "+(M.length<=4?M:M.slice(0,M==="juillet"||M==="septembre"?4:3)+".")}
 function swimmerDetail(p){
   const sch=schedule(),done=doneSet();
   const items=p.items.sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);

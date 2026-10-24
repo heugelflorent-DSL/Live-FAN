@@ -28,7 +28,7 @@ function parisEpoch(y, m, d, h = 0, mi = 0) {
 }
 const MONTHS = { janvier: 1, fevrier: 2, février: 2, mars: 3, avril: 4, mai: 5, juin: 6, juillet: 7, aout: 8, août: 8, septembre: 9, octobre: 10, novembre: 11, decembre: 12, décembre: 12 };
 function compDate(meta) {
-  const m = (meta?.date || "").toLowerCase().match(/(\d{1,2})(?:er)?\s+([a-zéèûô]+)\s+(\d{4})/); // « 1er Novembre 2025 » aussi
+  const m = (meta?.date || "").toLowerCase().match(/(\d{1,2})(?:\s*er)?\s+([a-zéèûô]+)\s+(\d{4})/); // « 1er Novembre 2025 » aussi
   return m && MONTHS[m[2]] ? { y: +m[3], m: MONTHS[m[2]], d: +m[1] } : null;
 }
 const hToMin = (t) => { const m = String(t || "").match(/(\d{1,2})h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
