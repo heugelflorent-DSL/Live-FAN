@@ -42,6 +42,146 @@ html[data-theme="pirate"] body::after{content:"";position:fixed;right:-40px;bott
 html[data-theme="pirate"] .navbar::after{content:"";position:absolute;left:50%;bottom:-11px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:#efe2c2 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233a2410' stroke-width='1.5' stroke-linecap='round' opacity='1'%3E%3Cpath d='M12 3c-4 0-7 2.8-7 6.6 0 2.2 1 3.7 2.4 4.6V17h9.2v-2.8c1.4-.9 2.4-2.4 2.4-4.6C19 5.8 16 3 12 3z' fill='%233a2410' fill-opacity='.12'/%3E%3Ccircle cx='9.3' cy='10' r='1.7' fill='%233a2410'/%3E%3Ccircle cx='14.7' cy='10' r='1.7' fill='%233a2410'/%3E%3Cpath d='M12 12.3l-.9 1.6h1.8z' fill='%233a2410'/%3E%3Cpath d='M10 17v2M12 17v2M14 17v2M3 20.5l18-3.5M3 17l18 3.5'/%3E%3C/svg%3E") center/16px no-repeat;border:1px solid #8a5a2b}
 html[data-theme="pirate"] .badge{background:#ead8ad;color:#3a2410}
 html[data-theme="pirate"] .lv-tag{background:#a8452a;color:#fff;font-family:"Pirata One",Georgia,serif;font-weight:400;letter-spacing:.06em}
+/* =====================================================================
+   Swim Direct — thème « interclubs » (Interclubs Grand Est 2026)
+   Nuit en mer, or et parchemin : même identité que la vidéo, la bannière
+   et le grand écran. Même structure que le thème « pirate » existant :
+   activer avec <html data-theme="interclubs">.
+   ===================================================================== */
+
+html[data-theme="interclubs"] {
+  /* accent : or */
+  --a: #e3b740; --a0: #b8861f; --a-d: #9a6f16; --a-d2: #7d5a12; --a-dd: #5e430d;
+  --a-rgb: 227,183,64; --l-rgb: 227,183,64; --l2-rgb: 201,154,46; --s-rgb: 4,10,18;
+  /* cartes : bleu nuit */
+  --c1: 13,30,46; --c2: 19,42,62;
+  --ink-d: #0b1622; --ink-d2: #070f18;
+  --t1: #f1e2bf; --t2: #f3e6c8; --t3: #e9d6a6; --t4: #fbf5e8; --t5: #f8f0df; --t6: #f5ecd8;
+  --m1: #9fb7c8; --m2: #7d95a8; --m3: #b9cbd8; --m4: #8aa2b5;
+  --mu: #c9d6e0; --fa: #7d95a8;
+  --g0: #fff1a8; --g1: #f3d36b; --g2: #e3b740; --g3: #c99a2e; --g4: #8a6212; --g5: #3a2a0a;
+  --bg: #0b1622;
+  --ink: #f1e2bf; --muted: #c9d6e0; --faint: #7d95a8;
+  --card: rgba(13,30,46,.82); --card-2: rgba(19,42,62,.9); --card-in: rgba(255,255,255,.05);
+  --line: rgba(227,183,64,.28);
+  color-scheme: dark;
+}
+
+/* Fond : mer de nuit, étoiles et vagues */
+html[data-theme="interclubs"] body {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 220' preserveAspectRatio='none'%3E%3Cpath d='M0 80 Q90 40 180 80 T360 80 T540 80 T720 80 T900 80 T1080 80 T1260 80 T1440 80 V220 H0Z' fill='%23123049' fill-opacity='.85'/%3E%3Cpath d='M0 130 Q90 95 180 130 T360 130 T540 130 T720 130 T900 130 T1080 130 T1260 130 T1440 130 V220 H0Z' fill='%230a2236'/%3E%3C/svg%3E") bottom center / 100% 160px no-repeat fixed,
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(255,255,255,.8), transparent),
+    radial-gradient(1.5px 1.5px at 28% 8%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 64% 14%, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 82% 24%, rgba(255,255,255,.6), transparent),
+    radial-gradient(1.5px 1.5px at 46% 30%, rgba(255,255,255,.5), transparent),
+    radial-gradient(ellipse at 75% -10%, rgba(140,170,200,.25), transparent 50%),
+    linear-gradient(#070f18, #0f2c44 55%, #1d3c55) fixed;
+  background-color: #0b1622;
+  color: #f1e2bf;
+  font-family: "IM Fell English", Georgia, serif;
+}
+
+/* Cadre doré double, comme sur la bannière et le grand écran */
+html[data-theme="interclubs"] body::before {
+  content: ""; position: fixed; inset: 6px; border: 6px double #c99a2e; border-radius: 4px; pointer-events: none; z-index: 50;
+}
+
+/* Grande tête de mort aux lunettes de natation en filigrane */
+html[data-theme="interclubs"] body::after {
+  content: ""; position: fixed; right: -40px; bottom: 40px; width: 300px; height: 300px; pointer-events: none; z-index: -1;
+  transform: rotate(-12deg); opacity: .09;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3c-4 0-7 2.8-7 6.6 0 2.2 1 3.7 2.4 4.6V17h9.2v-2.8c1.4-.9 2.4-2.4 2.4-4.6C19 5.8 16 3 12 3z' fill='%23e3b740' fill-opacity='.25' stroke='%23e3b740' stroke-width='1.2'/%3E%3Cpath d='M4.6 9.6h14.8' stroke='%23e3b740' stroke-width='1.4'/%3E%3Ccircle cx='9.2' cy='9.8' r='2' fill='%23e3b740'/%3E%3Ccircle cx='14.8' cy='9.8' r='2' fill='%23e3b740'/%3E%3Cpath d='M12 12.6l-.9 1.5h1.8z' fill='%23e3b740'/%3E%3Cpath d='M10 17v2M12 17v2M14 17v2M3 20.5l18-3.5M3 17l18 3.5' stroke='%23e3b740' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* En-tête */
+html[data-theme="interclubs"] .top, html[data-theme="interclubs"] .top * { color: #f1e2bf; }
+html[data-theme="interclubs"] .brand-txt h1 {
+  font-size: clamp(28px, 7vw, 42px); color: #f3d36b !important; text-shadow: 0 3px 14px rgba(0,0,0,.6);
+}
+/* Le logo de la Ligue a un texte bleu marine : plaque blanche pour qu'il reste lisible sur le fond de nuit */
+html[data-theme="interclubs"] .brand .logo.custom {
+  background: #fff !important; border-radius: 14px; padding: 6px 10px; box-shadow: 0 0 0 2px #c99a2e, 0 8px 18px rgba(0,0,0,.4);
+}
+html[data-theme="interclubs"] .cobrand .co.nobg {
+  background: #fff !important; border-radius: 12px; padding: 4px 8px; box-shadow: 0 0 0 2px #c99a2e;
+}
+
+/* Typographie pirate pour les titres et les onglets */
+html[data-theme="interclubs"] h1, html[data-theme="interclubs"] h2, html[data-theme="interclubs"] h3,
+html[data-theme="interclubs"] .lane .ev > b, html[data-theme="interclubs"] .tabs [data-view] {
+  font-family: "Pirata One", Georgia, serif; font-weight: 400; letter-spacing: .02em;
+}
+html[data-theme="interclubs"] .lane .ev > b { font-size: 20px; color: #f3d36b; }
+
+/* Barre de navigation et onglets */
+html[data-theme="interclubs"] .navbar {
+  background: rgba(7,15,24,.94); border-bottom: 2px dashed #c99a2e; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+html[data-theme="interclubs"] .tabs [data-view] {
+  background: rgba(13,30,46,.6); color: #f1e2bf; border: 1px solid rgba(227,183,64,.6); border-radius: 6px; font-size: 17px;
+}
+html[data-theme="interclubs"] .tabs [data-view]:hover { border-color: #e3b740; }
+html[data-theme="interclubs"] .tabs [data-view][aria-selected="true"] {
+  background: linear-gradient(#f3d36b, #c99a2e); color: #0b1622; border-color: #f3d36b; box-shadow: 0 0 18px rgba(227,183,64,.35);
+}
+
+/* Champs de recherche */
+html[data-theme="interclubs"] #search, html[data-theme="interclubs"] .field {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(227,183,64,.6); color: #f1e2bf; font-family: "IM Fell English", Georgia, serif;
+}
+html[data-theme="interclubs"] #search::placeholder, html[data-theme="interclubs"] .field::placeholder { color: #9fb7c8; }
+
+/* Cartes, couloirs, podiums, blocs « en cours » */
+html[data-theme="interclubs"] .card, html[data-theme="interclubs"] .lane, html[data-theme="interclubs"] .detail,
+html[data-theme="interclubs"] .podblock, html[data-theme="interclubs"] .now, html[data-theme="interclubs"] .sec-title,
+html[data-theme="interclubs"] .prow, html[data-theme="interclubs"] .step, html[data-theme="interclubs"] .sheet {
+  background: rgba(13,30,46,.8); border: 1px solid rgba(227,183,64,.5); border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35); color: #f1e2bf; backdrop-filter: blur(2px);
+}
+html[data-theme="interclubs"] .sec-title { border-style: dashed; }
+html[data-theme="interclubs"] .lane .row { border-bottom: 1px dotted rgba(227,183,64,.3); }
+html[data-theme="interclubs"] .lane .sub, html[data-theme="interclubs"] .msg, html[data-theme="interclubs"] small { color: #9fb7c8; }
+
+/* Boutons */
+html[data-theme="interclubs"] .btn {
+  background: linear-gradient(#f3d36b, #c99a2e); color: #0b1622; border-radius: 6px;
+  font-family: "Pirata One", Georgia, serif; font-size: 17px; font-weight: 400; letter-spacing: .03em;
+}
+html[data-theme="interclubs"] .btn.ghost { background: transparent; color: #f1e2bf; border: 1px solid rgba(227,183,64,.6); }
+
+/* Badges et étiquette « en direct » (rouge, comme le teaser du Facebook Live) */
+html[data-theme="interclubs"] .badge { background: rgba(227,183,64,.16); color: #f3d36b; border: 1px solid rgba(227,183,64,.4); }
+html[data-theme="interclubs"] .lv-tag {
+  background: #e0251b; color: #fff; font-family: "Pirata One", Georgia, serif; font-weight: 400; letter-spacing: .06em;
+  box-shadow: 0 0 14px rgba(224,37,27,.55);
+}
+.th-interclubs .pk-date { border-color: #c99a2e; }
+
+/* Icône tête de mort aux lunettes : titre, sections, onglet actif, étiquette live */
+html[data-theme="interclubs"] .brand-txt h1::before,
+html[data-theme="interclubs"] .sec-title h3::before, html[data-theme="interclubs"] .session h2::before,
+html[data-theme="interclubs"] .lv-tag::before, html[data-theme="interclubs"] .tabs [data-view][aria-selected="true"]::before {
+  content: ""; display: inline-block; width: 1.05em; height: 1.05em; margin-right: .3em; vertical-align: -.15em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3c-4 0-7 2.8-7 6.6 0 2.2 1 3.7 2.4 4.6V17h9.2v-2.8c1.4-.9 2.4-2.4 2.4-4.6C19 5.8 16 3 12 3z' fill='%23f3d36b' fill-opacity='.2' stroke='%23f3d36b' stroke-width='1.4'/%3E%3Cpath d='M4.6 9.6h14.8' stroke='%231f6fb2' stroke-width='1.8'/%3E%3Ccircle cx='9.2' cy='9.8' r='2' fill='%2365c6e6' stroke='%23f3d36b'/%3E%3Ccircle cx='14.8' cy='9.8' r='2' fill='%2365c6e6' stroke='%23f3d36b'/%3E%3Cpath d='M12 12.6l-.9 1.5h1.8z' fill='%23f3d36b'/%3E%3Cpath d='M10 17v2M12 17v2M14 17v2M3 20.5l18-3.5M3 17l18 3.5' stroke='%23f3d36b' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+html[data-theme="interclubs"] .tabs [data-view][aria-selected="true"]::before,
+html[data-theme="interclubs"] .lv-tag::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3c-4 0-7 2.8-7 6.6 0 2.2 1 3.7 2.4 4.6V17h9.2v-2.8c1.4-.9 2.4-2.4 2.4-4.6C19 5.8 16 3 12 3z' fill='%23ffffff' fill-opacity='.15' stroke='%230b1622' stroke-width='1.4'/%3E%3Cpath d='M4.6 9.6h14.8' stroke='%230b1622' stroke-width='1.8'/%3E%3Ccircle cx='9.2' cy='9.8' r='2' fill='%230b1622'/%3E%3Ccircle cx='14.8' cy='9.8' r='2' fill='%230b1622'/%3E%3Cpath d='M12 12.6l-.9 1.5h1.8z' fill='%230b1622'/%3E%3Cpath d='M10 17v2M12 17v2M14 17v2M3 20.5l18-3.5M3 17l18 3.5' stroke='%230b1622' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+html[data-theme="interclubs"] .lv-tag::before { filter: invert(1); }
+
+/* Médaillon au centre de la barre de navigation */
+html[data-theme="interclubs"] .navbar::after {
+  content: ""; position: absolute; left: 50%; bottom: -12px; width: 24px; height: 24px; margin-left: -12px; border-radius: 50%;
+  background: #0b1622 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 3c-4 0-7 2.8-7 6.6 0 2.2 1 3.7 2.4 4.6V17h9.2v-2.8c1.4-.9 2.4-2.4 2.4-4.6C19 5.8 16 3 12 3z' fill='%23f3d36b' fill-opacity='.2' stroke='%23f3d36b' stroke-width='1.4'/%3E%3Ccircle cx='9.2' cy='9.8' r='2' fill='%23f3d36b'/%3E%3Ccircle cx='14.8' cy='9.8' r='2' fill='%23f3d36b'/%3E%3C/svg%3E") center / 16px auto no-repeat;
+  border: 1px solid #c99a2e;
+}
+
+/* Pied de page */
+html[data-theme="interclubs"] .foot, html[data-theme="interclubs"] .foot * { color: #c9d6e0; }
+html[data-theme="interclubs"] .foot a { color: #f3d36b; }
 html:not([data-theme="alsace"]) .logo{display:none}
 html:not([data-theme="alsace"]) .brand-txt h1{color:#fff}
 
@@ -717,7 +857,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
       <details class="step">
         <summary><span class="n"></span>Couleurs et organisateur</summary>
         <div class="step-body">
-          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option><option value="pirate">Pirate (carte au trésor)</option><option value="custom">Couleur libre…</option></select><span class="cc-row" id="cc-row" hidden><input type="color" id="ev-color" value="#7a2bb5"><span class="msg" id="cc-msg"></span></span></label>
+          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option><option value="pirate">Pirate (carte au trésor)</option><option value="interclubs">Interclubs (nuit en mer, or)</option><option value="custom">Couleur libre…</option></select><span class="cc-row" id="cc-row" hidden><input type="color" id="ev-color" value="#7a2bb5"><span class="msg" id="cc-msg"></span></span></label>
           <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
           <h4 style="margin:14px 0 4px">Logo en haut à gauche</h4>
           <p class="msg">Sans logo choisi : drapeau de l'Alsace avec les couleurs Alsace, rien avec les autres. Enregistré tout de suite, sans le bouton « Enregistrer ».</p>
@@ -969,7 +1109,7 @@ function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.s
   // série jouée hors des jours de la compétition (simulateur, essai) : ne décale pas le programme
   const cd=compStartDate();if(cd&&(h.start<cd.getTime()-864e5||h.start>cd.getTime()+5*864e5))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
-const THEME_COL={alsace:"#c8102e",ligue:"#17803f",ffn:"#0b4ea2",pirate:"#8a3a22"};
+const THEME_COL={alsace:"#c8102e",ligue:"#17803f",ffn:"#0b4ea2",pirate:"#8a3a22",interclubs:"#b8861f"};
 /* couleur libre : toute la palette est recalculée à partir d'une seule couleur, en gardant les clartés du modèle FFN (contrastes vérifiés) */
 const BASE_PAL=(()=>{for(const sh of document.styleSheets){try{for(const r of sh.cssRules)if(r.selectorText==='html[data-theme="ffn"]'){const o={};for(const k of r.style)o[k]=r.style.getPropertyValue(k).trim();return o}}catch(_){}}return{}})();
 function hx2rgb(h){h=h.replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[n>>16&255,n>>8&255,n&255]}
@@ -984,7 +1124,7 @@ function customPalette(hex){const[H,S]=rgb2hsl(hx2rgb(hex));const out={};
     if(v.startsWith("#"))out[k]=rgb2hx(fix(hx2rgb(v),main));else if(/^\d+,\s*\d+,\s*\d+$/.test(v))out[k]=fix(v.split(",").map(Number),main).join(",");else out[k]=v}
   // la couleur choisie elle-même pour --a, assombrie juste ce qu'il faut pour que le texte blanc reste lisible
   let[h,s,l]=rgb2hsl(hx2rgb(hex)),c=hx2rgb(hex);while(contrast(c,[255,255,255])<4.6&&l>.05){l-=.01;c=hsl2rgb([h,s,l])}out["--a"]=rgb2hx(c);return{vars:out,adj:rgb2hx(c)!==hex.toLowerCase()?rgb2hx(c):""}}
-function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(state.color||"")&&!colorClash(state.color);const t=cust?"custom":THEME_COL[state.theme]?state.theme:"alsace";const de=document.documentElement;de.dataset.theme=t;{const PL={home:"Le pont",live:"À l'abordage",prog:"Le cap",res:"Le butin",pod:"Le trésor",part:"L'équipage"};document.querySelectorAll(".tabs [data-view]").forEach(b=>{if(!b.dataset.lab)b.dataset.lab=b.textContent;b.textContent=t==="pirate"&&PL[b.dataset.view]?PL[b.dataset.view]:b.dataset.lab})}
+function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(state.color||"")&&!colorClash(state.color);const t=cust?"custom":THEME_COL[state.theme]?state.theme:"alsace";const de=document.documentElement;de.dataset.theme=t;{const PL={home:"Le pont",live:"À l'abordage",prog:"Le cap",res:"Le butin",pod:"Le trésor",part:"L'équipage"};document.querySelectorAll(".tabs [data-view]").forEach(b=>{if(!b.dataset.lab)b.dataset.lab=b.textContent;b.textContent=(t==="pirate"||t==="interclubs")&&PL[b.dataset.view]?PL[b.dataset.view]:b.dataset.lab})}
   let pal=null;if(cust){pal=customPalette(state.color);for(const[k,v]of Object.entries(pal.vars))de.style.setProperty(k,v)}else for(const k of Object.keys(BASE_PAL))de.style.removeProperty(k);
   const cm=$("#cc-msg");if(cm)cm.textContent=cust&&pal.adj?"Assombrie à "+pal.adj+" pour que le texte blanc reste lisible.":"";const cr=$("#cc-row");if(cr)cr.hidden=state.theme!=="custom";
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];
