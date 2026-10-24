@@ -42,3 +42,9 @@ new_sqlite_classes = ["PoolRoom"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["StatsRoom"]
+
+# Données des lives hébergées en Europe : base D1 créée en juridiction UE (stockée et traitée uniquement dans l'UE)
+[[d1_databases]]
+binding = "DB"
+database_name = "swim-direct-eu"
+database_id = "b3474785-5d89-4032-9c49-e5e788fd77a2"
