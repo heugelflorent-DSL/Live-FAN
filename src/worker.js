@@ -417,7 +417,7 @@ const mppKey = (name, year) => String(name || "").normalize("NFD").replace(/[\u0
 function mppWant(config, data, ev, now, force) {
   const want = new Map(); // clé nageur → { name, year, pool, events:Set }
   for (const id of config.comps) {
-    const c = data.comps[id]; if (!c) continue; const dt = compDate(c.meta); if (!dt) continue;
+    const c = data.comps[id]; if (!c) continue; let dt = compDate(c.meta); for (const r of c.reunions || []) { const d = compDate({ date: r.day }); if (d && (!dt || Date.UTC(d.y, d.m, d.d) < Date.UTC(dt.y, dt.m, dt.d))) dt = d; } if (!dt) dt = force ? { y: 2000, m: 1, d: 1 } : null; if (!dt) continue; // date lue dans l'en-tête ou les réunions ; lecture forcée : même sans date
     const day = parisEpoch(dt.y, dt.m, dt.d); if (!force && ev !== "test" && (now < day - 5 * 864e5 || now > day + 2 * 864e5)) continue; // l'épreuve test (simulateur) rejoue d'anciennes compétitions : pas de fenêtre de dates
     const pool = +((c.meta?.pool || "").match(/\d+/) || [25])[0] === 50 ? 50 : 25;
     for (const e of eventsOf(c)) {
@@ -426,7 +426,7 @@ function mppWant(config, data, ev, now, force) {
       // nageurs des listes de départ, et aussi des résultats (compétition déjà nagée)
       const lanes = [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)];
       for (const l of lanes) {
-        if (!l.name || l.members || !l.year) continue; const k = mppKey(l.name, l.year);
+        if (l.members && !l.relay) { lanes.push(...l.members.slice(1).map((m) => ({ ...m }))); } if (!l.name || (l.members && l.relay) || !l.year) continue; const k = mppKey(l.name, l.year);
         const w = want.get(k) || { name: l.name, year: l.year, pool, events: new Set(), day }; if (day < w.day) w.day = day; if (l.iuf) w.iuf = String(l.iuf); w.events.add(ek); want.set(k, w);
       }
     }
@@ -702,7 +702,7 @@ export default {
       for (const id of config.comps) { const c = data.comps[id]; if (!c) continue;
         for (const e of eventsOf(c)) { const st = c.events?.[e.key] || {};
           for (const l of [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)]) {
-            if (!l.name || l.members || !l.year) continue; const k = mppKey(l.name, l.year); if (!who[k] || (l.name.length > who[k].name.length && !/\.$/.test(l.name))) who[k] = { name: l.name, year: l.year, club: l.club || (who[k] && who[k].club) || "" }; } } }
+            if (l.members && !l.relay) { lanes.push(...l.members.slice(1).map((m) => ({ ...m }))); } if (!l.name || (l.members && l.relay) || !l.year) continue; const k = mppKey(l.name, l.year); if (!who[k] || (l.name.length > who[k].name.length && !/\.$/.test(l.name))) who[k] = { name: l.name, year: l.year, club: l.club || (who[k] && who[k].club) || "" }; } } }
       const f = (t) => { if (t == null) return ""; const m = Math.floor(t / 60), s = t - m * 60; return (m ? m + ":" + s.toFixed(2).padStart(5, "0") : s.toFixed(2)); };
       const q = (x) => { x = String(x ?? ""); return /[";\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
       
