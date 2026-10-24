@@ -10,12 +10,17 @@ try{const e=(location.pathname.match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/)||[])[1]|
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Pirata+One&display=swap">
 <style>
 /* thèmes : Alsace (rouge), Ligue (vert), FFN (bleu) — réglés par événement dans l'admin */
 :root{--a:#d0202f;--a0:#c8102e;--a-d:#b3121f;--a-d2:#9f1239;--a-dd:#881337;--a-rgb:200,16,46;--l-rgb:120,20,40;--l2-rgb:120,0,20;--s-rgb:80,0,15;--c1:62,14,24;--c2:84,20,32;--ink-d:#3b0a14;--ink-d2:#2a0d14;--t1:#fbe1e4;--t2:#ffe4e6;--t3:#fecdd3;--t4:#fdf7f8;--t5:#fbf6f7;--t6:#faf5f6;--m1:#6e4c55;--m2:#9c7f87;--m3:#5d4a50;--m4:#8a6a72;--mu:#f3d3d7;--fa:#d6a5ac;--g0:#d7102b;--g1:#e03a4c;--g2:#ec7b86;--g3:#f5b9bf;--g4:#fadfe1;--g5:#fdf3f4;--bg:#fbf6f6}
 html[data-theme="ligue"]{--a:#17803f;--a0:#13703a;--a-d:#106130;--a-d2:#0d5229;--a-dd:#0a4322;--a-rgb:19,112,58;--l-rgb:20,90,45;--l2-rgb:0,90,30;--s-rgb:0,50,20;--c1:14,52,30;--c2:20,70,40;--ink-d:#0d2e1a;--ink-d2:#0b2416;--t1:#def3e5;--t2:#e2f6e9;--t3:#c9ecd5;--t4:#f6fbf8;--t5:#f5faf6;--t6:#f4f9f5;--m1:#4c6656;--m2:#7f9c88;--m3:#4a5d50;--m4:#6a8a74;--mu:#d3f0dd;--fa:#a5d6b4;--g0:#0f7438;--g1:#2a8f52;--g2:#6dbb8a;--g3:#b9e3c7;--g4:#dff2e6;--g5:#f3faf6;--bg:#f6fbf8}
 html[data-theme="ffn"]{--a:#1f5fbf;--a0:#0b4ea2;--a-d:#0a438c;--a-d2:#093a78;--a-dd:#072f63;--a-rgb:11,78,162;--l-rgb:20,50,110;--l2-rgb:0,30,90;--s-rgb:0,20,60;--c1:12,26,58;--c2:18,36,78;--ink-d:#0b1d3a;--ink-d2:#08162e;--t1:#e1eafb;--t2:#e4edfc;--t3:#cbdcf7;--t4:#f7f9fe;--t5:#f6f8fd;--t6:#f5f8fd;--m1:#4c5a70;--m2:#7f8ca3;--m3:#4a5466;--m4:#6a788f;--mu:#d3e0f5;--fa:#a5bde3;--g0:#0b4ea2;--g1:#3a73c0;--g2:#7ba2d8;--g3:#b9cdeb;--g4:#dfe8f6;--g5:#f3f6fc;--bg:#f6f8fd}
+html[data-theme="pirate"]{--a:#a8452a;--a0:#8a3a22;--a-d:#74301c;--a-d2:#5f2817;--a-dd:#4a1f12;--a-rgb:138,58,34;--l-rgb:110,70,30;--l2-rgb:90,55,20;--s-rgb:50,30,10;--c1:58,36,16;--c2:78,50,24;--ink-d:#2e1c0c;--ink-d2:#22150a;--t1:#f3e6c8;--t2:#f5e9cc;--t3:#ead8ad;--t4:#fbf5e8;--t5:#faf3e4;--t6:#f8f0df;--m1:#6b5236;--m2:#9a8262;--m3:#5c4a33;--m4:#87704f;--mu:#ecdcb8;--fa:#c9b088;--g0:#3a2410;--g1:#5c3a1c;--g2:#8a5a2b;--g3:#c9a46a;--g4:#e8d5ad;--g5:#f3e8cc;--bg:#efe2c2}
+/* thème « pirate » (carte au trésor) : parchemin, encre brune, titres façon grimoire */
+html[data-theme="pirate"] body{background-image:radial-gradient(circle at 15% 8%,rgba(255,255,255,.35),transparent 40%),radial-gradient(circle at 90% 95%,rgba(120,72,20,.25),transparent 45%),linear-gradient(#3a2410 0%,#5c3a1c 12%,#8a5a2b 26%,#c9a46a 42%,#e8d5ad 58%,#efe2c2 74%,#f3e8cc 100%)}
+html[data-theme="pirate"] h1,html[data-theme="pirate"] h2,html[data-theme="pirate"] h3,html[data-theme="pirate"] .brand-txt h1{font-family:"Pirata One","Outfit",serif;font-weight:400;letter-spacing:.01em}
+html[data-theme="pirate"] .card,html[data-theme="pirate"] .lane,html[data-theme="pirate"] .detail,html[data-theme="pirate"] .podblock,html[data-theme="pirate"] .now{border:1px solid rgba(201,164,106,.45)}
 html:not([data-theme="alsace"]) .logo{display:none}
 html:not([data-theme="alsace"]) .brand-txt h1{color:#fff}
 
@@ -493,7 +498,7 @@ body.pick{background:#e9f4f8;background-image:none}
 .pk-row:hover,.pk-row:focus-visible{background:#f4fafc;outline:none}.pk-row:focus-visible{box-shadow:inset 0 0 0 3px #0b5c8e}
 .pk-date{display:flex;flex-direction:column;align-items:center;justify-content:center;align-self:stretch;margin:-16px 0;border-right:4px solid #d6202f;font-variant-numeric:tabular-nums}
 .cc-row{display:flex;gap:8px;align-items:center;margin-top:6px}.cc-row input[type=color]{width:46px;height:34px;border:1px solid var(--line);border-radius:8px;padding:2px;background:#fff}
-.th-ligue .pk-date{border-color:#13703a}.th-ffn .pk-date{border-color:#0b4ea2}.th-custom .pk-date{border-color:var(--pkc)}
+.th-ligue .pk-date{border-color:#13703a}.th-ffn .pk-date{border-color:#0b4ea2}.th-pirate .pk-date{border-color:#8a3a22}.th-custom .pk-date{border-color:var(--pkc)}
 .pk-date b{white-space:nowrap;font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1}.pk-date small{font-size:14px;color:#5b7685;margin-top:2px}
 .pk-txt{display:flex;flex-direction:column;gap:3px;min-width:0}.pk-name{font-size:18px;font-weight:700;line-height:1.25}
 .pk-where{font-size:14px;color:#5b7685;display:flex;flex-wrap:wrap;gap:2px 12px}.pk-org{color:#88a0ad}
@@ -691,7 +696,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
       <details class="step">
         <summary><span class="n"></span>Couleurs et organisateur</summary>
         <div class="step-body">
-          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option><option value="custom">Couleur libre…</option></select><span class="cc-row" id="cc-row" hidden><input type="color" id="ev-color" value="#7a2bb5"><span class="msg" id="cc-msg"></span></span></label>
+          <div class="grid2c"><label for="ev-theme">Couleurs du site<select class="field" id="ev-theme"><option value="alsace">Alsace (rouge)</option><option value="ligue">Ligue (vert)</option><option value="ffn">FFN (bleu)</option><option value="pirate">Pirate (carte au trésor)</option><option value="custom">Couleur libre…</option></select><span class="cc-row" id="cc-row" hidden><input type="color" id="ev-color" value="#7a2bb5"><span class="msg" id="cc-msg"></span></span></label>
           <label for="ev-org">Organisateur affiché sous « Swim Direct »<input class="field" id="ev-org" placeholder="Vide = rien"><span class="msg" style="font-weight:400">Ex. : Ligue Grand Est de Natation</span></label></div>
           <h4 style="margin:14px 0 4px">Logo en haut à gauche</h4>
           <p class="msg">Sans logo choisi : drapeau de l'Alsace avec les couleurs Alsace, rien avec les autres. Enregistré tout de suite, sans le bouton « Enregistrer ».</p>
@@ -943,7 +948,7 @@ function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.s
   // série jouée hors des jours de la compétition (simulateur, essai) : ne décale pas le programme
   const cd=compStartDate();if(cd&&(h.start<cd.getTime()-864e5||h.start>cd.getTime()+5*864e5))return null;const ev=poolEvent(h);if(!ev)return null;
   return{key:ev.key,heat:h.heat,sec:parisSec(h.start),done:h.status==="done"||poolAllIn(h)}}
-const THEME_COL={alsace:"#c8102e",ligue:"#17803f",ffn:"#0b4ea2"};
+const THEME_COL={alsace:"#c8102e",ligue:"#17803f",ffn:"#0b4ea2",pirate:"#8a3a22"};
 /* couleur libre : toute la palette est recalculée à partir d'une seule couleur, en gardant les clartés du modèle FFN (contrastes vérifiés) */
 const BASE_PAL=(()=>{for(const sh of document.styleSheets){try{for(const r of sh.cssRules)if(r.selectorText==='html[data-theme="ffn"]'){const o={};for(const k of r.style)o[k]=r.style.getPropertyValue(k).trim();return o}}catch(_){}}return{}})();
 function hx2rgb(h){h=h.replace("#","");if(h.length===3)h=h.split("").map(c=>c+c).join("");const n=parseInt(h,16);return[n>>16&255,n>>8&255,n&255]}
