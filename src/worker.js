@@ -703,12 +703,16 @@ export default {
             if (!l.name || l.members || !l.year) continue; const k = mppKey(l.name, l.year); if (!who[k] || (l.name.length > who[k].name.length && !/\.$/.test(l.name))) who[k] = { name: l.name, year: l.year, club: l.club || (who[k] && who[k].club) || "" }; } } }
       const f = (t) => { if (t == null) return ""; const m = Math.floor(t / 60), s = t - m * 60; return (m ? m + ":" + s.toFixed(2).padStart(5, "0") : s.toFixed(2)); };
       const q = (x) => { x = String(x ?? ""); return /[";\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
-      const lines = [["Nom", "Année", "Club", "Épreuve", "Record perso", "Date du record", "Passages (temps cumulés)", "IUF"].join(";")];
-      const rows = [];
+      
+      const rows = []; let maxD = 0;
       for (const k in sw) { const x = sw[k]; if (!x.b) continue; const w = who[k] || { name: k.split("|")[0], year: k.split("|")[1] || "", club: "" };
-        for (const evk in x.b) { const r = x.b[evk]; rows.push([w.name, w.year, w.club, evk, f(r.t), r.d ? r.d.split("-").reverse().join("/") : "", (r.sp || []).filter((p) => p[0] < +(evk.match(/^\d+/) || [0])[0]).map((p) => p[0] + " m " + f(p[1])).join(" / "), x.iuf || ""]); } }
+        for (const evk in x.b) { const r = x.b[evk]; const dist = +(evk.match(/^\d+/) || [0])[0]; const sp = {}; for (const p of r.sp || []) if (p[0] < dist) sp[p[0]] = f(p[1]); if (dist > maxD) maxD = dist;
+          rows.push([w.name, w.year, w.club, evk, f(r.t), r.d ? r.d.split("-").reverse().join("/") : "", x.iuf || "", sp]); } }
       rows.sort((a, b) => a[0].localeCompare(b[0]) || a[3].localeCompare(b[3]));
-      for (const r of rows) lines.push(r.map(q).join(";"));
+      // une colonne par passage (temps cumulés), de 50 m en 50 m jusqu'à 1 450 m : colonnes toujours aux mêmes places, simple à brancher sur une incrustation
+      const ds = []; for (let d = 50; d < 1500; d += 50) ds.push(d);
+      const lines = [["Nom", "Année", "Club", "Épreuve", "Record perso", "Date du record", "IUF", ...ds.map((d) => "Passage " + d + " m")].join(";")];
+      for (const r of rows) { const sp = r.pop(); lines.push([...r, ...ds.map((d) => sp[d] || "")].map(q).join(";")); }
       return new Response("\ufeff" + lines.join("\r\n") + "\r\n", { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="records-${ev}.csv"`, "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
     }
     // audience sans cookie : une empreinte hachée (IP + navigateur + semaine) par visiteur, rien de lisible n'est gardé
