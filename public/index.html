@@ -10,17 +10,32 @@ try{const e=(location.pathname.match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/)||[])[1]|
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Pirata+One&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Pirata+One&family=IM+Fell+English:ital@0;1&display=swap">
 <style>
 /* thèmes : Alsace (rouge), Ligue (vert), FFN (bleu) — réglés par événement dans l'admin */
 :root{--a:#d0202f;--a0:#c8102e;--a-d:#b3121f;--a-d2:#9f1239;--a-dd:#881337;--a-rgb:200,16,46;--l-rgb:120,20,40;--l2-rgb:120,0,20;--s-rgb:80,0,15;--c1:62,14,24;--c2:84,20,32;--ink-d:#3b0a14;--ink-d2:#2a0d14;--t1:#fbe1e4;--t2:#ffe4e6;--t3:#fecdd3;--t4:#fdf7f8;--t5:#fbf6f7;--t6:#faf5f6;--m1:#6e4c55;--m2:#9c7f87;--m3:#5d4a50;--m4:#8a6a72;--mu:#f3d3d7;--fa:#d6a5ac;--g0:#d7102b;--g1:#e03a4c;--g2:#ec7b86;--g3:#f5b9bf;--g4:#fadfe1;--g5:#fdf3f4;--bg:#fbf6f6}
 html[data-theme="ligue"]{--a:#17803f;--a0:#13703a;--a-d:#106130;--a-d2:#0d5229;--a-dd:#0a4322;--a-rgb:19,112,58;--l-rgb:20,90,45;--l2-rgb:0,90,30;--s-rgb:0,50,20;--c1:14,52,30;--c2:20,70,40;--ink-d:#0d2e1a;--ink-d2:#0b2416;--t1:#def3e5;--t2:#e2f6e9;--t3:#c9ecd5;--t4:#f6fbf8;--t5:#f5faf6;--t6:#f4f9f5;--m1:#4c6656;--m2:#7f9c88;--m3:#4a5d50;--m4:#6a8a74;--mu:#d3f0dd;--fa:#a5d6b4;--g0:#0f7438;--g1:#2a8f52;--g2:#6dbb8a;--g3:#b9e3c7;--g4:#dff2e6;--g5:#f3faf6;--bg:#f6fbf8}
 html[data-theme="ffn"]{--a:#1f5fbf;--a0:#0b4ea2;--a-d:#0a438c;--a-d2:#093a78;--a-dd:#072f63;--a-rgb:11,78,162;--l-rgb:20,50,110;--l2-rgb:0,30,90;--s-rgb:0,20,60;--c1:12,26,58;--c2:18,36,78;--ink-d:#0b1d3a;--ink-d2:#08162e;--t1:#e1eafb;--t2:#e4edfc;--t3:#cbdcf7;--t4:#f7f9fe;--t5:#f6f8fd;--t6:#f5f8fd;--m1:#4c5a70;--m2:#7f8ca3;--m3:#4a5466;--m4:#6a788f;--mu:#d3e0f5;--fa:#a5bde3;--g0:#0b4ea2;--g1:#3a73c0;--g2:#7ba2d8;--g3:#b9cdeb;--g4:#dfe8f6;--g5:#f3f6fc;--bg:#f6f8fd}
 html[data-theme="pirate"]{--a:#a8452a;--a0:#8a3a22;--a-d:#74301c;--a-d2:#5f2817;--a-dd:#4a1f12;--a-rgb:138,58,34;--l-rgb:110,70,30;--l2-rgb:90,55,20;--s-rgb:50,30,10;--c1:58,36,16;--c2:78,50,24;--ink-d:#2e1c0c;--ink-d2:#22150a;--t1:#f3e6c8;--t2:#f5e9cc;--t3:#ead8ad;--t4:#fbf5e8;--t5:#faf3e4;--t6:#f8f0df;--m1:#6b5236;--m2:#9a8262;--m3:#5c4a33;--m4:#87704f;--mu:#ecdcb8;--fa:#c9b088;--g0:#3a2410;--g1:#5c3a1c;--g2:#8a5a2b;--g3:#c9a46a;--g4:#e8d5ad;--g5:#f3e8cc;--bg:#efe2c2}
-/* thème « pirate » (carte au trésor) : parchemin, encre brune, titres façon grimoire */
-html[data-theme="pirate"] body{background-image:radial-gradient(circle at 15% 8%,rgba(255,255,255,.35),transparent 40%),radial-gradient(circle at 90% 95%,rgba(120,72,20,.25),transparent 45%),linear-gradient(#3a2410 0%,#5c3a1c 12%,#8a5a2b 26%,#c9a46a 42%,#e8d5ad 58%,#efe2c2 74%,#f3e8cc 100%)}
-html[data-theme="pirate"] h1,html[data-theme="pirate"] h2,html[data-theme="pirate"] h3,html[data-theme="pirate"] .brand-txt h1{font-family:"Pirata One","Outfit",serif;font-weight:400;letter-spacing:.01em}
-html[data-theme="pirate"] .card,html[data-theme="pirate"] .lane,html[data-theme="pirate"] .detail,html[data-theme="pirate"] .podblock,html[data-theme="pirate"] .now{border:1px solid rgba(201,164,106,.45)}
+/* thème « pirate » (carte au trésor) : tout en parchemin, encre brune, cadre double, police de grimoire */
+html[data-theme="pirate"] body{background:#efe2c2;background-image:radial-gradient(circle at 18% 6%,rgba(255,255,255,.45),transparent 38%),radial-gradient(circle at 92% 96%,rgba(120,72,20,.22),transparent 45%),radial-gradient(circle at 50% 50%,transparent 55%,rgba(110,70,30,.18) 100%);color:#3a2410;font-family:"IM Fell English",Georgia,serif}
+html[data-theme="pirate"] body::before{content:"";position:fixed;inset:6px;border:6px double #8a5a2b;border-radius:4px;pointer-events:none;z-index:50}
+html[data-theme="pirate"] .top,html[data-theme="pirate"] .top *{color:#3a2410}
+html[data-theme="pirate"] .brand-txt h1{color:#3a2410!important;text-shadow:none;font-size:clamp(28px,7vw,40px)}
+html[data-theme="pirate"] h1,html[data-theme="pirate"] h2,html[data-theme="pirate"] h3,html[data-theme="pirate"] .lane .ev>b,html[data-theme="pirate"] .tabs [data-view]{font-family:"Pirata One",Georgia,serif;font-weight:400;letter-spacing:.02em}
+html[data-theme="pirate"] .lane .ev>b{font-size:20px}
+html[data-theme="pirate"] .navbar{background:rgba(239,226,194,.94);border-bottom:2px dashed #8a5a2b;box-shadow:none}
+html[data-theme="pirate"] .tabs [data-view]{background:transparent;color:#3a2410;border:1px solid #8a5a2b;border-radius:4px;font-size:17px}
+html[data-theme="pirate"] .tabs [data-view][aria-selected="true"]{background:#3a2410;color:#efe2c2;border-color:#3a2410}
+html[data-theme="pirate"] #search,html[data-theme="pirate"] .field{background:rgba(255,248,230,.85);border:1px solid #8a5a2b;color:#3a2410;font-family:"IM Fell English",Georgia,serif}
+html[data-theme="pirate"] .card,html[data-theme="pirate"] .lane,html[data-theme="pirate"] .detail,html[data-theme="pirate"] .podblock,html[data-theme="pirate"] .now,html[data-theme="pirate"] .sec-title,html[data-theme="pirate"] .prow,html[data-theme="pirate"] .step,html[data-theme="pirate"] .sheet{background:rgba(255,248,230,.6);border:2px solid #8a5a2b;border-radius:6px;box-shadow:none;color:#3a2410;backdrop-filter:none}
+html[data-theme="pirate"] .sec-title{border-style:dashed}
+html[data-theme="pirate"] .lane .row{border-bottom:1px dotted #8a5a2b}
+html[data-theme="pirate"] .lane .sub,html[data-theme="pirate"] .msg,html[data-theme="pirate"] small{color:#6b5236}
+html[data-theme="pirate"] .btn{background:#3a2410;color:#efe2c2;border-radius:4px;font-family:"Pirata One",Georgia,serif;font-size:17px;font-weight:400;letter-spacing:.03em}
+html[data-theme="pirate"] .btn.ghost{background:transparent;color:#3a2410;border:1px solid #8a5a2b}
+html[data-theme="pirate"] .badge{background:#ead8ad;color:#3a2410}
+html[data-theme="pirate"] .lv-tag{background:#a8452a;color:#fff;font-family:"Pirata One",Georgia,serif;font-weight:400;letter-spacing:.06em}
 html:not([data-theme="alsace"]) .logo{display:none}
 html:not([data-theme="alsace"]) .brand-txt h1{color:#fff}
 
@@ -963,7 +978,7 @@ function customPalette(hex){const[H,S]=rgb2hsl(hx2rgb(hex));const out={};
     if(v.startsWith("#"))out[k]=rgb2hx(fix(hx2rgb(v),main));else if(/^\d+,\s*\d+,\s*\d+$/.test(v))out[k]=fix(v.split(",").map(Number),main).join(",");else out[k]=v}
   // la couleur choisie elle-même pour --a, assombrie juste ce qu'il faut pour que le texte blanc reste lisible
   let[h,s,l]=rgb2hsl(hx2rgb(hex)),c=hx2rgb(hex);while(contrast(c,[255,255,255])<4.6&&l>.05){l-=.01;c=hsl2rgb([h,s,l])}out["--a"]=rgb2hx(c);return{vars:out,adj:rgb2hx(c)!==hex.toLowerCase()?rgb2hx(c):""}}
-function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(state.color||"")&&!colorClash(state.color);const t=cust?"custom":THEME_COL[state.theme]?state.theme:"alsace";const de=document.documentElement;de.dataset.theme=t;
+function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(state.color||"")&&!colorClash(state.color);const t=cust?"custom":THEME_COL[state.theme]?state.theme:"alsace";const de=document.documentElement;de.dataset.theme=t;{const PL={home:"Le pont",live:"À l'abordage",prog:"Le cap",res:"Le butin",pod:"Le trésor",part:"L'équipage"};document.querySelectorAll(".tabs [data-view]").forEach(b=>{if(!b.dataset.lab)b.dataset.lab=b.textContent;b.textContent=t==="pirate"&&PL[b.dataset.view]?PL[b.dataset.view]:b.dataset.lab})}
   let pal=null;if(cust){pal=customPalette(state.color);for(const[k,v]of Object.entries(pal.vars))de.style.setProperty(k,v)}else for(const k of Object.keys(BASE_PAL))de.style.removeProperty(k);
   const cm=$("#cc-msg");if(cm)cm.textContent=cust&&pal.adj?"Assombrie à "+pal.adj+" pour que le texte blanc reste lisible.":"";const cr=$("#cc-row");if(cr)cr.hidden=state.theme!=="custom";
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];
