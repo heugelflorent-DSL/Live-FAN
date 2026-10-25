@@ -701,7 +701,8 @@ export default {
       const sw = (store && store.sw) || {}; const who = {};
       for (const id of config.comps) { const c = data.comps[id]; if (!c) continue;
         for (const e of eventsOf(c)) { const st = c.events?.[e.key] || {};
-          for (const l of [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)]) {
+          const lanes = [...(st.heats || []).flatMap((h) => h.lanes || []), ...(st.results?.rows || []).filter((r) => !r.relay)];
+          for (const l of lanes) {
             if (l.members && !l.relay) { lanes.push(...l.members.slice(1).map((m) => ({ ...m }))); } if (!l.name || (l.members && l.relay) || !l.year) continue; const k = mppKey(l.name, l.year); if (!who[k] || (l.name.length > who[k].name.length && !/\.$/.test(l.name))) who[k] = { name: l.name, year: l.year, club: l.club || (who[k] && who[k].club) || "" }; } } }
       const f = (t) => { if (t == null) return ""; const m = Math.floor(t / 60), s = t - m * 60; return (m ? m + ":" + s.toFixed(2).padStart(5, "0") : s.toFixed(2)); };
       const q = (x) => { x = String(x ?? ""); return /[";\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; };
