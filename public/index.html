@@ -1464,6 +1464,10 @@ function poolEvent(h){if(!h)return null;if(h.key&&EVENTS[h.key])return EVENTS[h.
   return c.sort((a,b)=>score(b)-score(a))[0]}
 function poolLen(){const c=state.comps[0];const m=(c&&c.bassin||"").match(/(\d+)/);return m?+m[1]:25}
 function poolAllIn(h){const ns=Object.keys(h.names||{});const ls=ns.length?ns:Object.keys(h.lanes||{});return ls.length>0&&ls.every(n=>(h.lanes[n]||{}).fin)}
+function poolLost(){const h=POOL&&POOL.heat;return!!(h&&h.status==="running"&&!poolAllIn(h)&&POOL.relayAt&&Date.now()+poolOff-POOL.relayAt>30000)}
+let PLOST=false;setInterval(()=>{const l=poolLost();if(l!==PLOST){PLOST=l;if(state.view==="live"&&!state.admin)render()}},5000);
+// simulateur : page d'admin quittée ou actualisée pendant une simulation → la série est arrêtée proprement (sinon le chrono tournerait sans fin)
+addEventListener("pagehide",()=>{if(!SIM.length)return;try{const hd={"content-type":"application/json"};if(ADMIN_KEY)hd["x-admin-key"]=ADMIN_KEY;fetch(evq("/api/pool/event?sim=1"),{method:"POST",keepalive:true,headers:hd,body:JSON.stringify([{k:"end",sent:Date.now()}])})}catch(e){}});
 function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.status!=="running"||!h.start||poolAllIn(h))return;poolTimer=setInterval(()=>{const el=document.getElementById("pclock");if(!el||state.view!=="live"){clearInterval(poolTimer);return}let t=(Date.now()+poolOff-h.start)/1000;if(poolShown&&poolShown.s===h.start)t=Math.max(t,poolShown.t);poolShown={s:h.start,t};el.textContent=t>0?fmtClock(t):"0.0";document.querySelectorAll(".pool .pbar[data-p]").forEach(b=>{const d=Math.min(+b.dataset.cap,+b.dataset.d0+Math.max(0,t-b.dataset.t0)/b.dataset.p);b.firstChild.style.transition="";b.firstChild.style.width=Math.max(0,d/b.dataset.tot*100).toFixed(2)+"%"})},100)}
 function fmtClock(t){const m=Math.floor(t/60),s=t-m*60;return(m?m+":"+s.toFixed(1).padStart(4,"0"):s.toFixed(1))}
 function splitName(n){n=String(n||"").trim();const p=n.split(/\s+/);let i=0;while(i<p.length-1&&p[i]===p[i].toUpperCase()&&/[A-ZÀ-Ý]/.test(p[i]))i++;return i?{last:p.slice(0,i).join(" "),first:p.slice(i).join(" ")}:{last:n,first:""}}
@@ -1519,6 +1523,8 @@ function poolOfficial(h,ev,se){if(!ev||!se||!ev.results.length)return false;retu
 function poolHtml(){
   if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000||poolIsTest(POOL.heat))return"";
   const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1],total=poolTotal(h,ev);
+  // liaison avec le chrono coupée pendant la course : on n'affiche plus un chrono qui tourne dans le vide, le demi-direct du Live FFN prend le relais ; les passages en attente arrivent dès que la liaison revient
+  if(poolLost())return`<div class="session"><div class="card lv-card pool"><div class="ptop"><div class="pti"><span class="lv-tag">Liaison coupée</span><h3>${ev?esc(ev.name):"Direct bassin"}</h3><div class="sub">Série ${h.heat} · liaison avec le chronométrage interrompue</div></div></div><p class="msg">En attendant, voici le direct du Live FFN. Le direct au bord du bassin reprendra tout seul, avec les passages manqués, dès que la liaison revient.</p></div></div>`;
   const used=new Set([...Object.keys(h.lanes||{}),...Object.keys(h.names||{}),...(h.names?[]:se?se.swimmers.map(w=>String(w.lane)):[])]);let lanes=[...used].map(Number).filter(Boolean).sort((a,b)=>a-b);
   const allIn=poolAllIn(h),ended=h.status==="done"||allIn,sorted=state.poolSort==="official"?h.status==="done":ended;
   if(sorted)lanes.sort((a,b)=>((h.lanes[a]||{}).fin||{rank:99}).rank-((h.lanes[b]||{}).fin||{rank:99}).rank);
