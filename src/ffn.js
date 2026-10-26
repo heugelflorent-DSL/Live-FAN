@@ -65,7 +65,14 @@ function cells(tr) {
 export function parseMeta(html) {
   const g = (c) => one((html.match(new RegExp(`<div class="${c}">([\\s\\S]*?)</div>`)) || [])[1]);
   const titre = g("titre"); const m = titre.match(/^(.*?)\s*-\s*(\d+)\s*m$/);
-  return { city: g("lieu"), name: m ? m[1] : titre, pool: m ? m[2] + " m" : "", date: g("date").replace(/^Le\s+/i, "") };
+  // secours si l'en-tête change de forme : date et bassin cherchés dans le texte de la page
+  const txt = one(html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " "));
+  let date = g("date").replace(/^Le\s+/i, "");
+  if (!/\d{4}/.test(date)) { const d = txt.match(/(?:Du|Le)\s+(?:[A-Za-zéû]+\s+)?\d{1,2}(?:\s*er)?(?:\s+[A-Za-zéèûô]+)?(?:\s+\d{4})?(?:\s+au\s+(?:[A-Za-zéû]+\s+)?\d{1,2}(?:\s*er)?)?\s+[A-Za-zéèûô]+\s+\d{4}/); if (d) date = d[0].replace(/^Le\s+/i, ""); }
+  let pool = m ? m[2] + " m" : ""; if (!pool) { const q = (titre + " " + txt).match(/-\s*(25|50)\s*m\b/); if (q) pool = q[1] + " m"; }
+  let city = g("lieu"); if (!city) { const c = txt.match(/([A-ZÉÈ][A-ZÉÈ' -]{2,})\s+-\s+(?:Du|Le)\s/); if (c) city = c[1].trim(); }
+  const name = m ? m[1] : titre || one((html.match(/<title>(?:\s*liveffn\.com\s*-\s*)?([\s\S]*?)<\/title>/i) || [])[1] || "");
+  return { city, name, pool, date };
 }
 
 // Programme : réunions, ouverture des portes, épreuves (heure, nom, n° FFN, séries, participants) et lignes non sportives
