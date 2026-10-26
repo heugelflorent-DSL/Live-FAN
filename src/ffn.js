@@ -130,9 +130,12 @@ export function parseProgramme(html) {
       const r = { n, day: (head.split(":")[1] || "").trim(), doors: null, items: [], provisional: true };
       (fs.match(/<li[^>]*>[\s\S]*?<\/li>/g) || []).forEach((li, i) => {
         const full = one(li);
-        const rm = full.match(/^(.*?)\s+(S[ée]ries|Finales?|Demi-finales?|Barrages?)\b\s*(.*)$/i);
+        // « 100 Papillon Messieurs Finale C Toutes catégories », « 1500 Nage Libre Dames Premières séries … », « … Série finale … »
+        const rm = full.match(/^(.*?)\s+(Premi[èe]res\s+s[ée]ries|S[ée]rie\s+finale|S[ée]ries|Finale\s+[A-D](?![a-zà-ü])|Finales?|Demi-finales?|Barrages?)\b\s*(.*)$/i);
+        const round = rm ? rm[2].replace(/\s+/g, " ").replace(/^./, (c) => c.toUpperCase()) : ""; const fl = (round.match(/^Finale ([A-D])$/i) || [])[1];
+        const category = rm ? rm[3].replace(/^toutes\s+cat[ée]gories$/i, "").trim() : "";
         r.items.push({ kind: "event", epr: `p${n}-${i + 1}`, provisional: true, time: null,
-          name: rm ? rm[1] : full, round: rm ? rm[2] : "", category: rm ? rm[3] : "", nSeries: null, nPart: null });
+          name: rm ? rm[1] : full, round, category, fin: fl ? fl.toUpperCase() : "", nSeries: null, nPart: null });
       });
       reunions.push(r);
     }
