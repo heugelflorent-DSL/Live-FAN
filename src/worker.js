@@ -28,8 +28,14 @@ function parisEpoch(y, m, d, h = 0, mi = 0) {
 }
 const MONTHS = { janvier: 1, fevrier: 2, février: 2, mars: 3, avril: 4, mai: 5, juin: 6, juillet: 7, aout: 8, août: 8, septembre: 9, octobre: 10, novembre: 11, decembre: 12, décembre: 12 };
 function compDate(meta) {
-  const m = (meta?.date || "").toLowerCase().match(/(\d{1,2})(?:\s*er)?\s+([a-zéèûô]+)\s+(\d{4})/); // « 1er Novembre 2025 » aussi
-  return m && MONTHS[m[2]] ? { y: +m[3], m: MONTHS[m[2]], d: +m[1] } : null;
+  // 1er jour de compétition : « Du Jeudi 29 Octobre au Dimanche 1er Novembre 2026 » → 29 octobre 2026 (« 1 er » avec espace aussi)
+  const t = (meta?.date || "").toLowerCase(); const all = [...t.matchAll(/(\d{1,2})(?:\s*er)?\s+([a-zéèûô]+)(?:\s+(\d{4}))?/g)].filter((x) => MONTHS[x[2]]);
+  const last = [...all].reverse().find((x) => x[3]); if (!last) return null;
+  const f = all[0]; let y = +(f[3] || last[3]); const mo = MONTHS[f[2]];
+  if (!f[3] && mo > MONTHS[last[2]]) y--; // du 28 décembre au 2 janvier 2027
+  const d0 = all.length === 1 && t.match(/du\s+(?:[a-zé]+\s+)?(\d{1,2})(?:\s*er)?\s+au\b/); // « Du 7 au 8 Novembre 2026 »
+  if (d0) { const d = +d0[1]; if (d > +f[1]) return mo === 1 ? { y: y - 1, m: 12, d } : { y, m: mo - 1, d }; return { y, m: mo, d }; }
+  return { y, m: mo, d: +f[1] };
 }
 const hToMin = (t) => { const m = String(t || "").match(/(\d{1,2})h(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
 
