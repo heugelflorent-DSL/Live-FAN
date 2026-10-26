@@ -1016,7 +1016,7 @@ function build(cfg,data){
           return{n:h.n||j+1,swimmers:sw.sort((a,b)=>a.lane-b.lane),slowest:tms.length?Math.max(...tms):defaultDur(it.name)}});
         const entries=series.flatMap(s=>s.swimmers);
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
-          res:x.time,dsq:!!x.status||!!x.hc,hc:!!x.hc,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
+          nat:x.relay?"":(x.nat||""),res:x.time,dsq:!!x.status||!!x.hc,hc:!!x.hc,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
           splits:unSp(x),qual:x.qual||null}));
         // listes de départ aux prénoms abrégés (« IRION-REUTENAUER M. ») : le résultat (« … Maëlys ») est rattaché au même nageur
         {const ids=new Set(entries.map(e=>e.iuf).filter(Boolean));const nm=x=>norm(x).split(/\s+/);
@@ -1941,7 +1941,9 @@ function renderPod(){
     // épreuve pas encore publiée : podium provisoire d'après les séries terminées du direct
     const provL=k=>{const ev=EVENTS[k];return PRv[k].rows.filter(w=>w.time!=null).map(w=>({name:w.name,club:w.club,year:yr4(w,ev),res:w.time,rank:w.place,iuf:swId(w.name,yr4(w,ev))}))};
     const prov=g.keys.filter(k=>PRv[k]);const provTxt=prov.length?prov.map(k=>PRv[k].n+(PRv[k].of?"/"+PRv[k].of:"")).join(" + ")+" séries":"";
-    const all=K?mergedRanking(EVENTS[g.keys[0]]):rerank(g.keys.flatMap(k=>PRv[k]?provL(k):ranking(EVENTS[k])));let blocks="";
+    const all0=K?mergedRanking(EVENTS[g.keys[0]]):rerank(g.keys.flatMap(k=>PRv[k]?provL(k):ranking(EVENTS[k])));
+    // règle « N étrangers maximum par podium » : les étrangers au-delà sont retirés du podium, les Français suivants remontent (le classement de la course ne change pas)
+    const all=rule.foreign!=null&&!relay?(()=>{let n=0;const l=all0.filter(w=>{if(!w.nat||/^fra$/i.test(w.nat))return true;n++;return n<=rule.foreign});return K?l.map((w,i)=>({...w,rank:i+1})):rerank(l)})():all0;let blocks="";
     if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places,g);
     else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(renum(all.filter(w=>rule.upOpen?(+w.year>=+y):w.year===y).map(w=>rule.upOpen&&w.year!==y?{...w,sur:1}:w),K),"Né(e)s en "+y,rule.places,g)).join("")}
     else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
@@ -2094,6 +2096,7 @@ function renderAdmin(){renderLogos();renderFinRules();
     ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label><label class="chk"><input type="checkbox" data-rf="needRelays" data-rid="${r.id}" ${r.needRelays!==false?"checked":""}> Équipe non classée s'il lui manque un relais (règle des Interclubs)</label>`:`<div class="grid2c">
       <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="age" ${r.mode==="age"?"selected":""}>Catégories d'âge</option></select></label>
       <label>Places affichées<input class="field" type="number" min="1" max="10" data-rf="places" data-rid="${r.id}" value="${r.places}"></label>
+      ${r.type!=="team"?`<label>Étrangers max. par podium<input class="field" type="number" min="0" max="10" placeholder="sans limite" data-rf="foreign" data-rid="${r.id}" value="${r.foreign??""}"></label>`:""}
     </div>${r.mode==="year"?`<label class="chk"><input type="checkbox" data-rf="upOpen" data-rid="${r.id}" ${r.upOpen?"checked":""}> Surclassement : un nageur plus jeune assez rapide monte aussi sur les podiums des catégories plus âgées</label>`:""}`}
     ${r.type!=="team"&&r.mode==="age"?`<div class="agebox"><b>Catégories d'âge</b>
       <p class="msg">Âge = année de référence − année de naissance. Par défaut, l'année de la compétition (saisons FFN en année civile). Les relais ne comptent pas dans les classements par âge.</p>
@@ -2289,6 +2292,7 @@ $("#pod-add").onclick=()=>{const id="r"+Date.now();state.podRules.push({id,name:
 document.addEventListener("change",e=>{const t=e.target;const r=t.dataset.rid&&state.podRules.find(x=>x.id===t.dataset.rid);if(!r)return;
   if(t.dataset.rc){r.comps=t.checked?[...new Set([...r.comps,t.dataset.rc])]:r.comps.filter(c=>c!==t.dataset.rc)}
   else if(t.dataset.rf==="places")r.places=Math.min(10,Math.max(1,+t.value||3));
+  else if(t.dataset.rf==="foreign")r.foreign=t.value===""?null:Math.max(0,Math.min(10,+t.value||0));
   else if(t.dataset.rf==="split")r.split=t.checked;
   else if(t.dataset.rf==="upOpen")r.upOpen=t.checked;
   else if(t.dataset.catopen!=null){r.cats[+t.dataset.catopen].open=t.checked}
