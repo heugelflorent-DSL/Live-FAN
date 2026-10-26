@@ -1341,7 +1341,7 @@ async function pickBoot(){document.body.classList.add("pick");state.theme="ffn";
   const L=ev.map(e=>({...e,st:pickStatus(e)})).sort((a,b)=>a.st.ord-b.st.ord||a.st.t-b.st.t);
   const MC=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
   const row=e=>{const c=e.comps[0]||{};const city=c.city?c.city.toLowerCase().replace(/(^|[\s-])\S/g,x=>x.toUpperCase()):"";const d=pickDates(c.date);
-    const day=d?(d.start.getDate()!==d.end.getDate()?d.start.getDate()+"–"+d.end.getDate():String(d.end.getDate())):"?";const mon=d?MC[d.end.getMonth()]:"";
+    const day=d?(d.start.getDate()!==d.end.getDate()?d.start.getDate()+"–"+d.end.getDate():String(d.end.getDate())):"?";const mon=d?(d.start.getMonth()!==d.end.getMonth()?MC[d.start.getMonth()]+"–"+MC[d.end.getMonth()]:MC[d.end.getMonth()]):"";
     const where=[city,c.pool&&("bassin de "+c.pool.replace(/\s/g,""))].filter(Boolean).join(", ");
     return`<a class="pk-row st-${e.st.k} th-${esc(e.theme)}"${e.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(e.color||"")?` style="--pkc:${e.color}"`:""} href="/e/${esc(e.id)}"><span class="pk-date"><b>${esc(day)}</b><small>${esc(mon)}</small></span>
       <span class="pk-txt"><span class="pk-name">${esc(e.name||c.name||"Compétition")}</span><span class="pk-where">${esc(where)}${e.org?`<span class="pk-org">${esc(e.org)}</span>`:""}</span></span>
