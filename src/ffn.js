@@ -111,8 +111,20 @@ export function parseProgramme(html) {
       if (cls.includes("debutEpreuve")) { const d = text(li).match(/portes\s*:\s*(\d{1,2}h\d{2})/i); if (d) r.doors = d[1]; continue; }
       if (cls.includes("EventNonSportif")) { const t = one(li); if (!/^fin de la r[ée]union$/i.test(t)) r.items.push({ kind: "note", text: t }); continue; }
       const on = li.match(/cat_id='\+(\d+)\+'&epr_id='\+'(\d+)'\+'&typ_id='\+(\d+)\+'&num_epreuve='\+(\d+)/);
-      if (!on) continue;
       const time = (li.match(/<span class="time">([^<]*)<\/span>/) || [])[1] || null;
+      if (!on) {
+        // épreuve pas encore cliquable (finales avant les séries) : on la garde avec son heure, rattachée à l'épreuve de ses séries
+        const full = one(li.replace(/<span class="time">[^<]*<\/span>/, "")).replace(/^\d{1,2}h\d{2}/, "").replace(/^[\s\-–]+/, "").trim();
+        const rm = full.match(/^(.*?)\s+(Premi[èe]res\s+s[ée]ries|S[ée]rie\s+finale|S[ée]ries|Finale\s+([A-D])(?![a-zà-ü]))\b/i);
+        if (!rm) continue;
+        const typ = /^premi/i.test(rm[2]) ? 62 : /^s[ée]rie\s+finale/i.test(rm[2]) ? 61 : /^s[ée]ries/i.test(rm[2]) ? 60 : 10 + "ABCD".indexOf(rm[3].toUpperCase()) + 1;
+        const base = rm[1].trim().toLowerCase(); let src = null;
+        for (const rr of [...reunions, r]) for (const x of rr.items) if (x.kind === "event" && (x.typ === 60 || x.typ === 62) && x.name.toLowerCase() === base) src = src || x;
+        const epr = src ? src.epr : 90000 + reunions.length * 100 + r.items.length, cat = src ? src.cat : 0;
+        const ns = full.match(/(\d+)\s*s[ée]ries?/i), np = full.match(/(\d+)\s*participant/i);
+        r.items.push({ kind: "event", epr, cat, typ, num: src ? src.num : 0, time: time ? time.trim() : null, ...roundOf(rm[1].trim() + " " + rm[2], typ, cat, epr), nSeries: ns ? +ns[1] : null, nPart: np ? +np[1] : null, soon: true });
+        continue;
+      }
       const tip = li.match(/<span class="tooltip"[^>]*>([\s\S]*?)<b[^>]*>([\s\S]*?)<\/b>/);
       const full = one(tip ? tip[1] : li);
       const info = one(tip ? tip[2] : "");
