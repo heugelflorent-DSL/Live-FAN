@@ -520,14 +520,17 @@ async function rescrape(env, scope, what, ev = "main") {
   for (const id of comps) {
     const c = data.comps[id];
     if (what === "all" && !reu) { data.comps[id] = { events: {} }; tasks.push({ t: "prog", c: id }); }
-    else if (!c) tasks.push({ t: "prog", c: id });
+    else tasks.push({ t: "prog", c: id }); // le programme est toujours relu (nouvelles épreuves, finales, horaires)
+    const now = Date.now(), dayOf = (n) => (c?.reunions || []).find((r) => r.n === n);
     const evs = c ? eventsOf(c).filter((e) => !reu || e.reunion === reu) : [];
-    for (const e of evs.filter((x) => !x.provisional)) {
+    // lecture à la demande, économe : pas de page Live FFN qui ne peut pas encore exister (épreuve pas encore cliquable, réunion des jours suivants pour les résultats)
+    for (const e of evs.filter((x) => !x.provisional && !x.soon)) {
+      const later = dayOf(e.reunion) && beforeDay(c, dayOf(e.reunion), now);
       const st = c.events?.[e.key];
       if (st && (what === "all" || what === "start")) { delete st.heats; delete st.heatsAt; }
       if (st && (what === "all" || what === "res")) { delete st.results; delete st.resultsAt; delete st.doneAt; delete st.nRows; }
       if (what !== "res") tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
-      if (what !== "start" && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
+      if (what !== "start" && !later && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
   }
   data.queue = tasks; data.savedAt = 0;
