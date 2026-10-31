@@ -1936,7 +1936,7 @@ const ELITE_PTS=[400,320,240,224,216,212,208,204,200,192,184,176,168,160,152,144
 function eliteRanking(rule,done){
   const clubs={},isFr=w=>!w.nat||/^fra$/i.test(w.nat),add=(c,x)=>{(clubs[c]=clubs[c]||{club:c,total:0,items:[],part:0,sw:{}});clubs[c].items.push(x)};
   const swims={};// participation : chaque nageur une seule fois
-  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;for(const w of [...(ev.results||[]),...(ev.entries||[])]){if(!w.name||w.relay||w.dns)continue;const id=w.iuf||w.name;if(swims[id])continue;if(!(ev.results||[]).some(x=>x.name===w.name)&&!done.has(k)&&!(ev.entries||[]).length)continue;swims[id]={club:w.club,w,fr:isFr(w)}}}
+  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;for(const w of [...(ev.results||[]),...(ev.entries||[])]){if(!w.name||w.relay||w.dns)continue;const id=w.iuf||w.name;if(swims[id]){if(!isFr(w))swims[id].fr=false;continue}if(!(ev.results||[]).some(x=>x.name===w.name)&&!done.has(k)&&!(ev.entries||[]).length)continue;swims[id]={club:w.club,w,fr:isFr(w)}}}
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;const fx=hasFinals(ev);let list=null;
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done))continue;seenEp.add(id);const ff=epGroup(ev).filter(x=>x.fin&&/[AB]/.test(x.fin)).map(x=>x.key);list=mergedRanking(ev).filter(w=>ff.some(f=>(EVENTS[f].results||[]).some(x=>x.name===w.name&&!x.dsq)))}
