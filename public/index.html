@@ -1682,7 +1682,7 @@ function renderLiveFfn(){
    const lastK=[...order].reverse().find(k=>EVENTS[k]&&EVENTS[k].type==="event"&&done.has(k)&&(EVENTS[k].results||[]).length&&(!rk||rk.includes(k)));
    if(lastK&&(!cur||pos(lastK)>cur.p)&&(!cur||cur.L.stale||Date.now()-(cur.L.changedAt||0)>6*60e3)){const ev=EVENTS[lastK];
      const rows=ev.results.filter(w=>!w.dsq||w.status).map(w=>({place:w.rank,name:w.name,year:w.year,club:w.club,time:w.dsq?null:w.res,timeTxt:w.dsq?(w.status||"DSQ"):fmt(w.res),splits:(w.splits||[]).map(x=>({d:x.dist,cum:x.cum,lap:x.lap})),relay:w.members||undefined}));
-     const base=cur?cur.L:LIVE[ev.comp]||{};cur={id:ev.comp,ev,p:pos(lastK),fromRes:1,L:{...base,cur:{event:ev.name,heat:null,of:null,rows}}}}}
+     const base=cur?cur.L:LIVE[ev.comp]||{};cur={id:ev.comp,ev,p:pos(lastK),fromRes:1,L:{...base,cur:{event:ev.name,title:ev.name,heat:null,of:null,rows}}}}}
   let html="";const multi=state.comps.length>1;
   if(!cur){$("#pub-body").innerHTML=`<p class="empty">Aucune série publiée pour le moment sur le direct du Live FFN.</p>`;return}
   const fromRes=!!cur.fromRes;
