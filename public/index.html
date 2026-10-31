@@ -1674,7 +1674,7 @@ function mySwimmers(compact){
   if(!favCount())return"";const P=participants(),sch=schedule(),done=doneSet();
   const ids=Object.keys(P).filter(id=>isFavSw(id)||isFavClub(P[id].sw.club));
   if(!ids.length)return compact?"":`<div class="card lv-card myswim"><span class="lv-tag">★ Mes nageurs</span><p class="msg">Tes nageurs suivis ne sont pas engagés sur cette compétition.</p></div>`;
-  const rows=ids.map(id=>{const p=P[id];const its=p.items.filter(x=>sch[x.ev.key]).sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
+  const rows=ids.map(id=>{const p=P[id];const its=p.items.filter(x=>sch[x.ev.key]).sort(chronoCmp(sch));
     const nx=its.find(x=>!done.has(x.ev.key)&&!x.w.dns);const last=[...its].reverse().find(x=>done.has(x.ev.key));
     let info="",t="",sort=1e9;
     if(nx){sort=sch[nx.ev.key].start;info=`${esc(nx.ev.name)}${state.phase==="eng"||nx.ev.provisional?"":` · série ${nx.w.heat}, couloir ${nx.w.lane}`}`;t=nx.ev.provisional?"à venir":"~"+hm(sch[nx.ev.key].start)}
@@ -1753,6 +1753,8 @@ return state.phase==="eng"?`<div class="card engban"><b>Engagements en cours</b>
 function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries.filter(x=>!x.dns).slice().sort((a,b)=>a.time-b.time);
   return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${logo(w.club)}${esc(w.club)}</td>`}<td class="num">${engT(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
 // réunion affichée : celle en cours (première avec une épreuve non terminée), sinon la dernière ; « tout » sur demande ou en recherche
+// ordre chronologique d'une liste de courses : jour (réunion) puis heure
+function chronoCmp(sch){const rs=reuList(),d=ev=>{const t=reuDate(ev.sess);return t?t.getTime():rs.indexOf(String(ev.sess))*864e5};return(a,b)=>d(a.ev)-d(b.ev)||rs.indexOf(String(a.ev.sess))-rs.indexOf(String(b.ev.sess))||sch[a.ev.key].start-sch[b.ev.key].start}
 function reuList(){return Object.keys(state.order)}
 function currentReu(done){const rs=reuList();for(const r of rs)if(state.order[r].some(k=>EVENTS[k]&&EVENTS[k].type==="event"&&!done.has(k)))return r;return rs[rs.length-1]}
 function reuShown(done,only){const rs=only||reuList();if(rs.length<2||getQ())return rs;const v=state.reu||currentReu(done);return v==="all"?rs:rs.includes(v)?[v]:rs}
@@ -2010,7 +2012,7 @@ function renderPart(){
 function evDay(key){const r=Object.keys(state.order).find(x=>state.order[x].includes(key));const d=((state.reuDay||{})[r]||"").toLowerCase().match(/([a-zéû]+)\s+(\d{1,2})(?:\s*er)?\s+([a-zéèûô]+)/);if(!d)return"";const M=d[3];return d[1].slice(0,3)+". "+d[2]+" "+(M.length<=4?M:M.slice(0,M==="juillet"||M==="septembre"?4:3)+".")}
 function swimmerDetail(p){
   const sch=schedule(),done=doneSet();
-  const items=p.items.sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start);
+  const items=p.items.sort(chronoCmp(sch));
   return`<div class="detail" id="detail"><div class="detail-head"><div><h3>${esc(p.sw.name)}</h3><div class="meta">${p.sw.year} · ${esc(p.sw.club)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button class="btn small" data-recap="s" title="Récap à partager (PDF ou image)">Récap</button>${favBtn("s",p.sw.iuf,p.sw.name)}<button class="btn small ghost" data-close="1">Fermer</button></div></div>
   ${(()=>{const g=progOf(p);return g.all?progKpis(g,(g.gain>0?"−":"+")+Math.abs(g.gain).toFixed(2).replace(".",",")):""})()}
   <div class="tbl"><table><thead><tr><th>Date · heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Ancien RP</th><th>Progr.</th><th>Pl.</th></tr></thead><tbody>
@@ -2390,7 +2392,7 @@ function recapData(R){const P=participants();
   const people=(R.kind==="c"?Object.values(P).filter(p=>p.sw&&p.sw.club===R.key):ids.map(id=>P[id]).filter(Boolean)).sort((a,b)=>a.sw.name.localeCompare(b.sw.name));
   let nRace=0,nRp=0,nNew=0;const pod=[0,0,0],pcts=[];const sch=schedule();
   const blocks=people.map(p=>{const byK={};for(const x of progOf(p).races)byK[x.ev.key]=x;
-    const rows=p.items.slice().sort((a,b)=>sch[a.ev.key].start-sch[b.ev.key].start).map(it=>{const r=recapRow(it);if(!r)return null;const g=!it.leg?byK[it.ev.key]:null;
+    const rows=p.items.slice().sort(chronoCmp(sch)).map(it=>{const r=recapRow(it);if(!r)return null;const g=!it.leg?byK[it.ev.key]:null;
       const o={ev:it.ev.name+(it.leg?" (relais, "+it.leg+(it.leg===1?"er":"e")+" relayeur)":""),evS:it.ev.name.replace(/\s+(Dames|Messieurs|Mixtes?)\b.*$/i,"")+(it.leg?" (relais)":""),t:r.dsq?(r.status||"DSQ"):fmt(r.res),pl:r.dsq?"":r.rank||"",ref:g&&g.ref!=null?fmt(g.ref):"",pct:g&&g.pct!=null?g.pct:null,rp:!!(g&&g.rp),nw:!!(g&&g.ref==null&&!r.dsq),pod:!r.dsq&&r.rank&&r.rank<=3?r.rank:0,who:p.sw.name};
       if(!it.leg&&!r.dsq){nRace++;if(o.rp)nRp++;if(o.nw)nNew++;if(o.pct!=null)pcts.push(o.pct)}if(o.pod)pod[o.pod-1]++;return o}).filter(Boolean);
     return{p,rows}}).filter(b=>b.rows.length);
