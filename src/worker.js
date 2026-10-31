@@ -133,6 +133,10 @@ function progEvery(c, now) {
   const dt = compDate({ date: c.reunions?.[0]?.day }) || compDate(c.meta); if (!dt) return 24 * 3600e3; // 1er jour de compétition
   const days = (parisEpoch(dt.y, dt.m, dt.d) - now) / 864e5;
   if (days > 0) return 24 * 3600e3;    // programme obtenu : une relecture par jour jusqu'au début de la compétition
+  // jour de compétition : finales du soir pas encore cliquables (liste de départ pas publiée) → programme relu toutes les 30 min
+  // dès la première réunion du jour commencée, jusqu'à ce qu'elles le soient (les qualifiés sont alors confirmés)
+  const today = (c.reunions || []).filter((r) => { const d = compDate({ date: r.day }); if (!d) return false; const t = parisEpoch(d.y, d.m, d.d); return now >= t && now < t + 864e5; });
+  if (today.some((r) => r.items.some((i) => i.soon))) { const st = Math.min(...today.map((r) => { const d = compDate({ date: r.day }); const m = hToMin(r.items.find((i) => i.kind === "event" && i.time)?.time); return m == null ? Infinity : parisEpoch(d.y, d.m, d.d) + m * 60e3; })); if (now >= st) return 30 * 60e3; }
   return Infinity;                     // jours de compétition : voir progDue (environ 3 lectures par réunion)
 }
 // Jours de compétition : pour chaque réunion, environ 3 lectures du programme entre l'ouverture des portes
@@ -183,7 +187,9 @@ function plan(cfg, data, now, live, LI = {}) {
         // dès qu'elle est publiée, les autres épreuves sont lues une fois
         const lead = c.events?.[evs.find((x) => !x.provisional)?.key] || {};
         const waitDue = e === evs.find((x) => !x.provisional) ? now - st.heatsAt > 3 * 3600e3 : pubOf(lead) && st.heatsAt < lead.heatsAt;
-        const due = (!st.heatsAt && !fin) || (fin && !pub ? finDue(c, r, now, st.heatsAt) : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
+        // finale qui vient de devenir cliquable le jour même : sa liste de départ (qualifiés officiels) est lue tout de suite
+        const fresh = fin && !pub && !st.heatsAt && !e.soon && !beforeDay(c, r, now);
+        const due = fresh || (!st.heatsAt && !fin) || (fin && !pub ? finDue(c, r, now, st.heatsAt) : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
         if (due) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
       if (!live) continue;
