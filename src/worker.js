@@ -176,6 +176,7 @@ function plan(cfg, data, now, live, LI = {}) {
       const started = evs.some((e) => c.events?.[e.key]?.results?.rows?.length);
       for (const e of evs) {
         if (e.provisional) continue; // programme provisoire : rien d'autre à lire pour l'instant
+        if (e.soon) continue; // finale pas encore cliquable : sa page n'existe pas encore
         const st = c.events?.[e.key] || {};
         // finales : la liste de départ est publiée entre les séries et la finale → relue jusqu'à ses résultats
         const fin = e.key !== String(e.epr) && !st.results?.rows?.length;
