@@ -1121,10 +1121,12 @@ function hm(sec){sec=((Math.round(sec)%86400)+86400)%86400;const h=Math.floor(se
 function duration(ev){return ev.series.reduce((a,s)=>a+s.slowest+state.heatGap,0)-state.heatGap}
 function allKeys(){return Object.keys(state.order).flatMap(s=>state.order[s]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event")}
 // épreuve terminée : tous les résultats sont publiés, ou une épreuve suivante de la réunion a déjà des résultats
+// série finale d'une épreuve au temps (800, 1500) : sa page de résultats est celle des séries lentes du matin → pas terminée avant son heure
+function sfEarly(ev){if(ev.typ!==61||!epGroup(ev).some(x=>x.typ===62))return false;const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return false;return Date.now()<d.getTime()+(ev.ffnSec+180)*1000}
 function doneSet(){
   const done=new Set();if(state.phase==="eng")return done;
   for(const s of Object.keys(state.order)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");
-    let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(ev.doneAt||(ev.results.length&&(later||(CSD&&Date.now()-CSD>4*864e5))))done.add(ks[i]);if(ev.results.length)later=true}
+    let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(sfEarly(ev))continue;if(ev.doneAt||(ev.results.length&&(later||(CSD&&Date.now()-CSD>4*864e5))))done.add(ks[i]);if(ev.results.length)later=true}
     // direct bassin (ou simulateur) : la série dans l'eau dit où en est la réunion, les épreuves d'avant sont terminées
     const h=state.live==="bassin"&&POOL&&POOL.heat;if(h&&h.event&&(h.sim||!poolIsTestRaw(h))){const T=norm(h.title||""),sx=["DAMES","MESSIEURS","MIXTE"].find(x=>T.includes(x));const i=h.key?ks.indexOf(h.key):ks.findIndex(k=>+EVENTS[k].numEp===+h.event&&!(EVENTS[k].doneAt)&&(!sx||norm(EVENTS[k].name).includes(sx)));if(i>0)for(let j=0;j<i;j++)done.add(ks[j])}}
   return done;

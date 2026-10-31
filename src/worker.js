@@ -139,6 +139,7 @@ function progEvery(c, now) {
 // et 20 min avant la 1re course (dernières modifications d'horaires possibles), puis plus rien.
 function progDue(c, now) { return (c?.reunions || []).some((r) => reuDue(c, r, now, c.progAt)); }
 // avant le jour de la réunion (séries publiées à l'avance : relues une fois par jour)
+function evStartAt(c, ev) { const r = (c.reunions || []).find((x) => x.n === ev.reunion); const dt = compDate({ date: r?.day }) || compDate(c.meta); const m = hToMin(ev.time); return dt && m != null ? parisEpoch(dt.y, dt.m, dt.d) + m * 60e3 : null; }
 function beforeDay(c, r, now) { const dt = compDate({ date: r.day }) || compDate(c.meta); return !!dt && now < parisEpoch(dt.y, dt.m, dt.d); }
 // une réunion : vrai si une relecture est due dans sa fenêtre « ouverture des portes → 20 min avant la 1re course »
 function reuDue(c, r, now, lastAt) {
@@ -293,6 +294,9 @@ async function runTask(task, data, now) {
       if (task.key === ev.key && task.heat && st.resHeat !== task.heat) { st.resHeat = task.heat; data.dirty = true; }
       if (task.key === ev.key && task.final) { st.resFinalAt = now; data.dirty = true; }
       const exp = expected({ ...ev, heats: st.heats });
+      // série finale d'une épreuve au temps (800, 1500) : même page que les séries lentes du matin → pas terminée avant son heure
+      const sf = ev.typ === 61 && evs.some((x) => x.typ === 62); const at = sf ? evStartAt(c, ev) : null;
+      if (sf && at && now < at + 3 * 60e3) { if (st.doneAt) { delete st.doneAt; data.dirty = true; } continue; }
       if (n && !st.doneAt && (n >= exp || exp === 0)) st.doneAt = now;
     }
   }
