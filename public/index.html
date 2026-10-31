@@ -1858,7 +1858,7 @@ function renderRanking(ev,q){
 // série déjà nagée : épreuve terminée, ou série vue dans le direct / les résultats publiés, ou série avant celle en cours dans le direct
 let HD=null,HDAT=0;function heatDone(ev,n){if(doneSet().has(ev.key))return true;if(!HD||Date.now()-HDAT>3000){HD=provRes();HDAT=Date.now()}const p=HD[ev.key];if(p&&p.heats[n])return true;
   const L=LIVE[ev.comp];const m=L&&L.cur&&liveMatch(ev.comp,L.cur.event);return!!(m&&m.key===ev.key&&L.cur.heat>=n)}
-function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[id,[...(LH[id]||[]),...(LIVE[id]&&LIVE[id].cur&&LIVE[id].cur.heat&&LIVE[id].cur.rows.length?[{event:LIVE[id].cur.event,heat:LIVE[id].cur.heat,of:LIVE[id].cur.of,rows:LIVE[id].cur.rows}]:[])]]);for(const [id,hs] of src)for(const h of hs||[]){const ev=liveMatch(id,h.event);if(!ev)continue;(out[ev.key]=out[ev.key]||{id,title:h.event,heats:{},of:h.of}).heats[h.heat]=h.rows;if(h.of)out[ev.key].of=h.of}
+function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[id,[...(LH[id]||[]),...(LIVE[id]&&LIVE[id].cur&&LIVE[id].cur.heat&&LIVE[id].cur.rows.length?[{event:LIVE[id].cur.event,heat:LIVE[id].cur.heat,of:LIVE[id].cur.of,rows:LIVE[id].cur.rows}]:[])]]);for(const [id,hs] of src)for(const h of hs||[]){let ev=liveMatch(id,h.event);if(!ev)continue;if(sfEarly(ev))ev=epGroup(ev).find(x=>x.typ===62)||ev;(out[ev.key]=out[ev.key]||{id,title:h.event,heats:{},of:h.of}).heats[h.heat]=h.rows;if(h.of)out[ev.key].of=h.of}
   // résultats officiels déjà publiés série par série sur le Live FFN (lus toutes les 2 min) : ils complètent les séries manquées par le direct
   const done=doneSet();
   // forfaits déclarés à l'avance : ils ne font pas démarrer l'épreuve (seuls comptent un temps ou une disqualification)
@@ -2000,7 +2000,7 @@ function renderPod(){
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
     else if((!done.has(k)&&!PRv[k])||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
-    else if(ev.typ===62){const sf=epGroup(ev).find(x=>x.typ===61);if(sf&&!done.has(sf.key)&&!PRv[sf.key])continue} // séries lentes du matin : podium seulement après la série rapide du soir
+    else if(ev.typ===62){const sf=epGroup(ev).find(x=>x.typ===61);if(sf&&(sfEarly(sf)||(!done.has(sf.key)&&!PRv[sf.key])))continue} // séries lentes du matin : podium seulement après la série rapide du soir
     const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
     if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
   // tri par réunion, comme dans Résultats (puces R1, R2… Tout)
