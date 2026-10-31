@@ -1944,13 +1944,15 @@ function isSelection(club){if(!COUNTRY){COUNTRY=new Set();try{const dn=new Intl.
 function eliteRanking(rule,done){
   const clubs={},isFr=w=>!w.nat||/^fra$/i.test(w.nat),add=(c,x)=>{(clubs[c]=clubs[c]||{club:c,total:0,items:[],part:0,sw:{}});clubs[c].items.push(x)};
   const swims={};// participation : chaque nageur une seule fois
-  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;for(const w of [...(ev.results||[]),...(ev.entries||[])]){if(!w.name||w.relay||w.dns)continue;const id=w.iuf||w.name;if(swims[id]){if(!isFr(w))swims[id].fr=false;continue}if(!(ev.results||[]).some(x=>x.name===w.name)&&!done.has(k)&&!(ev.entries||[]).length)continue;swims[id]={club:w.club,w,fr:isFr(w)}}}
+  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;for(const w of ev.results||[]){if(!w.name||w.relay||w.res==null&&!w.dsq||/forf|dns|np|abs/i.test((w.status||"")+" "+(w.reason||"")))continue;const id=w.iuf||w.name;if(swims[id]){if(!isFr(w))swims[id].fr=false;continue}swims[id]={club:w.club,w,fr:isFr(w)}}}
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;const fx=hasFinals(ev);let list=null;
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done))continue;seenEp.add(id);const ff=epGroup(ev).filter(x=>x.fin&&/[AB]/.test(x.fin)).map(x=>x.key);list=mergedRanking(ev).filter(w=>ff.some(f=>(EVENTS[f].results||[]).some(x=>x.name===w.name&&!x.dsq)))}
     else if(ev.typ===62){const sf=epGroup(ev).find(x=>x.typ===61);if(sf&&!done.has(sf.key))continue;if(!done.has(k))continue;list=rerank(ranking(ev).filter(w=>!w.dsq&&w.res!=null))}
     else continue;
-    list.slice(0,16).forEach((w,i)=>{const id=w.iuf||w.name;if(swims[id]){swims[id].pl=(swims[id].pl||0)+ELITE_PTS[i]}add(w.club,{ev:{...ev,name:fx||ev.typ===62?(ev.base||ev.name):ev.name},w,p:ELITE_PTS[i],id})})}
+    // ex aequo : points des places partagées divisés entre les nageurs
+    const pts=list.slice(0,16).map((w,i)=>{let j=i;while(j>0&&list[j-1].res===w.res)j--;let e=i;while(e+1<list.length&&list[e+1].res===w.res)e++;const sl=ELITE_PTS.slice(j,Math.min(e+1,16));return sl.reduce((a,b)=>a+b,0)/(e-j+1)});
+    list.slice(0,16).forEach((w,i)=>{const id=w.iuf||w.name;if(swims[id]){swims[id].pl=(swims[id].pl||0)+pts[i]}add(w.club,{ev:{...ev,name:fx||ev.typ===62?(ev.base||ev.name):ev.name},w,p:pts[i],id})})}
   // participation, puis limite de 2 non-sélectionnables par club (les 2 qui rapportent le plus)
   for(const [id,x] of Object.entries(swims)){(clubs[x.club]=clubs[x.club]||{club:x.club,total:0,items:[],part:0,sw:{}});clubs[x.club].sw[id]=x}
   for(const c of Object.values(clubs)){const fo=Object.entries(c.sw).filter(([,x])=>!x.fr).sort((a,b)=>(b[1].pl||0)-(a[1].pl||0)).slice(2).map(([id])=>id);const out=new Set(fo);
