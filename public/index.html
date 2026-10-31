@@ -1185,9 +1185,9 @@ let CSD=0;function schedule(){
   return out;
 }
 function splitsHtml(ev,w,by100){const sp0=w.splits||[];if(sp0.length<2)return"";
-  let B=/^\d+x/i.test(ev.name)?null:bestOf(w,ev),total=totalDist(ev.name);const self=!!(B&&B.self);if(self)B=null;
-  // record établi ici : on compare la finale à la série du même nageur (même compétition, autre tour)
-  let vs="RP",prev=null;if(self&&ev.fin){prev=otherRound(ev,w);if(prev){B={t:prev.res,sp:(prev.splits||[]).map(x=>[x.dist,x.cum])};vs="série"}}
+  let B=refOf(ev,w);const total=totalDist(ev.name);const self=!!(B&&B.self);if(self)B=null;
+  // finale : comparée au record perso, ou aux séries du jour si elles l'ont battu
+  let vs=B&&B.src==="séries"?"série":"RP",prev=null;if(self&&ev.fin){prev=otherRound(ev,w);if(prev){B={t:prev.res,sp:(prev.splits||[]).map(x=>[x.dist,x.cum])};vs="série"}}
   const pill=d=>d==null?"":`<span class="rpp ${Math.abs(d)<.005?"":d<0?"fa":"sl"}">${Math.abs(d)<.005?"=":rpSg(Math.round(d*100)/100)}</span>`;
   // une ligne par tronçon, lisible comme une phrase : « 2e 50 m · 36.86 · 0,01 s plus vite que lors de son record »
   const ref=vs==="série"?"qu'en séries":"que lors de son record";
@@ -1209,19 +1209,26 @@ function otherRound(ev,w){const k=evKey(ev.name);if(!k)return null;const sx=/Dam
   for(const e of Object.values(EVENTS)){if(e===ev||e.fin||e.comp!==ev.comp||evKey(e.name)!==k||/Dames/.test(e.name)!==sx||/Messieurs/.test(e.name)!==sy)continue;const x=(e.results||[]).find(x=>!x.dsq&&x.res!=null&&x.name===w.name&&(x.year||"")==(w.year||"")&&(x.splits||[]).length>1);if(x)return x}return null}
 function bestInComp(ev,w){const k=evKey(ev.name);if(!k)return w.res;const sx=/Dames/.test(ev.name),sy=/Messieurs/.test(ev.name);let b=w.res;
   for(const e of Object.values(EVENTS)){if(e.comp!==ev.comp||evKey(e.name)!==k||/Dames/.test(e.name)!==sx||/Messieurs/.test(e.name)!==sy)continue;for(const x of e.results||[])if(!x.dsq&&x.res!=null&&x.name===w.name&&(x.year||"")==(w.year||"")&&x.res<b)b=x.res}return b}
-function isRP(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return false;const B=bestOf(w,ev);if(!B||B.t==null)return false;if(bestInComp(ev,w)<w.res-.005)return false;return B.self?true:w.res<B.t-.005}
+// référence d'une course : le record perso d'avant la compétition, ou les séries du même jour si elles l'ont battu (pour une finale)
+function seriesOf(ev,w){const k=evKey(ev.name);if(!k)return null;const sx=/Dames/.test(ev.name),sy=/Messieurs/.test(ev.name);
+  for(const e of Object.values(EVENTS)){if(e===ev||e.fin||e.typ===61||e.comp!==ev.comp||evKey(e.name)!==k||/Dames/.test(e.name)!==sx||/Messieurs/.test(e.name)!==sy)continue;const x=(e.results||[]).find(x=>!x.dsq&&x.res!=null&&x.name===w.name&&(x.year||"")==(w.year||""));if(x)return x}return null}
+function refOf(ev,w){if(!w||w.dsq||w.res==null||/^\d+x/i.test(ev.name))return null;const B=bestOf(w,ev);const pre=B&&B.t!=null&&!B.self?B:null;
+  const fin=ev.fin||ev.typ===61;const s=fin?seriesOf(ev,w):null;
+  if(s&&pre&&s.res<pre.t-.004)return{t:s.res,sp:(s.splits||[]).map(x=>[x.dist,x.cum]),src:"séries"};
+  if(pre)return{...pre,src:"RP"};if(B&&B.self)return{self:true};return null}
+function isRP(ev,w){const R=refOf(ev,w);if(!R)return false;if(R.self)return bestInComp(ev,w)>=w.res-.005;return w.res<R.t-.005}
 function rpCount(){const done=doneSet(),seen=new Set();let n=0;for(const k of allKeys()){if(!done.has(k))continue;const ev=EVENTS[k];for(const w of ranking(ev)){const id=ev.comp+"|"+evKey(ev.name)+"|"+w.name;if(seen.has(id))continue;if(isRP(ev,w)){n++;seen.add(id)}}}return n}
 // une seule phrase sous le temps : record perso battu, sinon écart à l'engagement (s'il est plus rapide), sinon écart au record
-function verdict(ev,w,entry){if(w.dsq||w.res==null)return"";const relay=/^\d+x/i.test(ev.name);const B=relay?null:bestOf(w,ev);
-  if(B&&B.t!=null){if(bestInComp(ev,w)<w.res-.005)return"";if(B.self)return`<span class="rpb">Nouveau record perso !</span>`;const d=Math.round((w.res-B.t)*100)/100;
-    if(d<0)return`<span class="rpb">Nouveau record perso ! ${gapTxt(d)} s de mieux</span>`;if(d===0)return`<span class="rkv">Égale son record perso</span>`;
+function verdict(ev,w,entry){if(w.dsq||w.res==null)return"";const B=refOf(ev,w);
+  if(B&&B.self)return bestInComp(ev,w)<w.res-.005?"":`<span class="rpb">Nouveau record perso !</span>`;
+  if(B&&B.t!=null){const d=Math.round((w.res-B.t)*100)/100;const sq=B.src==="séries"?" qu'en séries":"";
+    if(d<0)return`<span class="rpb">Nouveau record perso ! ${gapTxt(d)} s de mieux${sq}</span>`;if(d===0)return`<span class="rkv">Égale son record perso${B.src==="séries"?" des séries":""}</span>`;
     const e=entry!=null&&Math.abs(B.t-entry)>.005?Math.round((w.res-entry)*100)/100:null;if(e!=null&&e<0)return`<span class="rkv fa">${gapTxt(e)} s plus vite que son engagement</span>`;
-    return`<span class="rkv sl">à ${gapTxt(d)} s de son record perso</span>`}
+    return`<span class="rkv sl">à ${gapTxt(d)} s de son record perso${B.src==="séries"?" (séries)":""}</span>`}
   if(entry!=null){const e=Math.round((w.res-entry)*100)/100;if(e<0)return`<span class="rkv fa">${gapTxt(e)} s plus vite que son engagement</span>`;if(e>0)return`<span class="rkv sl">${gapTxt(e)} s de plus que son engagement</span>`}
   return""}
-function rpRes(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return"";const B=bestOf(w,ev);if(!B||B.t==null)return"";
-  // le nageur va plus vite plus tard dans la compétition (finale) : l'étiquette record perso est pour cette course-là
-  if(bestInComp(ev,w)<w.res-.005){const d=Math.round((w.res-(B.self?w.res:B.t))*100)/100;return B.self?"":`<span class="dif ${d<0?"dn":"up"}" title="Plus rapide ensuite dans la compétition">${rpSg(d)} RP</span>`}
+function rpRes(ev,w){const B=refOf(ev,w);if(!B)return"";
+  if(B.self&&bestInComp(ev,w)<w.res-.005)return"";
   if(B.self)return`<span class="rpb" title="Record perso établi lors de cette compétition (FFN Extranat)">RECORD PERSO</span>`;const d=Math.round((w.res-B.t)*100)/100;return d<0?`<span class="rpb" title="Par rapport au record perso connu avant la course (FFN Extranat)">RECORD PERSO ${rpSg(d)}</span>`:d===0?`<span class="dif">= record perso</span>`:`<span class="dif up" title="Écart avec le record perso">${rpSg(d)} RP</span>`}
 function diffHtml(res,entry){if(!res||!entry)return"";const d=Math.round((res-entry)*100)/100;if(!isFinite(d))return"";const t=gapTxt(d);return d<0?`<span class="dif dn" title="Plus rapide que le temps d'engagement">−${t}</span>`:d>0?`<span class="dif up" title="Plus lent que le temps d'engagement">+${t}</span>`:`<span class="dif">=</span>`}
 function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test(x.status)))}
