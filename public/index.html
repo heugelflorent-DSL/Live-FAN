@@ -1890,7 +1890,7 @@ function podCard(list,label,places,g){
   const ranked=list.filter(x=>x.rank!=null);if(!ranked.length)return"";
   const P=Math.max(3,places||3);let rows=ranked.slice(0,P);
   if(ranked.some(x=>x.intl)){rows=[];let f=0;for(const w of ranked){if(f>=P)break;if(w.intl){if(w.rank<=P)rows.push(w)}else{rows.push(w);f++}}} // étrangers admis en plus des Français médaillés
-  return`<div class="podblock"><div class="podlabel">${esc(label)}</div><ol class="podlist">${rows.map(w=>{const ev=g&&(w.splits||[]).length>1?g.keys.map(k=>EVENTS[k]).find(e=>e.results.some(x=>x.name===w.name&&x.res===w.res)):null;const k=ev?ev.key+"|"+w.name:"",o=!!(k&&state.podSp===k);if(o)POD_SP={ev,w};
+  return`<div class="podblock"><div class="podlabel">${esc(label)}</div><ol class="podlist">${rows.map(w=>{const ev=g&&(w.splits||[]).length>1?[...new Set(g.keys.flatMap(k=>epGroup(EVENTS[k])))].find(e=>e.results.some(x=>x.name===w.name&&x.res===w.res)):null;const k=ev?ev.key+"|"+w.name:"",o=!!(k&&state.podSp===k);if(o)POD_SP={ev,w};
     return`<li class="pr r${w.rank}${ev?" has-sp":""}${o?" open":""}"${ev?` data-podsp="${esc(k)}" role="button" tabindex="0" aria-expanded="${o}" title="Voir les temps de passage"`:""}><span class="medal m${w.rank<=3?w.rank:0}">${w.rank}</span><span class="pw"><b>${nameCell(w)}${w.intl?` <span class="surcl" title="Nageur étranger, classé à sa place réelle dans la course">${esc(w.nat||"étranger")}</span>`:""}</b><small>${logo(w.club)}${esc(w.club||"")}${w.year?" · "+w.year:""}${w.sur?` <span class="surcl" title="Nageur plus jeune, classé ici grâce au surclassement">surclassé</span>`:""}</small></span><span class="ptime">${fmt(w.res).replace(/^00:/,"")}${ev?`<em class="spchev">passages ›</em>`:""}</span></li>`}).join("")}</ol></div>`;
 }
 
@@ -2031,7 +2031,7 @@ function renderPod(){
     else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
       blocks=cats.map(c=>podCard(renum(all.filter(w=>{const a=ref-(+w.year);return w.year&&(c.open||a>=(+c.min||0))&&a<=(c.max===""||c.max==null?999:+c.max)}).map(w=>c.open&&ref-(+w.year)<(+c.min||0)?{...w,sur:1}:w)),c.name||`${c.min}-${c.max} ans`,rule.places,g)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
     const merged=g.keys.length>1&&!K;
-    return`<div class="session${prov.length?" podprov":""}">${secTitle(esc(g.name)+(prov.length?` <span class="provtag">provisoire · ${provTxt}</span>`:` <span class="deftag">définitif</span>`),merged?"classement commun · "+g.keys.length+" compétitions":hm(g.start))}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`)+`</div>`;
+    return`<div class="session${prov.length?" podprov":""}">${secTitle(esc(g.name)+(prov.length?` <span class="provtag">provisoire · ${provTxt}</span>`:` <span class="deftag">définitif</span>`),merged?"classement commun · "+g.keys.length+" compétitions":"")}<div class="compline" style="margin:-2px 0 8px">${[...new Set(g.keys.map(k=>EVENTS[k].comp))].map(compBadge).join("")}</div><div class="podgrid">${blocks||`<p class="empty">Pas encore de classé.</p>`}</div></div>`}).join("")||`<p class="empty">Aucun podium pour le moment.</p>`)+`</div>`;
   $("#pub-body").innerHTML=html;$("#pub-body").insertAdjacentHTML("beforeend",podSheet());
 }
 function participants(){
@@ -2219,7 +2219,7 @@ function render(){if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=s
   if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
-$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(["res","pod","home"].includes(state.view))loadLive()});
+$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.selFrom=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(["res","pod","home"].includes(state.view))loadLive()});
 $("#admin-btn").onclick=()=>openAdmin();
 async function openAdmin(){if(PICK){location.href="/e/main#admin";return}
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();loadEvents();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
@@ -2251,9 +2251,9 @@ $("#pub-body").addEventListener("click",e=>{
   const rt=e.target.closest("[data-reutog]");if(rt){e.preventDefault();const r=rt.dataset.reutog,k="reu"+r;const cur=document.querySelector(`.reu-h[data-reutog="${r}"]`).parentElement.classList.contains("shut");state.open[k]=cur;render();return}
   const mt=e.target.closest("[data-mt]");if(mt){e.preventDefault();const k="mt"+mt.dataset.mt,was=state.open[k];for(const x of Object.keys(state.open))if(x.startsWith("mt"))delete state.open[x];if(!was)state.open[k]=1;render();return}
   const fb=e.target.closest("[data-fav]");if(fb){e.preventDefault();const k=fb.dataset.favkey,n=fb.dataset.favname;const box=fb.dataset.fav==="s"?FAV.sw:FAV.cl;if(box[k])delete box[k];else box[k]=n;favSave();render();return}
-  const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();const stay=state.view==="part",y=window.scrollY;state.view="part";state.sel=sw.dataset.swimmer;if(!stay)$("#search").value="";render();window.scrollTo(0,stay?y:0);return}
+  const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();const stay=state.view==="part",y=window.scrollY;if(!stay&&!state.sel)state.selFrom={view:state.view,y};state.podSp=null;state.view="part";state.sel=sw.dataset.swimmer;if(!stay)$("#search").value="";render();window.scrollTo(0,stay?y:0);return}
   
-  if(e.target.closest("[data-close]")&&(!e.target.closest(".sheet")||e.target.closest("button[data-close]"))){const y=window.scrollY;state.sel=null;renderPublic();window.scrollTo(0,y);return}
+  if(e.target.closest("[data-close]")&&(!e.target.closest(".sheet")||e.target.closest("button[data-close]"))){const f=state.selFrom;state.selFrom=null;if(f){state.sel=null;state.view=f.view;render();window.scrollTo(0,f.y);return}const y=window.scrollY;state.sel=null;renderPublic();window.scrollTo(0,y);return}
   const b=e.target.closest("[data-open]");if(b){const k=b.dataset.open;state.open[k]=!state.open[k];renderPublic()}
 });
 $("#search").oninput=renderPublic;
