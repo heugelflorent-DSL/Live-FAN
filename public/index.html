@@ -993,7 +993,7 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
     <div class="savebar" id="savebar"><span id="save-state">Tout est enregistré</span><div class="inline"><button class="btn small ghost" id="back-public2" type="button">Page publique</button><button class="btn" id="save-btn" type="button" disabled>Enregistrer</button></div></div>
   </section>
 
-  <footer class="foot"><div class="sigw"><div class="sp-side l" id="sp-l"></div><span class="cobrand" id="cobrand"><span class="co-row"><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo"><span class="co-x" id="co-x"></span></span><span class="co-cap" id="co-cap" hidden></span></span><div class="sp-side r" id="sp-r"></div></div><p>Swim Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo <span id="yr">2026</span></p><button id="admin-btn" class="adminlink">Admin</button></footer>
+  <footer class="foot"><div class="sigw"><div class="sp-side l" id="sp-l"></div><span class="cobrand" id="cobrand"><span class="co-row"><img class="sig" src="/matetflo.png" width="88" height="88" alt="Mat-et-Flo"><span class="co-x" id="co-x"></span></span><span class="co-cap" id="co-cap" hidden></span></span><div class="sp-side r" id="sp-r"></div></div><p>Swim Direct · Flo &amp; Mat · données issues du <a href="https://www.liveffn.com" target="_blank" rel="noopener" style="color:inherit">Live FFN</a>. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo <span id="yr">2026</span></p><button id="qr-btn" class="adminlink" type="button" hidden>QR code de la page</button> <button id="admin-btn" class="adminlink">Admin</button></footer>
 </main>
 
 <script>
@@ -2539,6 +2539,25 @@ async function recapImg(R,D,lgSrc,msg){const W=1080,H=1350;const cv=document.cre
   // pied
   g.fillStyle=col;g.fillRect(0,H-74,W,74);g.fillStyle="#fff";g.font=`700 26px ${F}`;g.fillText("Swim Direct",60,H-28);g.font=`500 22px ${F}`;g.textAlign="right";g.globalAlpha=.85;g.fillText("Résultats Live FFN · © Mat-et-Flo",W-60,H-28);g.globalAlpha=1;g.textAlign="left";
   const blob=await new Promise(ok=>cv.toBlob(ok,"image/jpeg",.92));await recapShare(blob,D.file+".jpg","image/jpeg",msg,D.head)}
+
+/* ---------- QR code de la page de la compétition (à afficher, imprimer ou partager) ---------- */
+function loadQr(){if(window.qrcode)return Promise.resolve();return new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";s.onload=ok;s.onerror=()=>ko(new Error("bibliothèque QR non chargée (connexion ?)"));document.head.appendChild(s)})}
+function pageUrl(){return location.origin+(EV&&EV!=="main"?"/e/"+EV:"/")}
+async function qrOpen(){let el=document.getElementById("qr-bg");if(!el){el=document.createElement("div");el.id="qr-bg";el.className="sheet-bg";document.body.appendChild(el)}
+  el.innerHTML=`<div class="sheet" role="dialog" aria-label="QR code de la page"><div class="detail-head"><div><h3>QR code de la page</h3><div class="meta">À afficher au bord du bassin, imprimer ou partager</div></div><button class="btn small ghost" data-qr="close">Fermer</button></div><p class="msg" id="qr-msg">Préparation…</p></div>`;
+  el.onclick=e=>{if(e.target===el||e.target.dataset.qr==="close")el.remove()};
+  try{await loadQr();const url=pageUrl(),name=state.name||"Swim Direct";const q=qrcode(0,"M");q.addData(url);q.make();
+    const n=q.getModuleCount(),W=1000,pad=90,cell=Math.floor((W-2*pad)/n),qs=cell*n,H=W+170;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d");
+    g.fillStyle="#fff";g.fillRect(0,0,W,H);g.fillStyle="#111";const ox=(W-qs)/2;for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(ox+c*cell,pad+r*cell,cell,cell);
+    const F="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";g.textAlign="center";g.fillStyle="#111";let fz=46;g.font=`800 ${fz}px ${F}`;while(g.measureText(name).width>W-80&&fz>30){fz-=2;g.font=`800 ${fz}px ${F}`}let t=name;while(g.measureText(t).width>W-80&&t.length>4)t=t.slice(0,-2);if(t!==name)t=t.trimEnd()+"…";g.fillText(t,W/2,pad+qs+80);
+    g.fillStyle="#666";g.font=`500 28px ${F}`;g.fillText("Résultats et direct · "+url.replace(/^https?:\/\//,""),W/2,pad+qs+130);
+    const png=cv.toDataURL("image/png"),file=("qr-"+(EV||"swim-direct")).replace(/[^a-z0-9-]+/gi,"-")+".png";
+    el.querySelector("#qr-msg").outerHTML=`<img src="${png}" alt="QR code vers ${esc(url)}" style="display:block;width:100%;max-width:360px;margin:12px auto;border-radius:12px;border:1px solid var(--line)"><p class="msg" style="text-align:center;word-break:break-all">${esc(url)}</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px"><a class="btn small" href="${png}" download="${file}">Télécharger l'image</a><button class="btn small ghost" data-qr="copy">Copier le lien</button>${navigator.share?`<button class="btn small ghost" data-qr="share">Partager</button>`:""}</div>`;
+    el.querySelector('[data-qr="copy"]').onclick=async e=>{try{await navigator.clipboard.writeText(url);e.target.textContent="Lien copié ✓"}catch(_){e.target.textContent=url}};
+    const sh=el.querySelector('[data-qr="share"]');if(sh)sh.onclick=async()=>{try{const b=await (await fetch(png)).blob();const f=new File([b],file,{type:"image/png"});await navigator.share(navigator.canShare&&navigator.canShare({files:[f]})?{files:[f],title:name,url}:{title:name,url})}catch(_){}};
+  }catch(e){const m=el.querySelector("#qr-msg");if(m)m.textContent="QR code indisponible : "+e.message}}
+document.addEventListener("click",e=>{if(e.target.id==="qr-btn")qrOpen()});
+setInterval(()=>{const b=document.getElementById("qr-btn");if(b)b.hidden=!state.published&&!state.admin},2000);
 </script>
 </body>
 </html>
