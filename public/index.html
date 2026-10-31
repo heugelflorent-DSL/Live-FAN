@@ -1935,6 +1935,10 @@ function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map
 // de chaque épreuve individuelle (finales A puis B ; 800/1500 : classement au temps des deux phases), disqualifiés exclus,
 // au plus 2 non-sélectionnables (étrangers) comptés par club
 const ELITE_PTS=[400,320,240,224,216,212,208,204,200,192,184,176,168,160,152,144];
+// sélections nationales étrangères (« ITALIE », « TUNISIE », « ILES CAÏMANS »…) : pas des clubs FFN, hors classement des clubs
+let COUNTRY=null;const nrmC=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z]+/g," ").trim();
+function isSelection(club){if(!COUNTRY){COUNTRY=new Set();try{const dn=new Intl.DisplayNames(["fr"],{type:"region"});for(let a=65;a<91;a++)for(let b=65;b<91;b++){const c=String.fromCharCode(a,b),n=dn.of(c);if(n&&n!==c)COUNTRY.add(nrmC(n))}}catch(_){}["GRANDE BRETAGNE","ETATS UNIS","COREE DU SUD","TAIPEI CHINOIS","HONG KONG"].forEach(x=>COUNTRY.add(x))}
+  const n=nrmC(club);return COUNTRY.has(n)||/^(SELECTION|EQUIPE NATIONALE)\b/.test(n)}
 function eliteRanking(rule,done){
   const clubs={},isFr=w=>!w.nat||/^fra$/i.test(w.nat),add=(c,x)=>{(clubs[c]=clubs[c]||{club:c,total:0,items:[],part:0,sw:{}});clubs[c].items.push(x)};
   const swims={};// participation : chaque nageur une seule fois
@@ -1950,7 +1954,7 @@ function eliteRanking(rule,done){
   for(const c of Object.values(clubs)){const fo=Object.entries(c.sw).filter(([,x])=>!x.fr).sort((a,b)=>(b[1].pl||0)-(a[1].pl||0)).slice(2).map(([id])=>id);const out=new Set(fo);
     c.items=c.items.filter(x=>!out.has(x.id));const n=Object.keys(c.sw).filter(id=>!out.has(id)).length;c.part=n;
     c.items.unshift({ev:{name:"Participation · "+n+" nageur"+(n>1?"s":"")+" × 14 pts"},w:{name:""},p:n*14});c.total=c.items.reduce((s,x)=>s+x.p,0)}
-  const L=Object.values(clubs).sort((a,b)=>b.total-a.total);let rk=0;
+  const L=Object.values(clubs).filter(c=>!isSelection(c.club)).sort((a,b)=>b.total-a.total);let rk=0;
   return L.map((c,i)=>{if(i===0||L[i-1].total!==c.total)rk=i+1;return{...c,rank:rk}})}
 function teamRanking(rule,done,sex){
   if(rule.scoring==="elite")return eliteRanking(rule,done||doneSet());
