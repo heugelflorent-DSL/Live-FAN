@@ -1466,8 +1466,8 @@ function renderRank(){
   const rule=rules.find(r=>r.id===state.rankRule);const q=getQ();
   let html=rules.length>1?`<div class="subtabs">${rules.map(r=>`<button data-rr="${r.id}" aria-selected="${r.id===state.rankRule}">${esc(r.name)}</button>`).join("")}</div>`:"";
   if(!rule){$("#pub-body").innerHTML=`<p class="empty">Aucun classement par équipes.</p>`;return}
-  const sex=state.rankSex||"F";
-  if(true)html+=`<div class="subtabs">${[["F","Filles"],["M","Garçons"]].map(([v,l])=>`<button data-rsex="${v}" aria-selected="${sex===v}">${l}</button>`).join("")}</div>`;
+  const sex=rule.scoring==="elite"?"":state.rankSex||"F";
+  if(sex)html+=`<div class="subtabs">${[["F","Filles"],["M","Garçons"]].map(([v,l])=>`<button data-rsex="${v}" aria-selected="${sex===v}">${l}</button>`).join("")}</div>`;
   const b=teamBoard(rule,sex);const max=b.now[0]?b.now[0].total:1;
   html+=`<div class="card board-head"><div><div class="lbl">${esc(rule.name)}${sex?" · "+(sex==="F"?"Filles":"Garçons"):""}</div><div class="compline">${rule.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="bh-ev">${b.last?"Après "+esc(EVENTS[b.last].name):"En attente des premiers résultats"}</div></div><div class="kpi"><b>${b.nDone}<small>/${b.nAll}</small></b><span>épreuves</span></div><div class="prog"><i style="width:${b.nAll?Math.round(100*b.nDone/b.nAll):0}%"></i></div><button class="btn small ghost" id="tv-btn">Plein écran</button></div>`;
   const rows=b.now.filter(t=>!q||qm(t.club,q));
@@ -1929,7 +1929,29 @@ function renderFinRules(){const el=$("#fin-rules"),st=$("#fin-step");if(!el)retu
     <table class="sptab"><thead><tr><th>Finale</th><th>Âge mini</th><th>Âge maxi</th></tr></thead><tbody>${Object.entries(byComp[id]).sort().map(([k,ev])=>{const c=((r.cats||{})[k])||catAges(ev.category);return`<tr><td>Finale ${esc(ev.fin)}${ev.category?" · "+esc(ev.category):""}</td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|min" value="${c.min}" placeholder="—"></td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|max" value="${c.max}" placeholder="—"></td></tr>`}).join("")}</tbody></table></div>`}).join("");
   $("#h-fin").textContent=plural(ids.length,"compétition")+" à finales"}
 function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map((w,i)=>({...w,rank:i+1}))}
+// Trophée Elite (classement national des clubs, Championnats de France) : 14 pts par nageur engagé + 400…144 pts pour les 16 premiers
+// de chaque épreuve individuelle (finales A puis B ; 800/1500 : classement au temps des deux phases), disqualifiés exclus,
+// au plus 2 non-sélectionnables (étrangers) comptés par club
+const ELITE_PTS=[400,320,240,224,216,212,208,204,200,192,184,176,168,160,152,144];
+function eliteRanking(rule,done){
+  const clubs={},isFr=w=>!w.nat||/^fra$/i.test(w.nat),add=(c,x)=>{(clubs[c]=clubs[c]||{club:c,total:0,items:[],part:0,sw:{}});clubs[c].items.push(x)};
+  const swims={};// participation : chaque nageur une seule fois
+  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;for(const w of [...(ev.results||[]),...(ev.entries||[])]){if(!w.name||w.relay||w.dns)continue;const id=w.iuf||w.name;if(swims[id])continue;if(!(ev.results||[]).some(x=>x.name===w.name)&&!done.has(k)&&!(ev.entries||[]).length)continue;swims[id]={club:w.club,w,fr:isFr(w)}}}
+  const seenEp=new Set();
+  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;const fx=hasFinals(ev);let list=null;
+    if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done))continue;seenEp.add(id);const ff=epGroup(ev).filter(x=>x.fin&&/[AB]/.test(x.fin)).map(x=>x.key);list=mergedRanking(ev).filter(w=>ff.some(f=>(EVENTS[f].results||[]).some(x=>x.name===w.name&&!x.dsq)))}
+    else if(ev.typ===62){const sf=epGroup(ev).find(x=>x.typ===61);if(sf&&!done.has(sf.key))continue;if(!done.has(k))continue;list=rerank(ranking(ev).filter(w=>!w.dsq&&w.res!=null))}
+    else continue;
+    list.slice(0,16).forEach((w,i)=>{const id=w.iuf||w.name;if(swims[id]){swims[id].pl=(swims[id].pl||0)+ELITE_PTS[i]}add(w.club,{ev:{...ev,name:fx||ev.typ===62?(ev.base||ev.name):ev.name},w,p:ELITE_PTS[i],id})})}
+  // participation, puis limite de 2 non-sélectionnables par club (les 2 qui rapportent le plus)
+  for(const [id,x] of Object.entries(swims)){(clubs[x.club]=clubs[x.club]||{club:x.club,total:0,items:[],part:0,sw:{}});clubs[x.club].sw[id]=x}
+  for(const c of Object.values(clubs)){const fo=Object.entries(c.sw).filter(([,x])=>!x.fr).sort((a,b)=>(b[1].pl||0)-(a[1].pl||0)).slice(2).map(([id])=>id);const out=new Set(fo);
+    c.items=c.items.filter(x=>!out.has(x.id));const n=Object.keys(c.sw).filter(id=>!out.has(id)).length;c.part=n;
+    c.items.unshift({ev:{name:"Participation · "+n+" nageur"+(n>1?"s":"")+" × 14 pts"},w:{name:""},p:n*14});c.total=c.items.reduce((s,x)=>s+x.p,0)}
+  const L=Object.values(clubs).sort((a,b)=>b.total-a.total);let rk=0;
+  return L.map((c,i)=>{if(i===0||L[i-1].total!==c.total)rk=i+1;return{...c,rank:rk}})}
 function teamRanking(rule,done,sex){
+  if(rule.scoring==="elite")return eliteRanking(rule,done||doneSet());
   done=done||doneSet();const clubs={};
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
@@ -2145,7 +2167,7 @@ function renderAdmin(){renderLogos();renderFinRules();
     <div class="inline"><input class="field" data-rf="name" data-rid="${r.id}" value="${esc(r.name)}" aria-label="Nom du classement" placeholder="${r.type==="team"?"ex. Classement Interclubs":"ex. Podiums Avenirs"}"><button class="x" data-rdel="${r.id}" aria-label="Supprimer ce podium">×</button></div>
     <div class="checks">${state.comps.map(c=>`<label class="chk"><input type="checkbox" data-rc="${c.id}" data-rid="${r.id}" ${r.comps.includes(c.id)?"checked":""}><span class="badge k${c.k}"><i></i>${esc(c.name)}</span></label>`).join("")}</div>
     <label>Type de classement<select class="field" data-rf="type" data-rid="${r.id}"><option value="race" ${r.type!=="team"?"selected":""}>Course par course (podiums par épreuve)</option><option value="team" ${r.type==="team"?"selected":""}>Équipes : addition des points FFN</option></select></label>
-    ${r.type==="team"?`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p><label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label><label class="chk"><input type="checkbox" data-rf="needRelays" data-rid="${r.id}" ${r.needRelays!==false?"checked":""}> Équipe non classée s'il lui manque un relais (règle des Interclubs)</label>`:`<div class="grid2c">
+    ${r.type==="team"?`<label>Barème<select class="field" data-rf="scoring" data-rid="${r.id}"><option value="" ${r.scoring!=="elite"?"selected":""}>Points FFN (Interclubs)</option><option value="elite" ${r.scoring==="elite"?"selected":""}>Trophée Elite – classement national des clubs (Championnats de France)</option></select></label>${r.scoring==="elite"?`<p class="msg">14 pts par nageur engagé, puis 400, 320, 240, 224… 144 pts pour les 16 premiers de chaque épreuve individuelle (finales A et B ; 800 et 1500 au temps). Disqualifiés exclus, 2 étrangers au plus comptés par club, relais non comptés. Classement mixte.</p>`:`<p class="msg">Classements toujours séparés : filles d'un côté, garçons de l'autre.</p>`}<label>Performances comptées par équipe et par épreuve<input class="field" type="number" min="0" max="20" data-rf="perEvent" data-rid="${r.id}" value="${r.perEvent||0}"><span class="msg" style="font-weight:400">0 = toutes les performances</span></label><label class="chk"><input type="checkbox" data-rf="needRelays" data-rid="${r.id}" ${r.needRelays!==false?"checked":""}> Équipe non classée s'il lui manque un relais (règle des Interclubs)</label>`:`<div class="grid2c">
       <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="age" ${r.mode==="age"?"selected":""}>Catégories d'âge</option></select></label>
       <label>Places affichées<input class="field" type="number" min="1" max="10" data-rf="places" data-rid="${r.id}" value="${r.places}"></label>
       ${r.type!=="team"?`<label>Étrangers max. par podium<input class="field" type="number" min="0" max="10" placeholder="sans limite" data-rf="foreign" data-rid="${r.id}" value="${r.foreign??""}"></label>`:""}
@@ -2344,6 +2366,7 @@ $("#pod-add").onclick=()=>{const id="r"+Date.now();state.podRules.push({id,name:
 document.addEventListener("change",e=>{const t=e.target;const r=t.dataset.rid&&state.podRules.find(x=>x.id===t.dataset.rid);if(!r)return;
   if(t.dataset.rc){r.comps=t.checked?[...new Set([...r.comps,t.dataset.rc])]:r.comps.filter(c=>c!==t.dataset.rc)}
   else if(t.dataset.rf==="places")r.places=Math.min(10,Math.max(1,+t.value||3));
+  else if(t.dataset.rf==="scoring")r.scoring=t.value||null;
   else if(t.dataset.rf==="foreign")r.foreign=t.value===""?null:Math.max(0,Math.min(10,+t.value||0));
   else if(t.dataset.rf==="split")r.split=t.checked;
   else if(t.dataset.rf==="upOpen")r.upOpen=t.checked;
