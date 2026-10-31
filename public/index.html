@@ -771,6 +771,10 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
 .spw{font-size:13.5px;font-weight:700;color:var(--muted)}
 .spw.fa{color:#0f7a3d}.spw.sl{color:#c0392b}
 .rkv{font-weight:700}.rkv.fa{color:#0f7a3d}.rkv.sl{color:var(--muted)}
+
+/* phrase sous le temps : sur toute la largeur de la ligne, sous le nom (ne chevauche plus le nom sur téléphone) */
+.rk-vd{grid-column:2/-1;justify-self:end;text-align:right;font-size:12.5px;line-height:1.3;margin-top:-2px}
+.rk-vd .rpb{font-size:11px;padding:2px 8px;white-space:normal}
 </style>
 </head>
 <body>
@@ -1854,7 +1858,7 @@ function renderRanking(ev,q){
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}${isFav(w)?" fav":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}"${w.hc?' title="Hors concours"':""}>${w.hc?"HC":(w.rank??"—")}</span>
       <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${relay?"":esc(w.club||"")}</small></span>
-      <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq&&!w.hc?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.hc?"Hors concours":w.dsq?esc(w.reason||""):[verdict(ev,w,ent[w.iuf||w.name]),w.points?w.points+" pts":""].filter(Boolean).join(" · ")}</small></span>
+      <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq&&!w.hc?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.hc?"Hors concours":w.dsq?esc(w.reason||""):w.points?w.points+" pts":""}</small></span>${!w.hc&&!w.dsq?(v=>v?`<span class="rk-vd">${v}</span>`:"")(verdict(ev,w,ent[w.iuf||w.name])):""}
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
       ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w,1)}</div>`:""}
     ${relay&&(w.members||[]).length?`<span class="lv-relay rl-full">${w.members.map(m=>`<span><i>${esc(m.name)}</i>${m.leg!=null?` <em>${fmt(m.leg)}</em>`:""}</span>`).join("")}</span>`:""}</li>`}).join("")}
