@@ -1943,13 +1943,14 @@ function renderPod(){
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
     else if((!done.has(k)&&!PRv[k])||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
+    else if(ev.typ===62){const sf=epGroup(ev).find(x=>x.typ===61);if(sf&&!done.has(sf.key)&&!PRv[sf.key])continue} // séries lentes du matin : podium seulement après la série rapide du soir
     const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
     if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
   // tri par réunion, comme dans Résultats (puces R1, R2… Tout)
   // podiums : seules les réunions où se jouent des podiums (finales, ou épreuves sans finale) ; une épreuve avec finales est rangée dans la réunion de ses finales
   {const reuOf=k=>Object.keys(state.order).find(r=>state.order[r].includes(k));
-   const pReu=k=>{const ev=EVENTS[k];if(!hasFinals(ev))return reuOf(k);const f=epGroup(ev).filter(x=>x.fin);return reuOf(f[f.length-1].key)};
-   const only=reuList().filter(r=>state.order[r].some(k=>{const ev=EVENTS[k];return ev&&ev.type==="event"&&(ev.fin||!hasFinals(ev))}));
+   const pReu=k=>{const ev=EVENTS[k];const sf=ev.typ===62&&epGroup(ev).find(x=>x.typ===61);if(sf)return reuOf(sf.key);if(!hasFinals(ev))return reuOf(k);const f=epGroup(ev).filter(x=>x.fin);return reuOf(f[f.length-1].key)};
+   const only=reuList().filter(r=>state.order[r].some(k=>{const ev=EVENTS[k];return ev&&ev.type==="event"&&(ev.fin||!hasFinals(ev))&&!(ev.typ===62&&epGroup(ev).some(x=>x.typ===61))}));
    const shown=reuShown(done,only);html+=reuChips(done,only);
    for(const g of groups)g.reu=pReu(g.keys[0]);
    for(let i=groups.length-1;i>=0;i--)if(!groups[i].keys.some(k=>shown.includes(pReu(k))))groups.splice(i,1)}
