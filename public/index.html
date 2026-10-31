@@ -762,10 +762,12 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
 /* passages en phrases */
 .sp4{margin:8px 0 6px;max-width:420px}
 .sp4-h{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:2px}
-.sp4-r{display:grid;grid-template-columns:62px 64px 1fr;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line)}
+.sp4-r{display:grid;grid-template-columns:54px 56px 104px 1fr;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line)}
 .sp4-r:last-child{border-bottom:0}
 .sp4-r>b{font-size:13px;color:var(--muted);font-weight:700}
 .sp4-t{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)}
+.sp4-c{font-family:var(--mono);font-size:13px;color:var(--muted);white-space:nowrap}.sp4-c small{font-family:system-ui,sans-serif;font-size:10.5px}
+.sp4-hd{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:0 0 4px}
 .spw{font-size:13.5px;font-weight:700;color:var(--muted)}
 .spw.fa{color:#0f7a3d}.spw.sl{color:#c0392b}
 .rkv{font-weight:700}.rkv.fa{color:#0f7a3d}.rkv.sl{color:var(--muted)}
@@ -1193,8 +1195,8 @@ function splitsHtml(ev,w,by100){const sp0=w.splits||[];if(sp0.length<2)return"";
     const bar=d=>d==null?"":`<span class="spbar"><i class="${d<0?"fa":"sl"}" style="${d<0?"right":"left"}:50%;width:${Math.min(50,Math.abs(d)/mx*50).toFixed(1)}%"></i></span>`;
     const say=d=>d==null?"":Math.abs(d)<.005?`<span class="spw">même temps</span>`:`<span class="spw ${d<0?"fa":"sl"}">${gapTxt(d)} s plus ${d<0?"vite":"lent"}</span>`;
     const len=sp.length>1?sp[1].dist-sp[0].dist:sp[0].dist;
-    return`<div class="sp4">${R?`<div class="sp4-h">Comparé ${vs==="série"?"à ses séries":"à son record perso"}</div>`:""}${sp.map((x,i)=>{const z=R?R.seg[i]:null;const lab=`${ord(i+1)} ${x.dist-(i?sp[i-1].dist:0)} m`;
-      return`<div class="sp4-r" title="Passage aux ${x.dist} m : ${fmt(x.cum)}"><b>${lab}</b><span class="sp4-t">${fmt(x.lap)}</span>${z?say(z.df):"<span></span>"}</div>`}).join("")}</div>`};
+    return`<div class="sp4"><div class="sp4-r sp4-hd"><span></span><span>Temps</span><span>Passage</span><span>${R?(vs==="série"?"vs ses séries":"vs record perso"):""}</span></div>${sp.map((x,i)=>{const z=R?R.seg[i]:null;const lab=`${ord(i+1)} ${x.dist-(i?sp[i-1].dist:0)} m`;
+      return`<div class="sp4-r" title="Passage aux ${x.dist} m : ${fmt(x.cum)}"><b>${lab}</b><span class="sp4-t">${fmt(x.lap)}</span><span class="sp4-c"><small>${x.dist} m</small> ${fmt(x.cum)}</span>${z?say(z.df):"<span></span>"}</div>`}).join("")}</div>`};
   // 400 m et plus : tronçons de 100 m en plus des 50 m
   const sp100=by100&&total>=400?sp0.filter(x=>x.dist%100===0).map((x,i,a)=>({...x,lap:Math.round((x.cum-(i?a[i-1].cum:0))*100)/100})):[];
   const note=prev?`<p class="sp3-n">Comparaison avec ses séries (${fmt(prev.res)}) : l'ancien record perso n'est plus disponible sur l'Extranat.</p>`:self?`<p class="sp3-n">Record perso établi lors de cette compétition : l'ancien record n'est plus disponible sur l'Extranat pour comparer.</p>`:B&&!(B.sp&&B.sp.length>1)?`<p class="sp3-n">Passages du record perso précédent non disponibles sur l'Extranat : seule la comparaison du temps final est possible.</p>`:"";
