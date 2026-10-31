@@ -250,6 +250,7 @@ export function parseResults(html) {
       points: ptsCell ? (parseInt(one(ptsCell.html)) || null) : null,
       splits: tcell ? parseSplits(tcell.html) : [],
       qual: one((cs.find((c) => c.cls === "qualification") || { html: "" }).html) || null,
+      rem: one((cs.find((c) => c.cls === "rem") || { html: "" }).html) || null, // records : RF, MPF17, RE, RM…
     };
     if (relayEv) row.relay = [{ name, iuf, year, nat, leg: legSec }];
     out.rows.push(row); last = row;
