@@ -1054,7 +1054,7 @@ function build(cfg,data){
           const same=(a,b)=>{const A=nm(a),B=nm(b);if(A.length!==B.length||!A.length)return false;return A.every((t,i)=>t===B[i]||(t.length<=2&&B[i].startsWith(t))||(B[i].length<=2&&t.startsWith(B[i])))};
           for(const x of results){if(!x.iuf||ids.has(x.iuf))continue;const e=entries.find(e=>e.iuf&&String(e.year||"")===String(x.year||"")&&same(e.name.replace(/\./g,""),x.name));
             if(e)x.iuf=e.iuf}}
-        const barrages=(st.barrages||[]).map(b=>({title:b.title,when:b.when,rows:(b.rows||[]).map(x=>({iuf:swId(x.name,x.year),name:x.name,year:x.year,club:x.club,res:x.time,dsq:!!x.status,status:x.status,rank:x.place,qual:x.qual||null,splits:unSp(x)}))}));
+        const barrages=(st.barrages||[]).map(b=>({title:b.title,when:b.when,rows:(b.rows||[]).filter((x,i,A)=>A.findIndex(y=>y.name===x.name&&y.time===x.time)===i).map(x=>({iuf:swId(x.name,x.year),name:x.name,year:x.year,club:x.club,res:x.time,dsq:!!x.status,status:x.status,rank:x.place,qual:x.qual||null,splits:unSp(x)}))}));
         EVENTS[key]={key,comp:id,num:it.epr,epr:it.epr,numEp:it.num,base:it.name,name:it.name+(rlab?" · "+rlab:""),round:it.round,roundLabel:rlab,fin:it.fin||"",typ:it.typ||60,catId:it.cat||0,barrages,provisional:!!it.provisional,category:it.category||"",ffnTime:it.time,ffnSec:hToSec(it.time),sess:r.n,series,entries,results,
           doneAt:st.doneAt||null,nPart:it.nPart,relay,sex,type:"event"};
         byReu[r.n].keys.push(key);
