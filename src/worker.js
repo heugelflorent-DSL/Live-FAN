@@ -375,11 +375,15 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
     }
   }
   // le Live FFN nous a refusé l'accès (HTTP 403) il y a moins de 90 s : on le laisse souffler avant de réessayer
-  if (!force && data.errorAt && now - data.errorAt < 90e3 && /HTTP 403/.test(data.error || "")) return 0;
+  // pause qui s'allonge à chaque refus (10 min, 20 min… jusqu'à 2 h, 20 min au plus pendant une réunion) : insister prolonge le blocage
+  if (!force && data.block && now < data.block.until) return 0;
   if (data.finished && !finished(config, data, now)) data.finished = null;
   const live = force || windowOpen(config, data, now) || (pastEnd(config, data, now) && !finished(config, data, now));
   if (!force) await markHot(env, ev, finished(config, data, now) ? [] : liveWins(config, data), pastEnd(config, data, now) && !finished(config, data, now));
   data.queue = data.queue || [];
+  // file de lectures demandées à la main : abandonnée au bout de 6 h, et la nuit (hors réunion) elle attend le matin
+  if (data.queue.length && data.queueAt && now - data.queueAt > 6 * 3600e3) { data.queue = []; data.dirty = true; }
+  if (data.queue.length && !force && !live) { const hh = +new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23" }).format(now); if (hh >= 22 || hh < 6) return 0; }
   let errors = 0, used = 0;
   const seen = new Set();
   // deux tours : le programme lu au premier tour permet de planifier les séries et résultats au second
@@ -402,13 +406,15 @@ export async function cycle(env, { force = false, ev = "main", budget = BUDGET }
         errors++; data.error = String(e.message || e); data.errorAt = now;
         await logErr(env, ev, "lecture " + t.t + (t.epr ? " épreuve " + t.epr : "") + " (comp. " + t.c + ")", data.error);
         // Live FFN indisponible : la tâche ratée et les suivantes reviennent dans la file, rien n'est perdu
-        if (/indisponible/.test(data.error)) { if (fromQueue) data.queue = [...todo.slice(ti), ...data.queue]; break; }
+        if (/HTTP 403/.test(data.error)) { const n = (data.block?.n || 0) + 1; data.block = { n, until: now + Math.min(live ? 20 * 60e3 : 2 * 3600e3, 10 * 60e3 * 2 ** (n - 1)) }; }
+        // la tâche ratée revient dans la file (sauf après 3 refus : abandonnée), les suivantes aussi
+        if (/indisponible/.test(data.error)) { if (fromQueue) data.queue = [...todo.slice(ti + (FAILS[fk].n >= 3 ? 1 : 0)), ...data.queue]; break; }
       }
     }
   }
   if (!used) return 0;
   data.lastRun = now;
-  if (!errors) { data.lastOk = now; data.error = null; }
+  if (!errors) { data.lastOk = now; data.error = null; if (data.block) { delete data.block; data.dirty = true; } }
   // les horodatages seuls ne justifient pas une écriture KV (1 000 écritures/jour en gratuit) : on écrit si le contenu a changé
   // (repéré pendant la lecture, sans recomparer tout le fichier : trop coûteux pour une grosse compétition)
   const dirty = data.dirty || errors || data.queue.length; delete data.dirty;
@@ -529,11 +535,11 @@ async function rescrape(env, scope, what, ev = "main") {
       const st = c.events?.[e.key];
       if (st && (what === "all" || what === "start")) { delete st.heats; delete st.heatsAt; }
       if (st && (what === "all" || what === "res")) { delete st.results; delete st.resultsAt; delete st.doneAt; delete st.nRows; }
-      if (what !== "res") tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
+      if (what !== "res" && !(e.key !== String(e.epr) && later)) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key }); // finales : pas avant leur jour
       if (what !== "start" && !later && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
   }
-  data.queue = tasks; data.savedAt = 0;
+  data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; delete data.block; // demande manuelle : on retente tout de suite, une fois
   await saveData(env, data, before, ev);
   return tasks.length;
 }
