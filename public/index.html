@@ -1043,7 +1043,7 @@ function build(cfg,data){
           return{n:h.n||j+1,swimmers:sw.sort((a,b)=>a.lane-b.lane),slowest:tms.length?Math.max(...tms):defaultDur(it.name)}});
         const entries=series.flatMap(s=>s.swimmers);
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
-          nat:x.relay?"":(x.nat||""),res:x.time,dsq:!!x.status||!!x.hc,hc:!!x.hc,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
+          nat:x.relay?"":(x.nat||""),lic:x.relay?null:(x.iuf||null),res:x.time,dsq:!!x.status||!!x.hc,hc:!!x.hc,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
           splits:unSp(x),qual:x.qual||null}));
         // listes de départ aux prénoms abrégés (« IRION-REUTENAUER M. ») : le résultat (« … Maëlys ») est rattaché au même nageur
         {const ids=new Set(entries.map(e=>e.iuf).filter(Boolean));const nm=x=>norm(x).split(/\s+/);
@@ -1941,10 +1941,12 @@ const ELITE_PTS=[400,320,240,224,216,212,208,204,200,192,184,176,168,160,152,144
 let COUNTRY=null;const nrmC=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z]+/g," ").trim();
 function isSelection(club){if(!COUNTRY){COUNTRY=new Set();try{const dn=new Intl.DisplayNames(["fr"],{type:"region"});for(let a=65;a<91;a++)for(let b=65;b<91;b++){const c=String.fromCharCode(a,b),n=dn.of(c);if(n&&n!==c)COUNTRY.add(nrmC(n))}}catch(_){}["GRANDE BRETAGNE","ETATS UNIS","COREE DU SUD","TAIPEI CHINOIS","HONG KONG"].forEach(x=>COUNTRY.add(x))}
   const n=nrmC(club);return COUNTRY.has(n)||/^(SELECTION|EQUIPE NATIONALE)\b/.test(n)}
+// nageur sans licence FFN (pas d'IUF sur le Live FFN : sélection nationale étrangère) : sa place compte mais ne rapporte aucun point
+const noLic=(ev,w)=>!w.lic&&(ev.results||[]).some(x=>x.lic);
 function eliteRanking(rule,done){
   const clubs={},isFr=w=>!w.nat||/^fra$/i.test(w.nat),add=(c,x)=>{(clubs[c]=clubs[c]||{club:c,total:0,items:[],part:0,sw:{}});clubs[c].items.push(x)};
   const swims={};// participation : chaque nageur une seule fois
-  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;for(const w of ev.results||[]){if(!w.name||w.relay||w.res==null&&!w.dsq||/forf|dns|np|abs/i.test((w.status||"")+" "+(w.reason||"")))continue;const id=w.iuf||w.name;if(swims[id]){if(!isFr(w))swims[id].fr=false;continue}swims[id]={club:w.club,w,fr:isFr(w)}}}
+  for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;for(const w of ev.results||[]){if(!w.name||w.relay||noLic(ev,w)||w.res==null&&!w.dsq||/forf|dns|np|abs/i.test((w.status||"")+" "+(w.reason||"")))continue;const id=w.iuf||w.name;if(swims[id]){if(!isFr(w))swims[id].fr=false;continue}swims[id]={club:w.club,w,fr:isFr(w)}}}
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];if(!rule.comps.includes(ev.comp)||ev.relay)continue;const fx=hasFinals(ev);let list=null;
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done))continue;seenEp.add(id);const ff=epGroup(ev).filter(x=>x.fin&&/[AB]/.test(x.fin)).map(x=>x.key);list=mergedRanking(ev).filter(w=>ff.some(f=>(EVENTS[f].results||[]).some(x=>x.name===w.name&&!x.dsq)))}
@@ -1952,7 +1954,7 @@ function eliteRanking(rule,done){
     else continue;
     // ex aequo : points des places partagées divisés entre les nageurs
     const pts=list.slice(0,16).map((w,i)=>{let j=i;while(j>0&&list[j-1].res===w.res)j--;let e=i;while(e+1<list.length&&list[e+1].res===w.res)e++;const sl=ELITE_PTS.slice(j,Math.min(e+1,16));return sl.reduce((a,b)=>a+b,0)/(e-j+1)});
-    list.slice(0,16).forEach((w,i)=>{const id=w.iuf||w.name;if(swims[id]){swims[id].pl=(swims[id].pl||0)+pts[i]}add(w.club,{ev:{...ev,name:fx||ev.typ===62?(ev.base||ev.name):ev.name},w,p:pts[i],id})})}
+    list.slice(0,16).forEach((w,i)=>{if(isSelection(w.club)||noLic(EVENTS[k],w)&&!(EVENTS[k].results||[]).some(x=>x.name===w.name&&x.lic)&&!epGroup(ev).some(e=>(e.results||[]).some(x=>x.name===w.name&&x.lic)))return;/* place gardée, points non attribués */const id=w.iuf||w.name;if(swims[id]){swims[id].pl=(swims[id].pl||0)+pts[i]}add(w.club,{ev:{...ev,name:fx||ev.typ===62?(ev.base||ev.name):ev.name},w,p:pts[i],id})})}
   // participation, puis limite de 2 non-sélectionnables par club (les 2 qui rapportent le plus)
   for(const [id,x] of Object.entries(swims)){(clubs[x.club]=clubs[x.club]||{club:x.club,total:0,items:[],part:0,sw:{}});clubs[x.club].sw[id]=x}
   for(const c of Object.values(clubs)){const fo=Object.entries(c.sw).filter(([,x])=>!x.fr).sort((a,b)=>(b[1].pl||0)-(a[1].pl||0)).slice(2).map(([id])=>id);const out=new Set(fo);
