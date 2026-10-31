@@ -189,7 +189,7 @@ function plan(cfg, data, now, live, LI = {}) {
         const lead = c.events?.[evs.find((x) => !x.provisional)?.key] || {};
         const waitDue = e === evs.find((x) => !x.provisional) ? now - st.heatsAt > 3 * 3600e3 : pubOf(lead) && st.heatsAt < lead.heatsAt;
         // finale qui vient de devenir cliquable le jour même : sa liste de départ (qualifiés officiels) est lue tout de suite
-        const fresh = fin && !pub && !st.heatsAt && !e.soon && !beforeDay(c, r, now);
+        const fresh = fin && !pub && !e.soon && !beforeDay(c, r, now) && (!st.heatsAt || (e.nPart && now - st.heatsAt > 30 * 60e3)); // nombre de participants affiché = liste publiée
         const due = fresh || (!st.heatsAt && !fin) || (fin && !pub ? finDue(c, r, now, st.heatsAt) : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
         if (due) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
