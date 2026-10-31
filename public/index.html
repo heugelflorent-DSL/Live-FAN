@@ -775,7 +775,18 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
 /* phrase sous le temps : sur toute la largeur de la ligne, sous le nom (ne chevauche plus le nom sur téléphone) */
 .rk-vd{grid-column:2/-1;justify-self:end;text-align:right;font-size:12.5px;line-height:1.3;margin-top:-2px}
 .rk-vd .rpb{font-size:11px;padding:2px 8px;white-space:normal}
-.recb{display:inline-block;padding:1px 8px;border-radius:99px;background:#fff3c4;color:#7a5a00;border:1px solid #e9c95b;font-size:11px;font-weight:800;white-space:nowrap}
+/* records : pastilles RF (bleu-blanc-rouge), MPF (or), RE/RM (violet/noir) */
+.recb{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:99px;font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;vertical-align:middle;position:relative;overflow:hidden;background:#fff3c4;color:#7a5a00;border:1px solid #e9c95b}
+.recb i{font-style:normal;font-weight:700;opacity:.85;text-transform:none;padding-left:5px;border-left:1px solid currentColor}
+.recb b{font-size:12px}
+.recb.r-rf{background:#0b2a5c;color:#fff;border:0;padding-left:24px}
+.recb.r-rf::before{content:"";position:absolute;left:0;top:0;bottom:0;width:17px;background:linear-gradient(90deg,#0055a4 0 33%,#fff 33% 66%,#ef4135 66%)}
+.recb.r-mpf{background:linear-gradient(135deg,#f9d976,#e6a91c);color:#4a3200;border:0;box-shadow:0 1px 4px rgba(230,169,28,.45)}
+.recb.r-re{background:#3b1f8f;color:#fff;border:0}
+.recb.r-rm{background:#111;color:#ffd54a;border:0}
+.recb.r-rf::after,.recb.r-mpf::after{content:"";position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:recsh 3.2s ease-in-out infinite}
+@keyframes recsh{0%,60%{left:-40%}100%{left:120%}}
+@media (prefers-reduced-motion:reduce){.recb::after{animation:none!important}}
 </style>
 </head>
 <body>
@@ -1225,7 +1236,9 @@ function isRP(ev,w){const R=refOf(ev,w);if(!R)return false;if(R.self)return best
 function rpCount(){const done=doneSet(),seen=new Set();let n=0;for(const k of allKeys()){if(!done.has(k))continue;const ev=EVENTS[k];for(const w of ranking(ev)){const id=ev.comp+"|"+evKey(ev.name)+"|"+w.name;if(seen.has(id))continue;if(isRP(ev,w)){n++;seen.add(id)}}}return n}
 // une seule phrase sous le temps : record perso battu, sinon écart à l'engagement (s'il est plus rapide), sinon écart au record
 // records nationaux du Live FFN (colonne « rem ») : RF = record de France, MPF17 = meilleure performance française 17 ans…
-function remBadge(w){const r=String(w&&w.rem||"").trim();if(!r)return"";const L=r.split(/[\s,;]+/).filter(Boolean).map(t=>{const m=t.match(/^(MPF|RF|RE|RM|RC|RN)(\d{1,2})?$/i);if(!m)return t;const k=m[1].toUpperCase(),a=m[2]?" "+m[2]+" ans":"";return{MPF:"Meilleure perf. française"+a,RF:"Record de France"+a,RE:"Record d'Europe"+a,RM:"Record du monde"+a,RC:"Record des championnats"+a,RN:"Record national"+a}[k]||t});return L.map(t=>`<span class="recb">🏆 ${esc(t)}</span>`).join(" ")}
+function remBadge(w){const r=String(w&&w.rem||"").trim();if(!r)return"";return r.split(/[\s,;]+/).filter(Boolean).map(t=>{const m=t.match(/^(MPF|RF|RE|RM|RC|RN)(\d{1,2})?$/i);if(!m)return`<span class="recb">${esc(t)}</span>`;const k=m[1].toUpperCase(),a=m[2]?`<i>${m[2]} ans</i>`:"";
+  const lab={MPF:"Meilleure perf. française",RF:"Record de France",RE:"Record d'Europe",RM:"Record du monde",RC:"Record des championnats",RN:"Record national"}[k];
+  return`<span class="recb r-${k.toLowerCase()}" title="${esc(lab+(m[2]?" "+m[2]+" ans":""))}"><b>${k==="MPF"?"★":k==="RF"?"":"🏆"}</b>${esc(k==="MPF"?"MPF":lab)}${a}</span>`}).join(" ")}
 function verdict(ev,w,entry){if(w.dsq||w.res==null)return"";const B=refOf(ev,w);
   if(B&&B.self)return bestInComp(ev,w)<w.res-.005?"":`<span class="rpb">Nouveau record perso !</span>`;
   if(B&&B.t!=null){const d=Math.round((w.res-B.t)*100)/100;const sq=B.src==="séries"?" qu'en séries":"";
