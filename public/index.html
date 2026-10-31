@@ -758,6 +758,20 @@ body.tv .lvgrid .rk-row,body.tv .lvgrid li{font-size:calc(1.9*var(--u));color:#f
 body.tv .lvgrid .rk-row b,body.tv .lvgrid .rk-row a{color:#fff}
 body.tv .lvgrid .rk-row small,body.tv .lvgrid .rk-row .sub{font-size:.62em;color:#aaa}
 body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
+
+/* passages en phrases */
+.sp4{margin:8px 0 6px;display:flex;flex-direction:column;gap:2px}
+.sp4-r{display:grid;grid-template-columns:minmax(92px,auto) 1fr;gap:4px 12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.sp4-r:last-child{border-bottom:0}
+.sp4-a{display:flex;flex-direction:column}
+.sp4-a b{font-size:13px;color:var(--muted);font-weight:700}
+.sp4-t{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink)}
+.sp4-b{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sp4-b small{color:var(--muted);font-size:12px}
+.spw{font-size:13.5px;font-weight:700;color:var(--muted)}
+.spw.fa{color:#0f7a3d}.spw.sl{color:#c0392b}
+.sp4 .spbar{max-width:160px}
+.rkv{font-weight:700}.rkv.fa{color:#0f7a3d}.rkv.sl{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -1174,15 +1188,20 @@ function splitsHtml(ev,w,by100){const sp0=w.splits||[];if(sp0.length<2)return"";
   // record établi ici : on compare la finale à la série du même nageur (même compétition, autre tour)
   let vs="RP",prev=null;if(self&&ev.fin){prev=otherRound(ev,w);if(prev){B={t:prev.res,sp:(prev.splits||[]).map(x=>[x.dist,x.cum])};vs="série"}}
   const pill=d=>d==null?"":`<span class="rpp ${Math.abs(d)<.005?"":d<0?"fa":"sl"}">${Math.abs(d)<.005?"=":rpSg(Math.round(d*100)/100)}</span>`;
+  // une ligne par tronçon, lisible comme une phrase : « 2e 50 m · 36.86 · 0,01 s plus vite que lors de son record »
+  const ref=vs==="série"?"qu'en séries":"que lors de son record";
+  const ord=n=>n===1?"1er":n+"e";
   const table=(sp,lbl,c100)=>{const R=B?rpSeg(sp.map((x,i)=>({k:i+1,t:x.cum,dist:x.dist})),B,total,poolLen()):null;
     const mx=R?Math.max(.5,...R.seg.map(z=>Math.abs(z.df))):1;
     const bar=d=>d==null?"":`<span class="spbar"><i class="${d<0?"fa":"sl"}" style="${d<0?"right":"left"}:50%;width:${Math.min(50,Math.abs(d)/mx*50).toFixed(1)}%"></i></span>`;
-    return`<div class="sp3">${lbl?`<div class="sp3-t">${lbl}</div>`:""}${B?`<div class="sp3-h${c100?" w4":""}"><span></span><span>Passage <small>vs ${vs}</small></span><span>50 m <small>vs ${vs}</small></span>${c100?"<span>100 m</span>":""}</div>`:`<div class="sp3-h${c100?" w4":""}"><span></span><span>Passage</span><span>${c100?"50 m":"Tronçon"}</span>${c100?"<span>100 m</span>":""}</div>`}${sp.map((x,i)=>{const bv=B&&(x.dist>=total||(B.sp||[]).some(q=>q[0]===x.dist))?bestAt(B,x.dist,total||x.dist):null;const z=R?R.seg[i]:null;
-      const h=c100&&c100[x.dist];return`<div class="sp3-r${c100?" w4":""}${c100&&x.dist%100===0?" e100":""}"><span class="sp3-d">${i?sp[i-1].dist:0}–${x.dist} m</span><span class="sp3-c"><b>${fmt(x.cum)}</b>${bv!=null?pill(x.cum-bv):""}</span><span class="sp3-c"><b>${fmt(x.lap)}</b>${z?pill(z.df)+bar(z.df):""}</span>${c100?`<span class="sp3-c sp100">${h!=null?`<b>${fmt(h)}</b>`:""}</span>`:""}</div>`}).join("")}</div>`};
+    const say=d=>d==null?"":Math.abs(d)<.005?`<span class="spw">même temps ${ref}</span>`:`<span class="spw ${d<0?"fa":"sl"}">${gapTxt(d)} s plus ${d<0?"vite":"lent"} ${ref}</span>`;
+    const len=sp.length>1?sp[1].dist-sp[0].dist:sp[0].dist;
+    return`<div class="sp4">${sp.map((x,i)=>{const z=R?R.seg[i]:null;const last=i===sp.length-1;const lab=`${ord(i+1)} ${x.dist-(i?sp[i-1].dist:0)} m`;
+      return`<div class="sp4-r"><div class="sp4-a"><b>${lab}</b><span class="sp4-t">${fmt(x.lap)}</span></div><div class="sp4-b">${z?say(z.df):""}<small>${last?"arrivée":"passage"} aux ${x.dist} m : ${fmt(x.cum)}</small></div></div>`}).join("")}</div>`};
   // 400 m et plus : tronçons de 100 m en plus des 50 m
   const sp100=by100&&total>=400?sp0.filter(x=>x.dist%100===0).map((x,i,a)=>({...x,lap:Math.round((x.cum-(i?a[i-1].cum:0))*100)/100})):[];
   const note=prev?`<p class="sp3-n">Comparaison avec ses séries (${fmt(prev.res)}) : l'ancien record perso n'est plus disponible sur l'Extranat.</p>`:self?`<p class="sp3-n">Record perso établi lors de cette compétition : l'ancien record n'est plus disponible sur l'Extranat pour comparer.</p>`:B&&!(B.sp&&B.sp.length>1)?`<p class="sp3-n">Passages du record perso précédent non disponibles sur l'Extranat : seule la comparaison du temps final est possible.</p>`:"";
-  return sp100.length>1&&sp100.length<sp0.length?table(sp0,"",Object.fromEntries(sp100.map(x=>[x.dist,x.lap])))+note:table(sp0,"")+note}
+  return table(sp0,"")+note}
 // meilleur temps du nageur sur cette épreuve dans toute la compétition (séries, demi-finales, finales)
 // même nageur, même épreuve, autre tour (séries d'une finale) avec ses passages
 function otherRound(ev,w){const k=evKey(ev.name);if(!k)return null;const sx=/Dames/.test(ev.name),sy=/Messieurs/.test(ev.name);
@@ -1191,6 +1210,14 @@ function bestInComp(ev,w){const k=evKey(ev.name);if(!k)return w.res;const sx=/Da
   for(const e of Object.values(EVENTS)){if(e.comp!==ev.comp||evKey(e.name)!==k||/Dames/.test(e.name)!==sx||/Messieurs/.test(e.name)!==sy)continue;for(const x of e.results||[])if(!x.dsq&&x.res!=null&&x.name===w.name&&(x.year||"")==(w.year||"")&&x.res<b)b=x.res}return b}
 function isRP(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return false;const B=bestOf(w,ev);if(!B||B.t==null)return false;if(bestInComp(ev,w)<w.res-.005)return false;return B.self?true:w.res<B.t-.005}
 function rpCount(){const done=doneSet(),seen=new Set();let n=0;for(const k of allKeys()){if(!done.has(k))continue;const ev=EVENTS[k];for(const w of ranking(ev)){const id=ev.comp+"|"+evKey(ev.name)+"|"+w.name;if(seen.has(id))continue;if(isRP(ev,w)){n++;seen.add(id)}}}return n}
+// une seule phrase sous le temps : record perso battu, sinon écart à l'engagement (s'il est plus rapide), sinon écart au record
+function verdict(ev,w,entry){if(w.dsq||w.res==null)return"";const relay=/^\d+x/i.test(ev.name);const B=relay?null:bestOf(w,ev);
+  if(B&&B.t!=null){if(bestInComp(ev,w)<w.res-.005)return"";if(B.self)return`<span class="rpb">Nouveau record perso !</span>`;const d=Math.round((w.res-B.t)*100)/100;
+    if(d<0)return`<span class="rpb">Nouveau record perso ! ${gapTxt(d)} s de mieux</span>`;if(d===0)return`<span class="rkv">Égale son record perso</span>`;
+    const e=entry!=null&&Math.abs(B.t-entry)>.005?Math.round((w.res-entry)*100)/100:null;if(e!=null&&e<0)return`<span class="rkv fa">${gapTxt(e)} s plus vite que son engagement</span>`;
+    return`<span class="rkv sl">à ${gapTxt(d)} s de son record perso</span>`}
+  if(entry!=null){const e=Math.round((w.res-entry)*100)/100;if(e<0)return`<span class="rkv fa">${gapTxt(e)} s plus vite que son engagement</span>`;if(e>0)return`<span class="rkv sl">${gapTxt(e)} s de plus que son engagement</span>`}
+  return""}
 function rpRes(ev,w){if(w.dsq||w.res==null||/^\d+x/i.test(ev.name))return"";const B=bestOf(w,ev);if(!B||B.t==null)return"";
   // le nageur va plus vite plus tard dans la compétition (finale) : l'étiquette record perso est pour cette course-là
   if(bestInComp(ev,w)<w.res-.005){const d=Math.round((w.res-(B.self?w.res:B.t))*100)/100;return B.self?"":`<span class="dif ${d<0?"dn":"up"}" title="Plus rapide ensuite dans la compétition">${rpSg(d)} RP</span>`}
@@ -1817,7 +1844,7 @@ function renderRanking(ev,q){
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}${isFav(w)?" fav":""}">
       <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}"${w.hc?' title="Hors concours"':""}>${w.hc?"HC":(w.rank??"—")}</span>
       <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${relay?"":esc(w.club||"")}</small></span>
-      <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq&&!w.hc?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.hc?"Hors concours":w.dsq?esc(w.reason||""):[w.points?w.points+" pts":"",((e,B)=>B&&B.t!=null&&e!=null&&Math.abs(B.t-e)<.005?"":(d=>d?"engag. "+d:"")(diffHtml(w.res,e)))(ent[w.iuf||w.name],/^\d+x/i.test(ev.name)?null:bestOf(w,ev)),rpRes(ev,w)].filter(Boolean).join(" · ")}</small></span>
+      <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq&&!w.hc?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.hc?"Hors concours":w.dsq?esc(w.reason||""):[verdict(ev,w,ent[w.iuf||w.name]),w.points?w.points+" pts":""].filter(Boolean).join(" · ")}</small></span>
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
       ${has&&o?`<div class="rk-sp">${splitsHtml(ev,w,1)}</div>`:""}
     ${relay&&(w.members||[]).length?`<span class="lv-relay rl-full">${w.members.map(m=>`<span><i>${esc(m.name)}</i>${m.leg!=null?` <em>${fmt(m.leg)}</em>`:""}</span>`).join("")}</span>`:""}</li>`}).join("")}
