@@ -2454,6 +2454,8 @@ function recapData(R){const P=participants();
   const avg=pcts.length?pcts.reduce((a,b)=>a+b,0)/pcts.length:null;
   const kp=[[R.kind==="c"?String(blocks.length):String(nRace),R.kind==="c"?"nageurs":"courses"],[String(nRp),"records perso"],[pod.reduce((a,b)=>a+b,0)?pod.join(" / "):"0","podiums"],[avg==null?"—":pctS(avg),"progression"]];
   if(nNew)kp.push([String(nNew),"nouvelles épreuves"]);
+  // récap club : sa place au classement national des clubs (Trophée Elite)
+  if(R.kind==="c")for(const r of teamRules().filter(r=>r.scoring==="elite")){const L=teamRanking(r);const t=L.find(x=>x.club===R.key);if(t){const e=[`${t.rank}${t.rank===1?"er":"e"}/${L.length}`,"classement clubs"];e.elite=1;kp.push(e)}}
   const c0=comp(blocks[0].p.sw.comp)||state.comps[0]||{};
   const head=R.kind==="c"?R.key:blocks.length===1?blocks[0].p.sw.name:blocks.map(b=>b.p.sw.name.replace(/^[A-ZÀ-Ý' -]+\s/,"")).join(", ");
   const sub=R.kind==="s"&&blocks.length===1?[blocks[0].p.sw.year,blocks[0].p.sw.club].filter(Boolean).join(" · "):"";
@@ -2514,7 +2516,7 @@ async function recapImg(R,D,lgSrc,msg){const W=1080,H=1350;const cv=document.cre
   const sub=R.title||D.sub;if(sub){g.fillStyle=R.title?col:"#666";g.font=`${R.title?"italic 600":"500"} 32px ${F}`;g.fillText(fit(sub,W-tx-60,g.font),tx,y+94)}
   y+=128;
   // chiffres clés
-  const kp=D.kp.slice(0,4);const gap=18,bw=(W-120-gap*(kp.length-1))/kp.length,bh=118;
+  const el=D.kp.find(k=>k.elite);const kp=el?[...D.kp.filter(k=>!k.elite).slice(0,3),el]:D.kp.slice(0,4);const gap=18,bw=(W-120-gap*(kp.length-1))/kp.length,bh=118;
   kp.forEach(([v,l],i)=>{const x=60+i*(bw+gap);g.fillStyle="#f4f1f4";rr(x,y,bw,bh,22);g.fill();g.fillStyle=col;g.textAlign="center";g.font=`800 46px ${F}`;g.fillText(fit(v,bw-16,g.font),x+bw/2,y+62);g.fillStyle="#777";g.font=`600 23px ${F}`;g.fillText(l,x+bw/2,y+97);g.textAlign="left"});
   y+=bh+34;
   // lignes : un nageur → ses courses ; plusieurs → les meilleurs moments (podiums, puis RP les plus forts)
