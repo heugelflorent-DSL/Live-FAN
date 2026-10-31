@@ -786,7 +786,17 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
 .recb.r-rm{background:#111;color:#ffd54a;border:0}
 .recb.r-rf::after,.recb.r-mpf::after{content:"";position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:recsh 3.2s ease-in-out infinite}
 @keyframes recsh{0%,60%{left:-40%}100%{left:120%}}
-@media (prefers-reduced-motion:reduce){.recb::after{animation:none!important}}
+/* record de France : petit feu d'artifice dans la pastille */
+.recb .fw{position:absolute;inset:0;pointer-events:none;z-index:0}
+.recb.r-rf>b,.recb.r-rf{z-index:1}
+.recb .fw s{text-decoration:none;position:absolute;width:3px;height:3px;border-radius:50%;opacity:0;animation:fw 2.6s ease-out infinite;
+  box-shadow:0 -9px #fff,6px -6px #ef4135,9px 0 #ffd54a,6px 6px #fff,0 9px #4f8bff,-6px 6px #ef4135,-9px 0 #ffd54a,-6px -6px #fff}
+.recb .fw s:nth-child(1){left:28%;top:40%;animation-delay:0s}
+.recb .fw s:nth-child(2){left:62%;top:30%;animation-delay:.65s}
+.recb .fw s:nth-child(3){left:84%;top:58%;animation-delay:1.3s}
+.recb .fw s:nth-child(4){left:46%;top:66%;animation-delay:1.95s}
+@keyframes fw{0%{opacity:0;transform:scale(.1)}12%{opacity:1}55%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.25) translateY(3px)}}
+@media (prefers-reduced-motion:reduce){.recb::after,.recb .fw s{animation:none!important}.recb .fw{display:none}}
 </style>
 </head>
 <body>
@@ -1238,7 +1248,7 @@ function rpCount(){const done=doneSet(),seen=new Set();let n=0;for(const k of al
 // records nationaux du Live FFN (colonne « rem ») : RF = record de France, MPF17 = meilleure performance française 17 ans…
 function remBadge(w){const r=String(w&&w.rem||"").trim();if(!r)return"";return r.split(/[\s,;]+/).filter(Boolean).map(t=>{const m=t.match(/^(MPF|RF|RE|RM|RC|RN)(\d{1,2})?$/i);if(!m)return`<span class="recb">${esc(t)}</span>`;const k=m[1].toUpperCase(),a=m[2]?`<i>${m[2]} ans</i>`:"";
   const lab={MPF:"Meilleure perf. française",RF:"Record de France",RE:"Record d'Europe",RM:"Record du monde",RC:"Record des championnats",RN:"Record national"}[k];
-  return`<span class="recb r-${k.toLowerCase()}" title="${esc(lab+(m[2]?" "+m[2]+" ans":""))}"><b>${k==="MPF"?"★":k==="RF"?"":"🏆"}</b>${esc(k==="MPF"?"MPF":lab)}${a}</span>`}).join(" ")}
+  return`<span class="recb r-${k.toLowerCase()}" title="${esc(lab+(m[2]?" "+m[2]+" ans":""))}">${k==="RF"?'<span class="fw" aria-hidden="true"><s></s><s></s><s></s><s></s></span>':""}<b>${k==="MPF"?"★":k==="RF"?"":"🏆"}</b>${esc(k==="MPF"?"MPF":lab)}${a}</span>`}).join(" ")}
 function verdict(ev,w,entry){if(w.dsq||w.res==null)return"";const B=refOf(ev,w);
   if(B&&B.self)return bestInComp(ev,w)<w.res-.005?"":`<span class="rpb">Nouveau record perso !</span>`;
   if(B&&B.t!=null){const d=Math.round((w.res-B.t)*100)/100;const sq=B.src==="séries"?" qu'en séries":"";
