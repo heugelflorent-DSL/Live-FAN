@@ -2316,7 +2316,10 @@ $("#pub-body").addEventListener("click",e=>{
   const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();const stay=state.view==="part",y=window.scrollY;if(!stay&&!state.sel)state.selFrom={view:state.view,y};state.podSp=null;state.view="part";state.sel=sw.dataset.swimmer;if(!stay)$("#search").value="";render();window.scrollTo(0,stay?y:0);return}
   
   if(e.target.closest("[data-close]")&&(!e.target.closest(".sheet")||e.target.closest("button[data-close]"))){const f=state.selFrom;state.selFrom=null;if(f){state.sel=null;state.view=f.view;render();window.scrollTo(0,f.y);return}const y=window.scrollY;state.sel=null;renderPublic();window.scrollTo(0,y);return}
-  const b=e.target.closest("[data-open]");if(b){const k=b.dataset.open;state.open[k]=!state.open[k];renderPublic()}
+  const b=e.target.closest("[data-open]");if(b){const k=b.dataset.open,on=!state.open[k];
+    // une seule épreuve / un seul club ouvert à la fois dans chaque liste : ouvrir l'un referme l'autre (pas de défilement sans fin)
+    if(on){const g=/^[a-z]/.test(k)?k[0]:"";for(const x of Object.keys(state.open))if(x!==k&&state.open[x]&&(/^[a-z]/.test(x)?x[0]:"")===g&&!/^(mt|lv|sp)/.test(x))state.open[x]=false}
+    state.open[k]=on;renderPublic();if(on){const el=document.querySelector(`[data-open="${CSS.escape(k)}"]`);if(el){const r=el.getBoundingClientRect(),nav=($("#navbar")||{}).offsetHeight||0;if(r.top<nav||r.top>innerHeight*.6)window.scrollTo({top:scrollY+r.top-nav-12,behavior:"smooth"})}}}
 });
 $("#search").oninput=renderPublic;
 $("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
