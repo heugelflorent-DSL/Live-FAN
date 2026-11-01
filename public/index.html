@@ -1154,11 +1154,13 @@ function sfEarly(ev){if(ev.typ!==61||!epGroup(ev).some(x=>x.typ===62))return fal
 // épreuve dont les résultats sont lus et dont l'heure est passée depuis plus d'1 h 30 : terminée (même si le serveur ne l'a pas encore marquée)
 // épreuve dont l'heure au programme n'est pas encore arrivée : jamais terminée (résultats d'un autre tour sur la même page, etc.)
 function evFuture(ev){const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return false;return Date.now()<d.getTime()+(ev.ffnSec-600)*1000}
+// séries d'une épreuve avec finales (ou séries lentes avant la série finale) : pas de médailles, elles se jouent plus tard
+function noMedal(ev){if(!ev||!ev.key||!EVENTS[ev.key])return false;if(ev.fin||ev.typ===61)return false;return hasFinals(ev)||epGroup(ev).some(x=>x.typ===61)}
 function evPast(ev){const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return false;return Date.now()>d.getTime()+(ev.ffnSec+5400)*1000}
 function doneSet(){
   const done=new Set();if(state.phase==="eng")return done;
   for(const s of Object.keys(state.order)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");
-    let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(sfEarly(ev)||evFuture(ev))continue;if(ev.doneAt||(ev.results.length&&evPast(ev))||(ev.results.length&&(later||(CSD&&Date.now()-CSD>4*864e5))))done.add(ks[i]);if(ev.results.length)later=true}
+    let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(sfEarly(ev)||evFuture(ev))continue;if(ev.doneAt||(ev.results.length&&evPast(ev))||(ev.results.length&&(later||(CSD&&Date.now()-CSD>4*864e5))))done.add(ks[i]);if(ev.results.some(w=>w.res!=null))later=true}
     // direct bassin (ou simulateur) : la série dans l'eau dit où en est la réunion, les épreuves d'avant sont terminées
     const h=state.live==="bassin"&&POOL&&POOL.heat;if(h&&h.event&&(h.sim||!poolIsTestRaw(h))){const T=norm(h.title||""),sx=["DAMES","MESSIEURS","MIXTE"].find(x=>T.includes(x));const i=h.key?ks.indexOf(h.key):ks.findIndex(k=>+EVENTS[k].numEp===+h.event&&!(EVENTS[k].doneAt)&&(!sx||norm(EVENTS[k].name).includes(sx)));if(i>0)for(let j=0;j<i;j++)done.add(ks[j])}}
   return done;
@@ -1655,7 +1657,7 @@ function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=
 function yr4(w,ev){if(/^\d{4}$/.test(w.year||""))return w.year;const y=yearOf({...w,year:""},ev);if(/^\d{4}$/.test(y||""))return y;const m=String(w.year||"").match(/^(\d{2})$/);return m?(+m[1]>40?"19":"20")+m[1]:(w.year||"")}
 function yearOf(w,ev){if(w.year)return w.year;const all=[...(ev&&ev.series?ev.series.flatMap(x=>x.swimmers||[]):[]),...(ev&&ev.results||[])];const r=all.find(x=>norm(x.name)===norm(w.name));return r&&r.year||""}
 function lvRows(rows,id,title){const lev=liveMatch(id,title)||{name:title};return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1,w2={...w,year:yr4(w,lev),res:w.time,splits:(w.splits||[]).map(x=>({dist:x.d,cum:x.cum,lap:x.lap}))},rpx=w.time!=null?rpRes(lev,w2):"";
-  return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}${w.hl?" lv-new":""}"><span class="rk-pl ${w.place&&w.place<=3?"m"+w.place:""}">${w.place??"—"}</span>
+  return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}${w.hl?" lv-new":""}"><span class="rk-pl ${w.place&&w.place<=3&&!noMedal(lev)?"m"+w.place:""}">${w.place??"—"}</span>
   <span class="rk-who"><b>${esc(w.name)}</b>${(w.relay||[]).length?"":`<small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(yr4(w,lev)||w.year):""}</small>`}</span>
   <span class="rk-res"><b>${w.time!=null?fmt(w.time):esc(w.timeTxt||"—")}</b><small>${[w.rank?esc(w.rank)+" au provisoire":"",rpx].filter(Boolean).join(" · ")}</small></span>
   ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:"<span></span>"}
@@ -1895,7 +1897,7 @@ function renderRanking(ev,q){
   return`<div class="inner"><p class="forcomp">Résultats ${esc(comp(ev.comp).name)}</p><ol class="rk-list">
   ${rows.map(w=>{const k=ev.key+"|"+w.name,o=!!state.sp[k],has=(!w.dsq||w.hc)&&sp&&(w.splits||[]).length>1;
     return`<li class="rk-row ${hit(w,q)}${w.dsq?" dsq":""}${isFav(w)?" fav":""}">
-      <span class="rk-pl ${w.rank&&w.rank<=3?"m"+w.rank:""}"${w.hc?' title="Hors concours"':""}>${w.hc?"HC":(w.rank??"—")}</span>
+      <span class="rk-pl ${w.rank&&w.rank<=3&&!noMedal(ev)?"m"+w.rank:""}"${w.hc?' title="Hors concours"':""}>${w.hc?"HC":(w.rank??"—")}</span>
       <span class="rk-who"><b>${nameCell(w)}${(meds[w.iuf||w.name]||[]).map(m=>` <span class="catmed c${m.place}" title="${m.place}${m.place===1?"er":"e"} en ${esc(m.cat)}">${m.place} · ${esc(m.cat)}</span>`).join("")}</b><small>${relay?"":(w.year?w.year+" · ":"")}${relay?"":logo(w.club)}${relay?"":esc(w.club||"")}</small></span>
       <span class="rk-res"><b>${w.qual?`<span class="qbadge${/^br/i.test(w.qual)?" br":""}" title="${/^br/i.test(w.qual)?"Barrage":"Qualifié(e) pour la finale "+esc(w.qual.slice(2))}">${/^br/i.test(w.qual)?"Barrage":"Finale "+esc(w.qual.slice(2))}</span> `:""}${w.dsq&&!w.hc?esc(w.status||"DSQ"):fmt(w.res)}</b><small>${w.hc?"Hors concours":w.dsq?esc(w.reason||""):w.points?w.points+" pts":""}</small></span>${!w.hc&&!w.dsq?(v=>v?`<span class="rk-vd">${v}</span>`:"")(remBadge(w)+(remBadge(w)?" ":"")+verdict(ev,w,ent[w.iuf||w.name])):""}
       ${has?`<button class="spbtn" data-sp="${esc(k)}" aria-expanded="${o}">${o?"Masquer":"Passages"}</button>`:`<span></span>`}
