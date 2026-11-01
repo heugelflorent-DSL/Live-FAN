@@ -1155,7 +1155,7 @@ function sfEarly(ev){if(ev.typ!==61||!epGroup(ev).some(x=>x.typ===62))return fal
 // épreuve dont l'heure au programme n'est pas encore arrivée : jamais terminée (résultats d'un autre tour sur la même page, etc.)
 function evFuture(ev){const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return false;return Date.now()<d.getTime()+(ev.ffnSec-600)*1000}
 // séries d'une épreuve avec finales (ou séries lentes avant la série finale) : pas de médailles, elles se jouent plus tard
-function noMedal(ev){if(!ev||!ev.key||!EVENTS[ev.key])return false;if(ev.fin||ev.typ===61)return false;return hasFinals(ev)||epGroup(ev).some(x=>x.typ===61)}
+function noMedal(ev){if(ev&&!ev.key&&ev.name){const n=norm(ev.name);ev=Object.values(EVENTS).find(e=>e.type==="event"&&!e.fin&&e.typ!==61&&norm(e.base||e.name)===n)||ev}if(!ev||!ev.key||!EVENTS[ev.key])return false;if(ev.fin||ev.typ===61)return false;return hasFinals(ev)||epGroup(ev).some(x=>x.typ===61)}
 function evPast(ev){const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return false;return Date.now()>d.getTime()+(ev.ffnSec+5400)*1000}
 function doneSet(){
   const done=new Set();if(state.phase==="eng")return done;
