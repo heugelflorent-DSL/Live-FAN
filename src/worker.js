@@ -368,7 +368,15 @@ async function markHot(env, ev, wins, catchup, done = false) {
 function logErr(env, ev, src, msg) {
   try { return env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/log", { method: "POST", body: JSON.stringify({ ev, src, msg: String(msg || "").slice(0, 400) }) })).catch(() => {}); } catch (e) { return Promise.resolve(); }
 }
-export async function cycle(env, { force = false, ev = "main", budget = BUDGET } = {}) {
+// une seule lecture à la fois par événement : sinon la tâche de chaque minute et la synchro manuelle partent chacune d'une copie
+// des données et la dernière à enregistrer efface ce que l'autre vient de lire (résultats « perdus »)
+export async function cycle(env, opts = {}) {
+  const ev = opts.ev || "main", key = "lock:" + ev; const t0 = Date.now();
+  for (;;) { const v = +((await env.KV.get(key)) || 0); if (!v || Date.now() - v > 90e3) break; if (!opts.force) return 0; if (Date.now() - t0 > 25e3) break; await new Promise((r) => setTimeout(r, 1500)); }
+  const me = String(Date.now()); await env.KV.put(key, me);
+  try { return await cycleOnce(env, opts); } finally { try { if ((await env.KV.get(key)) === me) await env.KV.delete(key); } catch (e) {} }
+}
+async function cycleOnce(env, { force = false, ev = "main", budget = BUDGET } = {}) {
   ENV = env;
   const { config, data } = await load(env, ev);
   // compétitions retirées de l'événement : leurs données ne servent plus et alourdissent chaque lecture
