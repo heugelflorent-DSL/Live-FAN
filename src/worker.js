@@ -279,6 +279,7 @@ async function runTask(task, data, now) {
     if (!ev) return;
     const st = (c.events[ev.key] = c.events[ev.key] || {});
     const hs = parseHeats(await get(urls.heats(task.c, ev), { delay: 1500 })).map((h) => ({ n: h.n, of: h.of, time: h.time, lanes: h.lanes.map(packLane) }));
+    if (!hs.some((h) => h.lanes.length) && (st.heats || []).some((h) => h.lanes?.length)) { st.heatsAt = now; return; } // liste vide renvoyée : on garde celle déjà lue
     if (JSON.stringify(hs) !== JSON.stringify(st.heats || null)) { st.heats = hs; data.dirty = true; }
     st.heatsAt = now; return;
   }
