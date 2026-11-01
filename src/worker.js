@@ -292,8 +292,9 @@ async function runTask(task, data, now) {
       const st = (c.events[ev.key] = c.events[ev.key] || {});
       const sec = pickSection(ev, r);
       const res = sec ? { title: sec.title, when: sec.when || "", rows: sec.rows.map(packRow) } : { title: r.title, when: r.when || "", rows: [] };
-      if (!res.title || !nrm(res.title).startsWith(nrm(ev.name))) { res.rows = []; delete st.doneAt; }
+      if (!res.title || !nrm(res.title).startsWith(nrm(ev.name))) { res.rows = []; if (!st.results?.rows?.length) delete st.doneAt; }
       if (isSeries(ev)) { const b = (r.sections || []).filter((x) => x.kind === "barrage"); const nb = b.length ? b.map((x) => ({ title: x.title, when: x.when, rows: x.rows.map(packRow) })) : null; if (JSON.stringify(nb) !== JSON.stringify(st.barrages || null)) { if (nb) st.barrages = nb; else delete st.barrages; data.dirty = true; } }
+      if (!res.rows.length && st.results?.rows?.length) { st.resultsAt = now; continue; } // page vide ou autre page renvoyée : on garde les résultats déjà lus
       const n = res.rows.length;
       if (n !== st.nRows) st.changedAt = now;
       if (JSON.stringify(res) !== JSON.stringify(st.results || null)) { st.results = res; data.dirty = true; }
