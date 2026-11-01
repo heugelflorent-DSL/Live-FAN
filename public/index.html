@@ -1704,6 +1704,10 @@ function renderLiveFfn(){
   let html="";const multi=state.comps.length>1;
   if(!cur){$("#pub-body").innerHTML=`<p class="empty">Aucune série publiée pour le moment sur le direct du Live FFN.</p>`;return}
   const fromRes=!!cur.fromRes;
+  // direct figé sur une série alors que des séries plus récentes de la même épreuve ont été lues : on affiche la plus récente
+  if(!fromRes&&cur.L.cur&&cur.L.cur.heat){const same=h=>{const m=liveMatch(cur.id,h.event);return m&&cur.ev&&m.key===cur.ev.key||norm(h.event||"")===norm(cur.L.cur.event||"")};
+    const nh=(LH[cur.id]||[]).filter(h=>h&&h.heat>cur.L.cur.heat&&(h.rows||[]).length&&same(h)).sort((a,b)=>b.heat-a.heat)[0];
+    if(nh)cur={...cur,L:{...cur.L,cur:{...cur.L.cur,heat:nh.heat,of:nh.of||cur.L.cur.of,rows:nh.rows}}}}
   const L=cur.L,since=Math.min(...ids.map(id=>LIVE[id].changedAt?Math.round((Date.now()-LIVE[id].changedAt)/60000):0));
   html+=`<div class="session">${secTitle("En direct",esc(L.reunion||""))}${tvBtn()}<div class="lv-head"><small>Dernière lecture à ${hhmm(new Date(L.at))} · mise à jour automatique</small></div>`;
   if(L.stale&&!(state.live==="ffn"&&(liveSlot().grace||L.ended)))html+=`<p class="lv-warn">Le Live FFN ne répond pas en ce moment : derniers résultats reçus affichés, nouvel essai automatique.</p>`;
