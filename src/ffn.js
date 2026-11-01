@@ -313,7 +313,7 @@ export function parseEntries(html) {
 // --- Onglet « En direct » du Live FFN (live.php) : dernière série publiée, série suivante, programme ---
 function fullName(h) {
   const n = (h.match(/<nobr>([\s\S]*?)<\/nobr>/) || [])[1];
-  if (n) return one(n).replace(/^Consultez l'ensemble des résultats de\s*/i, "").replace(/\s*Consultez les résultats des nageurs$/i, "").trim();
+  if (n) return one(n).replace(/^Consultez l'ensemble des résultats de\s*/i, "").replace(/\s*Consultez les r[ée]sultats des nageurs.*$/i, "").trim();
   return one(h);
 }
 function liveSplits(h) {

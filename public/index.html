@@ -1656,7 +1656,9 @@ function liveMatch(id,title){if(!title)return null;const t=norm(title);let best=
 // le direct du Live FFN donne l'année sur 2 chiffres (« 09 ») : on reprend l'année complète des engagés, sinon 20xx
 function yr4(w,ev){if(/^\d{4}$/.test(w.year||""))return w.year;const y=yearOf({...w,year:""},ev);if(/^\d{4}$/.test(y||""))return y;const m=String(w.year||"").match(/^(\d{2})$/);return m?(+m[1]>40?"19":"20")+m[1]:(w.year||"")}
 function yearOf(w,ev){if(w.year)return w.year;const all=[...(ev&&ev.series?ev.series.flatMap(x=>x.swimmers||[]):[]),...(ev&&ev.results||[])];const r=all.find(x=>norm(x.name)===norm(w.name));return r&&r.year||""}
-function lvRows(rows,id,title){const lev=liveMatch(id,title)||{name:title};return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1,w2={...w,year:yr4(w,lev),res:w.time,splits:(w.splits||[]).map(x=>({dist:x.d,cum:x.cum,lap:x.lap}))},rpx=w.time!=null?rpRes(lev,w2):"";
+function lvRows(rows,id,title){const lev=liveMatch(id,title)||{name:title};
+  // noms d'équipes avec l'infobulle du Live FFN collée (« CN MARSEILLE Consultez les résultats des nageurs… ») ; classement dans l'ordre des places
+  rows=rows.map(w=>({...w,name:String(w.name||"").replace(/\s*Consultez (?:l'ensemble des|les) r[ée]sultats.*$/i,"").trim()})).sort((a,b)=>(a.place??999)-(b.place??999));return`<ol class="rk-list">${rows.map(w=>{const k="L|"+id+"|"+title+"|"+w.name,o=!!state.sp[k],has=(w.splits||[]).length>1,w2={...w,year:yr4(w,lev),res:w.time,splits:(w.splits||[]).map(x=>({dist:x.d,cum:x.cum,lap:x.lap}))},rpx=w.time!=null?rpRes(lev,w2):"";
   return`<li class="rk-row${isFavName(w.name)||isFavClub(w.club)?" fav":""}${w.hl?" lv-new":""}"><span class="rk-pl ${w.place&&w.place<=3&&!noMedal(lev)?"m"+w.place:""}">${w.place??"—"}</span>
   <span class="rk-who"><b>${esc(w.name)}</b>${(w.relay||[]).length?"":`<small>${logo(w.club)}${esc(w.club)}${w.year?" · "+esc(yr4(w,lev)||w.year):""}</small>`}</span>
   <span class="rk-res"><b>${w.time!=null?fmt(w.time):esc(w.timeTxt||"—")}</b><small>${[w.rank?esc(w.rank)+" au provisoire":"",rpx].filter(Boolean).join(" · ")}</small></span>
