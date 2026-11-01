@@ -547,7 +547,7 @@ async function rescrape(env, scope, what, ev = "main") {
       // rien n'est effacé : chaque page relue remplace l'ancienne version seulement si elle a pu être lue (ajouts et corrections), sinon on garde ce qu'on a
       // on reprend là où on s'était arrêté : ce qui est déjà complet n'est relu qu'avec « tout relire »
       const st = c.events?.[e.key] || {}; const full = what === "all";
-      const hasHeats = (st.heats || []).some((h) => h.lanes?.length), hasRes = !!(st.doneAt && st.results?.rows?.length);
+      const hasHeats = (st.heats || []).some((h) => h.lanes?.length), hasRes = !!(st.results?.rows?.length && (st.doneAt || (evStartAt(c, e) || Infinity) < now - 2 * 3600e3));
       if (what !== "res" && !(e.key !== String(e.epr) && later) && (full || !hasHeats) && !hasRes) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key }); // finales : pas avant leur jour
       if (what !== "start" && !later && (full || !hasRes) && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
     }

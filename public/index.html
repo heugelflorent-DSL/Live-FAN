@@ -997,7 +997,7 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
           <p class="msg">Une minute est le délai le plus court possible avec Cloudflare.</p>
           <div class="rule" id="rs-box">
             <b>Tout récupérer à nouveau</b>
-            <p class="msg">Si une récupération a mal fonctionné : efface les données lues sur le Live FFN et les relit entièrement. Tes réglages (ordre du programme, lignes libres, classements, informations) sont conservés.</p>
+            <p class="msg">Ajoute ce qui manque et met à jour ce qui a changé sur le Live FFN, sans rien effacer. La lecture reprend là où elle s'était arrêtée : les épreuves déjà complètes ne sont relues qu'avec « tout ». Tes réglages sont conservés.</p>
             <div class="grid2c"><label for="rs-scope">Périmètre<select class="field" id="rs-scope"></select></label>
             <label for="rs-what">Données<select class="field" id="rs-what"><option value="all">Programme, séries et résultats</option><option value="start">Séries uniquement</option><option value="res">Résultats uniquement</option></select></label></div>
             <div id="rs-act"><button class="btn small" id="rs-go">Tout récupérer à nouveau…</button></div>
@@ -2404,9 +2404,9 @@ function rsScopeOpts(){const sel=$("#rs-scope");if(!sel)return;const cur=sel.val
   sel.value=[...sel.options].some(o=>o.value===cur)?cur:"all"}
 function rsLabel(){const sc=$("#rs-scope"),wh=$("#rs-what");return sc.options[sc.selectedIndex].text.toLowerCase()+" · "+wh.options[wh.selectedIndex].text.toLowerCase()}
 $("#rs-box").addEventListener("click",e=>{const id=e.target.id,box=$("#rs-act");
-  if(id==="rs-go")box.innerHTML=`<p class="msg">Effacer puis relire : <b>${esc(rsLabel())}</b> ?</p><div class="inline"><button class="btn small" id="rs-yes">Oui, tout récupérer</button><button class="btn small ghost" id="rs-no">Annuler</button></div>`;
+  if(id==="rs-go")box.innerHTML=`<p class="msg">Compléter et mettre à jour : <b>${esc(rsLabel())}</b> ? Rien n'est effacé, la lecture reprend là où elle s'était arrêtée.</p><div class="inline"><button class="btn small" id="rs-yes">Oui, lancer</button><button class="btn small ghost" id="rs-no">Annuler</button></div>`;
   if(id==="rs-no")box.innerHTML=`<button class="btn small" id="rs-go">Tout récupérer à nouveau…</button>`;
-  if(id==="rs-yes"){const label=rsLabel();box.innerHTML=`<div class="rsprog"><span id="rs-txt">Effacement et première lecture…</span><span class="prog"><i id="rs-bar" style="width:5%"></i></span></div>`;
+  if(id==="rs-yes"){const label=rsLabel();box.innerHTML=`<div class="rsprog"><span id="rs-txt">Première lecture…</span><span class="prog"><i id="rs-bar" style="width:5%"></i></span></div>`;
     (async()=>{try{await saveNow();const r=await api("/api/rescrape",{method:"POST",body:JSON.stringify({scope:$("#rs-scope").value,what:$("#rs-what").value})});
       let left=r.remaining,total=r.total||1;
       while(left>0){$("#rs-txt").textContent=`Lecture du Live FFN… ${total-left} / ${total} pages`;$("#rs-bar").style.width=Math.round(100*(total-left)/total)+"%";
