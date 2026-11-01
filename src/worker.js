@@ -545,8 +545,11 @@ async function rescrape(env, scope, what, ev = "main") {
     for (const e of evs.filter((x) => !x.provisional && !x.soon)) {
       const later = dayOf(e.reunion) && beforeDay(c, dayOf(e.reunion), now);
       // rien n'est effacé : chaque page relue remplace l'ancienne version seulement si elle a pu être lue (ajouts et corrections), sinon on garde ce qu'on a
-      if (what !== "res" && !(e.key !== String(e.epr) && later)) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key }); // finales : pas avant leur jour
-      if (what !== "start" && !later && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
+      // on reprend là où on s'était arrêté : ce qui est déjà complet n'est relu qu'avec « tout relire »
+      const st = c.events?.[e.key] || {}; const full = what === "all";
+      const hasHeats = (st.heats || []).some((h) => h.lanes?.length), hasRes = !!(st.doneAt && st.results?.rows?.length);
+      if (what !== "res" && !(e.key !== String(e.epr) && later) && (full || !hasHeats) && !hasRes) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key }); // finales : pas avant leur jour
+      if (what !== "start" && !later && (full || !hasRes) && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
   }
   data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; delete data.block; // demande manuelle : on retente tout de suite, une fois
