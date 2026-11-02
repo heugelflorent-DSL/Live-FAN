@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.3.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.3.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -99,12 +99,14 @@ class Core:
         if not force and time.time() - getattr(self, "upd_at", 0) < 3600: return
         self.upd_at = time.time()
         try:
-            with urllib.request.urlopen(self.cfg["site"].rstrip("/") + "/chrono/version.json?t=" + str(int(time.time())), timeout=10) as r: j = json.loads(r.read())
+            with http_get(self.cfg["site"].rstrip("/") + "/chrono/version.json?t=" + str(int(time.time())), timeout=10) as r: j = json.loads(r.read())
             latest = str(j.get("version", ""))
             if latest and vtuple(latest) > vtuple(VERSION):
                 if self.st.get("update") != latest: self.log(f"Nouvelle version disponible : {latest} (installée : {VERSION})")
                 self.st["update"] = latest
-        except Exception: pass
+            elif force: self.log(f"Vérification : version {VERSION} à jour (dernière publiée : {latest or '?'})")
+        except Exception as e:
+            if force: self.log(f"✗ Vérification des mises à jour impossible : {e}")
 
     def send_loop(self):
         while not self.stop:
@@ -252,12 +254,16 @@ def vtuple(v):
     try: return tuple(int(x) for x in str(v).split("."))
     except ValueError: return (0,)
 
+def http_get(url, timeout=10):
+    """Lecture d'une adresse du site avec un nom de logiciel (sans lui, Cloudflare peut refuser « Python-urllib »)."""
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"user-agent": f"SwimDirectChrono/{VERSION}", "cache-control": "no-cache"}), timeout=timeout)
+
 def self_update(site, log=print):
     """Remplace l'exe par la dernière version publiée sur le site, puis le relance (seulement en exe Windows)."""
     if not getattr(sys, "frozen", False): log("Mise à jour automatique : seulement pour SwimDirect-Chrono.exe"); return False
     exe = sys.executable; new = exe + ".nouveau"; old = exe + ".ancien"
     try:
-        with urllib.request.urlopen(site.rstrip("/") + "/chrono/SwimDirect-Chrono.exe?t=" + str(int(time.time())), timeout=120) as r, open(new, "wb") as f:
+        with http_get(site.rstrip("/") + "/chrono/SwimDirect-Chrono.exe?t=" + str(int(time.time())), timeout=120) as r, open(new, "wb") as f:
             while True:
                 b = r.read(1 << 16)
                 if not b: break
@@ -283,7 +289,7 @@ def startup_update(cfg):
         if os.path.exists(old): os.remove(old)
     except OSError: pass
     try:
-        with urllib.request.urlopen(cfg["site"].rstrip("/") + "/chrono/version.json?t=" + str(int(time.time())), timeout=8) as r: latest = str(json.loads(r.read()).get("version", ""))
+        with http_get(cfg["site"].rstrip("/") + "/chrono/version.json?t=" + str(int(time.time())), timeout=8) as r: latest = str(json.loads(r.read()).get("version", ""))
     except Exception: return False
     return bool(latest and vtuple(latest) > vtuple(VERSION) and self_update(cfg["site"]))
 
