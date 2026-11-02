@@ -519,7 +519,7 @@ async function orgMatch(env, key, ev) { const e = (await orgKeys(env))[ev]; retu
 // événement dont le mot de passe organisateur correspond (relais du Quantum sans « --evenement »)
 async function orgEventOf(env, key) { if (!key) return null; for (const [ev, e] of Object.entries(await orgKeys(env))) if (same(await sha(e.salt + "|" + key), e.hash)) return ev; return null; }
 // chronométrage relié par clé : l'exe du PC du chrono génère une clé, l'organisateur la colle dans l'admin de son live
-const SYSK = new Set(["quantum", "ares", "stramatel"]);
+const SYSK = new Set(["quantum", "ares", "stramatel", "alge"]);
 const PAIR_RE = /^SD(-[A-Z2-9]{4}){4}$/;
 let PAIRC = { at: 0, map: null };
 async function pairs(env) { if (PAIRC.map && Date.now() - PAIRC.at < 30e3) return PAIRC.map; const m = (await env.KV.get("pairs", "json")) || {}; PAIRC = { at: Date.now(), map: m }; return m; }

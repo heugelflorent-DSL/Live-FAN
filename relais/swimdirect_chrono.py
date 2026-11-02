@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.3.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.3.6"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -84,8 +84,8 @@ class Core:
             time.sleep(5 if not self.st["linked"] else 60)
 
     # type de chronométrage choisi sur la page admin du live : on règle le mode tout seul
-    PRESET = {"quantum": ("reseau", None), "ares": ("serie", "9600,7,E,1"), "stramatel": ("serie", "9600,8,N,1")}
-    NAMES = {"quantum": "Swiss Timing Quantum", "ares": "Omega ARES 21", "stramatel": "Stramatel"}
+    PRESET = {"quantum": ("reseau", None), "ares": ("serie", "9600,7,E,1"), "stramatel": ("serie", "9600,8,N,1"), "alge": ("serie", "19200,8,N,1")}
+    NAMES = {"quantum": "Swiss Timing Quantum", "ares": "Omega ARES 21", "stramatel": "Stramatel", "alge": "ALGE TimeManager"}
     def apply_sys(self, sysk):
         if sysk not in self.PRESET or self.cfg.get("sys") == sysk: return
         mode, ser = self.PRESET[sysk]; old = self.cfg.get("mode")
@@ -345,6 +345,7 @@ def gui(cfg, demo=False, close_after=0):
         SYS = [("Swiss Timing Quantum (sortie Sport In The Box)", "quantum", "reseau", ""),
                ("Omega ARES 21 (mode OSM6)", "ares", "serie", "9600,7,E,1"),
                ("Stramatel (sortie série, décodage à venir)", "stramatel", "serie", "9600,8,N,1"),
+               ("ALGE TimeManager / SwimTime (sortie « Vidéo »)", "alge", "serie", "19200,8,N,1"),
                ("Autre / réglage manuel", "autre", None, "")]
         tk.Label(w, text="Ton chronométrage électronique", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
         sysv = ttk.Combobox(w, width=48, state="readonly", values=[x[0] for x in SYS])

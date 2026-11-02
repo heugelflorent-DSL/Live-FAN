@@ -15,7 +15,7 @@ Utilisation :
 
 Mot de passe : celui de l'admin du site, demandé au démarrage (ou variable SWIM_CLE).
 """
-import argparse, getpass, json, os, queue, sys, threading, time, urllib.request, urllib.error
+import argparse, getpass, json, os, queue, re, sys, threading, time, urllib.request, urllib.error
 from datetime import datetime
 
 SITE = "https://swim-direct.swim-direct.workers.dev"
@@ -47,6 +47,10 @@ class Decoder:
     def __init__(self): self.buf = b""; self.pt1 = None; self.ts1 = None
     def feed(self, data, ts):
         self.buf += data; out = []
+        # ALGE TimeManager (sortie « Vidéo », texte ASCII ligne par ligne) : jamais de SOH, lignes finies par CR
+        if SOH not in self.buf and (getattr(self, "alge", None) or re.search(rb"(?:^|[\r\n])(?:R\d{6}|START|[IFCM]\d{5}|ID\d)", self.buf)) and (b"\r" in self.buf or b"\n" in self.buf):
+            if not hasattr(self, "alge"): self.alge = AlgeDecoder()
+            return self.alge.feed(self._take_lines(), ts)
         while EOT in self.buf:
             i = self.buf.index(EOT); frame = self.buf[: i + 1]; self.buf = self.buf[i + 1 :]
             j = frame.find(SOH)
@@ -66,6 +70,9 @@ class Decoder:
                 self.pt1, self.ts1 = payload, ts
         if len(self.buf) > 512: self.buf = self.buf[-64:]
         return out
+    def _take_lines(self):
+        i = max(self.buf.rfind(b"\r"), self.buf.rfind(b"\n")); lines, self.buf = self.buf[: i + 1], self.buf[i + 1 :]
+        return lines
     @staticmethod
     def decode_json(raw, ts):
         """Messages JSON du Quantum (port 26700) : TP=vivant, ST=départ, TK=touche, HO=série (noms, résultats)."""
@@ -107,6 +114,65 @@ class Decoder:
             if B == b"R": return {"k": "react", "lane": lane, "t": t}
             if B in (b"I", b"D"): return {"k": "split", "lane": lane, "lap": lap, "t": t, "rank": rank, "edited": edited}
             if B in (b"A", b"B"): return {"k": "finish", "lane": lane, "lap": lap, "t": t, "rank": rank, "edited": edited}
+        return None
+
+
+class AlgeDecoder:
+    """ALGE TM-SWIM / SwimTime, sortie « Vidéo » (RS232 19200 8N1, ASCII, manuel Swimming System p. 32) :
+    R eee hhh  HH:MM:SS.zhtc  chrono qui tourne · START départ · I LL TTT RR temps  passage · F … arrivée ·
+    C … temps effacé · M LL TTT  temps  réaction / relais · ID EV/HT/nage/catégorie · B:nom/nation/club (B = couloir)."""
+    TIME = re.compile(rb"(\d{1,2})\s*:\s*(\d{1,2})\s*:\s*(\d{1,2})\s*\.\s*(\d[\d ]{0,3})")
+    def __init__(self): self.ev = None; self.ht = None; self.names = {}; self.title = ""; self.react = set(); self.rt_at = 0
+    @staticmethod
+    def t(line):
+        m = AlgeDecoder.TIME.search(line)
+        if not m: return None
+        frac = (m[4].decode().replace(" ", "") + "00")[:2]  # centièmes, tronqués comme en chronométrage officiel
+        return round(int(m[1]) * 3600 + int(m[2]) * 60 + int(m[3]) + int(frac) / 100, 2)
+    @staticmethod
+    def lane(b):
+        n = num(b); return 10 if n == 0 and b.strip() == b"00" else n
+    def heat(self):
+        return {"k": "heat", "msg": "SL", "event": self.ev, "heat": self.ht, "title": self.title, "comp": "", "stat": "W", "heats": None, "laps": None,
+                "lanes": [{"lane": l, "name": x["name"], "club": x["club"], "born": "", "time": None, "rank": None, "stat": None, "sw": None} for l, x in sorted(self.names.items())]}
+    def feed(self, data, ts):
+        out = []
+        for raw in re.split(rb"[\r\n]+", data):
+            line = raw.strip(b"\x00 ")
+            if not line: continue
+            try: ev = self.line(line, ts)
+            except Exception: ev = None
+            if ev: out += ev if isinstance(ev, list) else [ev]
+        return out
+    def line(self, L, ts):
+        if L.startswith(b"START"):
+            self.react = set(); self.rt_at = ts; return {"k": "start", "ts": int(ts * 1000), "event": self.ev, "heat": self.ht}
+        m = re.match(rb"ID\s*(\d+)\s*/\s*(\d+)\s*/([^/]*)/?(.*)$", L)
+        if m:  # épreuve et série (envoyées par SwimTime) : nouvelle série → liste des nageurs remise à zéro
+            ev, ht = int(m[1]), int(m[2])
+            if (ev, ht) != (self.ev, self.ht): self.names = {}; self.react = set()
+            self.ev, self.ht = ev, ht; self.title = " ".join(x.decode("latin-1").strip() for x in (m[3], m[4]) if x.strip())
+            return self.heat()
+        m = re.match(rb"(\d{1,2})\s*:([^/]*)/([^/]*)/?(.*)$", L)
+        if m and not self.TIME.match(L):  # nageur du couloir B : nom / nation / club
+            ln = self.lane(m[1]); name = m[2].decode("latin-1").strip()
+            if name: self.names[ln] = {"name": name, "club": m[4].decode("latin-1").strip() or m[3].decode("latin-1").strip()}
+            return self.heat() if self.ev is not None else None
+        k = L[:1]
+        if k == b"R":
+            e, h = num(L[1:4]), num(L[4:7])
+            if e and (e, h) != (self.ev, self.ht): self.ev, self.ht = e, h; self.names = {}; self.react = set(); return {"k": "ready", "event": e, "heat": h, "laps": None, "lanes": None}
+            rt = self.t(L[7:])
+            if rt and ts - self.rt_at >= 2: self.rt_at = ts; return {"k": "clock", "ts": int(ts * 1000), "rt": rt}
+            return None
+        if k in (b"I", b"F", b"C", b"M"):
+            ln, lap, rk, tm = self.lane(L[1:3]), num(L[3:6]), num(L[6:8]) or None, self.t(L[6:])
+            if k == b"C": return None  # temps effacé : le temps corrigé suit
+            if tm is None: return None
+            if k == b"M":
+                if ln in self.react: return None  # ensuite : temps de prise de relais
+                self.react.add(ln); return {"k": "react", "lane": ln, "t": tm}
+            return {"k": "finish" if k == b"F" else "split", "lane": ln, "lap": lap, "t": tm, "rank": rk, "edited": False}
         return None
 
 class Sender(threading.Thread):
