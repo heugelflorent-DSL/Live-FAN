@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.3.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.3.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -294,14 +294,19 @@ def gui(cfg, demo=False, close_after=0):
         root.clipboard_clear(); root.clipboard_append(cfg["token"]); bcopy.config(text="Copié ✓"); root.after(2000, lambda: bcopy.config(text="Copier"))
     bcopy = ttk.Button(row, text="Copier", command=copy); bcopy.pack(side="right")
 
-    upd = tk.Frame(root, bg="#ffcc29")
-    updl = tk.Label(upd, text="", bg="#ffcc29", fg="#3d2c00", font=("Segoe UI", 10, "bold")); updl.pack(side="left", padx=12, pady=6)
+    # bande « mise à jour » toujours visible : verte quand tout est à jour, jaune avec un gros bouton quand une nouvelle version existe
+    upd = tk.Frame(root, bg="#d9f2e1"); upd.pack(fill="x", padx=14, pady=(0, 8))
+    updl = tk.Label(upd, text=f"✓ Logiciel à jour · version {VERSION}", bg="#d9f2e1", fg="#0f5c2e", font=("Segoe UI", 10, "bold")); updl.pack(side="left", padx=12, pady=8)
+    def check_now():
+        updl.config(text="Recherche d'une nouvelle version…"); root.update(); core.check_update(force=True)
+        if not core.st.get("update"): updl.config(text=f"✓ Logiciel à jour · version {VERSION}")
     def do_update():
         if core.st["sent"] and not messagebox.askyesno(APP, "Mettre à jour maintenant ? Le logiciel va redémarrer (quelques secondes sans envoi). À éviter pendant une course."): return
         updl.config(text="Téléchargement de la nouvelle version…"); root.update()
         if self_update(cfg["site"], core.log): core.stop = True; root.destroy()
         else: updl.config(text="Mise à jour impossible : télécharge-la depuis l'admin du live.")
-    ttk.Button(upd, text="Mettre à jour", command=do_update).pack(side="right", padx=10)
+    bupd = tk.Button(upd, text="Vérifier les mises à jour", command=check_now, bg="white", fg="#0f5c2e", relief="flat", font=("Segoe UI", 10, "bold"), padx=12, pady=4, cursor="hand2")
+    bupd.pack(side="right", padx=10, pady=6)
     stat = tk.Frame(root, bg="#e9f4f8"); stat.pack(fill="x", padx=14)
     lines = {}
     for k, lab in (("site", "Live relié"), ("q", "Chronométrage"), ("last", "Dernier événement"), ("sent", "Envoyé")):
@@ -372,7 +377,10 @@ def gui(cfg, demo=False, close_after=0):
                              fg=RED if (s["err"] or s["linked"] is False) else BLUE)
         lines["q"].config(text=s["quantum"], fg=RED if not s["quantum"].startswith(("connecté", "démo")) else BLUE)
         lines["last"].config(text=s["last"] or "—")
-        if s.get("update") and not upd.winfo_ismapped(): updl.config(text=f"Nouvelle version {s['update']} disponible (installée : {VERSION})"); upd.pack(fill="x", before=stat)
+        if s.get("update") and not getattr(bupd, "do", False):
+            for w in (upd, updl): w.config(bg="#ffcc29")
+            updl.config(text=f"⚠ Nouvelle version {s['update']} disponible (installée : {VERSION})", fg="#3d2c00")
+            bupd.config(text="▶  METTRE À JOUR", command=do_update, bg="#06324f", fg="white", font=("Segoe UI", 12, "bold"), padx=16, pady=6); bupd.do = True
         lines["sent"].config(text=("EN PAUSE · " if core.paused else "") + f"{s['sent']} événement(s) · journal : {s['jsent']} message(s)")
         while logs:
             txt.insert("end", logs.pop(0) + "\n")
