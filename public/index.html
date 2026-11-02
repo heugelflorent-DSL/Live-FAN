@@ -1166,9 +1166,11 @@ function doneSet(){
   return done;
 }
 // test chrono : une série courue plus de 10 min avant le début de sa réunion n'est pas montrée au public
-function poolIsTestRaw(h){if(!h||h.sim)return false;const k=Object.keys(EVENTS).find(k=>EVENTS[k].type==="event"&&+EVENTS[k].numEp===+h.event);const s=k&&Object.keys(state.order).find(x=>state.order[x].includes(k));if(!s||!state.starts[s])return false;const t=h.start||(Date.now()+poolOff);return parisSec(t)<toMin(state.starts[s])*60-600}
+/* essais du Quantum : on ne cache une course « trop tôt » que le jour de la compétition */
+function poolCompDay(t){const d=new Date(t);d.setHours(12,0,0,0);return state.comps.some(c=>{const r=compRange(c);if(!r)return false;const a=new Date(r.start),b=new Date(r.end);a.setHours(0,0,0,0);b.setHours(23,59,0,0);return d>=a&&d<=b})}
+function poolIsTestRaw(h){if(!h||h.sim)return false;const k=Object.keys(EVENTS).find(k=>EVENTS[k].type==="event"&&+EVENTS[k].numEp===+h.event);const s=k&&Object.keys(state.order).find(x=>state.order[x].includes(k));if(!s||!state.starts[s])return false;const t=h.start||(Date.now()+poolOff);if(!poolCompDay(t))return false;return parisSec(t)<toMin(state.starts[s])*60-600}
 function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)return false;const s=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!s||!state.starts[s])return false;
-  const t=h.start||(Date.now()+poolOff);return parisSec(t)<toMin(state.starts[s])*60-600}
+  const t=h.start||(Date.now()+poolOff);if(!poolCompDay(t))return false;return parisSec(t)<toMin(state.starts[s])*60-600}
 function poolAnchor(){const h=POOL&&POOL.heat;if(state.live!=="bassin"||!h||!h.start||!h.heat||Date.now()-h.start>3*3600e3||poolIsTest(h))return null;
   // série jouée hors des jours de la compétition (simulateur, essai) : ne décale pas le programme
   const cd=compStartDate();if(cd&&(h.start<cd.getTime()-864e5||h.start>cd.getTime()+5*864e5))return null;const ev=poolEvent(h);if(!ev)return null;
