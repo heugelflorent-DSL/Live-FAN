@@ -3,8 +3,12 @@ main = "src/worker.js"
 compatibility_date = "2025-09-01"
 
 # Site public et admin (fichiers statiques), l'API passe par le Worker
+# Construction : compresse la page dans dist/ avant chaque déploiement
+[build]
+command = "node scripts/build.mjs"
+
 [assets]
-directory = "./public"
+directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
