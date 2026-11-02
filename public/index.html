@@ -726,7 +726,7 @@ body.pick{background:#e9f4f8;background-image:none}
 .sp-track{display:flex;width:max-content;animation:spscroll var(--sp-dur,40s) linear infinite}.sp-dup{display:flex}.foot .sigw.many .sp-track .sp-l{margin-right:12px}
 .foot .sigw.many .sp-side.r:hover .sp-track,.foot .sigw.many .sp-side.r:active .sp-track,.foot .sigw.many .sp-side.r:focus-within .sp-track{animation-play-state:paused}
 @keyframes spscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.foot .sigw.many .sp-l{height:70px;width:150px;padding:8px 12px;flex:0 0 auto}.foot .sigw.many .sp-l img{width:100%;height:100%;max-width:none;object-fit:contain}
+.foot .sigw.many .sp-l{height:70px;width:150px;padding:8px 12px;flex:0 0 auto}.foot .sigw.many .sp-l img{width:100%;height:100%;max-width:none;object-fit:contain;transition:opacity .25s}.sp-l img.sp-wait{opacity:0}
 @media (max-width:700px){.foot .sigw.many .sp-l{height:60px;width:120px;padding:6px 10px}}
 @media (prefers-reduced-motion:reduce){.sp-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}.sp-dup{display:none}.foot .sigw.many .sp-side.r{-webkit-mask-image:none;mask-image:none}}
 .aud5{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}.audchart{overflow-x:auto}.audt td,.audt th{padding:6px 8px}.audt td.num,.audt th:not(:first-child){text-align:right}
@@ -1420,21 +1420,26 @@ function renderTopLogoAdmin(){for(const scope of ["all","ev"]){const box=$("#tl-
   document.querySelectorAll("[data-tlbg]").forEach(sl=>sl.onchange=()=>{const L=TOPL[sl.dataset.tlbg];if(L)put(sl.dataset.tlbg,L.img,sl.value)});
   document.querySelectorAll("[data-tlx]").forEach(b=>b.onclick=()=>put(b.dataset.tlx,null))}
 /* logos des partenaires : marges blanches ou transparentes coupées automatiquement, pour qu'ils remplissent leur case */
-function trimLogo(im){if(im.dataset.trim)return;const go=()=>{if(im.dataset.trim)return;im.dataset.trim=1;try{const w=im.naturalWidth,h=im.naturalHeight;if(!w||!h)return;const k=Math.min(1,600/Math.max(w,h)),cw=Math.max(1,Math.round(w*k)),ch=Math.max(1,Math.round(h*k));
+const TRIMC={};
+function trimLogo(im){if(im.dataset.trim)return;const src0=im.getAttribute("src");const done=()=>im.classList.remove("sp-wait");const go=()=>{if(im.dataset.trim)return;im.dataset.trim=1;try{const w=im.naturalWidth,h=im.naturalHeight;if(!w||!h)return;const k=Math.min(1,600/Math.max(w,h)),cw=Math.max(1,Math.round(w*k)),ch=Math.max(1,Math.round(h*k));
   const c=document.createElement("canvas");c.width=cw;c.height=ch;const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(im,0,0,cw,ch);const d=x.getImageData(0,0,cw,ch).data;
   let x0=cw,y0=ch,x1=-1,y1=-1;for(let y=0;y<ch;y++)for(let i=0;i<cw;i++){const o=(y*cw+i)*4;if(d[o+3]<16||(d[o]>242&&d[o+1]>242&&d[o+2]>242))continue;if(i<x0)x0=i;if(i>x1)x1=i;if(y<y0)y0=y;if(y>y1)y1=y}
   if(x1<0)return;const bw=x1-x0+1,bh=y1-y0+1;if(bw*bh>cw*ch*.85)return;const m=Math.round(Math.max(bw,bh)*.04);x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(cw-1,x1+m);y1=Math.min(ch-1,y1+m);
-  const o2=document.createElement("canvas");o2.width=Math.round((x1-x0+1)/k);o2.height=Math.round((y1-y0+1)/k);o2.getContext("2d").drawImage(im,x0/k,y0/k,o2.width,o2.height,0,0,o2.width,o2.height);im.src=o2.toDataURL("image/png")}catch(_){}};
-  if(im.complete&&im.naturalWidth)go();else im.addEventListener("load",go,{once:true})}
+  const o2=document.createElement("canvas");o2.width=Math.round((x1-x0+1)/k);o2.height=Math.round((y1-y0+1)/k);o2.getContext("2d").drawImage(im,x0/k,y0/k,o2.width,o2.height,0,0,o2.width,o2.height);const u=o2.toDataURL("image/png");TRIMC[src0]=u;
+    /* la même image (doublon du carrousel) prend directement la version recadrée */
+    document.querySelectorAll(".foot .sp-l img").forEach(x=>{if(x!==im&&x.getAttribute("src")===src0){x.dataset.trim=1;x.src=u;x.classList.remove("sp-wait")}});im.src=u}catch(_){}finally{done()}};
+  if(TRIMC[src0]){im.dataset.trim=1;im.src=TRIMC[src0];done();return}
+  if(im.complete&&im.naturalWidth)go();else{im.addEventListener("load",go,{once:true});im.addEventListener("error",done,{once:true})}}
 function renderSpons(){const ALL=[...(PICK?[]:SPONS.ev),...SPONS.all];const CO=ALL.filter(x=>x.role==="co"),L=ALL.filter(x=>x.role!=="co");const l=$("#sp-l"),r=$("#sp-r");if(!l||!r)return;
-  const logo=x=>{const im=`<img src="${x.img}" alt="${esc(x.name||"Partenaire")}" loading="lazy">`;const cls="sp-l"+(x.bg==="none"?" nobg":"");return x.url?`<a class="${cls}" href="${esc(x.url)}" target="_blank" rel="noopener sponsored" title="${esc(x.name||"")}">${im}</a>`:`<span class="${cls}" title="${esc(x.name||"")}">${im}</span>`};
+  /* pas de chargement différé (le carrousel ferait apparaître des cases vides) ; logo déjà recadré : repris tel quel */
+  const logo=x=>{const t=TRIMC[x.img];const im=t?`<img src="${t}" alt="${esc(x.name||"Partenaire")}" data-trim="1">`:`<img src="${x.img}" alt="${esc(x.name||"Partenaire")}" class="sp-wait">`;const cls="sp-l"+(x.bg==="none"?" nobg":"");return x.url?`<a class="${cls}" href="${esc(x.url)}" target="_blank" rel="noopener sponsored" title="${esc(x.name||"")}">${im}</a>`:`<span class="${cls}" title="${esc(x.name||"")}">${im}</span>`};
   /* jusqu'à 4 partenaires : alternance gauche / droite autour du logo ; au-delà : carrousel sous le logo */
   const many=L.length>4;document.querySelector(".foot .sigw").classList.toggle("many",many);
   /* carrousel : la liste est mise deux fois à la suite pour un défilement sans fin ; vitesse selon le nombre de logos */
   if(many){l.innerHTML="";const one=L.map(logo).join("");r.innerHTML=`<div class="sp-track" style="--sp-dur:${Math.max(20,L.length*3.5)}s">${one}<span class="sp-dup" aria-hidden="true">${one.replace(/<a /g,'<a tabindex="-1" ')}</span></div>`}else{const left=[],right=[];L.forEach((x,i)=>(i%2?right:left).push(x));l.innerHTML=left.reverse().map(logo).join("");r.innerHTML=right.map(logo).join("")}
-  document.querySelectorAll(".foot .sp-l img").forEach(trimLogo);
   const cx=$("#co-x");if(cx)cx.innerHTML=CO.map(x=>`<span class="co-times" aria-hidden="true">×</span>${logo(x).replace('class="sp-l','class="sp-l co')}`).join("");
   const cap=$("#co-cap");if(cap){cap.hidden=!CO.length;cap.textContent=CO.length?"Mat & Flo × "+CO.map(x=>x.name||"partenaire").join(" × "):""}
+  document.querySelectorAll(".foot .sp-l img").forEach(trimLogo);
   document.querySelector(".foot .sigw").classList.toggle("has-sp",ALL.length>0)}
 async function saveSpons(scope){const msg=$("#sp-msg");try{await api("/api/admin/sponsors",{method:"PUT",body:JSON.stringify({scope,list:SPONS[scope]})});if(msg)msg.textContent="Enregistré ✓";renderSpons()}catch(e){if(msg)msg.textContent=e.message}}
 let spT={};
