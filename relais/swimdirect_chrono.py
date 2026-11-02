@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.3.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.3.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -175,12 +175,18 @@ class Core:
             t0 = time.time()
             try:
                 c = socket.create_connection((host or "127.0.0.1", int(port)), timeout=8); c.settimeout(20)
+                # silence ≠ coupure : certaines sorties n'envoient rien entre les courses. On garde la connexion
+                # (une coupure réelle est vue par recv vide / erreur, et par le keepalive TCP)
+                try: c.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                except OSError: pass
                 self.st["quantum"] = f"connecté ({self.cfg['source']})"; self.st["occupied"] = False; self.log(f"✓ Chronométrage trouvé sur {self.cfg['source']}")
                 while not self.stop and not self.restart:
-                    d = c.recv(4096)
+                    try: d = c.recv(4096)
+                    except socket.timeout: continue
                     if not d: raise ConnectionError("connexion fermée par le chronométrage")
                     self.feed(d, time.time())
             except Exception as e:
+                if self.st["quantum"].startswith("connecté"): self.log(f"✗ Liaison avec le chronométrage perdue ({e}) : reconnexion…")
                 self.st["quantum"] = f"pas trouvé ({e})"
             # sortie qui ferme tout de suite : probablement déjà prise par la vidéo → on se retire au lieu d'insister
             quick = quick + 1 if time.time() - t0 < 5 else 0
