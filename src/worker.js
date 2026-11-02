@@ -656,6 +656,7 @@ export default {
       if (config.live !== "bassin" && !CAN) return json({ error: "Direct bassin non activé." }, 404);
       if (p === "/api/pool/ws") return room.fetch(new Request("https://pool/ws", req));
       if (p === "/api/pool/state") return room.fetch(new Request("https://pool/state"));
+      if (p === "/api/pool/hist") return room.fetch(new Request("https://pool/hist"));
       return json({ error: "Inconnu" }, 404);
     }
 

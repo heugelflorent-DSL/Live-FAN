@@ -8,8 +8,8 @@ const empty = () => ({ heat: null, prev: null, hist: {}, updatedAt: 0, relayAt: 
 const archive = (s, h) => {
   if (!h || h.event == null || !h.heat || !Object.values(h.lanes || {}).some((L) => L.fin)) return;
   s.hist = s.hist || {};
-  s.hist[h.event + "-" + h.heat] = { event: h.event, heat: h.heat, key: h.key || null, title: h.title || "", names: h.names || {}, lanes: h.lanes, start: h.start, doneAt: h.doneAt || Date.now(), sim: !!h.sim };
-  const ks = Object.keys(s.hist); if (ks.length > 80) for (const k of ks.sort((a, b) => s.hist[a].doneAt - s.hist[b].doneAt).slice(0, ks.length - 80)) delete s.hist[k];
+  s.hist[h.event + "-" + h.heat] = { event: h.event, heat: h.heat, key: h.key || null, title: h.title || "", comp: h.comp || "", names: h.names || {}, lanes: h.lanes, start: h.start, doneAt: h.doneAt || Date.now(), sim: !!h.sim };
+  const ks = Object.keys(s.hist); if (ks.length > 250) for (const k of ks.sort((a, b) => s.hist[a].doneAt - s.hist[b].doneAt).slice(0, ks.length - 250)) delete s.hist[k];
 };
 
 export class PoolRoom {
@@ -140,6 +140,14 @@ export class PoolRoom {
       return Response.json({ ok: true });
     }
     // messages du logiciel du chrono (texte lisible, à copier-coller) : chaque morceau gzip est décompressé à part
+    // toutes les séries terminées (temps d'arrivée seulement) : classement provisoire des équipes
+    if (url.pathname.endsWith("/hist")) {
+      const out = []; const all = { ...(this.s.hist || {}) };
+      const h = this.s.heat; if (h && h.event != null && h.heat && Object.values(h.lanes || {}).some((L) => L.fin)) all[h.event + "-" + h.heat] = h;
+      for (const x of Object.values(all)) { if (x.sim) continue; const fin = {}; for (const n in x.lanes || {}) if (x.lanes[n].fin && x.lanes[n].fin.t != null) fin[n] = x.lanes[n].fin.t;
+        out.push({ event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, start: x.start || null, doneAt: x.doneAt || null }); }
+      return Response.json({ now: Date.now(), heats: out }, { headers: { "cache-control": "no-store" } });
+    }
     if (url.pathname.endsWith("/applog")) {
       const day = url.searchParams.get("day") || new Date().toISOString().slice(0, 10);
       const all = await this.ctx.storage.list({ prefix: "j:" + day + ":" }); const lines = [];
