@@ -80,7 +80,8 @@ export class PoolRoom {
       if (JSON.stringify(old && { event: old.event, heat: old.heat, of: old.of, rows: old.rows }) !== JSON.stringify(val)) await this.ctx.storage.put(key, { ...val, at: Date.now() });
       return new Response(null, { status: 204 });
     }
-    if (url.pathname.endsWith("/log") && req.method === "POST") {
+    /* journal du site (sans « day ») ; le journal du chrono (avec « day ») est traité plus bas */
+    if (url.pathname.endsWith("/log") && req.method === "POST" && !url.searchParams.get("day")) {
       const b = await req.json().catch(() => ({})); const now = Date.now();
       await this.ctx.storage.put("lg:" + String(now).padStart(14, "0") + Math.random().toString(36).slice(2, 5), { t: now, ev: b.ev || "", src: b.src || "", msg: b.msg || "" });
       // 300 lignes au plus
