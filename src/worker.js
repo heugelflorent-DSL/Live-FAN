@@ -800,6 +800,13 @@ export default {
       if (req.method === "PATCH") { if (!SYSK.has(body.sys)) return json({ error: "Type inconnu" }, 400); for (const h of Object.keys(m)) if (h.startsWith(String(body.id || "-")) && m[h].ev === ev) m[h].sys = body.sys; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0; return json({ ok: true }); }
       if (req.method === "DELETE") { for (const h of Object.keys(m)) if (h.startsWith(String(body.id || "-")) && m[h].ev === ev) delete m[h]; await env.KV.put("pairs", JSON.stringify(m)); PAIRC.at = 0; return json({ ok: true }); }
     }
+    if (p === "/api/admin/applog") {
+      if (!ADM && !ORG) return adminOnly();
+      const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));
+      const d = url.searchParams.get("day");
+      try { return await room.fetch(new Request("https://pool/applog" + (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? "?day=" + d : ""))); }
+      catch (e) { return json({ error: "Messages indisponibles : " + String(e.message || e).slice(0, 120) }, 503); }
+    }
     if (p === "/api/admin/journal") {
       if (!ADM) return adminOnly(); // journal brut du chrono : réservé à l'administrateur du site
       const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));

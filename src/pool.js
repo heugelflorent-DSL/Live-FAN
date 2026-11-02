@@ -138,6 +138,16 @@ export class PoolRoom {
         const ks = [...(await this.ctx.storage.list({ prefix: "j:", end: "j:" + old })).keys()]; for (let i = 0; i < ks.length; i += 128) await this.ctx.storage.delete(ks.slice(i, i + 128)); }
       return Response.json({ ok: true });
     }
+    // messages du logiciel du chrono (texte lisible, à copier-coller) : chaque morceau gzip est décompressé à part
+    if (url.pathname.endsWith("/applog")) {
+      const day = url.searchParams.get("day") || new Date().toISOString().slice(0, 10);
+      const all = await this.ctx.storage.list({ prefix: "j:" + day + ":" }); const lines = [];
+      for (const [, v] of all) {
+        try { const txt = await new Response(new Blob([v]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+          for (const l of txt.split("\n")) { if (!l.includes('"app"')) continue; try { const r = JSON.parse(l); if (r.app) lines.push({ t: r.ts, v: r.v || "", m: r.app }); } catch (e) {} } } catch (e) {}
+      }
+      return Response.json({ day, lines: lines.slice(-3000) });
+    }
     if (url.pathname.endsWith("/journal")) {
       const day = url.searchParams.get("day");
       const all = await this.ctx.storage.list({ prefix: "j:" });
