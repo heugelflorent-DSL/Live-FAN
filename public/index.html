@@ -1600,7 +1600,7 @@ function poolTick(){clearInterval(poolTimer);const h=POOL&&POOL.heat;if(!h||h.st
 function fmtClock(t){const m=Math.floor(t/60),s=t-m*60;return(m?m+":"+s.toFixed(1).padStart(4,"0"):s.toFixed(1))}
 function splitName(n){n=String(n||"").trim();const p=n.split(/\s+/);let i=0;while(i<p.length-1&&p[i]===p[i].toUpperCase()&&/[A-ZÀ-Ý]/.test(p[i]))i++;return i?{last:p.slice(0,i).join(" "),first:p.slice(i).join(" ")}:{last:n,first:""}}
 function poolTotal(h,ev){const t=parseInt((ev&&ev.name)||h.title||"");const m=((ev&&ev.name)||h.title||"").match(/^(\d+)\s*x\s*(\d+)/i);return m?(+m[1])*(+m[2]):t||0}
-function poolWho(h,se,n){const q=h.names&&h.names[n];if(q&&q.name){const m=se&&se.swimmers.find(w=>norm(w.name)===norm(q.name));return m||{name:q.name,club:q.club,year:q.born,lane:n}}return se&&se.swimmers.find(w=>+w.lane===+n)}
+function poolWho(h,se,n){const q=h.names&&h.names[n];if(q&&q.name){const m=se&&se.swimmers.find(w=>norm(w.name)===norm(q.name));/* relais : relayeurs envoyés par le Quantum, dans l'ordre de nage */const sw=q.sw&&q.sw.length>1?q.sw.map(x=>({name:x})):null;if(m)return sw?{...m,members:sw}:m;return{name:q.name.trim(),club:q.club,year:q.born,lane:n,...(sw?{members:sw}:{})}}return se&&se.swimmers.find(w=>+w.lane===+n)}
 // tronçon plus rapide (vert) ou plus lent (rouge) que le précédent ; le 1er tronçon (avec le départ) n'est pas comparé
 const lc=(lp,i)=>{if(i<2)return"";const a=lp[i].t-lp[i-1].t,b=lp[i-1].t-lp[i-2].t;return a<b?"fa":a>b?"sl":""};
 const rpSg=v=>(v<0?"−":"+")+gapTxt(v);

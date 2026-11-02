@@ -87,7 +87,8 @@ class Decoder:
         if m in ("HO", "HS", "SL", "HR"):
             e = j.get("EvHeader") or {}; h = j.get("HeatHeader") or {}
             lanes = [{"lane": x.get("Ln"), "name": x.get("Name") or "", "club": x.get("Club") or "", "born": x.get("Born") or "",
-                      "time": to_sec(x.get("Time")), "rank": int(x.get("Rk") or 0) or None, "stat": x.get("Stat")} for x in (j.get("Lanes") or []) if x.get("Ln")]
+                      "time": to_sec(x.get("Time")), "rank": int(x.get("Rk") or 0) or None, "stat": x.get("Stat"),
+                      "sw": [str(n).strip() for n in (x.get("Swimmers") or []) if n] or None} for x in (j.get("Lanes") or []) if x.get("Ln")]
             title = " ".join(v for v in [e.get("Dist"), e.get("Stroke"), e.get("Cat"), e.get("Round")] if v)
             return {"k": "heat", "msg": m, "event": int(e.get("Number") or 0) or None, "heat": int(h.get("Number") or 0) or None,
                     "heats": e.get("Heats"), "laps": e.get("Laps"), "title": title, "comp": e.get("CompName") or "", "stat": h.get("Stat"), "lanes": lanes}
