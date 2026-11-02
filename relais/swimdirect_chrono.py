@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.3.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.3.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -121,6 +121,15 @@ class Core:
                     else: self.st["err"] = f"erreur du site ({e.code})"
                 except Exception as e: self.st["err"] = f"site injoignable ({e})"
                 time.sleep(delay); delay = min(delay * 2, 20)
+
+    def ping_loop(self):
+        # signe de vie toutes les 10 s tant que le chronométrage est branché : le site sait que la liaison tient
+        # même quand la sortie du Quantum est silencieuse (sinon il afficherait « Liaison coupée » pendant la course)
+        while not self.stop:
+            time.sleep(10)
+            if self.st["linked"] and self.st["quantum"].startswith("connecté") and not self.paused:
+                try: self.q.put_nowait({"k": "ping", "ts": time.time()})
+                except queue.Full: pass
 
     def journal_loop(self):
         # journal brut envoyé toutes les 15 s, compressé (gardé 14 jours sur le site pour l'analyse)
@@ -233,7 +242,7 @@ class Core:
                 except OSError: self.fw_clients.remove(c)
 
     def start(self, demo=False):
-        for f in (self.hello_loop, self.send_loop, self.journal_loop): threading.Thread(target=f, daemon=True).start()
+        for f in (self.hello_loop, self.send_loop, self.journal_loop, self.ping_loop): threading.Thread(target=f, daemon=True).start()
         if self.cfg.get("forward"):
             try: threading.Thread(target=self.forward_loop, daemon=True).start()
             except Exception as e: self.log(f"✗ Passe-plat : {e}")
