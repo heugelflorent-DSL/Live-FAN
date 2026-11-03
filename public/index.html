@@ -1200,7 +1200,7 @@ let pauseId=Date.now();
 
 /* ---------- calculs ---------- */
 function toMin(hm){const[h,m]=hm.split(":").map(Number);return h*60+m}
-function hm(sec){sec=((Math.round(sec)%86400)+86400)%86400;const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return String(h).padStart(2,"0")+"h"+String(m).padStart(2,"0")}
+function hm(sec){if(sec==null||isNaN(sec))return"à venir";sec=((Math.round(sec)%86400)+86400)%86400;const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return String(h).padStart(2,"0")+"h"+String(m).padStart(2,"0")}
 function duration(ev){return ev.series.reduce((a,s)=>a+s.slowest+state.heatGap,0)-state.heatGap}
 function allKeys(){return Object.keys(state.order).flatMap(s=>state.order[s]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event")}
 // épreuve terminée : tous les résultats sont publiés, ou une épreuve suivante de la réunion a déjà des résultats
@@ -1801,7 +1801,7 @@ function renderLiveFfn(){
   {const sl=state.live==="ffn"?liveSlot():null;const rk=sl&&sl.on?state.order[sl.s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"):null;
    if(rk&&!(cur.ev&&rk.includes(cur.ev.key))){const k=rk[0],ev=EVENTS[k],sch=schedule();const m2=L.next&&liveMatch(cur.id,L.next.event);
      const nx2=m2&&rk.includes(m2.key)&&L.next.lanes.length?{name:m2.name,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes}
-       :(()=>{const se=ev.series[0]||{n:1,swimmers:[]};return{name:ev.name,heat:se.n,of:ev.series.length,hm:sch[k]?hm(sch[k].start):null,lanes:se.swimmers.map(w=>({lane:w.lane,name:w.name,club:w.club,year:w.year,entry:w.time}))}})();
+       :(()=>{const se=ev.series[0]||{n:1,swimmers:[]};return{name:ev.name,heat:se.n,of:ev.series.length,hm:sch[k]?hm((sch[k]||{}).start):null,lanes:se.swimmers.map(w=>({lane:w.lane,name:w.name,club:w.club,year:w.year,entry:w.time}))}})();
      html+=`<div class="card lv-card"><span class="lv-tag">Série à venir${nx2.hm?" · vers "+esc(nx2.hm):""}</span><h3>${esc(nx2.name)}</h3><div class="sub">Réunion ${esc(sl.s)} · Série ${nx2.heat||"?"} / ${nx2.of||"?"}</div>${nx2.lanes.length?lvLanes(nx2.lanes):`<p class="msg">Composition pas encore publiée.</p>`}</div></div>`;
      $("#pub-body").innerHTML=html.replace(/<p class="lv-warn">[\s\S]*?<\/p>/g,"");return}}
   let side="";html+=`<div class="pgrid lvgrid"><div class="pmain">`;
@@ -1815,15 +1815,15 @@ function renderLiveFfn(){
   else if(cur.p>=0){const sch=schedule(),done=doneSet();const k=order.slice(cur.p+1).find(k=>!done.has(k)&&!EVENTS[k].provisional);
     if(k){const ev=EVENTS[k],L2=LIVE[ev.comp];const m2=L2&&L2.next&&liveMatch(ev.comp,L2.next.event);
       if(m2&&m2.key===k&&L2.next.lanes.length)nx={comp:ev.comp,name:ev.name,heat:L2.next.heat,of:L2.next.of,hm:L2.next.hm?L2.next.hm.replace(":","h"):null,lanes:L2.next.lanes};
-      else{const se=ev.series[0]||{n:1,swimmers:[]};nx={comp:ev.comp,name:ev.name,heat:se.n,of:ev.series.length,hm:sch[k]?"~"+hm(sch[k].start):null,lbl:ev.qualProv?"temps des séries":"",lanes:se.swimmers.map(w=>({lane:w.lane,name:w.name,club:w.club,year:w.year,entry:w.time}))}}}}
+      else{const se=ev.series[0]||{n:1,swimmers:[]};nx={comp:ev.comp,name:ev.name,heat:se.n,of:ev.series.length,hm:sch[k]?"~"+hm((sch[k]||{}).start):null,lbl:ev.qualProv?"temps des séries":"",lanes:se.swimmers.map(w=>({lane:w.lane,name:w.name,club:w.club,year:w.year,entry:w.time}))}}}}
   else if(L.next&&L.next.lanes.length)nx={comp:cur.id,name:L.next.event,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes};
   if(nx)html+=`<div class="card lv-card"><span class="lv-tag">Série suivante${nx.hm?" · vers "+esc(nx.hm):""}</span><h3>${esc(nx.name)}</h3><div class="sub">${multi?compBadge(nx.comp)+" · ":""}Série ${nx.heat||"?"} / ${nx.of||"?"}</div>${nx.lanes.length?lvLanes(nx.lanes,nx.lbl):`<p class="msg">Composition pas encore publiée.</p>`}</div>`;
   // programme fusionné de la réunion
   if(cur.ev){const s=cur.ev.sess,sch=schedule(),done=doneSet();const ks=(state.order[s]||[]).filter(k=>EVENTS[k]);
     html+=`<div class="card lv-card lv-progc"><span class="lv-tag">Programme de la réunion</span><ul class="lv-prog">${ks.map(k=>{const ev=EVENTS[k];
-      if(ev.type==="pause")return`<li class="note"><span>${sch[k]?hm(sch[k].start)+" · ":""}${esc(ev.name||"Pause")}</span></li>`;
+      if(ev.type==="pause")return`<li class="note"><span>${sch[k]?hm((sch[k]||{}).start)+" · ":""}${esc(ev.name||"Pause")}</span></li>`;
       const st=k===cur.ev.key?"live":(done.has(k)||pos(k)<cur.p)?"done":"todo";
-      return`<li class="${st}">${st==="live"?`<span class="lv-badge">EN COURS</span>`:st==="done"?"✓":`<span>${sch[k]?hm(sch[k].start):""}</span>`}<span>${esc(ev.name)}${multi?" "+compBadge(ev.comp):""}</span></li>`}).join("")}</ul></div>`}
+      return`<li class="${st}">${st==="live"?`<span class="lv-badge">EN COURS</span>`:st==="done"?"✓":`<span>${sch[k]?hm((sch[k]||{}).start):""}</span>`}<span>${esc(ev.name)}${multi?" "+compBadge(ev.comp):""}</span></li>`}).join("")}</ul></div>`}
   else if(L.prog&&L.prog.length)html+=`<div class="card lv-card lv-progc"><span class="lv-tag">Programme de la réunion</span><ul class="lv-prog">${L.prog.map(p=>`<li class="${p.state}">${p.state==="live"?`<span class="lv-badge">EN COURS</span>`:p.state==="done"?"✓":""}<span>${esc(p.text)}</span></li>`).join("")}</ul></div>`;
   html+=`</div>${side?`<div class="pside lv-side">${side}</div>`:""}</div>`;
   if(!side)html=html.replace('class="pgrid lvgrid"','class="pgrid lvgrid lv1"');
@@ -1831,12 +1831,12 @@ function renderLiveFfn(){
   $("#pub-body").innerHTML=html;
 }
 // heure estimée du départ d'une série : début de l'épreuve + séries précédentes
-function heatStart(ev,start,heat){return start+(ev.series||[]).slice(0,Math.max(0,(heat||1)-1)).reduce((a,x)=>a+(x.slowest||0)+state.heatGap,0)}
+function heatStart(ev,start,heat){if(start==null)return null;return start+(ev.series||[]).slice(0,Math.max(0,(heat||1)-1)).reduce((a,x)=>a+(x.slowest||0)+state.heatGap,0)}
 // courses des nageurs / clubs suivis, dans l'ordre de la journée
 function myRaces(sch){if(!favCount())return[];const done=doneSet(),out=[];
   for(const s of Object.keys(state.order))for(const k of state.order[s]){const ev=EVENTS[k];if(!ev||ev.type!=="event")continue;
     const sw=(ev.entries||[]).filter(w=>isFav(w));if(!sw.length)continue;const isD=done.has(k);const rk=isD?ranking(ev):[];
-    out.push({key:k,s,ev,start:sch[k].start,done:isD,sw:sw.map(w=>({...w,r:isD?rk.find(x=>(w.iuf&&x.iuf===w.iuf)||(!w.iuf&&x.name===w.name))||null:null}))})}
+    out.push({key:k,s,ev,start:(sch[k]||{}).start,done:isD,sw:sw.map(w=>({...w,r:isD?rk.find(x=>(w.iuf&&x.iuf===w.iuf)||(!w.iuf&&x.name===w.name))||null:null}))})}
   return out}
 function mySwimmers(compact){
   if(!favCount())return"";const P=participants(),sch=schedule(),done=doneSet();
@@ -1845,7 +1845,7 @@ function mySwimmers(compact){
   const rows=ids.map(id=>{const p=P[id];const its=p.items.filter(x=>sch[x.ev.key]).sort(chronoCmp(sch));
     const nx=its.find(x=>!done.has(x.ev.key)&&!x.w.dns);const last=[...its].reverse().find(x=>done.has(x.ev.key));
     let info="",t="",sort=1e9;
-    if(nx){sort=sch[nx.ev.key].start;info=`${esc(nx.ev.name)}${state.phase==="eng"||nx.ev.provisional?"":` · série ${nx.w.heat}, couloir ${nx.w.lane}`}`;t=nx.ev.provisional?"à venir":"~"+hm(sch[nx.ev.key].start)}
+    if(nx){sort=(sch[nx.ev.key]||{}).start;info=`${esc(nx.ev.name)}${state.phase==="eng"||nx.ev.provisional?"":` · série ${nx.w.heat}, couloir ${nx.w.lane}`}`;t=nx.ev.provisional?"à venir":"~"+hm((sch[nx.ev.key]||{}).start)}
     else if(last){const r=ranking(last.ev).find(x=>x.iuf===id);info=`${esc(last.ev.name)} · terminé`;t=r?(r.dsq?"DSQ":fmt(r.res)+(r.rank?` (${r.rank}e)`:"")+(diffHtml(r.res,last.w.time)?"<br><small>"+diffHtml(r.res,last.w.time)+"</small>":"")):"—";sort=1e9+1}
     else return null;
     return{sort,html:`<div class="ms"><span><b><a href="#" data-swimmer="${id}">${esc(p.sw.name)}</a></b><br><small>${info}</small></span><span class="t">${t}</span></div>`}}).filter(Boolean).sort((a,b)=>a.sort-b.sort);
@@ -1864,7 +1864,7 @@ function liveSlot(){const sch=schedule(),done=doneSet(),now=Date.now();let next=
 function reuToday(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})(?:\s*er)?\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return false;const d=new Date(),i=MOIS.indexOf(m[2]);return i>=0&&d.getFullYear()===+m[3]&&d.getMonth()===i&&d.getDate()===+m[1]}
 function renderHome(){
   const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k)&&!EVENTS[k].provisional);let html="",top=engBanner(),teams="";
-  if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
+  if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm((sch[nextKey]||{}).start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
   else if(ks.length&&ks.every(k=>done.has(k)))html+=`<div class="now"><div class="tag">Terminé</div><div class="ev">Toutes les épreuves sont terminées</div><div class="nx"><a href="#" data-go="res" style="color:#fff">voir les résultats ›</a></div></div>`;
   for(const r of teamRules())for(const sx of ["F","M"]){const b=teamBoard(r,sx);if(!b.now.length)continue;
     teams+=`<div class="session">${secTitle(esc(r.name)+(sx?" · "+(sx==="F"?"Filles":"Garçons"):""),"en direct · "+b.nDone+"/"+b.nAll+" épreuves")}<div class="compline" style="margin:-2px 0 8px">${r.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="card top3">${b.now.slice(0,3).map(t=>`<div class="t3"><span class="rk r${t.rank}">${t.rank}</span><b>${esc(t.club)}</b>${moveHtml(t,b.prev)}<span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></div>`).join("")}<a href="#" class="more" data-go="rank" data-rr2="${r.id}" data-sx2="${sx||""}">Classement complet ›</a></div></div>`}
@@ -1886,12 +1886,12 @@ function renderHome(){
     if(reuToday(s)&&!allD){const t=parisSec(Date.now()),doors=toMin((sm.doors||"").replace("h",":"))*60||sch[keys[0]].start-3600,end=sch[keys[keys.length-1]].end||sch[keys[keys.length-1]].start;
       if(t>=doors-1800&&t<=end+1800){live=true;
         const lk=Object.entries(LIVE).map(([id,L])=>L&&L.cur&&liveMatch(id,L.cur.event)).find(ev=>ev&&keys.includes(ev.key));
-        if(lk)nowK=lk.key;else if(t<sch[keys[0]].start)preStart=true;else nowK=[...keys].reverse().find(k=>sch[k].start<=t)||keys[0];
+        if(lk)nowK=lk.key;else if(t<sch[keys[0]].start)preStart=true;else nowK=[...keys].reverse().find(k=>(sch[k]||{}).start<=t)||keys[0];
         if(nowK&&done.has(nowK))nowK=keys.find(k=>!done.has(k))||nowK}}
-    const frise=keys.length&&!prov?`<ol class="tl2">${tlItem("",sm&&sm.doors?sm.doors.replace(/^0/,""):"—","Portes")}${tlItem(live&&preStart?"mid cur":"mid",(state.starts[s]||"").replace(":","h").replace(/^0/,""),"Début")}${keys.map(k=>`<li class="mr${done.has(k)?" d":""}${k===nowK?" cur":""}${state.open["mt"+k]?" on":""}" data-mt="${k}" role="button" tabindex="0"><i></i><b>${hm(sch[k].start).replace(/^0/,"")}</b><span>${esc(short(EVENTS[k].name))}</span></li>`).join("")}${tlItem("",last?"~"+hm(sch[last].end).replace(/^0/,""):"—",allD?"Terminé":"Fin estimée")}</ol>`
+    const frise=keys.length&&!prov?`<ol class="tl2">${tlItem("",sm&&sm.doors?sm.doors.replace(/^0/,""):"—","Portes")}${tlItem(live&&preStart?"mid cur":"mid",(state.starts[s]||"").replace(":","h").replace(/^0/,""),"Début")}${keys.map(k=>`<li class="mr${done.has(k)?" d":""}${k===nowK?" cur":""}${state.open["mt"+k]?" on":""}" data-mt="${k}" role="button" tabindex="0"><i></i><b>${hm((sch[k]||{}).start).replace(/^0/,"")}</b><span>${esc(short(EVENTS[k].name))}</span></li>`).join("")}${tlItem("",last?"~"+hm((sch[last]||{}).end).replace(/^0/,""):"—",allD?"Terminé":"Fin estimée")}</ol>`
       :prov?`<ol class="tl"><li><b>${esc(((state.reuDay||{})[s]||"—").replace(/\s+\d{4}$/,""))}</b><span>Jour</span></li><li class="mid"><b>à venir</b><span>Horaires</span></li></ol>`
-      :`<ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm(sch[last].end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol>`;
-    return`<div class="card reu${isOpen(s)?"":" shut"}"><div class="reu-h"${multi?` data-reutog="${s}" role="button" tabindex="0"`:""}><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}${multi?`<span class="reu-chev">${isOpen(s)?"▲":"▼"}</span>`:""}</span></div>${isOpen(s)?frise:""}${openK&&isOpen(s)?`<div class="mt-pop"><b>${hm(sch[openK].start).replace(/^0/,"")} · ${esc(EVENTS[openK].name)}</b><div class="md-sw"><span>${plural((EVENTS[openK].series||[]).length,"série")} · fin ~${hm(sch[openK].end).replace(/^0/,"")}${done.has(openK)?" · terminée":""}</span><span><a href="#" data-go="${done.has(openK)?"res":"prog"}">${done.has(openK)?"Voir les résultats ›":"Voir les séries ›"}</a></span></div></div>`:""}</div>`}).join("")}</div></div>`;
+      :`<ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm((sch[last]||{}).end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol>`;
+    return`<div class="card reu${isOpen(s)?"":" shut"}"><div class="reu-h"${multi?` data-reutog="${s}" role="button" tabindex="0"`:""}><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}${multi?`<span class="reu-chev">${isOpen(s)?"▲":"▼"}</span>`:""}</span></div>${isOpen(s)?frise:""}${openK&&isOpen(s)?`<div class="mt-pop"><b>${hm((sch[openK]||{}).start).replace(/^0/,"")} · ${esc(EVENTS[openK].name)}</b><div class="md-sw"><span>${plural((EVENTS[openK].series||[]).length,"série")} · fin ~${hm((sch[openK]||{}).end).replace(/^0/,"")}${done.has(openK)?" · terminée":""}</span><span><a href="#" data-go="${done.has(openK)?"res":"prog"}">${done.has(openK)?"Voir les résultats ›":"Voir les séries ›"}</a></span></div></div>`:""}</div>`}).join("")}</div></div>`;
   if(MR.length){const byR={};for(const m of MR)(byR[m.s]=byR[m.s]||[]).push(m);
     html+=`<div class="session">${secTitle("★ Ma journée",plural(MR.length,"course"))}${Object.keys(byR).map(s=>`<div class="card myday${isOpen(s)?"":" shut"}"><div class="reu-h"${multi?` data-reutog="${s}" role="button" tabindex="0"`:""}><b>Réunion ${s}</b><span>${plural(byR[s].length,"course")}${multi?`<span class="reu-chev">${isOpen(s)?"▲":"▼"}</span>`:""}</span></div>${isOpen(s)?byR[s].map(m=>{const nope=state.phase==="eng"||m.ev.provisional;const sw=[...m.sw].sort((a,b)=>(a.heat||0)-(b.heat||0)||(a.lane||0)-(b.lane||0));
       return`<div class="md-ev${m.done?" d":""}"><div class="md-h"><b>${esc(m.ev.name)}</b>${m.ev.relay?' <span class="md-rel">relais</span>':""}<span class="md-et">épreuve ${hm(m.start).replace(/^0/,"")}</span></div><div class="md-list">${sw.map(x=>`<div class="md-sr${!nope&&heatDone(m.ev,x.heat)?" sdone":""}"${nope?"":` data-goheat="${esc(m.key)}|${x.heat||1}" role="button" tabindex="0" title="Voir la série dans le programme"`}><span class="md-t">${nope?"—":"~"+hm(heatStart(m.ev,m.start,x.heat)).replace(/^0/,"")}</span><div class="md-who"><a href="#" data-swimmer="${esc(x.iuf||"")}">${esc(m.ev.relay?"Relais "+(x.name||""):x.name)}</a><div class="md-sl">${nope?"Série et couloir pas encore publiés":`Série ${x.heat||"—"} · Couloir ${x.lane||"—"}`}${m.ev.relay&&!x.time?"":` · engagé ${engT(x.time)}`}</div></div></div>`).join("")}</div></div>`}).join(""):""}</div>`).join("")}</div>`}
@@ -1922,7 +1922,7 @@ function renderEngages(ev,q){const relay=/^4x/i.test(ev.name);const l=ev.entries
   return`<div class="inner"><div class="heat"><h4>${plural(l.length,"engagé")} · par temps d'engagement</h4><div class="tbl"><table><thead><tr><th>#</th><th>${relay?"Équipe":"Nageur"}</th>${relay?"":"<th>Année</th><th class=\"hide-s\">Club</th>"}<th>Engag.</th></tr></thead><tbody>${l.map((w,i)=>`<tr class="${hit(w,q)}"><td class="ln">${i+1}</td><td>${nameCell(w)}</td>${relay?"":`<td class="num">${w.year}</td><td class="hide-s club">${logo(w.club)}${esc(w.club)}</td>`}<td class="num">${engT(w.time)}</td></tr>`).join("")}</tbody></table></div></div></div>`}
 // réunion affichée : celle en cours (première avec une épreuve non terminée), sinon la dernière ; « tout » sur demande ou en recherche
 // ordre chronologique d'une liste de courses : jour (réunion) puis heure
-function chronoCmp(sch){const rs=reuList(),d=ev=>{const t=reuDate(ev.sess);return t?t.getTime():rs.indexOf(String(ev.sess))*864e5};return(a,b)=>d(a.ev)-d(b.ev)||rs.indexOf(String(a.ev.sess))-rs.indexOf(String(b.ev.sess))||sch[a.ev.key].start-sch[b.ev.key].start}
+function chronoCmp(sch){const rs=reuList(),d=ev=>{const t=reuDate(ev.sess);return t?t.getTime():rs.indexOf(String(ev.sess))*864e5};return(a,b)=>d(a.ev)-d(b.ev)||rs.indexOf(String(a.ev.sess))-rs.indexOf(String(b.ev.sess))||(sch[a.ev.key]||{}).start-(sch[b.ev.key]||{}).start}
 // fiche club : sa place au classement national des clubs (Trophée Elite)
 function clubEliteLine(club){let h="";for(const r of teamRules().filter(r=>r.scoring==="elite")){const L=teamRanking(r);const t=L.find(x=>x.club===club);if(t)h+=`<p class="msg" style="margin:6px 4px 0"><b>${esc(r.name)} : ${t.rank}${t.rank===1?"er":"e"} sur ${L.length}</b> · ${t.total} pts</p>`}return h}
 function reuList(){return Object.keys(state.order)}
@@ -1936,7 +1936,7 @@ function renderProg(){
   // carte « à suivre » : première épreuve non terminée
   const nextKey=allKeys().find(k=>!done.has(k)&&!EVENTS[k].provisional);
   if(nextKey&&!q&&!fc){const ev=EVENTS[nextKey];const after=allKeys()[allKeys().indexOf(nextKey)+1];
-    html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm(sch[nextKey].start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")}${after?` · puis ${esc(EVENTS[after].name)} à ${hm(sch[after].start)}`:""}</div></div>`}
+    html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm((sch[nextKey]||{}).start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")}${after?` · puis ${esc(EVENTS[after].name)} à ${hm((sch[after]||{}).start)}`:""}</div></div>`}
   html+=reuChips(done);
   for(const s of reuShown(done)){
     const sm={doors:state.doors[s]};let rows="";
@@ -2018,9 +2018,9 @@ function renderRes(){
     const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&(done.has(k)||PR[k])&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
     if(!keys.length)continue;
     html+=`<div class="session">${secTitle("Réunion "+s,plural(keys.length,"épreuve"))}<div class="list">${keys.map(k=>{const ev=EVENTS[k],open=state.open["r"+k]||(q&&evMatches(ev,q));
-     if(PR[k]){const p=PR[k],w0=p.rows[0];return`<div class="lane prov"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm(sch[k].start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span class="provtag">provisoire · ${p.n} série${p.n>1?"s":""}${p.of?" sur "+p.of:""}</span>${w0&&w0.time!=null?`<span>1er ${esc(w0.name)} · ${esc(w0.timeTxt||fmt(w0.time))}</span>`:""}</span></span><span class="chev" aria-hidden="true">▼</span></button>${open?`<div class="inner"><p class="qprov">Classement provisoire d'après les séries terminées du direct. Le classement officiel le remplacera dès sa publication sur le Live FFN.</p>${lvRows(p.rows,p.id,p.title)}</div>`:""}</div>`}
+     if(PR[k]){const p=PR[k],w0=p.rows[0];return`<div class="lane prov"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm((sch[k]||{}).start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span class="provtag">provisoire · ${p.n} série${p.n>1?"s":""}${p.of?" sur "+p.of:""}</span>${w0&&w0.time!=null?`<span>1er ${esc(w0.name)} · ${esc(w0.timeTxt||fmt(w0.time))}</span>`:""}</span></span><span class="chev" aria-hidden="true">▼</span></button>${open?`<div class="inner"><p class="qprov">Classement provisoire d'après les séries terminées du direct. Le classement officiel le remplacera dès sa publication sur le Live FFN.</p>${lvRows(p.rows,p.id,p.title)}</div>`:""}</div>`}
      const win=ranking(ev)[0];
-     return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm(sch[k].start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
+     return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm((sch[k]||{}).start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
   }
   $("#pub-body").innerHTML=html||`<p class="empty">${state.phase==="eng"?"Les résultats apparaîtront ici pendant la compétition.":"Aucun résultat pour le moment."}</p>`;
 }
@@ -2169,7 +2169,7 @@ function renderPod(){
     else if((!done.has(k)&&!PRv[k])||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
     else if(ev.typ===62){const sf=epGroup(ev).find(x=>x.typ===61);if(sf&&(sfEarly(sf)||(!done.has(sf.key)&&!PRv[sf.key])))continue} // séries lentes du matin : podium seulement après la série rapide du soir
     const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
-    if(!byName[gn]){byName[gn]={name:gn,keys:[],start:sch[k].start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
+    if(!byName[gn]){byName[gn]={name:gn,keys:[],start:(sch[k]||{}).start,fx};groups.push(byName[gn])}byName[gn].keys.push(k)}
   // tri par réunion, comme dans Résultats (puces R1, R2… Tout)
   // podiums : seules les réunions où se jouent des podiums (finales, ou épreuves sans finale) ; une épreuve avec finales est rangée dans la réunion de ses finales
   {const reuOf=k=>Object.keys(state.order).find(r=>state.order[r].includes(k));
@@ -2249,7 +2249,7 @@ function swimmerDetail(p){
   ${(()=>{const g=progOf(p);return g.all?progKpis(g,(g.gain>0?"−":"+")+Math.abs(g.gain).toFixed(2).replace(".",",")):""})()}
   <div class="tbl"><table><thead><tr><th>Date · heure</th><th>Épreuve</th><th>Série · ligne</th><th>Engag.</th><th>Résultat</th><th>Ancien RP</th><th>Progr.</th><th>Pl.</th></tr></thead><tbody>
   ${items.map(({ev,w,leg})=>{const isDone=done.has(ev.key);const r=isDone&&!w.dns?ranking(ev).find(x=>leg?x.name===w.name:x.iuf===w.iuf)||null:null;const isDone0=isDone;const k=ev.key+"|"+w.name,o=!!state.sp[k],sp=comp(ev.comp).splits;
-    return`<tr><td class="num sw-when">${evDay(ev.key)?`<small>${evDay(ev.key)}</small> `:""}${hm(state.phase==="eng"?sch[ev.key].start:heatStart(ev,sch[ev.key].start,ev.fin?1:w.heat))}</td><td>${esc(ev.name)}${leg?`<br><small class="sw-leg">relais · ${leg}${leg===1?"er":"e"} relayeur</small>`:""}</td><td class="num">${state.phase==="eng"||(leg&&!w.heat)?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${engT(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td>${(()=>{let B=leg?null:bestOf(w,ev);if(B&&B.self)B=null;const ref=B&&B.t!=null?B.t:null;const v=ref&&r&&!r.dsq&&r.res!=null?(ref-r.res)/ref*100:null;return`<td class="num">${ref?fmt(ref):"—"}</td><td class="num">${v!=null?`<span class="pct ${pctCls(v)}">${pctTxt(v)}</span><br><small class="pg-sec ${pctCls(v)}">${(()=>{const d=r.res-ref;return(d<-0.004?"−":d>0.004?"+":"±")+Math.abs(d).toFixed(2).replace(".",",")+" s"})()}</small>`:!ref&&!leg&&r&&!r.dsq&&r.res!=null?`<span class="pg-new" title="Première fois sur cette épreuve">Nouvelle</span>`:"—"}</td>`})()}<td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="7">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
+    return`<tr><td class="num sw-when">${evDay(ev.key)?`<small>${evDay(ev.key)}</small> `:""}${hm(state.phase==="eng"?(sch[ev.key]||{}).start:heatStart(ev,(sch[ev.key]||{}).start,ev.fin?1:w.heat))}</td><td>${esc(ev.name)}${leg?`<br><small class="sw-leg">relais · ${leg}${leg===1?"er":"e"} relayeur</small>`:""}</td><td class="num">${state.phase==="eng"||(leg&&!w.heat)?"—":ev.fin?(w.lane?"L"+w.lane:"—"):"S"+w.heat+" · L"+(w.lane||"—")}</td><td class="num">${engT(w.time)}</td><td class="num"><b>${w.dns?"Forfait":r?(r.dsq?"DSQ":fmt(r.res)):"—"}</b>${r&&!r.dsq&&sp?`<button class="spbtn" data-sp="${esc(k)}" aria-label="Temps de passage">${o?"▴":"▾"}</button>`:""}</td>${(()=>{let B=leg?null:bestOf(w,ev);if(B&&B.self)B=null;const ref=B&&B.t!=null?B.t:null;const v=ref&&r&&!r.dsq&&r.res!=null?(ref-r.res)/ref*100:null;return`<td class="num">${ref?fmt(ref):"—"}</td><td class="num">${v!=null?`<span class="pct ${pctCls(v)}">${pctTxt(v)}</span><br><small class="pg-sec ${pctCls(v)}">${(()=>{const d=r.res-ref;return(d<-0.004?"−":d>0.004?"+":"±")+Math.abs(d).toFixed(2).replace(".",",")+" s"})()}</small>`:!ref&&!leg&&r&&!r.dsq&&r.res!=null?`<span class="pg-new" title="Première fois sur cette épreuve">Nouvelle</span>`:"—"}</td>`})()}<td class="num">${r&&r.rank?r.rank:"—"}</td></tr>${r&&!r.dsq&&sp&&o?`<tr class="sprow"><td></td><td colspan="7">${splitsHtml(ev,r)}</td></tr>`:""}`}).join("")}
   </tbody></table></div></div>`;
 }
 function renderClub(){
