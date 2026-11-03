@@ -1153,7 +1153,7 @@ function build(cfg,data){
   /* liste des engagés (avant les séries) : les nageurs apparaissent déjà dans Nageurs & clubs */
   for(const id of cfg.comps||[]){const c=data.comps&&data.comps[id];const byIuf={};for(const r of (c&&c.roster)||[]){if(!r.name)continue;const k=swId(r.name,r.year);byIuf[r.iuf]=k;if(!SWIMMERS[k])SWIMMERS[k]={iuf:k,name:r.name,year:r.year,club:r.club,sex:"",comp:id,nat:r.nat||""}}
     /* épreuves de chaque engagé (pages « par épreuve ») : remplissent les engagés tant que les séries ne sont pas publiées */
-    for(const re of Object.values((c&&c.rosterEv)||{})){const ev=Object.values(EVENTS).find(e=>e.comp===id&&e.type==="event"&&norm(e.base||e.name)===norm(re.name));if(!ev||ev.entries.length)continue;
+    for(const re of Object.values((c&&c.rosterEv)||{})){const ev=Object.values(EVENTS).find(e=>e.comp===id&&e.type==="event"&&norm(e.base||e.name)===norm(String(re.name||"").replace(/\s*D[ée]tail de la liste.*$/i,"")));if(!ev||ev.entries.length)continue;
       for(const fi of re.iufs||[]){const k=byIuf[fi],s=k&&SWIMMERS[k];if(!s)continue;if(!s.sex)s.sex=ev.sex;ev.entries.push({lane:null,heat:null,name:s.name,year:s.year,club:s.club,time:null,iuf:k,relay:false,members:null,dns:false,roster:true})}}}
   // équipes (Interclubs) : composition des relais
   for(const ev of Object.values(EVENTS)){if(!ev.relay)continue;

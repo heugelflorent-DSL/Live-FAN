@@ -275,12 +275,15 @@ async function runTask(task, data, now) {
     return;
   }
   if (task.t === "roster") { // liste des engagés par participant : nageurs, années, clubs, IUF (sert aux records perso et à l'onglet nageurs)
-    const list = parseRoster(await get(urls.roster(task.c), { delay: 1500 }));
-    if (list.length) { if (JSON.stringify(list) !== JSON.stringify(c.roster)) data.dirty = true; c.roster = list; c.rosterAt = now; }
-    else if (!c.roster) throw new Error("Liste des engagés pas encore publiée sur le Live FFN");
+    /* liste déjà chargée : elle est figée, on ne relit que les épreuves qui manquent */
+    const list = c.roster?.length ? c.roster : parseRoster(await get(urls.roster(task.c), { delay: 1500 }));
+    if (list.length && list !== c.roster) { if (JSON.stringify(list) !== JSON.stringify(c.roster)) data.dirty = true; c.roster = list; c.rosterAt = now; }
+    else if (!list.length) throw new Error("Liste des engagés pas encore publiée sur le Live FFN");
     // puis les épreuves (une page chacune, lues à la suite au rythme habituel) : qui nage quoi, relais exclus (pas de nageurs listés)
     if (list.length) { const evs = parseRosterEvents(await get(urls.rosterEvs(task.c), { delay: 1500 })).filter((e) => !/^\d+\s*x\s*\d+/i.test(e.name));
-      if (evs.length) { data.queue = [...evs.map((e) => ({ t: "rosterEv", c: task.c, epr: e.epr, name: e.name })), ...(data.queue || [])]; data.queueAt = now; } }
+      /* épreuves déjà lues : pas relues (la liste des engagés est figée après la clôture) */
+      const todo = evs.filter((e) => !(c.rosterEv && c.rosterEv[e.epr]));
+      if (todo.length) { data.queue = [...todo.map((e) => ({ t: "rosterEv", c: task.c, epr: e.epr, name: e.name })), ...(data.queue || [])]; data.queueAt = now; } }
     return;
   }
   if (task.t === "rosterEv") {
@@ -563,7 +566,7 @@ async function rescrape(env, scope, what, ev = "main") {
   const reu = scope?.startsWith("r") ? +scope.slice(1) : null;
   const tasks = [];
   if (what === "roster") { // liste des engagés seulement : une page par compétition
-    for (const id of comps) tasks.push({ t: "roster", c: id });
+    for (const id of comps) tasks.push({ t: "roster", c: id }); // déjà chargée : seules les épreuves manquantes sont lues
     data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; delete data.block;
     await saveData(env, data, before, ev); return tasks.length;
   }

@@ -323,7 +323,7 @@ export function parseRoster(html) {
 export function parseRosterEvents(html) {
   const h = String(html || "").replace(/&amp;/g, "&"); const out = []; const seen = new Set();
   const re = /<a[^>]+go=epreuve&(?:[^"'>]*&)?epreuve=(\d+)[^>]*>([\s\S]*?)<\/a>/g; let m;
-  while ((m = re.exec(h))) { const name = one(m[2]); if (!name || seen.has(m[1])) continue; seen.add(m[1]); out.push({ epr: +m[1], name }); }
+  while ((m = re.exec(h))) { const name = one(m[2]).replace(/\s*D[ée]tail de la liste.*$/i, "").trim(); if (!name || seen.has(m[1])) continue; seen.add(m[1]); out.push({ epr: +m[1], name }); }
   return out;
 }
 export function parseEntries(html) {
