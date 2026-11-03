@@ -2531,6 +2531,7 @@ $("#rs-box").addEventListener("click",e=>{const id=e.target.id,box=$("#rs-act");
       let left=r.remaining,total=r.total||1;
       while(left>0){$("#rs-txt").textContent=`Lecture du Live FFN… ${total-left} / ${total} pages`;$("#rs-bar").style.width=Math.round(100*(total-left)/total)+"%";
         const x=await api("/api/refresh",{method:"POST"});if(x.queue>=left&&x.error)throw new Error(x.error);left=x.queue}
+      if(r.error&&!r.remaining)throw new Error(r.error);
       await loadAdmin();$("#rs-act").innerHTML=`<p class="msg" style="color:var(--ok)">Récupération terminée à ${hhmm(new Date())} : ${esc(label)}.</p><button class="btn small ghost" id="rs-go">Recommencer…</button>`}
     catch(e){$("#rs-act").innerHTML=`<p class="msg err">Échec : ${esc(e.message)}. Les pages restantes seront lues aux prochains passages automatiques.</p><button class="btn small ghost" id="rs-go">Recommencer…</button>`}})()}
 });

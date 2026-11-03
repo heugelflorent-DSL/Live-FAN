@@ -280,7 +280,12 @@ async function runTask(task, data, now) {
     if (list.length && list !== c.roster) { if (JSON.stringify(list) !== JSON.stringify(c.roster)) data.dirty = true; c.roster = list; c.rosterAt = now; }
     else if (!list.length) throw new Error("Liste des engagés pas encore publiée sur le Live FFN");
     // puis les épreuves (une page chacune, lues à la suite au rythme habituel) : qui nage quoi, relais exclus (pas de nageurs listés)
-    if (list.length) { const evs = parseRosterEvents(await get(urls.rosterEvs(task.c), { delay: 1500 })).filter((e) => !/^\d+\s*x\s*\d+/i.test(e.name));
+    /* numéros d'épreuves : ceux du programme quand on les a (pas de page en plus), sinon le récapitulatif « par épreuve » */
+    // programme provisoire (numéros « p1-11 ») : numéro Live FFN déduit du nom (50/100/200/400/800/1500 NL = 1-6, Dos 11-13, Brasse 21-23, Pap. 31-33, 4 N. 40-42 ; messieurs +50)
+    const eprOf = (e) => { if (/^\d+$/.test(String(e.epr))) return +e.epr; const n = String(e.name || "").toLowerCase(); const d = +(n.match(/^(\d+)/) || [])[1]; const m = /messieurs/.test(n) ? 50 : /dames/.test(n) ? 0 : null; if (m == null || !d) return null;
+      const base = /4 nages/.test(n) ? { 100: 40, 200: 41, 400: 42 }[d] : /nage libre/.test(n) ? { 50: 1, 100: 2, 200: 3, 400: 4, 800: 5, 1500: 6 }[d] : /dos/.test(n) ? { 50: 11, 100: 12, 200: 13 }[d] : /brasse/.test(n) ? { 50: 21, 100: 22, 200: 23 }[d] : /papillon/.test(n) ? { 50: 31, 100: 32, 200: 33 }[d] : null; return base ? base + m : null; };
+    const fromProg = eventsOf(c).filter((e) => !/^\d+\s*x\s*\d+/i.test(e.name)).map((e) => ({ epr: eprOf(e), name: e.name })).filter((e) => e.epr);
+    if (list.length) { const evs = (fromProg.length ? fromProg : parseRosterEvents(await get(urls.rosterEvs(task.c), { delay: 1500 }))).filter((e) => !/^\d+\s*x\s*\d+/i.test(e.name)).filter((e, i, a) => a.findIndex((x) => x.epr === e.epr) === i);
       /* épreuves déjà lues : pas relues (la liste des engagés est figée après la clôture) */
       const todo = evs.filter((e) => !(c.rosterEv && c.rosterEv[e.epr]));
       if (todo.length) { data.queue = [...todo.map((e) => ({ t: "rosterEv", c: task.c, epr: e.epr, name: e.name })), ...(data.queue || [])]; data.queueAt = now; } }
