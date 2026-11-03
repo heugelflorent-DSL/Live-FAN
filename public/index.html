@@ -2530,6 +2530,7 @@ $("#rs-box").addEventListener("click",e=>{const id=e.target.id,box=$("#rs-act");
     (async()=>{try{await saveNow();const r=await api("/api/rescrape",{method:"POST",body:JSON.stringify({scope:$("#rs-scope").value,what:$("#rs-what").value})});
       let left=r.remaining,total=r.total||1;
       while(left>0){$("#rs-txt").textContent=`Lecture du Live FFN… ${total-left} / ${total} pages`;$("#rs-bar").style.width=Math.round(100*(total-left)/total)+"%";
+        await new Promise(z=>setTimeout(z,15000)); /* une page toutes les 15 s au plus : on ménage le Live FFN */
         const x=await api("/api/refresh",{method:"POST"});if(x.queue>=left&&x.error)throw new Error(x.error);left=x.queue}
       if(r.error&&!r.remaining)throw new Error(r.error);
       await loadAdmin();$("#rs-act").innerHTML=`<p class="msg" style="color:var(--ok)">Récupération terminée à ${hhmm(new Date())} : ${esc(label)}.</p><button class="btn small ghost" id="rs-go">Recommencer…</button>`}

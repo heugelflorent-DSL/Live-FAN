@@ -421,9 +421,11 @@ async function cycleOnce(env, { force = false, ev = "main", budget = BUDGET } = 
   }
   // le Live FFN nous a refusé l'accès (HTTP 403) il y a moins de 90 s : on le laisse souffler avant de réessayer
   // pause qui s'allonge à chaque refus (10 min, 20 min… jusqu'à 2 h, 20 min au plus pendant une réunion) : insister prolonge le blocage
-  if (!force && data.block && now < data.block.until) return 0;
+  if (data.block && now < data.block.until) { if (force && !data.error) { data.error = "Le Live FFN nous a refusé l'accès : pause jusqu'à " + new Date(data.block.until).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }) + ", puis reprise toute seule."; } return 0; } // même à la demande : on respecte la pause
   if (data.finished && !finished(config, data, now)) data.finished = null;
   const live = force || windowOpen(config, data, now) || (pastEnd(config, data, now) && !finished(config, data, now));
+  // une page à la fois : hors réunion (et pour les lectures demandées à la main), une seule page par passage ; pendant une réunion, 3 au plus
+  budget = force ? 1 : windowOpen(config, data, now) ? Math.min(budget, 3) : 1;
   if (!force) await markHot(env, ev, finished(config, data, now) ? [] : liveWins(config, data), pastEnd(config, data, now) && !finished(config, data, now));
   data.queue = data.queue || [];
   // file de lectures demandées à la main : abandonnée au bout de 6 h, et la nuit (hors réunion) elle attend le matin
@@ -572,7 +574,7 @@ async function rescrape(env, scope, what, ev = "main") {
   const tasks = [];
   if (what === "roster") { // liste des engagés seulement : une page par compétition
     for (const id of comps) tasks.push({ t: "roster", c: id }); // déjà chargée : seules les épreuves manquantes sont lues
-    data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; delete data.block;
+    data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0;
     await saveData(env, data, before, ev); return tasks.length;
   }
   for (const id of comps) {
@@ -591,7 +593,7 @@ async function rescrape(env, scope, what, ev = "main") {
       if (what !== "start" && !later && (full || !hasRes) && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
   }
-  data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; delete data.block; // demande manuelle : on retente tout de suite, une fois
+  data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; // demande manuelle : la pause après un refus est respectée
   await saveData(env, data, before, ev);
   return tasks.length;
 }
@@ -1014,7 +1016,7 @@ export default {
         const ev = pool[(start + i) % pool.length];
         let used = 0;
         // tâche automatique : 5 pages au plus, espacées de 1,5 s (le Live FFN refuse les rafales)
-        try { used = (await cycle(env, { ev, budget: Math.min(5, left) })) || 0; left -= used; } catch (e) { await logErr(env, ev, "tâche de chaque minute", (e && e.stack) || e); /* un événement en erreur ne bloque pas les autres */ }
+        try { used = (await cycle(env, { ev, budget: Math.min(3, left) })) || 0; left -= used; } catch (e) { await logErr(env, ev, "tâche de chaque minute", (e && e.stack) || e); /* un événement en erreur ne bloque pas les autres */ }
         // records personnels : seulement quand la relecture du Live FFN n'a rien eu à faire (temps de calcul limité)
         if (!used) { try { await mppStep(env, ev, 4); } catch (e) {} }
       }
