@@ -1250,7 +1250,9 @@ function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(
   const cm=$("#cc-msg");if(cm)cm.textContent=cust&&pal.adj?"Assombrie à "+pal.adj+" pour que le texte blanc reste lisible.":"";const cr=$("#cc-row");if(cr)cr.hidden=state.theme!=="custom";
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];
   try{localStorage.setItem("sd-th:"+(PICK?"_":EV),JSON.stringify({t,v:cust?pal.vars:null,m:cust?pal.vars["--a"]:THEME_COL[t]}))}catch(_){}const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
-let CSD=0;function schedule(){
+/* programme pas encore publié (épreuves provisoires) : aucun horaire estimé sur le live public (l'admin garde ses estimations) */
+function schedule(){if(!state.admin&&Object.values(EVENTS).some(e=>e.type==="event"&&e.provisional))return{};return schedule0()}
+let CSD=0;function schedule0(){
   // résultats lus longtemps après la compétition (compétition passée relue) : l'heure de lecture n'est pas l'heure de la course
   const csd=compStartDate();CSD=csd?csd.getTime():0;
   const out={};const doneNow=doneSet();const pa=poolAnchor();let anchored=false;
