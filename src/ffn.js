@@ -298,6 +298,8 @@ export const urls = {
   live: (c) => `${BASE}/live.php?competition=${c}&langue=fra`,
   entries: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra`,
   roster: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra&go=detail&action=participant`,
+  rosterEvs: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra&go=epreuve`,
+  rosterEv: (c, epr) => `${BASE}/liste_entree.php?competition=${c}&langue=fra&go=epreuve&epreuve=${epr}`,
   home: (c) => `${BASE}/index.php?competition=${c}&langue=fra`,
 };
 
@@ -315,6 +317,13 @@ export function parseRoster(html) {
     const year = (rest.match(/\b(19|20)\d{2}\b/) || [])[0] || null; const nat = (rest.match(/\b[A-Z]{3}\b/) || [])[0] || null;
     seen.add(a.iuf); out.push({ iuf: a.iuf, name: a.name, year: year ? +year : null, nat, club: club ? one(club[2]) : "", structure: club ? club[1] : null });
   }
+  return out;
+}
+// Liste des engagés, récapitulatif par épreuve : numéro et nom de chaque épreuve (lien « epreuve= »)
+export function parseRosterEvents(html) {
+  const h = String(html || "").replace(/&amp;/g, "&"); const out = []; const seen = new Set();
+  const re = /<a[^>]+go=epreuve&(?:[^"'>]*&)?epreuve=(\d+)[^>]*>([\s\S]*?)<\/a>/g; let m;
+  while ((m = re.exec(h))) { const name = one(m[2]); if (!name || seen.has(m[1])) continue; seen.add(m[1]); out.push({ epr: +m[1], name }); }
   return out;
 }
 export function parseEntries(html) {

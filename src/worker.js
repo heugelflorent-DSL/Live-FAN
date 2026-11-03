@@ -1,7 +1,7 @@
 // Swim Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 export { PoolRoom } from "./pool.js";
 export { StatsRoom } from "./stats.js";
-import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults, parseRoster } from "./ffn.js";
+import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults, parseRoster, parseRosterEvents } from "./ffn.js";
 import { normEvent, findIuf, fetchMpp } from "./extranat.js";
 import { euEnv } from "./eu.js";
 
@@ -278,6 +278,16 @@ async function runTask(task, data, now) {
     const list = parseRoster(await get(urls.roster(task.c), { delay: 1500 }));
     if (list.length) { if (JSON.stringify(list) !== JSON.stringify(c.roster)) data.dirty = true; c.roster = list; c.rosterAt = now; }
     else if (!c.roster) throw new Error("Liste des engagés pas encore publiée sur le Live FFN");
+    // puis les épreuves (une page chacune, lues à la suite au rythme habituel) : qui nage quoi, relais exclus (pas de nageurs listés)
+    if (list.length) { const evs = parseRosterEvents(await get(urls.rosterEvs(task.c), { delay: 1500 })).filter((e) => !/^\d+\s*x\s*\d+/i.test(e.name));
+      if (evs.length) { data.queue = [...evs.map((e) => ({ t: "rosterEv", c: task.c, epr: e.epr, name: e.name })), ...(data.queue || [])]; data.queueAt = now; } }
+    return;
+  }
+  if (task.t === "rosterEv") {
+    const list = parseRoster(await get(urls.rosterEv(task.c, task.epr), { delay: 1500 }));
+    c.rosterEv = c.rosterEv || {}; const ids = list.map((x) => x.iuf);
+    if (JSON.stringify(c.rosterEv[task.epr]?.iufs) !== JSON.stringify(ids)) data.dirty = true;
+    c.rosterEv[task.epr] = { name: task.name, iufs: ids };
     return;
   }
   if (task.t === "heats") {
