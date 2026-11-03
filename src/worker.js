@@ -1,7 +1,7 @@
 // Swim Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 export { PoolRoom } from "./pool.js";
 export { StatsRoom } from "./stats.js";
-import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults } from "./ffn.js";
+import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults, parseRoster } from "./ffn.js";
 import { normEvent, findIuf, fetchMpp } from "./extranat.js";
 import { euEnv } from "./eu.js";
 
@@ -274,6 +274,12 @@ async function runTask(task, data, now) {
     } else { delete c.entriesOpen; }
     return;
   }
+  if (task.t === "roster") { // liste des engagés par participant : nageurs, années, clubs, IUF (sert aux records perso et à l'onglet nageurs)
+    const list = parseRoster(await get(urls.roster(task.c), { delay: 1500 }));
+    if (list.length) { if (JSON.stringify(list) !== JSON.stringify(c.roster)) data.dirty = true; c.roster = list; c.rosterAt = now; }
+    else if (!c.roster) throw new Error("Liste des engagés pas encore publiée sur le Live FFN");
+    return;
+  }
   if (task.t === "heats") {
     const ev = eventsOf(c).find((e) => e.key === (task.key || String(task.epr)));
     if (!ev) return;
@@ -453,6 +459,8 @@ function mppWant(config, data, ev, now, force) {
     const c = data.comps[id]; if (!c) continue; let dt = compDate(c.meta); for (const r of c.reunions || []) { const d = compDate({ date: r.day }); if (d && (!dt || Date.UTC(d.y, d.m, d.d) < Date.UTC(dt.y, dt.m, dt.d))) dt = d; } if (!dt) dt = force ? { y: 2000, m: 1, d: 1 } : null; if (!dt) continue; // date lue dans l'en-tête ou les réunions ; lecture forcée : même sans date
     const day = parisEpoch(dt.y, dt.m, dt.d); if (!force && ev !== "test" && (now < day - 5 * 864e5 || now > day + 2 * 864e5)) continue; // l'épreuve test (simulateur) rejoue d'anciennes compétitions : pas de fenêtre de dates
     const pool = +((c.meta?.pool || "").match(/\d+/) || [25])[0] === 50 ? 50 : 25;
+    // nageurs de la liste des engagés (avant les séries) : IUF déjà connu, toutes leurs épreuves gardées
+    for (const r of c.roster || []) { if (!r.name || !r.year) continue; const k = mppKey(r.name, r.year); const w = want.get(k) || { name: r.name, year: r.year, pool, events: new Set(), day }; if (day < w.day) w.day = day; if (r.iuf) w.iuf = String(r.iuf); w.events.add("*"); want.set(k, w); }
     for (const e of eventsOf(c)) {
       const ek = normEvent(e.name); if (!ek) continue;
       const st = c.events?.[e.key] || {};
@@ -497,7 +505,7 @@ async function mppStep(env, ev, max = 2, force = false) {
     try {
       const iuf = w.iuf || store.sw[k]?.iuf || (used++, await findIuf(w.name, w.year));
       let b = {};
-      if (iuf) { const all = await fetchMpp(iuf); used++; const p = all[w.pool] || {}; for (const e of w.events) if (p[e]) b[e] = p[e]; }
+      if (iuf) { const all = await fetchMpp(iuf); used++; const p = all[w.pool] || {}; if (w.events.has("*")) Object.assign(b, p); for (const e of w.events) if (p[e]) b[e] = p[e]; }
       store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b };
     } catch (e) { store.sw[k] = { iuf: w.iuf || store.sw[k]?.iuf || null, at: now, b: {}, err: String(e.message || e) }; break; } // échec (Extranat) : nouvel essai dans 1 h
   }
@@ -544,6 +552,11 @@ async function rescrape(env, scope, what, ev = "main") {
   const comps = scope?.startsWith("c") ? [scope.slice(1)] : config.comps;
   const reu = scope?.startsWith("r") ? +scope.slice(1) : null;
   const tasks = [];
+  if (what === "roster") { // liste des engagés seulement : une page par compétition
+    for (const id of comps) tasks.push({ t: "roster", c: id });
+    data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; delete data.block;
+    await saveData(env, data, before, ev); return tasks.length;
+  }
   for (const id of comps) {
     const c = data.comps[id];
     tasks.push({ t: "prog", c: id }); // le programme est toujours relu (nouvelles épreuves, finales, horaires)

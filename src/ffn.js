@@ -297,10 +297,26 @@ export const urls = {
   results: (c, epr) => `${BASE}/resultats.php?competition=${c}&langue=fra&go=epreuve&epreuve=${epr}`,
   live: (c) => `${BASE}/live.php?competition=${c}&langue=fra`,
   entries: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra`,
+  roster: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra&go=detail&action=participant`,
   home: (c) => `${BASE}/index.php?competition=${c}&langue=fra`,
 };
 
 // "Il reste 37 jours avant la publication de la liste d'entrée !" -> nombre de jours
+// Liste des engagés « par participant » : nom (lien avec l'IUF), année, nation, structure (lien avec son numéro)
+export function parseRoster(html) {
+  const h = String(html || "").replace(/&amp;/g, "&"); const out = []; const seen = new Set();
+  const re = /<a[^>]+action=participant&(?:[^"'>]*&)?iuf=(\d+)[^>]*>([\s\S]*?)<\/a>/g; const marks = [];
+  let m; while ((m = re.exec(h))) marks.push({ i: m.index, end: re.lastIndex, iuf: m[1], name: one(m[2]) });
+  for (let k = 0; k < marks.length; k++) {
+    const a = marks[k]; if (!a.name || seen.has(a.iuf)) continue;
+    const seg = h.slice(a.end, k + 1 < marks.length ? marks[k + 1].i : a.end + 1500);
+    const club = seg.match(/action=structure&(?:[^"'>]*&)?structure=(\d+)[^>]*>([\s\S]*?)<\/a>/);
+    const rest = one(club ? seg.slice(0, club.index) : seg);
+    const year = (rest.match(/\b(19|20)\d{2}\b/) || [])[0] || null; const nat = (rest.match(/\b[A-Z]{3}\b/) || [])[0] || null;
+    seen.add(a.iuf); out.push({ iuf: a.iuf, name: a.name, year: year ? +year : null, nat, club: club ? one(club[2]) : "", structure: club ? club[1] : null });
+  }
+  return out;
+}
 export function parseEntries(html) {
   const t = text(html);
   const m = t.match(/reste\s+(\d+)\s+jours?\s+avant\s+la\s+publication\s+de\s+la\s+liste/i);
