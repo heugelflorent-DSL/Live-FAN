@@ -210,6 +210,10 @@ html[data-theme="interclubs"] option { background: #0b1622; color: #f1e2bf; }
 html[data-theme="interclubs"] .lv-tag { background: linear-gradient(#f3d36b, #c99a2e) !important; color: #0b1622 !important; box-shadow: none !important; font-family: var(--body) !important; font-weight: 800 !important; font-size: 12px; letter-spacing: .04em; padding: 3px 9px; border-radius: 99px; text-shadow: none !important; animation: none !important; }
 html[data-theme="interclubs"] .lv-tag * { color: #0b1622 !important; text-shadow: none !important; }
 html[data-theme="interclubs"] .lv-tag::before { filter: none !important; }
+/* équipe / nageur suivi (favori) : liseré doré sur fond de nuit, texte lisible */
+html[data-theme="interclubs"] .fav, html[data-theme="interclubs"] .prow.fav, html[data-theme="interclubs"] tr.fav td, html[data-theme="interclubs"] .pup.fav > summary { background: rgba(227,183,64,.16) !important; color: inherit !important; box-shadow: inset 4px 0 0 #f3d36b; }
+html[data-theme="interclubs"] .fav *, html[data-theme="interclubs"] tr.fav td * { color: inherit; }
+html[data-theme="interclubs"] .favstar { color: #f3d36b; }
 /* survol : léger éclaircissement doré au lieu du blanc */
 html[data-theme="interclubs"] .row:hover, html[data-theme="interclubs"] .prow:hover, html[data-theme="interclubs"] .prank li.can:hover, html[data-theme="interclubs"] .pk-row:hover, html[data-theme="interclubs"] .pk-row:focus-visible, html[data-theme="interclubs"] .pk-archlink:hover { background: rgba(227,183,64,.12) !important; color: inherit !important; }
 html[data-theme="interclubs"] .allev:hover { background: rgba(227,183,64,.25) !important; }
