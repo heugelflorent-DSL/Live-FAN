@@ -814,6 +814,19 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
 
 /* passages en phrases */
 .sp4{margin:8px 0 6px;max-width:420px}
+.sp5{max-width:460px}.sp5-hd{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:2px 0 6px;text-align:right}
+.sp5-r{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;padding:8px 10px;margin:0 0 6px;border-radius:10px;background:rgba(127,127,127,.08);border:1px solid var(--line)}
+.sp5-r.top{border-color:rgba(243,211,107,.7)}
+.sp5-l{font-size:12.5px;font-weight:800;color:var(--muted);line-height:1.15}
+.sp5-m{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sp5-t{font-family:var(--mono);font-size:19px;font-weight:800;color:var(--ink);display:flex;align-items:baseline;gap:8px}
+.sp5-t em{font-style:normal;font-family:system-ui,sans-serif;font-size:10.5px;font-weight:800;color:#c99a2e;text-transform:uppercase;letter-spacing:.03em}
+.sp5-p{height:6px;border-radius:3px;background:rgba(127,127,127,.18);overflow:hidden}.sp5-p i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#c99a2e,#f3d36b)}
+.sp5-c{font-size:11.5px;color:var(--muted);font-family:var(--mono)}.sp5-c b{color:var(--ink);font-weight:700}
+.sp5-d{font-family:var(--mono);font-size:15px;font-weight:800;text-align:right;padding:4px 8px;border-radius:8px;min-width:64px;display:flex;flex-direction:column;align-items:flex-end;line-height:1.1}
+.sp5-d small{font-family:system-ui,sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;opacity:.85}
+.sp5-d.fa{color:#1f9d55;background:rgba(31,157,85,.14)}.sp5-d.sl{color:#e05252;background:rgba(224,82,82,.14)}.sp5-d.eq{color:var(--muted);background:rgba(127,127,127,.12)}
+
 .sp4-h{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:2px}
 .sp4-r{display:grid;grid-template-columns:54px 56px 104px 1fr;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line)}
 .sp4-r:last-child{border-bottom:0}
@@ -1300,8 +1313,9 @@ function splitsHtml(ev,w,by100){const sp0=w.splits||[];if(sp0.length<2)return"";
     const bar=d=>d==null?"":`<span class="spbar"><i class="${d<0?"fa":"sl"}" style="${d<0?"right":"left"}:50%;width:${Math.min(50,Math.abs(d)/mx*50).toFixed(1)}%"></i></span>`;
     const say=d=>d==null?"":Math.abs(d)<.005?`<span class="spw">même temps</span>`:`<span class="spw ${d<0?"fa":"sl"}">${gapTxt(d)} s plus ${d<0?"vite":"lent"}</span>`;
     const len=sp.length>1?sp[1].dist-sp[0].dist:sp[0].dist;
-    return`<div class="sp4"><div class="sp4-r sp4-hd"><span></span><span>Temps</span><span>Passage</span><span>${R?(vs==="série"?"vs ses séries":"vs record perso"):""}</span></div>${sp.map((x,i)=>{const z=R?R.seg[i]:null;const lab=`${ord(i+1)} ${x.dist-(i?sp[i-1].dist:0)} m`;
-      return`<div class="sp4-r" title="Passage aux ${x.dist} m : ${fmt(x.cum)}"><b>${lab}</b><span class="sp4-t">${fmt(x.lap)}</span><span class="sp4-c"><small>${x.dist} m</small> ${fmt(x.cum)}</span>${z?say(z.df):"<span></span>"}</div>`}).join("")}</div>`};
+    return`<div class="sp4 sp5">${R?`<div class="sp5-hd">${vs==="série"?"Comparé à ses séries":"Comparé à son record perso"}</div>`:""}${sp.map((x,i)=>{const z=R?R.seg[i]:null;const lab=`${ord(i+1)} ${x.dist-(i?sp[i-1].dist:0)} m`;
+      const seg=x.dist-(i?sp[i-1].dist:0),same=sp.filter((y,j)=>y.dist-(j?sp[j-1].dist:0)===seg).map(y=>y.lap),best=Math.min(...same),w=x.lap>0?Math.max(18,Math.min(100,best/x.lap*100)):0,top=x.lap===best&&same.length>1;
+      return`<div class="sp5-r${top?" top":""}" title="Passage aux ${x.dist} m : ${fmt(x.cum)}"><span class="sp5-l">${lab}</span><span class="sp5-m"><span class="sp5-t">${fmt(x.lap)}${top?'<em>⚡ plus rapide</em>':""}</span><span class="sp5-p"><i style="width:${w.toFixed(0)}%"></i></span><span class="sp5-c">${x.dist} m · <b>${fmt(x.cum)}</b></span></span>${z?`<span class="sp5-d ${Math.abs(z.df)<.005?"eq":z.df<0?"fa":"sl"}">${Math.abs(z.df)<.005?"=":(z.df<0?"−":"+")+gapTxt(z.df)}<small>${Math.abs(z.df)<.005?"même temps":z.df<0?"plus vite":"plus lent"}</small></span>`:"<span></span>"}</div>`}).join("")}</div>`};
   // 400 m et plus : tronçons de 100 m en plus des 50 m
   const sp100=by100&&total>=400?sp0.filter(x=>x.dist%100===0).map((x,i,a)=>({...x,lap:Math.round((x.cum-(i?a[i-1].cum:0))*100)/100})):[];
   const note=prev?`<p class="sp3-n">Comparaison avec ses séries (${fmt(prev.res)}) : l'ancien record perso n'est plus disponible sur l'Extranat.</p>`:self?`<p class="sp3-n">Record perso établi lors de cette compétition : l'ancien record n'est plus disponible sur l'Extranat pour comparer.</p>`:B&&!(B.sp&&B.sp.length>1)?`<p class="sp3-n">Passages du record perso précédent non disponibles sur l'Extranat : seule la comparaison du temps final est possible.</p>`:"";
