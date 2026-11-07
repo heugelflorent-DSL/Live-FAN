@@ -89,10 +89,11 @@ html[data-theme="interclubs"] body {
   font-family: "IM Fell English", Georgia, serif;
 }
 
-/* Cadre doré double, comme sur la bannière et le grand écran */
+/* Cadre doré double, comme sur la bannière et le grand écran : seulement sur grand écran (sur téléphone il mange la place et passe sous les encoches) */
+@media (min-width: 1000px) {
 html[data-theme="interclubs"] body::before {
-  content: ""; position: fixed; inset: 6px; border: 6px double #c99a2e; border-radius: 4px; pointer-events: none; z-index: 50;
-}
+  content: ""; position: fixed; inset: 6px; border: 3px double rgba(201,154,46,.7); border-radius: 4px; pointer-events: none; z-index: 50;
+}}
 
 /* Grande tête de mort aux lunettes de natation en filigrane */
 html[data-theme="interclubs"] body::after {
@@ -123,7 +124,7 @@ html[data-theme="interclubs"] .lane .ev > b { font-size: 20px; color: #f3d36b; }
 
 /* Barre de navigation et onglets */
 html[data-theme="interclubs"] .navbar {
-  background: rgba(7,15,24,.94); border-bottom: 2px dashed #c99a2e; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  background: rgba(7,15,24,.94); border-bottom: 1px solid rgba(201,154,46,.75); box-shadow: 0 6px 18px rgba(0,0,0,.35);
 }
 html[data-theme="interclubs"] .tabs [data-view] {
   background: rgba(13,30,46,.6); color: #f1e2bf; border: 1px solid rgba(227,183,64,.6); border-radius: 6px; font-size: 17px;
