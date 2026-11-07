@@ -1265,6 +1265,8 @@ let CSD=0;function schedule0(){
   const out={};const doneNow=doneSet();const pa=poolAnchor();let anchored=false;
   for(const s of Object.keys(state.order)){
     let t=toMin(state.starts[s]||"10:00")*60;let first=true;let delayed=false;
+    /* l'heure de début du Live FFN est celle de la 1re course : présentation des équipes, accueil… placés juste avant, sans la décaler */
+    if((state.startsFfn||{})[s]&&state.startsFfn[s]===state.starts[s]){let lead=0,i=0;for(const key of state.order[s]){const ev=EVENTS[key];if(!ev)continue;if(ev.type!=="pause")break;lead+=(ev.min||0)*60+(i&&ev.min?state.eventGap:0);i++}if(lead)t-=lead+state.eventGap}
     for(const key of state.order[s]){
       const ev=EVENTS[key];if(!ev)continue;
       if(!first&&!(ev.type==="pause"&&!ev.min))t+=state.eventGap;first=false;
