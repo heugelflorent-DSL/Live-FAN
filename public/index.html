@@ -764,7 +764,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .pb-jr{margin-top:10px}#jr-list a{color:var(--a);font-weight:600}
 .orgbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 .pb-ver{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--card)}.pb-ver.ok{background:#dcfce7;color:#166534}.pb-ver.old{background:#fef3c7;color:#7a5200}
-#view-admin{counter-reset:st}#view-admin details.step>summary .n::before{counter-increment:st;content:counter(st)}
+#view-admin details.step>summary .n::before{content:attr(data-n)}
 .tl2 li.mid:not(.cur) i{background:#fff}.tl2 li.mid i{background:#fff}.tl2 li.cur i{background:var(--red)!important;border-color:var(--red)!important;border-radius:50%!important;transform:none!important;width:14px;height:14px;top:-1px;box-shadow:0 0 0 0 rgba(220,38,38,.5);animation:tlp 1.6s infinite}.tl2 li.cur b{color:var(--red);text-decoration:none}.tl2 li.cur{opacity:1!important}.tl2 li.cur span::after{content:" · en cours";font-weight:700;color:var(--red)}.tl2 li.mid.cur span::after,.tl2 li:last-child.cur span::after{content:""}@keyframes tlp{70%{box-shadow:0 0 0 7px rgba(220,38,38,0)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}@media (prefers-reduced-motion:reduce){.tl2 li.cur i{animation:none}}
 .md-sr[data-goheat]{cursor:pointer;border-radius:8px}.md-sr[data-goheat]:hover{background:rgba(var(--l-rgb),.06)}.md-sr[data-goheat] .md-sl::after{content:" ›";color:var(--a);font-weight:700}.heat.flash{animation:hfl 2.2s ease-out}@keyframes hfl{0%,40%{background:#fff3c4;box-shadow:0 0 0 3px #f5c542}100%{background:transparent;box-shadow:none}}
 .sw-when{white-space:nowrap}.sw-leg{color:var(--muted)}.sw-when small{color:var(--muted);font-family:system-ui}
@@ -2079,9 +2079,12 @@ function probables(ser){const g=epGroup(ser).filter(x=>x.fin).sort((a,b)=>a.fin.
   for(const f of g){const r=finRule(ser.comp,f);const ok=w=>{const a=y&&w.year?y-(+w.year):null;if(a==null)return r.min===""&&r.max==="";return(r.min===""||a>=+r.min)&&(r.max===""||a<=+r.max)};
     const agel=r.min!==""||r.max!=="";out[f.key]=pool.filter(w=>ok(w)&&!(taken.has(w.iuf||w.name)&&!(r.double&&agel))).slice(0,r.places);for(const w of out[f.key])taken.add(w.iuf||w.name)}
   return out}
+/* numéros des modules fixes : identiques pour l'admin et les gestionnaires de live (un module réservé à l'admin garde sa place, sans décaler les suivants) */
+function numSteps(){let n=0;document.querySelectorAll("#view-admin details.step").forEach(d=>{if(d.hidden)return;n++;const e=d.querySelector(":scope>summary .n");if(e)e.dataset.n=n})}
+document.addEventListener("DOMContentLoaded",numSteps);setTimeout(numSteps,0);
 function renderFinRules(){const el=$("#fin-rules"),st=$("#fin-step");if(!el)return;const byComp={};
   for(const ev of Object.values(EVENTS))if(ev.type==="event"&&ev.fin){const k=ev.fin+"|"+(ev.category||"");(byComp[ev.comp]=byComp[ev.comp]||{})[k]=ev}
-  const ids=Object.keys(byComp);st.hidden=!ids.length;if(!ids.length){el.innerHTML="";return}
+  const ids=Object.keys(byComp);st.hidden=!ids.length;numSteps();if(!ids.length){el.innerHTML="";return}
   el.innerHTML=ids.map(id=>{const r=(state.finals||{})[id]||{};return`<div class="card" style="padding:10px 12px;margin:8px 0"><b>${esc(comp(id).name)}</b>
     <div class="grid2c"><label>Nageurs par finale<input class="field" type="number" min="4" max="10" data-fr="${id}|places" value="${+r.places||""}" placeholder="${compLanes(id)}"><span class="msg" style="font-weight:400">Vide = nombre de lignes d'eau du bassin (${compLanes(id)}, d'après les listes de départ)</span></label>
 </div>
