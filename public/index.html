@@ -815,7 +815,7 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
 /* passages en phrases */
 .sp4{margin:8px 0 6px;max-width:420px}
 .lg-rp{font-style:normal;font-family:system-ui,sans-serif;font-size:11px;font-weight:800;margin-top:3px;padding:2px 7px;border-radius:99px}.lg-rp.fa{background:#6d3fd6;color:#fff}.lg-rp.sl{color:#e05252;background:rgba(224,82,82,.14)}.lg-rp.eq{color:var(--muted);background:rgba(127,127,127,.14)}
-.pw-ring.sm{width:min(180px,56vw);height:min(180px,56vw)}.pw-ring.sm .pw-cd{font-size:clamp(30px,9vw,40px)}.pw-ring.sm .pw-cd.long{font-size:clamp(22px,6.5vw,28px)}.pbreak{margin-bottom:12px}.pbreak .pw-ev{margin-top:14px}.pbreak .pw-ev span{order:-1;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.pw-ring.sm{width:min(180px,56vw);height:min(180px,56vw)}.pw-ring.sm .pw-cd{font-size:clamp(30px,9vw,40px)}.pw-ring.sm .pw-cd.long{font-size:clamp(22px,6.5vw,28px)}.pbreak{margin-bottom:12px}.pbreak .pw-ev{margin-top:14px}.pbreak .pw-ev{display:flex;flex-direction:column;align-items:center;gap:4px}.pbreak .pw-ev span{order:-1;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
 .pwait{text-align:center;padding:20px 16px 16px;overflow:hidden;position:relative}
 .pw-top{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:14px}.pw-sub{font-size:12.5px;color:var(--muted)}
 .pw-ring{--p:0;width:min(240px,72vw);height:min(240px,72vw);margin:0 auto;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--pwc,#4aa3df) calc(var(--p)*360deg),rgba(127,127,127,.18) 0);transition:background .5s}
@@ -1795,7 +1795,7 @@ function poolWindow(){if(!state.order)return null;const now=parisSec(Date.now()+
 function cdTxt(sec){sec=Math.max(0,Math.round(sec));const h2=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s2=sec%60;return(h2?h2+"h"+String(m).padStart(2,"0")+":":m+":")+String(s2).padStart(2,"0")}
 setInterval(()=>{const els=document.querySelectorAll(".pw-cd[data-cd]");if(!els.length)return;const now=parisSec(Date.now()+poolOff);els.forEach(e=>{const r=+e.dataset.cd-now;e.textContent=r>0?cdTxt(r):"Imminent";e.classList.toggle("long",r>=3600||r<=0)});document.querySelectorAll(".pw-ring[data-cdr]").forEach(e=>e.style.setProperty("--p",Math.max(0,Math.min(1,1-(+e.dataset.cdr-now)/(+e.dataset.span||900))).toFixed(3)))},1000);
 /* pause ou cérémonie au programme après l'épreuve qui vient de finir : bandeau d'attente avec minuteur au-dessus des résultats de la dernière série */
-function poolPauseCard(){const h=POOL&&POOL.heat;if(!h||h.status==="running"&&!poolAllIn(h))return"";const ev=poolEvent(h);if(!ev||h.heat<((ev.series||[]).length||1))return"";
+function poolPauseCard(){const h=POOL&&POOL.heat;/* seulement une fois la dernière série terminée (pas quand elle est encore au départ) */if(!h||!h.start||!(h.status==="done"||poolAllIn(h)))return"";const ev=poolEvent(h);if(!ev||h.heat<((ev.series||[]).length||1))return"";
   const r=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!r)return"";const o=state.order[r],i=o.indexOf(ev.key),ps=[];let j=i+1;while(o[j]&&EVENTS[o[j]]&&EVENTS[o[j]].type==="pause"){ps.push(EVENTS[o[j]]);j++}if(!ps.length)return"";
   const sch=schedule(),nk=o[j],now=parisSec(Date.now()+poolOff);let nt=nk&&sch[nk]?sch[nk].start:null;const pStart=sch[o[i+1]]?sch[o[i+1]].start:now,span=Math.max(60,(nt||now)-pStart);
   const cer=ps.some(p=>/c[ée]r[ée]monie|protocol|podium|remise/i.test(p.name||""));
