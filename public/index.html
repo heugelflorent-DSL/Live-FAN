@@ -1631,7 +1631,9 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state.liv
 // quelle épreuve du programme est dans l'eau ? Avec deux compétitions liées (un seul Quantum), le numéro seul peut être ambigu :
 // on départage par le nom de l'épreuve (distance, nage, sexe), le nom de la compétition envoyé par le Quantum et l'horaire
 let poolEvBusy=false;
-function poolEvent(h){if(!h)return null;if(h.key&&EVENTS[h.key])return EVENTS[h.key];
+/* série non transmise par le Quantum (touches seules) : on la déduit des séries déjà nagées de l'épreuve, pour afficher « Série 1/2 » et les noms de la liste de départ */
+function poolEvent(h){const ev=poolEvent0(h);if(ev&&h&&h.heat==null&&ev.series&&ev.series.length){const done=(PHIST||[]).filter(x=>x!==h&&x.heat&&poolEvent0(x)===ev&&(!h.start||!x.start||x.start<h.start)).map(x=>x.heat);h.heat=Math.min(ev.series.length,(done.length?Math.max(...done):0)+1)}return ev}
+function poolEvent0(h){if(!h)return null;if(h.key&&EVENTS[h.key])return EVENTS[h.key];
   const all=Object.values(EVENTS).filter(e=>e.type==="event");let c=all.filter(e=>+e.numEp===+h.event);
   const T=norm(h.title||""),words=x=>norm(x).split(" ").filter(w=>w.length>1);
   const nameScore=e=>{const n=norm(e.name);const dn=n.match(/^(\d+)(?: ?X ?(\d+))?/),dt=T.match(/^(\d+)(?: ?X ?(\d+))?/);let sc=0;if(dn&&dt&&dn[1]===dt[1]&&(dn[2]||"")===(dt[2]||""))sc+=2;
