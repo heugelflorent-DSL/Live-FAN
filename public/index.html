@@ -1630,6 +1630,8 @@ function poolEvent(h){if(!h)return null;if(h.key&&EVENTS[h.key])return EVENTS[h.
   const T=norm(h.title||""),words=x=>norm(x).split(" ").filter(w=>w.length>1);
   const nameScore=e=>{const n=norm(e.name);const dn=n.match(/^(\d+)(?: ?X ?(\d+))?/),dt=T.match(/^(\d+)(?: ?X ?(\d+))?/);let sc=0;if(dn&&dt&&dn[1]===dt[1]&&(dn[2]||"")===(dt[2]||""))sc+=2;
     for(const k of["NAGE LIBRE","DOS","BRASSE","PAPILLON","4 NAGES"])if(n.includes(k)&&T.includes(k))sc+=2;for(const k of["DAMES","MESSIEURS","MIXTE"])if(n.includes(k)&&T.includes(k))sc+=2;return sc};
+  /* numéro identique mais nage, distance ou sexe différents (épreuve ajoutée ou renumérotée dans le Quantum) : on se fie au nom envoyé par le chrono */
+  if(c.length&&T&&!c.some(e=>nameScore(e)>=6))c=[];
   if(!c.length&&T)c=all.filter(e=>nameScore(e)>=6);if(!c.length)return null;if(c.length===1)return c[0];
   const C=words(h.comp||"");let sch={};if(!poolEvBusy){poolEvBusy=true;try{sch=schedule()}finally{poolEvBusy=false}}const now=parisSec(Date.now());
   const score=e=>{const cm=comp(e.comp)||{};const cw=words((cm.name||"")+" "+(cm.city||""));let sc=nameScore(e)*5+(C.length?C.filter(w=>cw.includes(w)).length*3:0);
