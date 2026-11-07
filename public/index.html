@@ -1340,7 +1340,7 @@ let CSD=0;function schedule0(){
 function splitsHtml(ev,w,by100){const sp0=w.splits||[];if(sp0.length<2)return"";
   /* relais : une carte par relayeur avec son chrono et ses tronçons, comme dans le direct */
   {const M=(w.members&&w.members.length>1?w.members:w.relay&&w.relay.length>1?w.relay:null);const tot=totalDist(ev.name);if(M&&tot){const k=M.length,seg=tot/k;let prevT=0;
-    const cards=M.map((m,ri)=>{const end=(ri+1)*seg,ps=sp0.filter(x=>x.dist>ri*seg+1e-6&&x.dist<=end+1e-6),lastP=ps[ps.length-1],full=lastP&&Math.abs(lastP.dist-end)<1e-6,own=m.leg!=null?m.leg:full?lastP.cum-prevT:null;
+    const cards=M.map((m,ri)=>{const end=(ri+1)*seg,ps=sp0.filter(x=>x.dist>ri*seg+1e-6&&x.dist<=end+1e-6),lastP=ps[ps.length-1],full=lastP&&Math.abs(lastP.dist-end)<1e-6,own=m.leg!=null&&m.leg>5&&!(w.chrono)?m.leg:full?lastP.cum-prevT:null;/* « leg » des résultats provisoires du chrono = ordre du relayeur, pas un temps */
       const chips=ps.map(x=>{const j=sp0.indexOf(x);return`<span class="lgc"><small>${x.dist} m</small><b>${fmt(x.lap!=null?x.lap:x.cum-(j?sp0[j-1].cum:0))}</b></span>`}).join("");
       let rp="";if(!ri&&own!=null){const B=leadBest(m.name,ev);if(B){const d=own-B.t;rp=`<em class="lg-rp ${Math.abs(d)<.005?"eq":d<0?"fa":"sl"}">${d<-.005?"RECORD PERSO ":"RP "+fmt(B.t)+" · "}${Math.abs(d)<.005?"=":(d<0?"−":"+")+gapTxt(d)}</em>`}}
       const o=`<div class="lg"><div class="lg-h"><span class="lg-i">${ri+1}</span><span class="lg-n">${esc(m.name)}</span><span class="lg-t">${own!=null?fmt(own):"—"}<small>${full?"passage "+fmt(lastP.cum):seg+" m"}</small>${rp}</span></div><div class="lg-s">${chips}</div></div>`;if(full)prevT=lastP.cum;return o}).join("");
