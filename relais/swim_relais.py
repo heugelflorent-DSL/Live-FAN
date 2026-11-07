@@ -18,6 +18,25 @@ Mot de passe : celui de l'admin du site, demandé au démarrage (ou variable SWI
 import argparse, getpass, json, os, queue, re, sys, threading, time, urllib.request, urllib.error
 from datetime import datetime
 
+# Certificats HTTPS : ceux embarqués dans le logiciel (certifi) d'abord, puis ceux de Windows en secours.
+# Évite « certificate has expired » sur les PC de chronométrage dont Windows n'a pas mis à jour ses certificats racines.
+def _install_ssl():
+    import ssl
+    try:
+        import certifi; own = ssl.create_default_context(cafile=certifi.where())
+    except Exception: own = None
+    sysctx = ssl.create_default_context()
+    class H(urllib.request.HTTPSHandler):
+        def https_open(self, req):
+            if own is not None:
+                try: return self.do_open(lambda *a, **k: __import__("http.client").client.HTTPSConnection(*a, **{**k, "context": own}), req)
+                except urllib.error.URLError as e:
+                    if not isinstance(getattr(e, "reason", None), ssl.SSLError): raise
+            return self.do_open(lambda *a, **k: __import__("http.client").client.HTTPSConnection(*a, **{**k, "context": sysctx}), req)
+    urllib.request.install_opener(urllib.request.build_opener(H()))
+try: _install_ssl()
+except Exception: pass
+
 SITE = "https://swim-direct.swim-direct.workers.dev"
 SOH, STX, EOT, BS, LF, DC2, DC4 = b"\x01", b"\x02", b"\x04", b"\x08", b"\x0a", b"\x12", b"\x14"
 ALIVE = SOH + DC2 + b"9" + DC4 + b"TP" + EOT
