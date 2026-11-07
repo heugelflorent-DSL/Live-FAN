@@ -1704,7 +1704,7 @@ function poolRanking(h,ev){if(!ev)return"";const H={...(POOL.hist||{})};if(h.eve
 // temps officiels seulement une fois publiés sur le Live FFN (les nageurs de la série ont un résultat)
 function poolOfficial(h,ev,se){if(!ev||!se||!ev.results.length)return false;return se.swimmers.length>0&&se.swimmers.every(w=>ev.results.some(r=>norm(r.name)===norm(w.name)))}
 function poolHtml(){
-  if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000||poolIsTest(POOL.heat))return"";
+  if(!POOL||!POOL.heat||Date.now()+poolOff-POOL.relayAt>45*60000)return""; // courses tests avant la réunion : affichées dans le direct (mais jamais comptées au classement ni utilisées pour recaler les horaires)
   const h=POOL.heat,ev=poolEvent(h),len=poolLen(),se=ev&&ev.series[h.heat-1],total=poolTotal(h,ev);
   // liaison avec le chrono coupée pendant la course : on n'affiche plus un chrono qui tourne dans le vide, le demi-direct du Live FFN prend le relais ; les passages en attente arrivent dès que la liaison revient
   if(poolLost())return`<div class="session"><div class="card lv-card pool"><div class="ptop"><div class="pti"><span class="lv-tag">Liaison coupée</span><h3>${ev?esc(ev.name):"Direct bassin"}</h3><div class="sub">Série ${h.heat} · liaison avec le chronométrage interrompue</div></div></div><p class="msg">En attendant, voici le direct du Live FFN. Le direct au bord du bassin reprendra tout seul, avec les passages manqués, dès que la liaison revient.</p></div></div>`;
