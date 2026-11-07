@@ -1037,7 +1037,7 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
           <p class="msg">Envoie une course au direct bassin de <b>cet événement</b>, comme le ferait le Quantum : série au départ, chrono, passages, arrivées, validation. Si la série a déjà des résultats sur le Live FFN, ses vrais temps sont rejoués. Garde cette page ouverte pendant la course, et regarde le résultat sur la page publique (onglet Direct), idéalement sur un téléphone.</p>
           <label for="sim-heat">Série à simuler<select class="field" id="sim-heat"></select></label>
           <label for="sim-chain">Nombre de séries à enchaîner<select class="field" id="sim-chain"><option value="1">1 série</option><option value="2">2 séries d'affilée</option><option value="3">3 séries d'affilée</option><option value="5">5 séries d'affilée</option><option value="10">10 séries d'affilée</option></select></label>
-          <div class="simact"><button class="btn" id="sim-go">▶ Lancer la course</button><button class="btn ghost" id="sim-stop">■ Arrêter</button><button class="btn ghost" id="sim-clear">Vider le direct</button><a class="btn ghost" id="sim-open" target="_blank" rel="noopener">Ouvrir le direct ↗</a></div>
+          <div class="simact"><button class="btn" id="sim-go">▶ Lancer la course</button><button class="btn ghost" id="sim-stop">■ Arrêter</button><button class="btn ghost" id="sim-clear">Vider le direct</button><button class="btn ghost" id="sim-fix" title="Le Quantum n'annonce pas l'épreuve ni la série : indique au direct que la série choisie ci-dessus est celle dans l'eau">⟲ C'est la série dans l'eau</button><a class="btn ghost" id="sim-open" target="_blank" rel="noopener">Ouvrir le direct ↗</a></div>
           <div class="simstat" id="sim-msg">Prêt.</div>
           <div class="simboard" id="sim-board" hidden></div>
         </div>
@@ -1632,7 +1632,9 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state.liv
 // on départage par le nom de l'épreuve (distance, nage, sexe), le nom de la compétition envoyé par le Quantum et l'horaire
 let poolEvBusy=false;
 /* série non transmise par le Quantum (touches seules) : on la déduit des séries déjà nagées de l'épreuve, pour afficher « Série 1/2 » et les noms de la liste de départ */
-function poolEvent(h){const ev=poolEvent0(h);if(ev&&h&&h.heat==null&&ev.series&&ev.series.length){const done=(PHIST||[]).filter(x=>x!==h&&poolEvent0(x)===ev&&x.start&&(!h.start||x.start<h.start)).map(x=>x.heat||1);h.heat=Math.min(ev.series.length,(done.length?Math.max(...done):0)+1)}return ev}
+function poolEvent(h){let ev=poolEvent0(h);
+  /* séries enchaînées sans annonce du Quantum : au-delà de la dernière série de l'épreuve, on passe à l'épreuve suivante du programme */
+  if(ev&&h&&h.heatGuess&&h.heat>((ev.series||[]).length||99)){const seq=Object.keys(state.order).sort((a,b)=>a-b).flatMap(s=>state.order[s]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event");let i=seq.indexOf(ev.key),n=h.heat;while(i>=0&&i<seq.length-1&&n>(EVENTS[seq[i]].series.length||1)){n-=(EVENTS[seq[i]].series.length||1);i++}if(i>=0){ev=EVENTS[seq[i]];h.heat=n;h.key=ev.key;h.event=+ev.numEp||h.event;h.title=ev.name}}if(ev&&h&&h.heat==null&&ev.series&&ev.series.length){const done=(PHIST||[]).filter(x=>x!==h&&poolEvent0(x)===ev&&x.start&&(!h.start||x.start<h.start)).map(x=>x.heat||1);h.heat=Math.min(ev.series.length,(done.length?Math.max(...done):0)+1)}return ev}
 function poolEvent0(h){if(!h)return null;if(h.key&&EVENTS[h.key])return EVENTS[h.key];
   const all=Object.values(EVENTS).filter(e=>e.type==="event");let c=all.filter(e=>+e.numEp===+h.event);
   const T=norm(h.title||""),words=x=>norm(x).split(" ").filter(w=>w.length>1);
@@ -2462,6 +2464,7 @@ $("#ev-engend").onchange=e=>{state.engEnd=e.target.value;scheduleSave()};
 $("#ev-progdate").onchange=e=>{state.progDate=e.target.value;scheduleSave()};
 $("#ev-live").onchange=e=>{state.live=e.target.value;scheduleSave()};
 $("#pool-sort").onchange=e=>{state.poolSort=e.target.value;scheduleSave()};$("#pool-hold").onchange=e=>{state.poolHold=+e.target.value;scheduleSave()};
+$("#sim-fix").onclick=async()=>{const h=simHeats()[+$("#sim-heat").value];if(!h){$("#sim-msg").textContent="Choisis la série.";return}const ev=EVENTS[h.key];await simSend([{k:"fix",key:h.key,event:+ev.numEp||null,heat:h.heat,title:ev.name}]);$("#sim-msg").textContent="Direct recalé : "+h.label+". Les départs suivants enchaînent à partir d'elle."};
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
 $("#mpp-go").onclick=async()=>{const b=$("#mpp-go"),m=$("#mpp-msg");b.disabled=true;let last=-1,stuck=0;
   try{for(let i=0;i<120;i++){const j=await api("/api/admin/mpp",{method:"POST"});m.textContent=`Lecture en cours : ${j.done} / ${j.want} nageurs…`;mppStat(j);

@@ -49,6 +49,8 @@ export class PoolRoom {
         if (!h.start || Math.abs(st - h.start) > 100) h.start = Math.round(st); else return false;
         break;
       }
+      case "fix": { /* admin : « la série dans l'eau est celle-ci » (Quantum qui n'annonce ni l'épreuve ni la série) ; les départs suivants enchaînent à partir d'elle */
+        const h = s.heat; if (!h) return false; h.event = ev.event != null ? ev.event : h.event; h.heat = ev.heat || 1; h.key = ev.key || null; h.title = ev.title || ""; h.comp = ev.comp || h.comp || ""; h.heats = null; h.names = {}; h.heatGuess = true; h.sim = false; break; }
       case "react": { const l = lane(ev.lane); if (l) l.rt = ev.t; break; }
       case "split": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; } break; }
       case "finish": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; l.fin = { t: ev.t, rank: ev.rank || null }; } break; }
