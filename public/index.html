@@ -2152,7 +2152,7 @@ function teamRanking(rule,done,sex){
     else if(!rule.comps.includes(ev.comp)||dupSF(ev)||(!done.has(k)&&!P[k]))continue;
     if(sex&&(sex==='F')!==/Dames/.test(ev.name))continue;
     const per={},off=fx?mergedRanking(ev):ranking(ev);
-    for(const w of off){if(w.dsq)continue;if(!done.has(k)&&!w.points)continue;const c=w.team||w.club||w.name;const p=w.points||0;(per[c]=per[c]||[]).push({ev,w,p})}
+    for(const w of off){if(w.dsq)continue;/* résultats publiés sans points (épreuve en cours) : points calculés avec la table de cotation */const p=w.points||(w.res!=null?cotPts(ev,w.res)||0:0);if(!done.has(k)&&!p)continue;const c=w.team||w.club||w.name;(per[c]=per[c]||[]).push({ev,w,p})}
     /* épreuve pas encore officialisée : les arrivées du chronométrage complètent (sans doubler un résultat déjà publié) */
     if(!done.has(k))for(const x of P[k]||[]){const dup=off.some(r=>ev.relay?norm(r.team||r.name)===norm(x.team):(r.iuf&&x.w.iuf?r.iuf===x.w.iuf:norm(r.name)===norm(x.w.name)));if(dup)continue;(per[x.team]=per[x.team]||[]).push({ev,w:x.w,p:x.p,prov:true})}
     for(const c in per){let l=per[c].sort((a,b)=>b.p-a.p);if(rule.perEvent>0)l=l.slice(0,rule.perEvent);(clubs[c]=clubs[c]||{club:c,total:0,prov:0,items:[],comp:ev.comp});l.forEach(x=>{clubs[c].total+=x.p;if(x.prov)clubs[c].prov=(clubs[c].prov||0)+x.p;clubs[c].items.push(x)})}}
