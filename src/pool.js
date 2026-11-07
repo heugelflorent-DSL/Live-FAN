@@ -4,11 +4,14 @@ import { get as ffnGet } from "./ffn.js";
 // les spectateurs reçoivent l'état complet par WebSocket. Le chrono tourne sur chaque téléphone à partir de l'heure de départ.
 
 const empty = () => ({ heat: null, prev: null, hist: {}, updatedAt: 0, relayAt: 0 });
+/* autre compétition ouverte dans le Quantum pendant la réunion (courses des remplaçants…) : gardée à part, jamais confondue avec les vraies séries */
+function isExtra(s, comp) { comp = String(comp || "").trim(); if (!comp) return false; if (/rempla/i.test(comp)) return true; return !!(s.mainComp && comp !== s.mainComp); }
 // séries terminées gardées pour l'affichage des « séries précédentes » de l'épreuve en cours
 const archive = (s, h) => {
   if (!h || h.event == null || !h.heat || !Object.values(h.lanes || {}).some((L) => L.fin)) return;
   s.hist = s.hist || {};
-  s.hist[h.event + "-" + h.heat] = { event: h.event, heat: h.heat, key: h.key || null, title: h.title || "", comp: h.comp || "", names: h.names || {}, lanes: h.lanes, start: h.start, doneAt: h.doneAt || Date.now(), sim: !!h.sim };
+  const extra = isExtra(s, h.comp);
+  s.hist[(extra ? "x:" + h.comp + ":" : "") + h.event + "-" + h.heat] = { extra, event: h.event, heat: h.heat, key: h.key || null, title: h.title || "", comp: h.comp || "", names: h.names || {}, lanes: h.lanes, start: h.start, doneAt: h.doneAt || Date.now(), sim: !!h.sim };
   const ks = Object.keys(s.hist); if (ks.length > 250) for (const k of ks.sort((a, b) => s.hist[a].doneAt - s.hist[b].doneAt).slice(0, ks.length - 250)) delete s.hist[k];
 };
 
@@ -62,7 +65,8 @@ export class PoolRoom {
         // départ rappelé : liste de départ (SL) renvoyée pour la série en cours, aucune arrivée, plus de 3 s après le départ → chrono figé jusqu'au nouveau départ
         if (same && ev.msg === "SL" && s.heat.status === "running" && s.heat.start && t - s.heat.start > 3000 && !Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "ready"; s.heat.start = null; s.heat.lanes = {}; s.heat.recall = true; }
         if (!same) { if (s.heat && s.heat.start) (archive(s, s.heat), s.prev = s.heat); s.heat = { event: ev.event, heat: ev.heat, status: "ready", start: null, lanes: {}, at: t }; }
-        const h = s.heat; h.sim = !!ev.sim; h.key = ev.key || null; h.comp = ev.comp || h.comp || ""; h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
+        if (ev.comp && !ev.sim && !/rempla/i.test(ev.comp) && !s.mainComp) s.mainComp = String(ev.comp).trim();
+        const h = s.heat; h.sim = !!ev.sim; h.key = ev.key || null; h.comp = ev.comp || h.comp || ""; h.extra = isExtra(s, h.comp); h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
         h.names = {}; for (const l of ev.lanes || []) if (l.name) h.names[l.lane] = { name: l.name, club: l.club, born: l.born, ...(Array.isArray(l.sw) && l.sw.length ? { sw: l.sw.slice(0, 8).map((x) => String(x).slice(0, 60)) } : {}) };
         if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; h.doneAt = h.doneAt || t; h.official = true; for (const l of ev.lanes || []) if (l.time) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); L.fin = { t: l.time, rank: l.rank }; } }
         if (h.official) archive(s, h);
@@ -150,9 +154,9 @@ export class PoolRoom {
     // toutes les séries terminées (temps d'arrivée seulement) : classement provisoire des équipes
     if (url.pathname.endsWith("/hist")) {
       const out = []; const all = { ...(this.s.hist || {}) };
-      const h = this.s.heat; if (h && h.event != null && h.heat && Object.values(h.lanes || {}).some((L) => L.fin)) all[h.event + "-" + h.heat] = h;
+      const h = this.s.heat; if (h && h.event != null && h.heat && Object.values(h.lanes || {}).some((L) => L.fin)) all[(isExtra(this.s, h.comp) ? "x:" + h.comp + ":" : "") + h.event + "-" + h.heat] = h;
       for (const x of Object.values(all)) { if (x.sim) continue; const fin = {}; for (const n in x.lanes || {}) if (x.lanes[n].fin && x.lanes[n].fin.t != null) fin[n] = x.lanes[n].fin.t; const laps = {}; for (const n in x.lanes || {}) { const L = x.lanes[n].laps || {}; const ks = Object.keys(L).map(Number).sort((a, b) => a - b); if (ks.length) laps[n] = ks.map((k) => [k, L[k].t, L[k].dist || null]); }
-        out.push({ event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, laps, start: x.start || null, doneAt: x.doneAt || null }); }
+        out.push({ extra: isExtra(this.s, x.comp) || !!x.extra, event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, laps, start: x.start || null, doneAt: x.doneAt || null }); }
       return Response.json({ now: Date.now(), heats: out }, { headers: { "cache-control": "no-store" } });
     }
     if (url.pathname.endsWith("/applog")) {
