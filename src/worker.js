@@ -589,8 +589,11 @@ async function rescrape(env, scope, what, ev = "main") {
       // on reprend là où on s'était arrêté : ce qui est déjà complet n'est relu qu'avec « tout relire »
       const st = c.events?.[e.key] || {}; const full = what === "all";
       const hasHeats = (st.heats || []).some((h) => h.lanes?.length), hasRes = !!(st.results?.rows?.length && (st.doneAt || (evStartAt(c, e) || Infinity) < now - 2 * 3600e3));
-      if (what !== "res" && !(e.key !== String(e.epr) && later) && (full || !hasHeats) && !hasRes) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key }); // finales : pas avant leur jour
-      if (what !== "start" && !later && (full || !hasRes) && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
+      // « séries uniquement » : listes de départ relues même déjà lues (relais composés, forfaits, changements), tant que l'épreuve n'a pas de résultats
+      if (what !== "res" && !(e.key !== String(e.epr) && later) && (full || what === "start" || !hasHeats) && !hasRes) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key }); // finales : pas avant leur jour
+      // pas de page de résultats pour une épreuve qui n'a pas encore commencé (elle ne peut pas exister)
+      const notYet = (evStartAt(c, e) || 0) > now && !st.results?.rows?.length;
+      if (what !== "start" && !later && !notYet && (full || !hasRes) && !tasks.some((t) => t.t === "res" && t.c === id && t.epr === e.epr)) tasks.push({ t: "res", c: id, epr: e.epr });
     }
   }
   data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0; // demande manuelle : la pause après un refus est respectée
