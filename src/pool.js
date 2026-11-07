@@ -60,8 +60,10 @@ export class PoolRoom {
       case "fix": { /* admin : « la série dans l'eau est celle-ci » (Quantum qui n'annonce ni l'épreuve ni la série) ; les départs suivants enchaînent à partir d'elle */
         const h = s.heat; if (!h) return false; h.event = ev.event != null ? ev.event : h.event; h.heat = ev.heat || 1; h.key = ev.key || null; h.title = ev.title || ""; h.comp = ev.comp || h.comp || ""; h.heats = null; h.names = {}; h.heatGuess = true; h.sim = false; break; }
       case "react": { const l = lane(ev.lane); if (l) l.rt = ev.t; break; }
-      case "split": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; } break; }
-      case "finish": { const l = lane(ev.lane); if (l) { l.laps[ev.lap] = { t: ev.t, rank: ev.rank || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = ev.lap; l.fin = { t: ev.t, rank: ev.rank || null }; } break; }
+      /* plaque (Type T) prioritaire sur les boutons de secours (« poires », Type 1-3) : un temps de poire ne remplace jamais celui de la plaque, quel que soit l'ordre d'arrivée */
+      case "split": case "finish": { const l = lane(ev.lane); if (!l) break; const old = l.laps[ev.lap]; if (old && !old.edited && ev.edited) break;
+        l.laps[ev.lap] = { t: ev.t, rank: ev.rank || (old && old.rank) || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = Math.max(l.last || 0, ev.lap);
+        if (ev.k === "finish") l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null }; break; }
       case "end": if (s.heat) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } break;
       case "heat": { // noms et résultats envoyés par le Quantum (série chargée, puis officielle)
         const fresh = ev.stat !== "O" && ev.stat !== "F"; // liste de départ (W) : série (re)mise au départ
