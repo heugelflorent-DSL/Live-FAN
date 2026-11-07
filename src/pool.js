@@ -4,8 +4,8 @@ import { get as ffnGet } from "./ffn.js";
 // les spectateurs reçoivent l'état complet par WebSocket. Le chrono tourne sur chaque téléphone à partir de l'heure de départ.
 
 const empty = () => ({ heat: null, prev: null, hist: {}, updatedAt: 0, relayAt: 0 });
-/* autre compétition ouverte dans le Quantum pendant la réunion (courses des remplaçants…) : gardée à part, jamais confondue avec les vraies séries */
-function isExtra(s, comp) { comp = String(comp || "").trim(); if (!comp) return false; if (/rempla/i.test(comp)) return true; return !!(s.mainComp && comp !== s.mainComp); }
+/* autre compétition ouverte dans le Quantum : rangée à part (jamais mélangée avec les séries de la compétition principale) */
+function isExtra(s, comp) { comp = String(comp || "").trim(); return !!(comp && s.mainComp && comp !== s.mainComp); } /* le site décide si elle compte (2 compétitions sur le live) ou non (rattrapage) */
 // séries terminées gardées pour l'affichage des « séries précédentes » de l'épreuve en cours
 const archive = (s, h) => {
   if (!h || h.event == null || !h.heat || !Object.values(h.lanes || {}).some((L) => L.fin)) return;
@@ -65,7 +65,7 @@ export class PoolRoom {
         // départ rappelé : liste de départ (SL) renvoyée pour la série en cours, aucune arrivée, plus de 3 s après le départ → chrono figé jusqu'au nouveau départ
         if (same && ev.msg === "SL" && s.heat.status === "running" && s.heat.start && t - s.heat.start > 3000 && !Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "ready"; s.heat.start = null; s.heat.lanes = {}; s.heat.recall = true; }
         if (!same) { if (s.heat && s.heat.start) (archive(s, s.heat), s.prev = s.heat); s.heat = { event: ev.event, heat: ev.heat, status: "ready", start: null, lanes: {}, at: t }; }
-        if (ev.comp && !ev.sim && !/rempla/i.test(ev.comp) && !s.mainComp) s.mainComp = String(ev.comp).trim();
+        if (ev.comp && !ev.sim && !s.mainComp) s.mainComp = String(ev.comp).trim();
         const h = s.heat; h.sim = !!ev.sim; h.key = ev.key || null; h.comp = ev.comp || h.comp || ""; h.extra = isExtra(s, h.comp); h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
         h.names = {}; for (const l of ev.lanes || []) if (l.name) h.names[l.lane] = { name: l.name, club: l.club, born: l.born, ...(Array.isArray(l.sw) && l.sw.length ? { sw: l.sw.slice(0, 8).map((x) => String(x).slice(0, 60)) } : {}) };
         if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; h.doneAt = h.doneAt || t; h.official = true; for (const l of ev.lanes || []) if (l.time) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); L.fin = { t: l.time, rank: l.rank }; } }
