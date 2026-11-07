@@ -759,7 +759,7 @@ body.org .admin-only{display:none!important}.org-only{display:none}body.org .org
 .pairbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
 .pb-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:8px}.pb-head h4{margin:0;font-size:16px}
 .pb-steps{margin:0 0 12px;padding-left:20px;font-size:14px;color:var(--muted);line-height:1.5}.pb-steps code{font-family:var(--mono);font-size:12px;white-space:nowrap}
-.pb-row{display:flex;gap:8px}.pb-row input{flex:1;min-width:0;font-family:var(--mono);letter-spacing:.04em}
+.pb-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pb-row input{flex:1;min-width:0;font-family:var(--mono);letter-spacing:.04em}
 .pairrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-size:14px}
 .pb-jr{margin-top:10px}#jr-list a{color:var(--a);font-weight:600}
 .orgbox{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card-in)}
@@ -1025,7 +1025,7 @@ body.tv .lvgrid .lv-side .rk-row{font-size:calc(1.4*var(--u))}
             <p class="msg pb-ver" id="chrono-ver"></p>
             <p class="msg pb-jr admin-only" id="jr-list"></p>
             <details class="pb-al" id="al-box"><summary><b>Messages du logiciel du chrono</b> <small>(erreurs et événements du jour, à copier-coller pour une analyse)</small></summary>
-              <div class="pb-row" style="margin:8px 0"><input class="field" type="date" id="al-day" style="max-width:170px"><label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="al-err"> erreurs seulement</label><button class="btn small ghost" id="al-load" type="button">Actualiser</button><button class="btn small" id="al-copy" type="button">Copier</button></div>
+              <div class="pb-row" style="margin:8px 0"><input class="field" type="date" id="al-day" style="max-width:170px"><label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="al-err"> erreurs seulement</label><button class="btn small ghost" id="al-load" type="button">Actualiser</button><button class="btn small" id="al-copy" type="button">📋 Copier le journal</button></div>
               <textarea class="field" id="al-txt" readonly rows="14" style="width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px;white-space:pre"></textarea>
             </details>
           </div>
@@ -1498,7 +1498,7 @@ async function loadAppLog(){const t=$("#al-txt");if(!t)return;const d=$("#al-day
   t.value="Chargement…";try{const j=await api("/api/admin/applog?day="+d.value);let L=j.lines||[];if($("#al-err").checked)L=L.filter(x=>/[✗⚠]|erreur|error|impossible|injoignable|refus|coup|perdu|exception/i.test(x.m));
     t.value=L.length?L.map(x=>new Date(x.t*1000).toLocaleTimeString("fr-FR")+"  "+(x.v?"v"+x.v+"  ":"")+x.m).join("\n"):"Aucun message ce jour-là (le logiciel envoie ses messages toutes les 15 s quand il est relié).";t.scrollTop=t.scrollHeight}catch(e){t.value=e.message||String(e)}}
 function bindAppLog(){const b=$("#al-box");if(!b||b.dataset.ok)return;b.dataset.ok=1;b.addEventListener("toggle",()=>{if(b.open)loadAppLog()});$("#al-load").onclick=loadAppLog;$("#al-err").onchange=loadAppLog;$("#al-day").onchange=loadAppLog;
-  $("#al-copy").onclick=async()=>{const t=$("#al-txt");try{await navigator.clipboard.writeText(t.value)}catch(_){t.select();document.execCommand("copy")}$("#al-copy").textContent="Copié ✓";setTimeout(()=>$("#al-copy").textContent="Copier",2000)}}
+  $("#al-copy").onclick=async()=>{try{await loadAppLog()}catch(_){}const t=$("#al-txt");try{await navigator.clipboard.writeText(t.value)}catch(_){t.select();document.execCommand("copy")}$("#al-copy").textContent="Copié ✓";setTimeout(()=>$("#al-copy").textContent="📋 Copier le journal",2000)}}
 function bindPair(){bindAppLog();const go=$("#pair-go");if(!go)return;const ps=$("#pair-sys"),ph=()=>$("#pair-sys-hint").textContent=SYSH[ps.value];ps.onchange=()=>{ph();if(state.chronoSys!==ps.value){state.timing="elec";setChronoSys(ps.value);render()}};if(state.chronoSys)ps.value=state.chronoSys;ph();go.onclick=async()=>{const msg=$("#pair-msg");try{const j=await api("/api/admin/pair",{method:"PUT",body:JSON.stringify({token:$("#pair-in").value,sys:$("#pair-sys").value})});$("#pair-in").value="";msg.textContent="Relié ✓ Le logiciel du chrono affiche maintenant le nom de ce live."+(j.moved?" (Cette clé était reliée à un autre live : elle envoie désormais ici.)":"");pairLoad()}catch(e){msg.textContent=e.message}}}
 /* ---------- page d'accueil : choix de la compétition ---------- */
 const ARCH=/^\/archives\/?$/.test(location.pathname);const PICK=location.pathname==="/"||ARCH;
