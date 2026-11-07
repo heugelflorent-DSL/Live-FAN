@@ -2017,6 +2017,8 @@ function renderRanking(ev,q){
 // série déjà nagée : épreuve terminée, ou série vue dans le direct / les résultats publiés, ou série avant celle en cours dans le direct
 let HD=null,HDAT=0;function heatDone(ev,n){if(doneSet().has(ev.key))return true;if(!HD||Date.now()-HDAT>3000){HD=provRes();HDAT=Date.now()}const p=HD[ev.key];if(p&&p.heats[n])return true;
   const L=LIVE[ev.comp];const m=L&&L.cur&&liveMatch(ev.comp,L.cur.event);return!!(m&&m.key===ev.key&&L.cur.heat>=n)}
+/* passages du chrono électronique (direct bassin) au format des résultats : distance, temps cumulé, temps du tronçon */
+function poolSplits(x,n){const L=(x.laps||{})[n];if(!L||!L.length)return[];const len=poolLen();let prev=0;return L.filter(([,t])=>t!=null).map(([k,t,d])=>{const o={d:d||k*len,cum:t,lap:Math.round((t-prev)*100)/100};prev=t;return o})}
 function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[id,[...(LH[id]||[]),...(LIVE[id]&&LIVE[id].cur&&LIVE[id].cur.heat&&LIVE[id].cur.rows.length?[{event:LIVE[id].cur.event,heat:LIVE[id].cur.heat,of:LIVE[id].cur.of,rows:LIVE[id].cur.rows}]:[])]]);for(const [id,hs] of src)for(const h of hs||[]){let ev=liveMatch(id,h.event);if(!ev)continue;if(sfEarly(ev))ev=epGroup(ev).find(x=>x.typ===62)||ev;(out[ev.key]=out[ev.key]||{id,title:h.event,heats:{},of:h.of}).heats[h.heat]=h.rows;if(h.of)out[ev.key].of=h.of}
   // résultats officiels déjà publiés série par série sur le Live FFN (lus toutes les 2 min) : ils complètent les séries manquées par le direct
   const done=doneSet();
@@ -2031,7 +2033,7 @@ function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[
   if(state.live==="bassin"&&PHIST)for(const x of PHIST){if(x.sim||poolIsTest(x)||!x.fin||!Object.keys(x.fin).length)continue;const ev=poolEvent(x);if(!ev||done.has(ev.key)||!x.heat)continue;
     const p=out[ev.key]=out[ev.key]||{id:ev.comp,title:ev.base+(ev.round?" "+ev.round:""),heats:{},of:(ev.series||[]).length||null};if(p.heats[x.heat]&&p.heats[x.heat].length)continue;
     const se=ev.series&&ev.series[x.heat-1];const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const rows=[];
-    for(const n in x.fin){const w=poolWho({names:x.names||{}},se,n);if(!w||seen.has(norm(w.name)))continue;const t=x.fin[n];rows.push({name:w.name,club:w.club,year:w.year,relay:(w.members||[]).length?w.members.map((m,i)=>({name:m.name,leg:m.leg||i+1})):undefined,time:t,timeTxt:fmt(t),splits:[],chrono:true})}
+    for(const n in x.fin){const w=poolWho({names:x.names||{}},se,n);if(!w||seen.has(norm(w.name)))continue;const t=x.fin[n];rows.push({name:w.name,club:w.club,year:w.year,relay:(w.members||[]).length?w.members.map((m,i)=>({name:m.name,leg:m.leg||i+1})):undefined,time:t,timeTxt:fmt(t),splits:poolSplits(x,n),chrono:true})}
     if(rows.length)p.heats[x.heat]=rows}
   for(const p of Object.values(out)){const all=Object.values(p.heats).flat().map(({rank,...w})=>w);; /* pas de « Xe au provisoire » du Live FFN : notre propre classement fait foi ici */
     const ok=all.filter(w=>w.time!=null).sort((a,b)=>a.time-b.time);let r=0;ok.forEach((w,i)=>{if(!i||w.time!==ok[i-1].time)r=i+1;w.pl=r});p.rows=[...ok,...all.filter(w=>w.time==null)].map(w=>({...w,place:w.pl??null}));p.n=Object.keys(p.heats).filter(h=>h!=="r").length}

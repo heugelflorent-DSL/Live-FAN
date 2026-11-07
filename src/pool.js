@@ -151,8 +151,8 @@ export class PoolRoom {
     if (url.pathname.endsWith("/hist")) {
       const out = []; const all = { ...(this.s.hist || {}) };
       const h = this.s.heat; if (h && h.event != null && h.heat && Object.values(h.lanes || {}).some((L) => L.fin)) all[h.event + "-" + h.heat] = h;
-      for (const x of Object.values(all)) { if (x.sim) continue; const fin = {}; for (const n in x.lanes || {}) if (x.lanes[n].fin && x.lanes[n].fin.t != null) fin[n] = x.lanes[n].fin.t;
-        out.push({ event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, start: x.start || null, doneAt: x.doneAt || null }); }
+      for (const x of Object.values(all)) { if (x.sim) continue; const fin = {}; for (const n in x.lanes || {}) if (x.lanes[n].fin && x.lanes[n].fin.t != null) fin[n] = x.lanes[n].fin.t; const laps = {}; for (const n in x.lanes || {}) { const L = x.lanes[n].laps || {}; const ks = Object.keys(L).map(Number).sort((a, b) => a - b); if (ks.length) laps[n] = ks.map((k) => [k, L[k].t, L[k].dist || null]); }
+        out.push({ event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, laps, start: x.start || null, doneAt: x.doneAt || null }); }
       return Response.json({ now: Date.now(), heats: out }, { headers: { "cache-control": "no-store" } });
     }
     if (url.pathname.endsWith("/applog")) {
