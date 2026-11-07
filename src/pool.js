@@ -35,7 +35,8 @@ export class PoolRoom {
     const lane = (n) => { const h = ensure(); return (h.lanes[n] = h.lanes[n] || { laps: {} }); };
     /* horloge du PC du chrono → horloge du serveur : écart minimal observé (décalage d'horloge + transit le plus court).
        Le temps de transit d'un envoi (réseau de la piscine, parfois 2-3 s) ne retarde donc plus l'heure de départ. */
-    if (ev.sent && ev.ts) { const d = t - ev.sent; if (s.skew == null || d < s.skew || t - (s.skewAt || 0) > 10 * 60000) { s.skew = s.skew != null && t - (s.skewAt || 0) <= 10 * 60000 ? Math.min(s.skew, d) : d; s.skewAt = t; } }
+    /* pas de remise à zéro brutale (elle faisait sauter le chrono de 1-3 s) : l'écart remonte très lentement (dérive d'horloge du PC, 50 ppm max) et redescend dès qu'un envoi plus rapide arrive */
+    if (ev.sent && ev.ts) { const d = t - ev.sent; if (s.skew == null || Math.abs(d - s.skew) > 120000) { s.skew = d; } else { const up = s.skew + Math.max(0, t - (s.skewAt || t)) * 5e-5; s.skew = Math.min(up, d); } s.skewAt = t; }
     const pcT = (ts) => (ts && s.skew != null && ev.sent && Math.abs(t - ev.sent - s.skew) < 30000 ? ts + s.skew : null);
     switch (ev.k) {
       case "ready": // nouvelle série au départ : la précédente devient « dernière série »
