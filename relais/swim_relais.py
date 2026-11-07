@@ -87,7 +87,8 @@ class Decoder:
                 if ev: out.append(ev)
             else:
                 self.pt1, self.ts1 = payload, ts
-        if len(self.buf) > 512: self.buf = self.buf[-64:]
+        # listes de départ du Quantum (SL/HO) : plusieurs Ko, reçues en plusieurs morceaux → ne pas couper le tampon trop tôt
+        if len(self.buf) > 4_000_000: self.buf = self.buf[-262144:]
         return out
     def _take_lines(self):
         i = max(self.buf.rfind(b"\r"), self.buf.rfind(b"\n")); lines, self.buf = self.buf[: i + 1], self.buf[i + 1 :]
