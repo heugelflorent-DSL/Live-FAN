@@ -33,6 +33,10 @@ export class PoolRoom {
     const s = this.s; const t = Date.now();
     const ensure = () => (s.heat = s.heat || { event: null, heat: null, status: "ready", start: null, lanes: {}, at: t });
     const lane = (n) => { const h = ensure(); return (h.lanes[n] = h.lanes[n] || { laps: {} }); };
+    /* horloge du PC du chrono → horloge du serveur : écart minimal observé (décalage d'horloge + transit le plus court).
+       Le temps de transit d'un envoi (réseau de la piscine, parfois 2-3 s) ne retarde donc plus l'heure de départ. */
+    if (ev.sent && ev.ts) { const d = t - ev.sent; if (s.skew == null || d < s.skew || t - (s.skewAt || 0) > 10 * 60000) { s.skew = s.skew != null && t - (s.skewAt || 0) <= 10 * 60000 ? Math.min(s.skew, d) : d; s.skewAt = t; } }
+    const pcT = (ts) => (ts && s.skew != null && ev.sent && Math.abs(t - ev.sent - s.skew) < 30000 ? ts + s.skew : null);
     switch (ev.k) {
       case "ready": // nouvelle série au départ : la précédente devient « dernière série »
         if (s.heat && (s.heat.event !== ev.event || s.heat.heat !== ev.heat)) { if (s.heat.start) (archive(s, s.heat), s.prev = s.heat); }
@@ -41,14 +45,14 @@ export class PoolRoom {
         if (!s.heat || s.heat.event !== ev.event || s.heat.heat !== ev.heat || s.heat.status === "done")
           s.heat = { event: ev.event, heat: ev.heat, laps: ev.laps || null, lanesUsed: ev.lanes || null, status: "ready", start: null, lanes: {}, at: t };
         break;
-      case "start": { /* Quantum sans message de fin : la série précédente a des arrivées → elle est terminée, ce départ est celui de la série suivante (sinon : départ rappelé) */ if (s.heat && s.heat.status === "running" && Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } if (s.heat && s.heat.status === "done") { (archive(s, s.heat), s.prev = s.heat); s.heat = null; } const h = ensure(); h.start = ev.srv || (ev.ts && ev.sent ? t - Math.max(0, ev.sent - ev.ts) : ev.ts || t); h.status = "running"; h.lanes = {}; h.recall = false; if (h.heat == null) { const p = s.prev; const near = p && p.event != null && p.doneAt && t - p.doneAt < 30 * 60000 && !(p.heats && (p.heat || 1) >= +p.heats); if (h.event == null && near) { h.event = p.event; h.key = p.key || null; h.title = p.title || ""; h.comp = p.comp || ""; h.heats = p.heats; h.laps = p.laps; } h.heat = near && p.event === h.event ? (p.heat || 1) + 1 : 1; h.heatGuess = true; } /* Quantum sans numéro de série : série suivante de la même épreuve */ break; }
+      case "start": { /* Quantum sans message de fin : la série précédente a des arrivées → elle est terminée, ce départ est celui de la série suivante (sinon : départ rappelé) */ if (s.heat && s.heat.status === "running" && Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } if (s.heat && s.heat.status === "done") { (archive(s, s.heat), s.prev = s.heat); s.heat = null; } const h = ensure(); h.start = ev.srv || pcT(ev.ts) || (ev.ts && ev.sent ? t - Math.max(0, ev.sent - ev.ts) : ev.ts || t); h.status = "running"; h.lanes = {}; h.recall = false; if (h.heat == null) { const p = s.prev; const near = p && p.event != null && p.doneAt && t - p.doneAt < 30 * 60000 && !(p.heats && (p.heat || 1) >= +p.heats); if (h.event == null && near) { h.event = p.event; h.key = p.key || null; h.title = p.title || ""; h.comp = p.comp || ""; h.heats = p.heats; h.laps = p.laps; } h.heat = near && p.event === h.event ? (p.heat || 1) + 1 : 1; h.heatGuess = true; } /* Quantum sans numéro de série : série suivante de la même épreuve */ break; }
       case "clock": { // temps de course du Quantum : recale l'heure de départ (sans retour en arrière visible de plus de 0,3 s)
         if (!ev.rt) return false;
         if (s.heat && s.heat.recall) return false; // départ rappelé : le chrono du Quantum peut encore tourner, on attend le vrai nouveau départ
         // départ manqué (relais redémarré en pleine course) : le temps de course suffit pour reprendre le direct
         if (!s.heat || s.heat.status === "ready" || (s.heat.status === "done" && ev.rt < 30)) { if (s.heat && s.heat.status === "done") { (archive(s, s.heat), s.prev = s.heat); s.heat = null; } const h0 = ensure(); h0.status = "running"; h0.start = null; }
         const h = s.heat; if (h.status !== "running") return false;
-        const st = (ev.srv || t - Math.max(0, (ev.sent || ev.ts) - ev.ts)) - ev.rt * 1000;
+        const st = (ev.srv || pcT(ev.ts) || t - Math.max(0, (ev.sent || ev.ts) - ev.ts)) - ev.rt * 1000;
         if (!h.start || Math.abs(st - h.start) > 100) h.start = Math.round(st); else return false;
         break;
       }
