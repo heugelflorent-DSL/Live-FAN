@@ -2027,10 +2027,17 @@ function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[
     const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const hOf=n=>{const e=(ev.entries||[]).find(x=>norm(x.name)===norm(n));return e&&e.heat||"r"};
     for(const r of ev.results){if(seen.has(norm(r.name))||!swum(r))continue;const h=hOf(r.name);(p.heats[h]=p.heats[h]||[]).push({name:r.name,club:r.club,year:r.year,relay:(r.members||[]).length?r.members.map(m=>({name:m.name,leg:m.leg})):undefined,time:r.dsq?null:r.res,timeTxt:r.dsq?(r.status||"DSQ"):fmt(r.res),splits:(r.splits||[]).map(x=>({d:x.dist,cum:x.cum,lap:x.lap}))})}
     if(!p.of)p.of=(ev.series||[]).length||null}
+  /* séries terminées au chronométrage électronique (direct bassin) : résultats non officiels tout de suite, remplacés par le Live FFN dès sa publication */
+  if(state.live==="bassin"&&PHIST)for(const x of PHIST){if(x.sim||poolIsTest(x)||!x.fin||!Object.keys(x.fin).length)continue;const ev=poolEvent(x);if(!ev||done.has(ev.key)||!x.heat)continue;
+    const p=out[ev.key]=out[ev.key]||{id:ev.comp,title:ev.base+(ev.round?" "+ev.round:""),heats:{},of:(ev.series||[]).length||null};if(p.heats[x.heat]&&p.heats[x.heat].length)continue;
+    const se=ev.series&&ev.series[x.heat-1];const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const rows=[];
+    for(const n in x.fin){const w=poolWho({names:x.names||{}},se,n);if(!w||seen.has(norm(w.name)))continue;const t=x.fin[n];rows.push({name:w.name,club:w.club,year:w.year,relay:(w.members||[]).length?w.members.map((m,i)=>({name:m.name,leg:m.leg||i+1})):undefined,time:t,timeTxt:fmt(t),splits:[],chrono:true})}
+    if(rows.length)p.heats[x.heat]=rows}
   for(const p of Object.values(out)){const all=Object.values(p.heats).flat().map(({rank,...w})=>w);; /* pas de « Xe au provisoire » du Live FFN : notre propre classement fait foi ici */
     const ok=all.filter(w=>w.time!=null).sort((a,b)=>a.time-b.time);let r=0;ok.forEach((w,i)=>{if(!i||w.time!==ok[i-1].time)r=i+1;w.pl=r});p.rows=[...ok,...all.filter(w=>w.time==null)].map(w=>({...w,place:w.pl??null}));p.n=Object.keys(p.heats).filter(h=>h!=="r").length}
   return out}
 function renderRes(){
+  if(state.live==="bassin"){loadCot();loadPHist()}
   const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();const PR=provRes();for(const k of done)delete PR[k];
   let html=reuChips(done);
   for(const s of reuShown(done)){
@@ -2135,7 +2142,7 @@ function cotKey(name){const n=norm(name);const sx=/MIXTE/.test(n)?"X":/DAMES/.te
 /* points = la plus haute cotation dont le temps de la table est atteint (table : temps croissants de 1500 à 2 points) */
 function cotPts(ev,t){if(!COT||t==null)return null;const k=cotKey(ev.name),a=k&&COT[k];if(!a)return null;const c=Math.round(t*100);let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m]>=c)hi=m;else lo=m+1}return lo<a.length?1500-lo:1}
 function loadPHist(force){if(state.live!=="bassin"||PHL)return;if(!force&&PHAT&&Date.now()-PHAT<20000)return;PHL=true;
-  fetch(evq("/api/pool/hist"),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{PHL=false;PHAT=Date.now();if(!j)return;const was=JSON.stringify(PHIST);PHIST=j.heats||[];if(JSON.stringify(PHIST)!==was&&state.view==="rank")render()}).catch(()=>{PHL=false;PHAT=Date.now()})}
+  fetch(evq("/api/pool/hist"),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{PHL=false;PHAT=Date.now();if(!j)return;const was=JSON.stringify(PHIST);PHIST=j.heats||[];if(JSON.stringify(PHIST)!==was&&(state.view==="rank"||state.view==="res"))render()}).catch(()=>{PHL=false;PHAT=Date.now()})}
 setInterval(()=>{if(state.view==="rank"&&!document.hidden)loadPHist()},20000);
 /* arrivées du chronométrage des épreuves pas encore officialisées sur le Live FFN, par épreuve, avec l'équipe de chaque nageur */
 function provRows(rule,done){const out={};if(state.live!=="bassin"||!PHIST||!COT)return out;
