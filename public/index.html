@@ -1216,6 +1216,14 @@ function build(cfg,data){
     /* épreuves de chaque engagé (pages « par épreuve ») : remplissent les engagés tant que les séries ne sont pas publiées */
     for(const re of Object.values((c&&c.rosterEv)||{})){const ev=Object.values(EVENTS).find(e=>e.comp===id&&e.type==="event"&&norm(e.base||e.name)===norm(String(re.name||"").replace(/\s*D[ée]tail de la liste.*$/i,"")));if(!ev||ev.entries.length)continue;
       for(const fi of re.iufs||[]){const k=byIuf[fi],s=k&&SWIMMERS[k];if(!s)continue;if(!s.sex)s.sex=ev.sex;ev.entries.push({lane:null,heat:null,name:s.name,year:s.year,club:s.club,time:null,iuf:k,relay:false,members:null,dns:false,roster:true})}}}
+  /* plusieurs équipes d'un même club sous le même nom (« AC MOLSHEIM MUTZIG » ×5) : équipes reconstituées par les relais
+     (relais qui partagent des nageurs = même équipe), numérotées dans l'ordre du programme puis des couloirs. Chaque nageur apporte ses points à SON équipe. */
+  {const E=[];const evs=Object.values(EVENTS).filter(e=>e.relay).sort((a,b)=>(a.order||0)-(b.order||0));
+    for(const ev of evs)for(const w of [...ev.entries,...ev.results]){if(!w.members||w.members.length<2)continue;const club=norm(w.club||w.name||"");if(!club)continue;E.push({w,club,ks:w.members.map(m=>swId(m.name,m.year)),sex:ev.sex||"",o:E.length})}
+    const P=E.map((_,i)=>i),f=i=>P[i]===i?i:(P[i]=f(P[i]));const by={};E.forEach((e,i)=>{for(const k of e.ks){const key=e.club+"|"+k;if(by[key]!=null)P[f(i)]=f(by[key]);else by[key]=i}});
+    const groups={};E.forEach((e,i)=>{const r=f(i),gk=e.club+"|"+e.sex;(groups[gk]=groups[gk]||{})[r]=(groups[gk][r]||[]).concat(e)});/* par sexe : une équipe dames + une équipe messieurs = pas de numéro */
+    for(const club in groups){const gs=Object.values(groups[club]).sort((a,b)=>Math.min(...a.map(x=>x.o))-Math.min(...b.map(x=>x.o)));if(gs.length<2)continue;
+      gs.forEach((g,gi)=>{const base=String(g[0].w.club||g[0].w.name||"").trim(),lab=base+" "+(gi+1);for(const e of g){e.w.team=lab;for(const k of e.ks)if(SWIMMERS[k])SWIMMERS[k].team=lab}})}}
   // équipes (Interclubs) : composition des relais
   for(const ev of Object.values(EVENTS)){if(!ev.relay)continue;
     const teams=[...ev.results.map(r=>({team:r.name,m:r.members})),...ev.entries.map(e=>({team:e.name,m:e.members}))];
@@ -2268,7 +2276,7 @@ function provRows(rule,done){const out={};if(state.live!=="bassin"||!PHIST||!COT
   for(const x of PHIST){if(poolOther(x)||poolIsTest(x))continue;const ev=poolEvent(x);if(!ev||!rule.comps.includes(ev.comp)||done.has(ev.key)||hasFinals(ev))continue;const se=ev.series&&ev.series[x.heat-1];
     for(const n in x.fin||{}){const t=x.fin[n];let w=poolWho({names:x.names||{}},se,n);const q=(x.names||{})[n];
       if(ev.relay&&se){const sl=se.swimmers.find(s=>+s.lane===+n);if(sl&&(!q||norm(sl.club||sl.name)===norm(q.club||q.name)||norm(sl.name).startsWith(norm(q.name))))w={...sl,members:(w&&w.members)||sl.members}}
-      if(!w)continue;const team=ev.relay?String(w.name||"").trim():(w.iuf&&SWIMMERS[w.iuf]&&SWIMMERS[w.iuf].team)||w.team||w.club;const p=cotPts(ev,t);if(p==null||!team)continue;
+      if(!w)continue;const team=ev.relay?((w.members||[]).map(m=>Object.values(SWIMMERS).find(x=>norm(x.name)===norm(m.name)&&x.team&&/ \d+$/.test(x.team))).find(Boolean)||{}).team||String(w.name||"").trim():(w.iuf&&SWIMMERS[w.iuf]&&SWIMMERS[w.iuf].team)||w.team||w.club;const p=cotPts(ev,t);if(p==null||!team)continue;
       (out[ev.key]=out[ev.key]||[]).push({team,w:{...w,res:t},p,prov:true})}}
   return out}
 function teamRanking(rule,done,sex){
