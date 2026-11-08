@@ -1,0 +1,15 @@
+name: wipdata
+on: {push: {branches: [wip-data3]}}
+permissions: {contents: write}
+jobs:
+  g:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir o && cd o
+          B=https://swim-direct.swim-direct.workers.dev
+          curl -sS "$B/api/state?e=interclubs-alsace-2026" -o state.json
+          curl -sS "$B/api/pool/hist?e=interclubs-alsace-2026" -o hist.json
+          curl -sS "$B/api/events" -o events.json
+          git init -q -b wip-data3-out && git add . && git -c user.name=a -c user.email=a@a commit -qm d
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" wip-data3-out
