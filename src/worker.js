@@ -515,8 +515,13 @@ async function mppStatus(env, ev) {
   for (const k of want.keys()) { const x = store.sw[k]; if (!x || !x.at) continue; if (x.err) { err++; issues.push({ k, why: "err", msg: String(x.err).slice(0, 80) }); continue; } done++; if (x.iuf) found++; const has = x.b && Object.keys(x.b).length; if (has) best++; else if (x.iuf) { noRec++; issues.push({ k, why: "norec" }); } else { notFound++; issues.push({ k, why: "notfound" }); } }
   return { want: want.size, done, left: want.size - done, foundN: found, bestN: best, errN: err, noRecN: noRec, notFoundN: notFound, issues: issues.slice(0, 400) };
 }
+async function injectRoster(env, config, data) {
+  for (const id of config.comps || []) { const c = data.comps?.[id]; if (c && !(c.roster && c.roster.length)) { try { const r = await env.ASSETS.fetch(new Request("https://assets/roster/" + id + ".json")); if (r.ok) { const j = await r.json(); if (Array.isArray(j) && j.length) c.roster = j; } } catch (e) {} } }
+}
 async function mppStep(env, ev, max = 2, force = false, missing = false) {
   const { config, data } = await load(env, ev); const now = Date.now();
+  /* liste des engagés (avec IUF) déposée en fichier fixe quand le Live FFN refuse la lecture (403) : records cherchés directement par IUF */
+  await injectRoster(env, config, data);
   // compétition terminée : plus aucune relecture automatique des records, seulement à la demande
   if (!force && finished(config, data, now)) return 0;
   // records lus au plus tard la veille : plus aucune lecture automatique à partir du 1er jour de compétition (écritures économisées)
@@ -534,7 +539,7 @@ async function mppStep(env, ev, max = 2, force = false, missing = false) {
   const prio = (x) => (!x ? 0 : x.err ? 1 : empty(x) ? 2 : 3); // jamais lus d'abord, puis échecs, puis sans record, du plus ancien au plus récent
   /* « manquants » : seulement les nageurs introuvables ou en erreur, pas encore réessayés avec la recherche souple (v2) ; les records déjà lus ne sont pas touchés */
   const miss = (x) => !x || x.err || (!x.iuf && (x.v || 1) < 2);
-  const todo = [...want.entries()].filter(([k, w]) => missing ? miss(store.sw[k]) : stale(store.sw[k], w)).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
+  const todo = [...want.entries()].filter(([k, w]) => missing ? miss(store.sw[k]) || (w.iuf && !store.sw[k]?.iuf) : stale(store.sw[k], w)).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
   if (!todo.length) return 0;
   let used = 0;
   for (const [k, w] of todo) {
@@ -778,7 +783,7 @@ export default {
       // tout écraser : on oublie les records lus (en gardant les licences retrouvées) pour tout relire sur l'Extranat
       if (body.reset) { const st0 = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} }; for (const [k, x] of Object.entries(st0.sw)) st0.sw[k] = { iuf: x.iuf || null, at: 0, b: {} }; st0.at = 0; await env.KV.put(kk("mpp", ev), JSON.stringify(st0)); }
       const used = await mppStep(env, ev, 6, true, !!body.missing); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
-      const wantM = mppWant((await load(env, ev)).config, (await load(env, ev)).data, ev, Date.now(), true); const missLeft = [...wantM.keys()].filter((k) => { const x = store.sw[k]; return !x || x.err || (!x.iuf && (x.v || 1) < 2); }).length;
+      const LD = await load(env, ev); await injectRoster(env, LD.config, LD.data); const wantM = mppWant(LD.config, LD.data, ev, Date.now(), true); const missLeft = [...wantM.entries()].filter(([k, w]) => { const x = store.sw[k]; return !x || x.err || (!x.iuf && (x.v || 1) < 2) || (w.iuf && !x.iuf); }).length;
       const all = Object.entries(store.sw);
       // diagnostic : quelques exemples (nom lu, licence trouvée, erreur éventuelle) pour comprendre un échec
       const sample = all.slice(-6).map(([k, x]) => ({ k, iuf: x.iuf, n: Object.keys(x.b || {}).length, err: x.err || null }));
