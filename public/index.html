@@ -1299,6 +1299,8 @@ function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)re
   const t=h.start||(Date.now()+poolOff);if(!poolCompDay(t))return false;return parisSec(t)<toMin(state.starts[s])*60-600}
 /* course complémentaire chargée sur une épreuve plus loin dans le programme (ex. 100 4 N des remplaçants pendant les 10x50) :
    une série qui saute au-delà des 2 prochaines épreuves pas encore nagées est hors programme → ne décale pas les horaires et ne compte pas en provisoire */
+/* épreuve dans l'eau au chrono : « Série 3 / 3 » au lieu de l'heure de sa 1re série */
+function poolIn(key){const h=state.live==="bassin"&&POOL&&POOL.heat;if(!h||!h.start||!h.heat||poolOther(h))return"";const ev=poolEvent(h);return ev&&ev.key===key?h.heat+" / "+((ev.series||[]).length||"?"):""}
 function poolInOrder(h){try{const ev=poolEvent0(h);if(!ev)return true;
   /* les nageurs envoyés par le Quantum sont ceux de la liste de départ de cette série : c'est bien l'épreuve du programme (ordre modifié par l'organisateur), pas une course complémentaire */
   {const se=ev.series&&ev.series[(h.heat||1)-1],nm=Object.values(h.names||{}).map(q=>norm(q&&q.name||"")).filter(Boolean);if(se&&se.swimmers&&nm.length>=2){const L=new Set(se.swimmers.map(w=>norm(w.name)));const hit=nm.filter(x=>L.has(x)).length;if(hit>=Math.max(2,nm.length/2))return true}}const r=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!r)return true;const o=state.order[r].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"),i=o.indexOf(ev.key);if(i<0)return true;
@@ -2023,7 +2025,7 @@ function liveSlot(){const sch=schedule(),done=doneSet(),now=Date.now();let next=
 function reuToday(s){const m=((state.reuDay||{})[s]||"").toLowerCase().match(/(\d{1,2})(?:\s*er)?\s+([a-zéûô]+)\s+(\d{4})/);if(!m)return false;const d=new Date(),i=MOIS.indexOf(m[2]);return i>=0&&d.getFullYear()===+m[3]&&d.getMonth()===i&&d.getDate()===+m[1]}
 function renderHome(){
   const sch=schedule(),done=doneSet(),ks=allKeys();const nextKey=ks.find(k=>!done.has(k)&&!EVENTS[k].provisional);let html="",top=engBanner(),teams="";
-  if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm((sch[nextKey]||{}).start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
+  if(nextKey){const ev=EVENTS[nextKey];html+=`<div class="now"><div class="tag">${poolIn(nextKey)?"En cours":state.phase==="eng"?"1re épreuve":"À suivre"}<b>${poolIn(nextKey)?"Série "+poolIn(nextKey):hm((sch[nextKey]||{}).start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")} · <a href="#" data-go="prog" style="color:#fff">voir le programme ›</a></div></div>`}
   else if(ks.length&&ks.every(k=>done.has(k)))html+=`<div class="now"><div class="tag">Terminé</div><div class="ev">Toutes les épreuves sont terminées</div><div class="nx"><a href="#" data-go="res" style="color:#fff">voir les résultats ›</a></div></div>`;
   for(const r of teamRules())for(const sx of ["F","M"]){const b=teamBoard(r,sx);if(!b.now.length)continue;
     teams+=`<div class="session">${secTitle(esc(r.name)+(sx?" · "+(sx==="F"?"Filles":"Garçons"):""),"en direct · "+b.nDone+"/"+b.nAll+" épreuves")}<div class="compline" style="margin:-2px 0 8px">${r.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="card top3">${b.now.slice(0,3).map(t=>`<div class="t3"><span class="rk r${t.rank}">${t.rank}</span><b>${esc(t.club)}</b>${moveHtml(t,b.prev)}<span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></div>`).join("")}<a href="#" class="more" data-go="rank" data-rr2="${r.id}" data-sx2="${sx||""}">Classement complet ›</a></div></div>`}
@@ -2096,7 +2098,7 @@ function renderProg(){
   // carte « à suivre » : première épreuve non terminée
   const nextKey=allKeys().find(k=>!done.has(k)&&!EVENTS[k].provisional);
   if(nextKey&&!q&&!fc){const ev=EVENTS[nextKey];const after=allKeys()[allKeys().indexOf(nextKey)+1];
-    html+=`<div class="now"><div class="tag">${state.phase==="eng"?"1re épreuve":"À suivre"}<b>${hm((sch[nextKey]||{}).start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")}${after?` · puis ${esc(EVENTS[after].name)} à ${hm((sch[after]||{}).start)}`:""}</div></div>`}
+    html+=`<div class="now"><div class="tag">${poolIn(nextKey)?"En cours":state.phase==="eng"?"1re épreuve":"À suivre"}<b>${poolIn(nextKey)?"Série "+poolIn(nextKey):hm((sch[nextKey]||{}).start)}</b></div><div class="ev">${esc(ev.name)}</div><div class="nx">${esc(comp(ev.comp).name)} · ${plural(ev.series.length,"série")}${after?` · puis ${esc(EVENTS[after].name)} à ${hm((sch[after]||{}).start)}`:""}</div></div>`}
   html+=reuChips(done);
   for(const s of reuShown(done)){
     const sm={doors:state.doors[s]};let rows="";
