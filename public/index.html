@@ -834,7 +834,7 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
 .delaytag{display:inline-block;margin:6px 0 4px;padding:6px 14px;border-radius:99px;font-weight:800;font-size:14px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12)}.delaytag small{font-weight:600;color:#475569}.delaytag.late{color:#b91c1c;border-left:5px solid #dc2626}.delaytag.early{color:#15803d;border-left:5px solid #16a34a}.delaytag.ok{color:#334155;border-left:5px solid #94a3b8}html[data-theme="interclubs"] .delaytag{background:#0e2133;box-shadow:none;border:1px solid rgba(201,154,46,.5)}html[data-theme="interclubs"] .delaytag small{color:#bfae8a}html[data-theme="interclubs"] .delaytag.late{color:#ff8a8a}html[data-theme="interclubs"] .delaytag.early{color:#6ee7a0}html[data-theme="interclubs"] .delaytag.ok{color:#f1e2bf}
 .tl2 li.mr span{white-space:normal!important;line-height:1.2;padding:0 4px}.tl2 li.mr{flex:1 0 104px!important;min-width:104px!important}
 /* relais avec chronos : une ligne par relayeur, temps alignés à droite, 2 colonnes si la place le permet */
-.prl:has(.prm.t){display:grid!important;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 16px;white-space:normal;overflow:visible;margin-top:4px;width:100%}
+.prl:has(.prm.t){display:grid!important;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:4px 16px;white-space:normal;overflow:hidden;margin-top:4px;max-width:100%;min-width:0}
 .prl:has(.prm.t) .prm{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap;padding:3px 8px;border-radius:7px;background:rgba(127,127,127,.07)}
 .prl:has(.prm.t) .prm .prn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .prl:has(.prm.t) .prm .prlt{margin-left:auto;flex:none}
