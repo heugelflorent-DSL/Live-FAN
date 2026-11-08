@@ -1332,7 +1332,7 @@ function delayTag(s){try{const done=doneSet(),sch=schedule(),o=(state.order[s]||
   const t=Math.abs(d)<2?"Dans les temps":d>0?`Retard estimé : ${d} min`:`Avance estimée : ${-d} min`;return`<p class="delaytag ${Math.abs(d)<2?"ok":d>0?"late":"early"}">${t}<small> · ${esc(EVENTS[k].name)} prévue ${hm(EVENTS[k].ffnSec)}, estimée ${hm(sch[k].start)}</small></p>`}catch(e){return""}}
 function schedule0(){
   // résultats lus longtemps après la compétition (compétition passée relue) : l'heure de lecture n'est pas l'heure de la course
-  const csd=compStartDate();CSD=csd?csd.getTime():0;
+  const csd=compStartDate();CSD=csd?csd.getTime():0;const nowS=parisSec(Date.now());
   const out={};const doneNow=doneSet();const pa=poolAnchor();let anchored=false;
   for(const s of Object.keys(state.order)){
     let t=toMin(state.starts[s]||"10:00")*60;let first=true;let delayed=false;
@@ -1349,6 +1349,8 @@ function schedule0(){
       if((ev.fin||ev.typ===61)&&ev.ffnSec!=null&&!(pa&&pa.key===key))t=Math.max(t,ev.ffnSec);
       // avant le début de la réunion : aucune épreuve n'est annoncée avant l'heure du Live FFN
       else if(ev.ffnSec!=null&&!anchored&&!state.order[s].some(x=>doneNow.has(x))&&!(pa&&pa.key===key)&&ev.ffnSec-t<3*3600)t=Math.max(t,ev.ffnSec);
+      /* jour de la réunion, épreuve pas encore nagée, aucun repère du chrono : jamais estimée dans le passé (sinon « dans les temps » alors qu'on attend) */
+      if(!anchored&&!doneNow.has(key)&&nowS!=null&&t<nowS&&state.order[s].some(x=>doneNow.has(x)||true)&&sessToday(s))t=nowS;
       out[key]={start:t};t+=duration(ev);out[key].end=t;
       if(anchored&&pa.key===key&&pa.done){const rest=ev.series.slice(pa.heat).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=Math.max(t,parisSec(Date.now())+rest);out[key].end=t}
       // chronométrage électronique : on se recale sur l'heure réelle d'arrivée des résultats
