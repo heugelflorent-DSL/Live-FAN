@@ -841,6 +841,32 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
 .prl:has(.prm.t) .prm.ok{opacity:1}
 .prl:has(.prm.t) .prm.on{background:rgba(201,154,46,.16)}
 .cdoc{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:rgba(127,127,127,.05)}.cdoc>summary{cursor:pointer;font-size:14px}.cdoc-b{font-size:13.5px;line-height:1.55}.cdoc-b h4{margin:16px 0 6px;font-size:14.5px}.cdoc-b ul,.cdoc-b ol{margin:0 0 4px;padding-left:20px}.cdoc-b li{margin:3px 0}.cdoc-n{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+
+#tvscreen{display:none}
+body.tv #tvscreen{display:flex;flex-direction:column;position:fixed;inset:0;z-index:9999;background:#0a1220;color:#fff;font-family:inherit;overflow:hidden}
+body.tv{overflow:hidden}
+#tvscreen .tvhead{flex:none;height:14vh;display:flex;align-items:center;gap:3vw;padding:0 2.5vw;background:linear-gradient(90deg,var(--accent,#c8102e),color-mix(in srgb,var(--accent,#c8102e) 70%,#000))}
+#tvscreen .tvev{flex:1;min-width:0}#tvscreen .tvev h1{font-size:7vh;font-weight:800;line-height:1;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;margin:0}
+#tvscreen .tvev p{font-size:3.6vh;font-weight:600;opacity:.92;margin:.6vh 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tvscreen .tvtag{font-weight:800;background:#fff;color:var(--accent,#c8102e);padding:.3vh .9vw;border-radius:.8vh;margin-right:1vw}
+#tvscreen .tvclk{font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;font-size:11vh;font-weight:800;letter-spacing:-.2vh;flex:none}
+#tvscreen .tvrows{flex:1;display:flex;flex-direction:column;gap:.8vh;padding:1.2vh 2.5vw;min-height:0}
+#tvscreen .tvsub{font-size:3.4vh;font-weight:800;color:#ffd23f;text-transform:uppercase;letter-spacing:.1vh}
+#tvscreen .tvr{flex:1 1 0;overflow:hidden;display:grid;grid-template-columns:7vh 1fr minmax(0,auto) 17vw 9.5vh;align-items:center;gap:2vw;background:#13203a;border-radius:1.4vh;padding:0 1.5vw;min-height:0}
+#tvscreen .tvr.lead{background:#1d3157;box-shadow:inset .8vh 0 0 #ffd23f}
+#tvscreen .tvn{font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;font-size:6vh;font-weight:800;color:#8fa6cc;text-align:center}
+#tvscreen .tvw{min-width:0}#tvscreen .tvw b{display:block;font-size:4.9vh;font-weight:800;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tvscreen .tvw span{display:block;font-size:2.7vh;font-weight:600;color:#b9c8e4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tvscreen .tvm{font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+#tvscreen .tvm em{font-style:normal;font-size:3.8vh;color:#c9d6ee}#tvscreen .tvm small{font-size:2.2vh;color:#7f93b8}
+#tvscreen .tvrp{font-family:inherit;font-size:2.4vh;font-weight:800;background:#7c4dff;color:#fff;padding:.2vh .8vw;border-radius:99px}
+#tvscreen .tvt{font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;font-size:6.2vh;font-weight:800;text-align:right}
+#tvscreen .tvt.fin{color:#7dffa8}#tvscreen .tvt.tveng{color:#c9d6ee;font-size:5vh}
+#tvscreen .tvp{width:7.6vh;height:7.6vh;border-radius:50%;display:grid;place-items:center;font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;font-size:5vh;font-weight:800}
+#tvscreen .tvp:not(:empty){background:#2a3b5f}#tvscreen .tvp.p1{background:#ffd23f;color:#0a1220}#tvscreen .tvp.p2{background:#d9dee8;color:#0a1220}#tvscreen .tvp.p3{background:#e39b5a;color:#0a1220}
+#tvscreen .tvwait{flex:1;display:grid;place-items:center;font-size:1.8vh}#tvscreen .tvwait .pwait{transform:scale(1.6);transform-origin:center}#tvscreen .tvidle{font-size:8vh;font-weight:800}
+#tvscreen .tvempty{color:#3a4a6a}
+@media (max-aspect-ratio:3/2){#tvscreen .tvr{grid-template-columns:7vh 1fr minmax(0,auto) 21vw 9vh}#tvscreen .tvev h1{font-size:6vh}#tvscreen .tvclk{font-size:9.5vh}}
 .legs{margin:10px 0 4px;display:flex;flex-direction:column;gap:8px}
 .lg{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:rgba(127,127,127,.07)}
 .lg-h{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center}
@@ -1348,6 +1374,31 @@ function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)re
    une série qui saute au-delà des 2 prochaines épreuves pas encore nagées est hors programme → ne décale pas les horaires et ne compte pas en provisoire */
 /* épreuve dans l'eau au chrono : « Série 3 / 3 » au lieu de l'heure de sa 1re série */
 function poolIn(key){const h=state.live==="bassin"&&POOL&&POOL.heat;if(!h||!h.start||!h.heat||poolOther(h)||h.status==="done")return"";const ev=poolEvent(h);return ev&&ev.key===key?h.heat+" / "+((ev.series||[]).length||"?"):""}
+
+/* ===== écran géant (16:9 ou 4:3, lisible à 20-30 m) : couloirs pendant la course, liste de départ entre les courses, attente pendant les pauses ===== */
+function tvLanes(h,se){const ks=new Set([...Object.keys(h.names||{}),...Object.keys(h.lanes||{})].map(Number));(se&&se.swimmers||[]).forEach(w=>w.lane&&ks.add(+w.lane));const mx=Math.max(8,...ks);return Array.from({length:mx},(_,i)=>i+1).filter(n=>ks.has(n)||mx<=10)}
+function tvScreenHtml(){
+  const pw=state.live==="bassin"?poolHtml():"";
+  const h=POOL&&POOL.heat;if(!h||/pwait/.test(pw)||!h.heat&&!h.event){const w=compWait()||(/pwait/.test(pw)?pw:"");return w?`<div class="tvwait">${w}</div>`:`<div class="tvwait"><div class="tvidle">${esc(state.title||"Swim Direct")}</div></div>`}
+  const ev=poolEvent(h),se=ev&&ev.series&&ev.series[(h.heat||1)-1],len=poolLen(),run=h.status==="running"&&!poolAllIn(h),ready=h.status==="ready"||!h.start,relay=ev?!!ev.relay:/^\d+ ?x/i.test(h.title||"");
+  const fins=Object.entries(h.lanes||{}).filter(([,L])=>L.fin&&L.fin.t!=null).sort((a,b)=>a[1].fin.t-b[1].fin.t),rk={};fins.forEach(([n,L],i)=>rk[n]=L.fin.rank||i+1);
+  const best=fins.length?fins[0][0]:null;
+  const rows=tvLanes(h,se).map(n=>{const w=poolWho(h,se,n),L=(h.lanes||{})[n]||{};const nm=w?splitName(w.name):null;
+    const who=w?`<b>${relay?esc(w.club||w.name):esc(nm.last)+" "+esc(nm.first)}</b><span>${relay?"":esc(w.club||"")}</span>`:`<b class="tvempty">—</b><span></span>`;
+    if(ready){const eng=w&&w.time;return`<div class="tvr"><div class="tvn">${n}</div><div class="tvw">${who}</div><div class="tvm"></div><div class="tvt tveng">${eng?fmt(eng):""}</div><div class="tvp"></div></div>`}
+    const laps=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),lk=laps[laps.length-1],last=lk!=null?L.laps[lk]:null;
+    let mid="",tm="",pl="";
+    if(L.fin&&L.fin.t!=null){tm=`<div class="tvt fin">${fmt(L.fin.t)}</div>`;pl=`<div class="tvp p${rk[n]<=3?rk[n]:""}">${rk[n]}</div>`;
+      const B=!relay&&w&&ev?bestOf(w,ev):null;if(B&&B.t!=null){const d=L.fin.t-B.t;mid=d<-.005?`<span class="tvrp">RECORD PERSO</span><small>−${gapTxt(-d)} vs RP</small>`:`<em>${d>.005?"+":""}${Math.abs(d)<.005?"=":gapTxt(Math.abs(d))}</em><small>vs RP</small>`}}
+    else if(last&&last.t!=null){const d=last.dist||lk*len;mid=`<em>${fmt(last.t)}</em><small>${d} m</small>`;tm=`<div class="tvt"></div>`;pl=`<div class="tvp"></div>`}
+    else{tm=`<div class="tvt"></div>`;pl=`<div class="tvp"></div>`}
+    return`<div class="tvr${best===String(n)?" lead":""}"><div class="tvn">${n}</div><div class="tvw">${who}</div><div class="tvm">${mid}</div>${tm}${pl}</div>`}).join("");
+  const title=ev?ev.name:String(h.title||"").replace(/\s+Séries$/i,"");
+  return`<div class="tvhead"><div class="tvev"><h1>${esc(title)}</h1><p><span class="tvtag">${ready?"AU DÉPART · ":""}SÉRIE ${h.heat||"?"}${ev&&ev.series&&ev.series.length?" / "+ev.series.length:""}</span>${esc(state.title||"")}</p></div><div class="tvclk" id="tvclk">${ready?"0.0":""}</div></div><div class="tvrows${ready?" start":""}">${ready?`<div class="tvsub">Liste de départ</div>`:""}${rows}</div>`}
+function tvRender(){if(!document.body.classList.contains("tv"))return;try{let el=document.getElementById("tvscreen");if(!el){el=document.createElement("div");el.id="tvscreen";document.body.appendChild(el)}el.innerHTML=tvScreenHtml()}catch(e){console.warn("écran géant",e)}}
+setInterval(()=>{if(!document.body.classList.contains("tv"))return;const c=document.getElementById("tvclk"),h=POOL&&POOL.heat;if(!c||!h)return;if(h.start&&h.status==="running"&&!poolAllIn(h)){const t=Math.max(0,(Date.now()+(poolOff||0)-h.start)/1000);const m=Math.floor(t/60),x=(t%60).toFixed(1);c.textContent=m?m+":"+x.padStart(4,"0"):x}else if(h.start){const f=Object.values(h.lanes||{}).map(L=>L.fin&&L.fin.t).filter(x=>x!=null);c.textContent=f.length?"":""}},100);
+setInterval(tvRender,1000);
+/* sortir de l'écran géant : Échap ou double-clic */document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("tv"))tvToggle(false)});document.addEventListener("dblclick",e=>{if(e.target.closest&&e.target.closest("#tvscreen"))tvToggle(false)});
 function poolInOrder(h){try{const ev=poolEvent0(h);if(!ev)return true;
   /* les nageurs envoyés par le Quantum sont ceux de la liste de départ de cette série : c'est bien l'épreuve du programme (ordre modifié par l'organisateur), pas une course complémentaire */
   {const se=ev.series&&ev.series[(h.heat||1)-1],nm=Object.values(h.names||{}).map(q=>norm(q&&q.name||"")).filter(Boolean);if(se&&se.swimmers&&nm.length>=2){const L=new Set(se.swimmers.map(w=>norm(w.name)));const hit=nm.filter(x=>L.has(x)).length;if(hit>=Math.max(2,nm.length/2))return true}}const r=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!r)return true;const o=state.order[r].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"),i=o.indexOf(ev.key);if(i<0)return true;
@@ -1855,7 +1906,7 @@ function poolPhrase(h,se){const ls=Object.keys(h.lanes||{}).filter(n=>h.lanes[n]
   const favs=ls.filter(n=>n!==win).map(n=>({n,w:poolWho(h,se,n)})).filter(x=>x.w&&isFav(x.w));for(const x of favs.slice(0,3)){const f=h.lanes[x.n].fin;txt+=` <span class="favstar">★</span> ${esc(x.w.name)} ${f.rank}e en ${fmt(f.t)}.`}
   return`<p class="pphr">${txt}</p>`}
 const tvBtn=()=>`<button class="tvb" data-tv>${document.body.classList.contains("tv")?"✕ Quitter l'écran géant":"⛶ Écran géant"}</button>`;
-function tvToggle(on){on=on??!document.body.classList.contains("tv");document.body.classList.toggle("tv",on);try{on?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}render()}
+function tvToggle(on){on=on??!document.body.classList.contains("tv");document.body.classList.toggle("tv",on);tvRender();try{on?document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}):document.fullscreenElement&&document.exitFullscreen()}catch(_){}render()}
 // classement de l'épreuve, toutes séries confondues (séries nagées au bord du bassin)
 function poolRanking(h,ev){if(!ev)return"";const H={...(POOL.hist||{})};if(h.event!=null)H[h.event+"-"+h.heat]={heat:h.heat,names:h.names,lanes:h.lanes,event:h.event};
   const all=[];for(const k in H){const x=H[k];if(x.event!==h.event)continue;const se=ev.series[x.heat-1];for(const n in x.lanes||{}){const L=x.lanes[n];if(!L.fin||L.fin.t==null)continue;const w=poolWho(x,se,n)||{name:"Couloir "+n};all.push({w,t:L.fin.t,heat:x.heat,lane:n,L,k:x.event+"-"+x.heat+"-"+n})}}
