@@ -1299,7 +1299,9 @@ function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)re
   const t=h.start||(Date.now()+poolOff);if(!poolCompDay(t))return false;return parisSec(t)<toMin(state.starts[s])*60-600}
 /* course complémentaire chargée sur une épreuve plus loin dans le programme (ex. 100 4 N des remplaçants pendant les 10x50) :
    une série qui saute au-delà des 2 prochaines épreuves pas encore nagées est hors programme → ne décale pas les horaires et ne compte pas en provisoire */
-function poolInOrder(h){try{const ev=poolEvent0(h);if(!ev)return true;const r=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!r)return true;const o=state.order[r].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"),i=o.indexOf(ev.key);if(i<0)return true;
+function poolInOrder(h){try{const ev=poolEvent0(h);if(!ev)return true;
+  /* les nageurs envoyés par le Quantum sont ceux de la liste de départ de cette série : c'est bien l'épreuve du programme (ordre modifié par l'organisateur), pas une course complémentaire */
+  {const se=ev.series&&ev.series[(h.heat||1)-1],nm=Object.values(h.names||{}).map(q=>norm(q&&q.name||"")).filter(Boolean);if(se&&se.swimmers&&nm.length>=2){const L=new Set(se.swimmers.map(w=>norm(w.name)));const hit=nm.filter(x=>L.has(x)).length;if(hit>=Math.max(2,nm.length/2))return true}}const r=Object.keys(state.order).find(k=>state.order[k].includes(ev.key));if(!r)return true;const o=state.order[r].filter(k=>EVENTS[k]&&EVENTS[k].type==="event"),i=o.indexOf(ev.key);if(i<0)return true;
   const done=doneSet(true);let last=-1;o.forEach((k,j)=>{if(done.has(k))last=Math.max(last,j)});
   const hs=(PHIST||[]).filter(x=>x!==h&&x.start&&(!h.start||x.start<h.start)&&!x.extra).sort((a,b)=>a.start-b.start);for(const x of hs){const e=poolEvent0(x);const j=e?o.indexOf(e.key):-1;if(j>=0&&j<=last+2)last=Math.max(last,j)}
   if(last<0){const now=parisSec(Date.now()),sch=schedule0Base();let exp=0;o.forEach((k,j)=>{if(sch[k]&&sch[k]<=now+300)exp=j});return i<=exp+2}
