@@ -2694,19 +2694,21 @@ document.addEventListener("scroll",e=>{if(e.target.classList&&e.target.classList
 let RV="",POPPING=false;
 addEventListener("popstate",()=>{if(state.admin||PICK)return;const h=location.hash.slice(1);const v=["live","prog","res","pod","part","rank"].includes(h)?h:"home";if(v!==state.view){POPPING=true;state.view=v;try{render()}finally{POPPING=false}window.scrollTo(0,0)}});
 function render(){if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history[RV&&RV!==state.view&&!POPPING?"pushState":"replaceState"](null,"",location.pathname+location.search+want)}catch(_){}RV=state.view}
-  if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
+  if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");/* écran du mot de passe ouvert : les rafraîchissements du direct ne doivent pas le refermer */
+  if(state.login&&!state.admin){$("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-admin").hidden=true;$("#view-login").hidden=false;return}
+  $("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
 $("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.selFrom=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(["res","pod","home"].includes(state.view))loadLive()});
 $("#admin-btn").onclick=()=>openAdmin();
 async function openAdmin(){if(PICK){location.href="/e/main#admin";return}
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();loadEvents();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
-  $("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-login").hidden=false;$("#login-pw").focus()}
+  state.login=true;$("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-login").hidden=false;$("#login-pw").focus()}
 function alertLogin(m){$("#login-msg").textContent=m;$("#login-msg").className="msg err"}
 $("#login-form").addEventListener("submit",async e=>{e.preventDefault();ADMIN_KEY=$("#login-pw").value;
-  try{state.admin=true;await loadAdmin();loadEvents();try{sessionStorage.setItem("lf-key",ADMIN_KEY)}catch(_){};$("#login-pw").value=""}
+  try{state.admin=true;state.login=false;await loadAdmin();loadEvents();try{sessionStorage.setItem("lf-key",ADMIN_KEY)}catch(_){};$("#login-pw").value=""}
   catch(err){state.admin=false;ADMIN_KEY=null;alertLogin(err.message)}});
-$("#login-cancel").onclick=()=>{state.admin=false;render()};
+$("#login-cancel").onclick=()=>{state.admin=false;state.login=false;$("#navbar").hidden=false;render()};
 $("#save-btn").onclick=()=>saveNow();
 $("#back-public2").onclick=()=>$("#back-public").click();
 window.addEventListener("beforeunload",e=>{if(state.admin&&JSON.stringify(toConfig())!==lastSaved){e.preventDefault();e.returnValue=""}});
