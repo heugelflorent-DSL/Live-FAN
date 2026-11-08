@@ -840,6 +840,7 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
 .prl:has(.prm.t) .prm .prlt{margin-left:auto;flex:none;padding:0 4px}
 .prl:has(.prm.t) .prm.ok{opacity:1}
 .prl:has(.prm.t) .prm.on{background:rgba(201,154,46,.16)}
+.cdoc{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:rgba(127,127,127,.05)}.cdoc>summary{cursor:pointer;font-size:14px}.cdoc-b{font-size:13.5px;line-height:1.55}.cdoc-b h4{margin:16px 0 6px;font-size:14.5px}.cdoc-b ul,.cdoc-b ol{margin:0 0 4px;padding-left:20px}.cdoc-b li{margin:3px 0}.cdoc-n{font-size:12.5px;color:var(--muted);margin:6px 0 0}
 .legs{margin:10px 0 4px;display:flex;flex-direction:column;gap:8px}
 .lg{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:rgba(127,127,127,.07)}
 .lg-h{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center}
@@ -1087,6 +1088,45 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
             <details class="pb-al" id="al-box"><summary><b>Messages du logiciel du chrono</b> <small>(erreurs et événements du jour, à copier-coller pour une analyse)</small></summary>
               <div class="pb-row" style="margin:8px 0"><input class="field" type="date" id="al-day" style="max-width:170px"><label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="al-err"> erreurs seulement</label><button class="btn small ghost" id="al-load" type="button">Actualiser</button><button class="btn small" id="al-copy" type="button">📋 Copier le journal</button></div>
               <textarea class="field" id="al-txt" readonly rows="14" style="width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px;white-space:pre"></textarea>
+            </details>
+            <details class="cdoc" id="chrono-doc"><summary><b>📖 Documentation : relier le chronométrage et l'écran géant</b></summary>
+              <div class="cdoc-b">
+              <h4>1. Ce qu'il faut</h4>
+              <ul><li>Le <b>PC du chronométrage</b> (celui du Quantum), sous Windows, avec Internet (Wi-Fi de la piscine, câble ou partage de connexion d'un téléphone).</li>
+              <li>Le logiciel <b>Swim Direct · Chrono</b>, à télécharger avec le lien de ce module. Il n'a pas besoin d'être installé : on lance directement le fichier.</li>
+              <li>Sur le Quantum, une <b>sortie réseau « Sport In The Box »</b> (format tableau écran). Par défaut le logiciel la cherche sur le port <b>26700</b>.</li></ul>
+
+              <h4>2. Relier le logiciel à ce live</h4>
+              <ol><li>Lancer Swim Direct · Chrono sur le PC du Quantum. Au premier lancement, si Windows le demande, <b>autoriser l'accès au réseau privé</b>.</li>
+              <li>Le logiciel affiche une <b>clé de liaison</b> (SD-XXXX-XXXX-XXXX-XXXX) : « Copier ».</li>
+              <li>La coller ci-dessus puis « <b>Relier</b> ». La ligne « Chrono relié » passe au vert, avec la version du logiciel.</li>
+              <li>Dans le module « <b>Mode du direct</b> », choisir « <b>Bassin</b> » puis enregistrer.</li>
+              <li>Dans le logiciel, « <b>Live relié</b> » doit être vert et « <b>Chronométrage</b> » doit indiquer « connecté (adresse:26700) ».</li></ol>
+              <p class="cdoc-n">Une seule clé par PC : pour changer de compétition, <b>Délier</b> ici puis relier la clé dans l'admin du nouveau live. Sinon les courses du jour s'affichent dans l'ancien live.</p>
+
+              <h4>3. Pendant la compétition</h4>
+              <ul><li><b>Tout est automatique</b> : à chaque série chargée sur le Quantum, le site reçoit l'épreuve, la série et les noms, puis le départ, les passages et les arrivées.</li>
+              <li>Le <b>temps de la plaque</b> est toujours prioritaire sur les boutons de secours (« poires »). Le temps officiel validé par l'opérateur remplace ensuite le provisoire.</li>
+              <li><b>Départ rappelé</b> : quand l'opérateur recharge la série, le direct revient « Au départ » et repart au nouveau départ.</li>
+              <li><b>Courses tests</b> avant la réunion : affichées dans le direct, jamais comptées dans les résultats ni le classement.</li>
+              <li><b>Autre compétition ouverte dans le Quantum</b> (courses des remplaçants…) : si ce live ne suit qu'une compétition, ces courses sont affichées mais <b>ne comptent pas</b>. Mieux vaut toujours les mettre dans une compétition à part du Quantum.</li>
+              <li><b>Épreuve nagée dans un autre ordre</b> que le programme : reconnue tant que les nageurs sont ceux de la liste de départ.</li>
+              <li>Les <b>résultats et le classement provisoires</b> se remplissent dès la fin de chaque série, puis sont remplacés par les résultats officiels du Live FFN.</li>
+              <li>Le Direct se ferme 15 min après la fin de la réunion et affiche un <b>écran d'attente</b> avec minuteur jusqu'à la réunion suivante. Pendant une pause du programme, un bandeau « Pause » s'affiche au-dessus de la dernière série.</li></ul>
+
+              <h4>4. Mises à jour du logiciel</h4>
+              <p>Bouton « <b>Vérifier les mises à jour</b> » dans le logiciel : il se met à jour seul et redémarre en quelques secondes. Le faire <b>entre deux séries</b>, ou mieux la veille. La version installée apparaît ci-dessus. Si la mise à jour échoue, télécharger la dernière version avec le lien de ce module.</p>
+
+              <h4>5. Écran géant</h4>
+              <ul><li><b>Aujourd'hui</b> : sur le PC qui gère l'affichage, ouvrir la page publique du live dans Chrome ou Edge, onglet <b>Direct</b>, bouton « <b>⛶ Écran géant</b> », puis <b>F11</b> pour le plein écran. Les temps passent par Internet : compter 0,3 à 1,5 s de décalage sur les touches. Le chrono qui tourne, lui, est calculé sur place.</li>
+              <li><b>Bientôt, mode « écran local »</b> : le logiciel du chrono enverra les temps directement au PC de l'écran par le réseau de la piscine, sans passer par Internet, donc sans délai visible. L'adresse à ouvrir sur le PC de l'écran sera affichée dans le logiciel.</li></ul>
+
+              <h4>6. En cas de problème</h4>
+              <ul><li><b>« Site injoignable : certificate has expired »</b> : vérifier la <b>date et l'heure</b> du PC, puis ouvrir le site une fois dans Edge sur ce PC. La version 1.3.7 et suivantes embarquent leurs propres certificats.</li>
+              <li><b>« Sortie occupée ? »</b> : la sortie du Quantum est déjà utilisée par autre chose (vidéo, tableau). Créer une 2e sortie Sport In The Box sur un autre port, et l'indiquer dans « Réglages » du logiciel.</li>
+              <li><b>Le Direct ne bouge pas</b> : regarder la ligne « Envoyé » du logiciel. Si elle reste à 0, le Quantum n'envoie rien : charger la série, vérifier la sortie. Si elle augmente, vérifier que le mode du direct est sur « Bassin ».</li>
+              <li><b>Pour une analyse</b> : « Messages du logiciel du chrono » ci-dessus, bouton <b>📋 Copier le journal</b>, ou le <b>Journal complet</b> du jour (lien au-dessus) à transmettre.</li></ul>
+              </div>
             </details>
           </div>
         </div>
