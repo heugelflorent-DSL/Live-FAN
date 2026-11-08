@@ -825,8 +825,9 @@ export default {
     // audience sans cookie : une empreinte hachée (IP + navigateur + semaine) par visiteur, rien de lisible n'est gardé
     if (p === "/api/hit" && req.method === "POST") {
       if (!env.STATS) return new Response(null, { status: 204 });
-      // au plus une visite comptée toutes les 15 s par adresse (un robot qui mitraille ne coûte plus rien)
-      { const ip = req.headers.get("cf-connecting-ip") || ""; const t = Date.now(); if (HITIP[ip] && t - HITIP[ip] < 15e3) return new Response(null, { status: 204 }); HITIP[ip] = t;
+      // au plus une visite comptée toutes les 15 s par adresse et appareil (un robot qui mitraille ne coûte plus rien)
+      /* par adresse ET appareil : à la piscine, tous les téléphones du Wi-Fi partagent la même adresse ; filtrer par adresse seule ne comptait qu'un spectateur toutes les 15 s */
+      { const ip = (req.headers.get("cf-connecting-ip") || "") + "|" + (req.headers.get("user-agent") || "").slice(0, 160); const t = Date.now(); if (HITIP[ip] && t - HITIP[ip] < 15e3) return new Response(null, { status: 204 }); HITIP[ip] = t;
         if (Object.keys(HITIP).length > 5000) for (const k in HITIP) if (t - HITIP[k] > 15e3) delete HITIP[k]; }
       let body = {}; try { body = await req.json(); } catch (e) {}
       const path = String(body.p || "/");
