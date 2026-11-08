@@ -1346,9 +1346,11 @@ function schedule0(){
 }
 /* nombre de relayeurs et distance de chacun d'après le nom de l'épreuve (« 10x50 ») : la liste publiée peut être incomplète */
 function relayLegs(name,fallback){const m=norm(name||"").match(/^(\d+) ?X ?(\d+)/);return m?{n:+m[1],d:+m[2]}:{n:fallback||1,d:null}}
+/* relayeurs envoyés par le Quantum (liste de départ du chrono) pour cette équipe, quand le Live FFN n'en publie qu'une partie */
+function poolRelayNames(ev,w){if(!PHIST)return null;const team=norm(w.team||w.club||w.name||"");if(!team)return null;for(const x of PHIST){if(poolEvent(x)!==ev)continue;for(const n in x.names||{}){const q=x.names[n];if(q&&q.sw&&q.sw.length&&(norm(q.name||"")===team||norm(q.club||"")===team||team.startsWith(norm(q.name||"").slice(0,12))))return q.sw}}return null}
 function splitsHtml(ev,w,by100){const sp0=w.splits||[];if(sp0.length<2)return"";
   /* relais : une carte par relayeur avec son chrono et ses tronçons, comme dans le direct */
-  {const M=(w.members&&w.members.length>1?w.members:w.relay&&w.relay.length>1?w.relay:null);const tot=totalDist(ev.name);if(M&&tot){const RLg=relayLegs(ev.name,M.length),k=RLg.n,seg=RLg.d||tot/k,MM=Array.from({length:k},(_,i)=>M[i]||{name:"Relayeur "+(i+1)});let prevT=0;
+  {const M=(w.members&&w.members.length>1?w.members:w.relay&&w.relay.length>1?w.relay:null);const tot=totalDist(ev.name);if(M&&tot){const RLg=relayLegs(ev.name,M.length),k=RLg.n,seg=RLg.d||tot/k,QN=M.length<k?poolRelayNames(ev,w):null,MM=QN&&QN.length>=k?QN.slice(0,k).map((nm,i)=>({name:nm,leg:(M.find(m=>norm(m.name)===norm(nm))||{}).leg})):Array.from({length:k},(_,i)=>M[i]||{name:"Relayeur "+(i+1)});let prevT=0;
     const cards=MM.map((m,ri)=>{const end=(ri+1)*seg,ps=sp0.filter(x=>x.dist>ri*seg+1e-6&&x.dist<=end+1e-6),lastP=ps[ps.length-1],full=lastP&&Math.abs(lastP.dist-end)<1e-6,own=m.leg!=null&&m.leg>5&&!(w.chrono)?m.leg:full?lastP.cum-prevT:null;/* « leg » des résultats provisoires du chrono = ordre du relayeur, pas un temps */
       const chips=ps.map(x=>{const j=sp0.indexOf(x);return`<span class="lgc"><small>${x.dist} m</small><b>${fmt(x.lap!=null?x.lap:x.cum-(j?sp0[j-1].cum:0))}</b></span>`}).join("");
       let rp="";if(!ri&&own!=null){const B=leadBest(m.name,ev);if(B){const d=own-B.t;rp=`<em class="lg-rp ${Math.abs(d)<.005?"eq":d<0?"fa":"sl"}">${d<-.005?"RECORD PERSO ":"RP "+fmt(B.t)+" · "}${Math.abs(d)<.005?"=":(d<0?"−":"+")+gapTxt(d)}</em>`}}
