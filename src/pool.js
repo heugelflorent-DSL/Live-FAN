@@ -166,7 +166,7 @@ export class PoolRoom {
       const h = this.s.heat; if (h && h.event != null && h.heat && Object.values(h.lanes || {}).some((L) => L.fin)) all[(isExtra(this.s, h.comp) ? "x:" + h.comp + ":" : "") + h.event + "-" + h.heat] = h;
       for (const x of Object.values(all)) { if (x.sim) continue; const fin = {}; for (const n in x.lanes || {}) if (x.lanes[n].fin && x.lanes[n].fin.t != null) fin[n] = x.lanes[n].fin.t; const laps = {}; for (const n in x.lanes || {}) { const L = x.lanes[n].laps || {}; const ks = Object.keys(L).map(Number).sort((a, b) => a - b); if (ks.length) laps[n] = ks.map((k) => [k, L[k].t, L[k].dist || null]); }
         out.push({ extra: isExtra(this.s, x.comp), event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, laps, start: x.start || null, doneAt: x.doneAt || null }); }
-      return Response.json({ now: Date.now(), heats: out }, { headers: { "cache-control": "no-store" } });
+      return Response.json({ now: Date.now(), relayAt: this.s.relayAt || 0, heats: out }, { headers: { "cache-control": "no-store" } });
     }
     if (url.pathname.endsWith("/applog")) {
       const day = url.searchParams.get("day") || new Date().toISOString().slice(0, 10);

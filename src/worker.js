@@ -712,7 +712,9 @@ export default {
         return json({ at: now, pause: true }, 200, { "cache-control": "public, max-age=60" });
       }
       // mémoire de l'instance : un seul appel au relais toutes les 30 s par instance (le cache Cloudflare ne marche pas sur workers.dev)
-      const m = LIVEMEMO[c]; if (m && now - m.t < 30e3) return json(m.body, 200, { "cache-control": "public, max-age=20" });
+      const m = LIVEMEMO[c]; if (m && now - m.t < (m.ttl || 30e3)) return json(m.body, 200, { "cache-control": "public, max-age=20" });
+      /* direct au bord du bassin relié et actif : le Live FFN n'est pas nécessaire → on ne le sollicite pas */
+      if (config.live === "bassin") { try { const st = await (await env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev)).fetch(new Request("https://pool/hist"))).json(); if (st && st.relayAt && now - st.relayAt < 5 * 60e3) { const body = { at: now, pool: true, ...(LIVEOK[c] || {}) }; LIVEMEMO[c] = { t: now, body, ttl: 60e3 }; return json(body, 200, { "cache-control": "public, max-age=30" }); } } catch (e) {} }
       let body = null;
       try {
         for (const n of ["ffnlive:" + c, "ffnB:" + c]) { // relais de secours si le premier est refusé par le Live FFN
@@ -730,7 +732,7 @@ export default {
       } else if (!body.cur?.title && LIVEOK[c]?.cur && now - (LIVEOK[c].okAt || 0) < 15 * 60e3) body = { ...body, cur: LIVEOK[c].cur, held: true }; // page du Live FFN vide entre deux épreuves : on garde la dernière série (15 min au plus)
       else LIVEOK[c] = { ...body, okAt: now };
       if (heats) body = { ...body, heats }; else if (m && m.body.heats) body = { ...body, heats: m.body.heats };
-      LIVEMEMO[c] = { t: now, body };
+      LIVEMEMO[c] = { t: now, body, ttl: /403/.test(String(body.error || body.staleError || "")) ? 5 * 60e3 : 30e3 }; /* refus du Live FFN (403) : 5 min sans redemander */
       // série en cours avec des temps : gardée (une fois par série) pour le classement provisoire de l'onglet Résultats
       const cur = body.cur; const sig = cur && cur.heat ? cur.event + "|" + cur.heat + "|" + cur.rows.filter((r) => r.time != null).length : "";
       if (sig && sig !== LHSIG[c] && cur.rows.some((r) => r.time != null)) { LHSIG[c] = sig;
