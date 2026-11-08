@@ -1152,7 +1152,7 @@ function parisSec(ms){const p=Object.fromEntries(new Intl.DateTimeFormat("en-GB"
 function defaultDur(name){const d=parseInt(name)||100;return {25:25,50:45,100:95,200:200,400:400,800:800,1500:1500}[d]||d}
 function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m[2]):parseInt(name)}
 
-function build(cfg,data){
+function build(cfg,data){loadTeamsF(cfg.comps);
   state.name=cfg.name||"";state.theme=cfg.theme||"alsace";state.color=cfg.color||"";state.org=cfg.org??(state.theme==="alsace"?"Fédération Alsacienne de Natation":"");applyTheme();state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";state.chronoSys=cfg.chronoSys||"quantum";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.rankTab=cfg.rankTab||"";state.finals=cfg.finals||{};state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
@@ -1217,7 +1217,7 @@ function build(cfg,data){
     for(const re of Object.values((c&&c.rosterEv)||{})){const ev=Object.values(EVENTS).find(e=>e.comp===id&&e.type==="event"&&norm(e.base||e.name)===norm(String(re.name||"").replace(/\s*D[ée]tail de la liste.*$/i,"")));if(!ev||ev.entries.length)continue;
       for(const fi of re.iufs||[]){const k=byIuf[fi],s=k&&SWIMMERS[k];if(!s)continue;if(!s.sex)s.sex=ev.sex;ev.entries.push({lane:null,heat:null,name:s.name,year:s.year,club:s.club,time:null,iuf:k,relay:false,members:null,dns:false,roster:true})}}}
   /* composition officielle des équipes (Live FFN, « Equipe 1/2/3 ») : prioritaire */
-  for(const id of cfg.comps||[]){const c=data.comps&&data.comps[id];for(const club in (c&&c.teams)||{}){for(const r of c.teams[club]){const k=swId(r.name,r.year);const sw=SWIMMERS[k]||Object.values(SWIMMERS).find(x=>norm(x.name)===norm(r.name)&&String(x.year)===String(r.year));if(sw)sw.team=club+" "+r.team,sw.teamOff=true}}}
+  for(const id of cfg.comps||[]){const c=data.comps&&data.comps[id];const TT=(c&&c.teams&&Object.keys(c.teams).length?c.teams:TEAMSF[id])||{};for(const club in TT){for(const r of TT[club]){const k=swId(r.name,r.year);const sw=SWIMMERS[k]||Object.values(SWIMMERS).find(x=>norm(x.name)===norm(r.name)&&String(x.year)===String(r.year));if(sw)sw.team=club+" "+r.team,sw.teamOff=true}}}
   /* plusieurs équipes d'un même club sous le même nom (« AC MOLSHEIM MUTZIG » ×5) : équipes reconstituées par les relais
      (relais qui partagent des nageurs = même équipe), numérotées dans l'ordre du programme puis des couloirs. Chaque nageur apporte ses points à SON équipe. */
   {const E=[];const evs=Object.values(EVENTS).filter(e=>e.relay).sort((a,b)=>(a.order||0)-(b.order||0));
@@ -1360,6 +1360,8 @@ function schedule0(){
   return out;
 }
 /* nombre de relayeurs et distance de chacun d'après le nom de l'épreuve (« 10x50 ») : la liste publiée peut être incomplète */
+/* composition des équipes déposée en fichier fixe (/teams/<compétition>.json) quand le Live FFN refuse la lecture (403) */
+const TEAMSF={};function loadTeamsF(ids){for(const id of ids||[]){if(id in TEAMSF)continue;TEAMSF[id]=null;fetch("/teams/"+id+".json").then(r=>r.ok?r.json():null).then(j=>{if(j&&Object.keys(j).length){TEAMSF[id]=j;if(RAW)try{build(RAW.config,RAW.data);render()}catch(e){}}}).catch(()=>{})}}
 function relayLegs(name,fallback){const m=norm(name||"").match(/^(\d+) ?X ?(\d+)/);return m?{n:+m[1],d:+m[2]}:{n:fallback||1,d:null}}
 /* relayeurs envoyés par le Quantum (liste de départ du chrono) pour cette équipe, quand le Live FFN n'en publie qu'une partie */
 function poolRelayNames(ev,w){if(!PHIST)return null;const team=norm(w.team||w.club||w.name||"");if(!team)return null;for(const x of PHIST){if(poolEvent(x)!==ev)continue;for(const n in x.names||{}){const q=x.names[n];if(q&&q.sw&&q.sw.length&&(norm(q.name||"")===team||norm(q.club||"")===team||team.startsWith(norm(q.name||"").slice(0,12))))return q.sw}}return null}
