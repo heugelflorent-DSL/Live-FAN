@@ -835,9 +835,9 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
 .tl2 li.mr span{white-space:normal!important;line-height:1.2;padding:0 4px}.tl2 li.mr{flex:1 0 104px!important;min-width:104px!important}
 /* relais avec chronos : une ligne par relayeur, temps alignés à droite, 2 colonnes si la place le permet */
 .prl:has(.prm.t){display:grid!important;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:4px 16px;white-space:normal;overflow:hidden;margin-top:4px;max-width:100%;min-width:0}
-.prl:has(.prm.t) .prm{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap;padding:3px 8px;border-radius:7px;background:rgba(127,127,127,.07)}
+.who .prl:has(.prm.t){grid-column:1/-1!important}.prl:has(.prm.t) .prm{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap;padding:2px 6px;border-radius:7px;background:rgba(127,127,127,.07);font-size:12px}
 .prl:has(.prm.t) .prm .prn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.prl:has(.prm.t) .prm .prlt{margin-left:auto;flex:none}
+.prl:has(.prm.t) .prm .prlt{margin-left:auto;flex:none;padding:0 4px}
 .prl:has(.prm.t) .prm.ok{opacity:1}
 .prl:has(.prm.t) .prm.on{background:rgba(201,154,46,.16)}
 .legs{margin:10px 0 4px;display:flex;flex-direction:column;gap:8px}
