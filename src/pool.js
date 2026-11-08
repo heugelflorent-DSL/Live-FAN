@@ -64,6 +64,8 @@ export class PoolRoom {
       case "react": { const l = lane(ev.lane); if (l) l.rt = ev.t; break; }
       /* plaque (Type T) prioritaire sur les boutons de secours (« poires », Type 1-3) : un temps de poire ne remplace jamais celui de la plaque, quel que soit l'ordre d'arrivée */
       case "split": case "finish": { const l = lane(ev.lane); if (!l) break; const old = l.laps[ev.lap]; if (old && !old.edited && ev.edited) break;
+        /* temps impossible : plus long que le temps écoulé depuis le départ (+10 s de marge), ex. appui parasite sur la plaque → ignoré, le vrai temps arrive ensuite */
+        { const h0 = s.heat; if (h0 && h0.start && ev.t > (t - h0.start) / 1000 + 10) break; }
         l.laps[ev.lap] = { t: ev.t, rank: ev.rank || (old && old.rank) || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = Math.max(l.last || 0, ev.lap);
         if (ev.k === "finish") l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null }; break; }
       case "end": if (s.heat) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } break;

@@ -2103,10 +2103,10 @@ function renderLiveFfn(){
      html+=`<div class="card lv-card"><span class="lv-tag">Série à venir${nx2.hm?" · vers "+esc(nx2.hm):""}</span><h3>${esc(nx2.name)}</h3><div class="sub">Réunion ${esc(sl.s)} · Série ${nx2.heat||"?"} / ${nx2.of||"?"}</div>${nx2.lanes.length?lvLanes(nx2.lanes):`<p class="msg">Composition pas encore publiée.</p>`}</div></div>`;
      $("#pub-body").innerHTML=html.replace(/<p class="lv-warn">[\s\S]*?<\/p>/g,"");return}}
   let side="";html+=`<div class="pgrid lvgrid"><div class="pmain">`;
-  html+=`<div class="card lv-card"><span class="lv-tag">${fromRes?"Dernière épreuve terminée · résultats":"Dernière série terminée"}</span><h3>${esc(cur.ev?cur.ev.name:L.cur.event)}</h3><div class="sub">${multi?compBadge(cur.id)+" · ":""}${L.cur.heat?"Série "+L.cur.heat+(L.cur.of?" / "+L.cur.of:""):""}</div>${lvRows(L.cur.rows,cur.id,L.cur.title)}</div>`;
+  /* ordre du direct : série en cours (bassin) → série suivante → derniers résultats */let lastH=`<div class="card lv-card"><span class="lv-tag">${fromRes?"Dernière épreuve terminée · résultats":"Dernière série terminée"}</span><h3>${esc(cur.ev?cur.ev.name:L.cur.event)}</h3><div class="sub">${multi?compBadge(cur.id)+" · ":""}${L.cur.heat?"Série "+L.cur.heat+(L.cur.of?" / "+L.cur.of:""):""}</div>${lvRows(L.cur.rows,cur.id,L.cur.title)}</div>`;
   {const P=cur.ev&&provRes()[cur.ev.key];if(P&&P.n>1){const all=!!state.open.lvall,rows=all?P.rows:P.rows.slice(0,8);const inCur=new Set(L.cur.rows.map(w=>w.name));
     side=`<div class="card lv-card lv-cls"><span class="lv-tag">Classement de l'épreuve · provisoire</span><h3>${esc(cur.ev.name)}</h3><div class="sub">après ${P.n} série${P.n>1?"s":""}${P.of?" sur "+P.of:""}</div>${lvRows(rows.map(w=>({...w,hl:inCur.has(w.name)})),cur.id,P.title)}${P.rows.length>8?`<button class="btn small ghost" data-lvall="1">${all?"Réduire":"Voir les "+P.rows.length+" nageurs"}</button>`:""}</div>`;
-    html+=`<div class="lv-cls-m">${side}</div>`}} // téléphone : sous la série ; grand écran : colonne de droite, comme en mode Quantum
+    lastH+=`<div class="lv-cls-m">${side}</div>`}} // téléphone : sous la série ; grand écran : colonne de droite, comme en mode Quantum
   // série suivante selon le programme fusionné
   let nx=null;
   if(L.cur.heat&&L.cur.of&&L.cur.heat<L.cur.of&&L.next&&L.next.lanes.length)nx={comp:cur.id,name:cur.ev?cur.ev.name:L.next.event,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes};
@@ -2116,6 +2116,7 @@ function renderLiveFfn(){
       else{const se=ev.series[0]||{n:1,swimmers:[]};nx={comp:ev.comp,name:ev.name,heat:se.n,of:ev.series.length,hm:sch[k]?"~"+hm((sch[k]||{}).start):null,lbl:ev.qualProv?"temps des séries":"",lanes:se.swimmers.map(w=>({lane:w.lane,name:w.name,club:w.club,year:w.year,entry:w.time}))}}}}
   else if(L.next&&L.next.lanes.length)nx={comp:cur.id,name:L.next.event,heat:L.next.heat,of:L.next.of,hm:L.next.hm?L.next.hm.replace(":","h"):null,lanes:L.next.lanes};
   if(nx)html+=`<div class="card lv-card"><span class="lv-tag">Série suivante${nx.hm?" · vers "+esc(nx.hm):""}</span><h3>${esc(nx.name)}</h3><div class="sub">${multi?compBadge(nx.comp)+" · ":""}Série ${nx.heat||"?"} / ${nx.of||"?"}</div>${nx.lanes.length?lvLanes(nx.lanes,nx.lbl):`<p class="msg">Composition pas encore publiée.</p>`}</div>`;
+  html+=lastH;
   // programme fusionné de la réunion
   if(cur.ev){const s=cur.ev.sess,sch=schedule(),done=doneSet();const ks=(state.order[s]||[]).filter(k=>EVENTS[k]);
     html+=`<div class="card lv-card lv-progc"><span class="lv-tag">Programme de la réunion</span><ul class="lv-prog">${ks.map(k=>{const ev=EVENTS[k];
