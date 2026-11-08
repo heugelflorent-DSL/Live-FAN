@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.3.9"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -38,6 +38,94 @@ def load_cfg():
 def save_cfg(c):
     with open(CFG_PATH, "w", encoding="utf-8") as f: json.dump(c, f, indent=1)
 
+# ---------- écran géant local ----------
+# Le PC de l'écran ouvre http://<ce PC>:8765 dans son navigateur : la page vient du site (mise en page toujours à jour,
+# gardée en copie pour fonctionner sans Internet) et les temps arrivent directement d'ici par le réseau de la piscine, sans délai.
+import http.server, hashlib
+LOCAL_PORT = 8765
+def lan_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(("8.8.8.8", 80)); ip = s.getsockname()[0]; s.close(); return ip
+    except OSError:
+        try: return socket.gethostbyname(socket.gethostname())
+        except OSError: return "127.0.0.1"
+
+class LocalScreen:
+    def __init__(self, core):
+        self.core = core; self.evs = []; self.lock = threading.Lock(); self.clients = []
+        self.cache = os.path.join(HOME, "ecran"); os.makedirs(self.cache, exist_ok=True); self.port = int(core.cfg.get("ecran_port") or LOCAL_PORT); self.ok = False; self.ip = ""
+    def push(self, ev):
+        item = {"t": int(time.time() * 1000), "ev": ev}
+        with self.lock:
+            self.evs.append(item)
+            if len(self.evs) > 60000: self.evs = self.evs[-40000:]
+            cl = list(self.clients)
+        msg = ("data: " + json.dumps(item, ensure_ascii=False) + "\n\n").encode()
+        for q in cl:
+            try: q.put_nowait(msg)
+            except queue.Full: pass
+    def live_path(self):
+        u = self.core.st.get("url") or ""
+        i = u.find("/e/"); return u[i:].split("#")[0] if i >= 0 else "/"
+    def fetch(self, path):
+        """page ou donnée du site ; copie gardée sur le PC pour fonctionner sans Internet"""
+        fp = os.path.join(self.cache, hashlib.sha1(path.encode()).hexdigest())
+        try:
+            req = urllib.request.Request(self.core.cfg["site"].rstrip("/") + path, headers={"user-agent": f"SwimDirectChrono/{VERSION}"})
+            with urllib.request.urlopen(req, timeout=6) as r:
+                body, ctype = r.read(), r.headers.get("content-type", "application/octet-stream")
+            if r.status == 200:
+                try:
+                    with open(fp, "wb") as f: f.write(ctype.encode() + b"\n" + body)
+                except OSError: pass
+            return 200, ctype, body
+        except urllib.error.HTTPError as e:
+            if e.code == 404: return 404, "text/plain", b"introuvable"
+        except Exception: pass
+        try:
+            with open(fp, "rb") as f: ctype, body = f.read().split(b"\n", 1)
+            return 200, ctype.decode(), body
+        except OSError: return 503, "text/plain; charset=utf-8", "Pas d'Internet et pas encore de copie de cette page sur ce PC.".encode()
+    def serve(self):
+        me = self
+        class H(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+            def log_message(self, *a): pass
+            def do_GET(self):
+                path = self.path
+                if path == "/" or path.startswith("/?"):
+                    self.send_response(302); self.send_header("location", me.live_path() + "?ecran=local#tv"); self.send_header("content-length", "0"); self.end_headers(); return
+                if path.startswith("/local/events"): return self.events()
+                if path.startswith("/local/now"):
+                    b = json.dumps({"now": int(time.time() * 1000)}).encode(); return self.out(200, "application/json", b)
+                code, ctype, body = me.fetch(path)
+                if code == 200 and ctype.startswith("text/html"):
+                    body = body.replace(b"<head>", b"<head><script>window.SD_LOCAL=1</script>", 1)
+                self.out(code, ctype, body)
+            def out(self, code, ctype, body):
+                self.send_response(code); self.send_header("content-type", ctype); self.send_header("content-length", str(len(body))); self.send_header("cache-control", "no-store"); self.end_headers()
+                try: self.wfile.write(body)
+                except OSError: pass
+            def events(self):
+                q = queue.Queue(maxsize=5000)
+                with me.lock: back = list(me.evs); me.clients.append(q)
+                self.send_response(200); self.send_header("content-type", "text/event-stream"); self.send_header("cache-control", "no-store"); self.send_header("connection", "keep-alive"); self.end_headers()
+                try:
+                    self.wfile.write(("data: " + json.dumps({"hello": 1, "now": int(time.time() * 1000), "back": back}, ensure_ascii=False) + "\n\n").encode()); self.wfile.flush()
+                    while not me.core.stop:
+                        try: msg = q.get(timeout=10)
+                        except queue.Empty: msg = ("data: " + json.dumps({"now": int(time.time() * 1000)}) + "\n\n").encode()
+                        self.wfile.write(msg); self.wfile.flush()
+                except OSError: pass
+                finally:
+                    with me.lock:
+                        if q in me.clients: me.clients.remove(q)
+        try:
+            srv = http.server.ThreadingHTTPServer(("0.0.0.0", self.port), H); srv.daemon_threads = True; self.ok = True
+            self.ip = lan_ip(); self.core.log(f"🖥 Écran géant local : sur le PC de l'écran, ouvrir http://{self.ip}:{self.port}")
+            srv.serve_forever()
+        except OSError as e: self.core.log(f"✗ Écran géant local indisponible (port {self.port}) : {e}")
+
 # ---------- moteur ----------
 class Core:
     def __init__(self, cfg, on_log=print):
@@ -52,6 +140,7 @@ class Core:
                 except OSError: pass
         self.journal = open(os.path.join(jdir, datetime.now().strftime("journal-%Y%m%d-%H%M.jsonl")), "a", encoding="utf-8")
         self.fw_clients = []; self.fw_lock = threading.Lock()
+        self.screen = LocalScreen(self)
 
     def log(self, *a):
         msg = " ".join(str(x) for x in a); ts = time.time()
@@ -166,6 +255,7 @@ class Core:
             if not self.paused:
                 try: self.q.put_nowait(ev)
                 except queue.Full: pass
+                if ev["k"] != "ping": self.screen.push(ev)
 
     # lecture du chronométrage (sortie réseau Sport In The Box)
     def source_loop(self, demo=False):
@@ -244,6 +334,7 @@ class Core:
                 except OSError: self.fw_clients.remove(c)
 
     def start(self, demo=False):
+        threading.Thread(target=self.screen.serve, daemon=True).start()
         for f in (self.hello_loop, self.send_loop, self.journal_loop, self.ping_loop): threading.Thread(target=f, daemon=True).start()
         if self.cfg.get("forward"):
             try: threading.Thread(target=self.forward_loop, daemon=True).start()
@@ -330,7 +421,7 @@ def gui(cfg, demo=False, close_after=0):
     bupd.pack(side="right", padx=10, pady=6)
     stat = tk.Frame(root, bg="#e9f4f8"); stat.pack(fill="x", padx=14)
     lines = {}
-    for k, lab in (("site", "Live relié"), ("q", "Chronométrage"), ("last", "Dernier événement"), ("sent", "Envoyé")):
+    for k, lab in (("site", "Live relié"), ("q", "Chronométrage"), ("ecran", "Écran géant"), ("last", "Dernier événement"), ("sent", "Envoyé")):
         f = tk.Frame(stat, bg="#e9f4f8"); f.pack(fill="x", pady=1)
         tk.Label(f, text=lab, width=17, anchor="w", bg="#e9f4f8", fg=GREY, font=("Segoe UI", 10)).pack(side="left")
         v = tk.Label(f, text="…", anchor="w", bg="#e9f4f8", fg=BLUE, font=("Segoe UI", 10, "bold"), wraplength=420, justify="left"); v.pack(side="left", fill="x"); lines[k] = v
@@ -398,6 +489,7 @@ def gui(cfg, demo=False, close_after=0):
         lines["site"].config(text=(f"✓ {s['name']}" if s["linked"] else "en attente : colle la clé dans l'admin de ton live" if s["linked"] is False else "connexion au site…") + (f"  ·  ⚠ {s['err']}" if s["err"] else ""),
                              fg=RED if (s["err"] or s["linked"] is False) else BLUE)
         lines["q"].config(text=s["quantum"], fg=RED if not s["quantum"].startswith(("connecté", "démo")) else BLUE)
+        lines["ecran"].config(text=(f"http://{core.screen.ip}:{core.screen.port}  ·  {len(core.screen.clients)} écran(s) connecté(s)" if core.screen.ok else "démarrage…"))
         lines["last"].config(text=s["last"] or "—")
         if s.get("update") and not getattr(bupd, "do", False):
             for w in (upd, updl): w.config(bg="#ffcc29")
