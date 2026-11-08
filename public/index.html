@@ -846,7 +846,7 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
 #tvscreen .tvr{grid-template-columns:7vh 8vh 1fr minmax(0,auto) 19vw 9.5vh!important}
 #tvscreen .tvlg{width:8vh;height:8vh;display:grid;place-items:center;background:#fff;border-radius:1.2vh;overflow:hidden}#tvscreen .tvlg:empty{background:transparent}#tvscreen .tvlg img{max-width:90%;max-height:90%;object-fit:contain}
 #tvscreen .tvt.split{color:#fff;display:flex;flex-direction:column;align-items:flex-end;line-height:1}#tvscreen .tvt.split small{font-size:2.4vh;color:#ffd23f;font-weight:700;margin-top:.4vh}
-#tvscreen .tvrows.ranked .tvr{position:relative;z-index:1;will-change:transform}#tvscreen .tvrows.ranked .tvr.rkd .tvp{transform:scale(1.08)}#tvscreen .tvp.live{opacity:.85;outline:.35vh dashed rgba(255,255,255,.35);outline-offset:-.35vh}
+#tvscreen .tvrows.ranked .tvr{position:relative;z-index:1;will-change:transform}#tvscreen .tvrows.ranked .tvr.rkd .tvp{transform:scale(1.08)}#tvscreen .tvdist{font:800 5.2vh system-ui,sans-serif;color:#ffd23f;white-space:nowrap}#tvscreen .tvp.live{opacity:.85;outline:.35vh dashed rgba(255,255,255,.35);outline-offset:-.35vh}
 @media (max-aspect-ratio:3/2){#tvscreen .tvr{grid-template-columns:6vh 7vh 1fr minmax(0,auto) 24vw 8.5vh!important}#tvscreen .tvlg{width:7vh;height:7vh}}
 #tvscreen{display:none}
 body.tv #tvscreen{--accent:#ffd23f;--ink:#fff;--muted:#b9c8e4;--line:#24345a;--card:#13203a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;position:fixed;inset:0;z-index:9999;background:#0a1220;color:#fff;font-family:inherit;overflow:hidden}
@@ -1409,7 +1409,7 @@ function tvScreenHtml(){
     if(L.fin&&L.fin.t!=null){tm=`<div class="tvt fin">${fmt(L.fin.t)}</div>`;pl=`<div class="tvp p${rk[n]<=3?rk[n]:""}">${rk[n]}</div>`;
       const B=!relay&&w&&ev?bestOf(w,ev):null;if(B&&B.t!=null){const d=L.fin.t-B.t;mid=d<-.005?`<span class="tvrp">RECORD PERSO</span><small>−${gapTxt(-d)} vs RP</small>`:`<em>${d>.005?"+":""}${Math.abs(d)<.005?"=":gapTxt(Math.abs(d))}</em><small>vs RP</small>`}}
     else if(last&&last.t!=null){const d=last.dist||lk*len,j=laps.indexOf(lk),seg=j>0&&L.laps[laps[j-1]]&&L.laps[laps[j-1]].t!=null?last.t-L.laps[laps[j-1]].t:last.t,g=gapLive[n];
-      const pd=j>0&&L.laps[laps[j-1]]?(L.laps[laps[j-1]].dist||laps[j-1]*len):0;mid=j>0?`<em>${fmt(seg)}</em><small>dernier ${d-pd} m</small>`:"";tm=`<div class="tvt split">${fmt(last.t)}<small>${d} m${g>.005?" · +"+gapTxt(g):""}</small></div>`;pl=`<div class="tvp live${rkLive[n]<=3?" p"+rkLive[n]:""}">${rkLive[n]||""}</div>`}
+      const pd=j>0&&L.laps[laps[j-1]]?(L.laps[laps[j-1]].dist||laps[j-1]*len):0;mid=`<span class="tvdist">${d} m</span>`;tm=`<div class="tvt split">${fmt(last.t)}</div>`;pl=`<div class="tvp live${rkLive[n]<=3?" p"+rkLive[n]:""}">${rkLive[n]||""}</div>`}
     else{tm=`<div class="tvt"></div>`;pl=`<div class="tvp"></div>`}
     return`<div class="tvr${best===String(n)?" lead":""}${L.fin?"":rkLive[n]===1?" lead":""}${ranked?" rkd":""}" data-ln="${n}"><div class="tvn">${n}</div>${whoL}<div class="tvm">${mid}</div>${tm}${pl}</div>`}).join("");
   const title=ev?ev.name:String(h.title||"").replace(/\s+Séries$/i,"");
