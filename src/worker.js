@@ -636,7 +636,9 @@ export default {
         const c = await env.KV.get(kk("config", x.id), "json"); if (!c || !c.published) continue;
         // page d'accueil : ville, bassin et dates lues dans le texte brut (sans relire tout le fichier de données)
         const raw = (await env.KV.get(kk("data", x.id))) || ""; const metas = [];
-        for (const m of raw.matchAll(/"meta":(\{[^{}]*\})/g)) { try { metas.push(JSON.parse(m[1])); } catch (e) {} if (metas.length >= 6) break; }
+        /* seulement les compétitions encore reliées au live (une compétition retirée garde ses données mais ne doit plus faire « En direct ») */
+        try { const d = JSON.parse(raw || "{}"); for (const id of c.comps || []) { const m = d.comps && d.comps[id] && d.comps[id].meta; if (m) metas.push(m); if (metas.length >= 6) break; } }
+        catch (e) { for (const m of raw.matchAll(/"meta":(\{[^{}]*\})/g)) { try { metas.push(JSON.parse(m[1])); } catch (e2) {} if (metas.length >= 6) break; } }
         out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main", theme: c.theme || "alsace", color: c.color || "", org: c.org ?? (c.theme && c.theme !== "alsace" ? "" : "Fédération Alsacienne de Natation"), live: c.live || "off",
           comps: metas.map((m) => ({ name: m.name || "", city: m.city || "", pool: m.pool || "", date: m.date || "" })) });
       }
