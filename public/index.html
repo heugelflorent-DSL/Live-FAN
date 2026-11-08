@@ -980,7 +980,6 @@ body.tv{overflow:hidden}
 
 <main class="wrap">
   <section id="view-public">
-    <button id="navback" class="navback" type="button" onclick="history.back()">← Retour</button>
     <div id="pub-body"></div>
     <p class="empty" id="pub-unpub" hidden>Aucun événement en ligne pour le moment.</p>
   </section>
@@ -1838,8 +1837,7 @@ function teamBoard(rule,sex){
 }
 /* style du compteur d'épreuves */document.head.insertAdjacentHTML("beforeend",`<style>.tnev{display:inline-block;margin:2px 0 3px;font-size:12px;font-weight:600;color:var(--muted,#667);padding:1px 7px;border-radius:99px;background:rgba(127,127,127,.12)}.tnev.less{color:#b45309;background:#fff3e0}.tnev.more{color:#1d4ed8;background:#e8f0ff}</style>`);
 /* nom de club cliquable (avec son logo) : ouvre la fiche du club dans « Nageurs & clubs » */
-document.head.insertAdjacentHTML("beforeend",`<style>#navback{display:none}body.has-navback #navback{display:inline-flex;align-items:center;gap:6px;position:sticky;top:calc(var(--navh,56px) + 8px);z-index:30;margin:4px 0 8px;padding:8px 14px;border-radius:99px;border:1px solid rgba(0,0,0,.12);background:#fff;color:#1d2a44;font:600 14px system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.12);cursor:pointer}
-.clk{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(127,127,127,.45);text-underline-offset:2px}.clk:hover{text-decoration-color:currentColor}</style>`);
+document.head.insertAdjacentHTML("beforeend",`<style>.clk{cursor:pointer;text-decoration:underline;text-decoration-color:rgba(127,127,127,.45);text-underline-offset:2px}.clk:hover{text-decoration-color:currentColor}</style>`);
 /* nom d'épreuve cliquable : ouvre l'épreuve dans le programme, sur la bonne série */
 function evA(k,n,h){return k?`<a href="#" class="clk" data-goheat="${esc(k)}|${h||1}">${esc(n)}</a>`:esc(n)}
 function clubA(c,nl){if(!c)return"";return`<span class="clk" data-club="${esc(c)}" role="link" tabindex="0">${nl?"":logo(c)}${esc(c)}</span>`}
@@ -2718,13 +2716,17 @@ document.addEventListener("scroll",e=>{if(e.target.classList&&e.target.classList
 // retour arrière du navigateur : chaque changement d'onglet est une étape de l'historique
 let RV="",POPPING=false;
 /* navigation entre fiches (nageur, club, épreuve) : on mémorise d'où l'on vient pour y revenir au même endroit */
-let NAVD=0;function navPush(){try{history.replaceState({snap:{view:state.view,sel:state.sel,selFrom:state.selFrom,open:JSON.parse(JSON.stringify(state.open)),reu:state.reu,y:scrollY,q:$("#search").value},d:NAVD},"",location.href);NAVD++;history.pushState({d:NAVD},"",location.href);RV=""}catch(_){}}
-addEventListener("popstate",e=>{if(state.admin||PICK)return;const S=e.state&&e.state.snap;if(S){NAVD=e.state.d||0;POPPING=true;Object.assign(state,{view:S.view,sel:S.sel,selFrom:S.selFrom,open:S.open,reu:S.reu});$("#search").value=S.q||"";try{render()}finally{POPPING=false}RV=state.view;document.body.classList.toggle("has-navback",NAVD>0);requestAnimationFrame(()=>window.scrollTo(0,S.y||0));return}
+/* flèches précédent / suivant du navigateur et retour du téléphone : chaque étape garde sa vue, ses blocs ouverts et sa position */
+let NAVD=0;const navSnap=()=>({view:state.view,sel:state.sel,selFrom:state.selFrom,open:JSON.parse(JSON.stringify(state.open)),reu:state.reu,y:scrollY,q:($("#search")||{}).value||""});
+function navSave(){if(state.admin||PICK)return;try{history.replaceState({...(history.state||{}),snap:navSnap(),d:NAVD},"",location.href)}catch(_){}}
+let NAVT=0;addEventListener("scroll",()=>{clearTimeout(NAVT);NAVT=setTimeout(navSave,300)},{passive:true});
+function navPush(){try{navSave();NAVD++;history.pushState({d:NAVD},"",location.href);RV=""}catch(_){}}
+addEventListener("popstate",e=>{if(state.admin||PICK)return;const S=e.state&&e.state.snap;if(S){NAVD=e.state.d||0;POPPING=true;Object.assign(state,{view:S.view,sel:S.sel,selFrom:S.selFrom,open:S.open,reu:S.reu});$("#search").value=S.q||"";try{render()}finally{POPPING=false}RV=state.view;requestAnimationFrame(()=>window.scrollTo(0,S.y||0));return}
   const h=location.hash.slice(1);const v=["live","prog","res","pod","part","rank"].includes(h)?h:"home";if(v!==state.view){POPPING=true;state.view=v;try{render()}finally{POPPING=false}window.scrollTo(0,0)}});
 function render(){if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history[RV&&RV!==state.view&&!POPPING?"pushState":"replaceState"](null,"",location.pathname+location.search+want)}catch(_){}RV=state.view}
   if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");/* écran du mot de passe ouvert : les rafraîchissements du direct ne doivent pas le refermer */
   if(state.login&&!state.admin){$("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-admin").hidden=true;$("#view-login").hidden=false;return}
-  $("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;document.body.classList.toggle("has-navback",NAVD>0&&!state.admin);$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
+  $("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
 $("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.selFrom=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(["res","pod","home"].includes(state.view))loadLive()});
@@ -2761,14 +2763,13 @@ $("#pub-body").addEventListener("click",e=>{
   const fb=e.target.closest("[data-fav]");if(fb){e.preventDefault();const k=fb.dataset.favkey,n=fb.dataset.favname;const box=fb.dataset.fav==="s"?FAV.sw:FAV.cl;if(box[k])delete box[k];else box[k]=n;favSave();render();return}
   const cb=e.target.closest("[data-club]");if(cb&&!e.target.closest("#tvscreen")){e.preventDefault();e.stopPropagation();navPush();const c=cb.dataset.club;state.view="part";state.sel=null;state.podSp=null;for(const x of Object.keys(state.open))if(/^c/.test(x))delete state.open[x];state.open["c"+c]=true;$("#search").value="";render();RV="part";
     const el=document.querySelector(`[data-open="${CSS.escape("c"+c)}"]`);if(el){const nav=($("#navbar")||{}).offsetHeight||0;window.scrollTo(0,scrollY+el.getBoundingClientRect().top-nav-12)}else window.scrollTo(0,0);return}
-  const nb2=e.target.closest("[data-navback]");if(nb2){e.preventDefault();history.back();return}
   const sw=e.target.closest("[data-swimmer]");if(sw){e.preventDefault();navPush();const stay=state.view==="part",y=window.scrollY;if(!stay&&!state.sel)state.selFrom={view:state.view,y};state.podSp=null;state.view="part";state.sel=sw.dataset.swimmer;if(!stay)$("#search").value="";render();window.scrollTo(0,stay?y:0);return}
   
-  if(e.target.closest("[data-close]")&&(!e.target.closest(".sheet")||e.target.closest("button[data-close]"))){if(NAVD>0){e.preventDefault();history.back();return}const f=state.selFrom;state.selFrom=null;if(f){state.sel=null;state.view=f.view;render();window.scrollTo(0,f.y);return}const y=window.scrollY;state.sel=null;renderPublic();window.scrollTo(0,y);return}
+  if(e.target.closest("[data-close]")&&(!e.target.closest(".sheet")||e.target.closest("button[data-close]"))){if(NAVD>0&&history.state&&history.state.d>0){e.preventDefault();history.back();return}const f=state.selFrom;state.selFrom=null;if(f){state.sel=null;state.view=f.view;render();window.scrollTo(0,f.y);return}const y=window.scrollY;state.sel=null;renderPublic();window.scrollTo(0,y);return}
   const b=e.target.closest("[data-open]");if(b){const k=b.dataset.open,on=!state.open[k];
     // une seule épreuve / un seul club ouvert à la fois dans chaque liste : ouvrir l'un referme l'autre (pas de défilement sans fin)
     if(on){const g=/^[a-z]/.test(k)?k[0]:"";for(const x of Object.keys(state.open))if(x!==k&&state.open[x]&&(/^[a-z]/.test(x)?x[0]:"")===g&&!/^(mt|lv|sp)/.test(x))state.open[x]=false}
-    state.open[k]=on;renderPublic();if(on){const el=document.querySelector(`[data-open="${CSS.escape(k)}"]`);if(el){const r=el.getBoundingClientRect(),nav=($("#navbar")||{}).offsetHeight||0;if(r.top<nav||r.top>innerHeight*.6)window.scrollTo({top:scrollY+r.top-nav-12,behavior:"smooth"})}}}
+    state.open[k]=on;renderPublic();navSave();if(on){const el=document.querySelector(`[data-open="${CSS.escape(k)}"]`);if(el){const r=el.getBoundingClientRect(),nav=($("#navbar")||{}).offsetHeight||0;if(r.top<nav||r.top>innerHeight*.6)window.scrollTo({top:scrollY+r.top-nav-12,behavior:"smooth"})}}}
 });
 $("#search").oninput=renderPublic;
 $("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
