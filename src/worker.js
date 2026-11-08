@@ -840,6 +840,13 @@ export default {
     }
 
     // partenaires : ceux de tous les lives + ceux de cet événement
+    // pièces jointes des informations de l'accueil (photo ou PDF), stockées dans KV
+    { const fm = p.match(/^\/api\/f\/([\w-]{1,60})\/([a-z0-9]{6,40})$/); if (fm && req.method === "GET") {
+      const r = await env.KV.getWithMetadata("file:" + fm[1] + ":" + fm[2], { type: "arrayBuffer" });
+      if (!r || !r.value) return new Response("Fichier introuvable", { status: 404 });
+      const m = r.metadata || {}; const h = { "content-type": m.type || "application/octet-stream", "cache-control": "public, max-age=31536000, immutable" };
+      if (m.type === "application/pdf") h["content-disposition"] = `inline; filename="${String(m.name || "document.pdf").replace(/[^\w .-]/g, "_")}"`;
+      return new Response(r.value, { headers: h }); } }
     if (p === "/api/sponsors" && req.method === "GET") {
       const [all, one, ta, te] = await Promise.all([env.KV.get("sponsors", "json"), env.KV.get(kk("sponsors", ev), "json"), env.KV.get("toplogo", "json"), env.KV.get("toplogo:ev:" + ev, "json")]);
       return edge(json({ all: all || [], ev: one || [], top: { all: ta, ev: te } }, 200, { "cache-control": "public, max-age=120" }));
@@ -943,6 +950,15 @@ export default {
     if (p === "/api/admin/state") {
       const { config, data } = await load(env, ev);
       return json({ config, data, now: Date.now(), role: ADM ? "admin" : "org" });
+    }
+    if (p === "/api/admin/file" && req.method === "PUT") {
+      const type = (req.headers.get("content-type") || "").split(";")[0].trim();
+      if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(type)) return json({ error: "Seules les photos (JPG, PNG, WebP) et les PDF sont acceptés." }, 400);
+      const buf = await req.arrayBuffer(); if (!buf.byteLength) return json({ error: "Fichier vide." }, 400);
+      if (buf.byteLength > 10 * 1024 * 1024) return json({ error: "Fichier trop lourd (10 Mo maximum)." }, 400);
+      const id = crypto.randomUUID().replace(/-/g, "").slice(0, 16), name = String(url.searchParams.get("name") || "").slice(0, 120);
+      await env.KV.put("file:" + ev + ":" + id, buf, { metadata: { type, name, size: buf.byteLength } });
+      return json({ ok: true, url: "/api/f/" + ev + "/" + id, type, name, size: buf.byteLength });
     }
     if (p === "/api/admin/sponsors" && req.method === "PUT") {
       const { scope, list } = await req.json();
