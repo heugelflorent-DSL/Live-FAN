@@ -1,0 +1,13 @@
+name: shots
+on: { push: { branches: [wip-shots] } }
+permissions: { contents: write }
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i playwright@1.47.2 && npx playwright install --with-deps chromium
+      - run: node scripts/shots.mjs
+      - run: |
+          git config user.name shots && git config user.email shots@x
+          git add -f shots && git commit -qm shots && git push -q origin HEAD:wip-shots-out --force
