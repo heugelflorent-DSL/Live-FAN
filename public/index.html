@@ -1389,7 +1389,8 @@ let TVLAST=null,TVRANK=false;const TVHOLD=30000,TVSORT=20000;
 function tvPick(){TVRANK=false;const h=POOL&&POOL.heat;if(!h){if(TVLAST&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}return null}
   const key=[h.event,h.heat,h.start].join("|"),fin=h.start&&(h.status==="done"||poolAllIn(h));
   if(fin){if(!TVLAST||TVLAST.key!==key)TVLAST={key,at:Date.now(),h:JSON.parse(JSON.stringify(h))};else TVLAST.h=JSON.parse(JSON.stringify(h));TVRANK=Date.now()-TVLAST.at>=TVSORT;return h}
-  if(TVLAST&&TVLAST.key!==key&&!(h.start&&h.status==="running")&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}
+  /* la série suivante est partie : elle passe avant les résultats et le classement */
+  if(TVLAST&&TVLAST.key!==key&&h.status!=="running"&&!h.start&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}
   return h}
 function tvScreenHtml(){
   const pw=state.live==="bassin"?poolHtml():"";
