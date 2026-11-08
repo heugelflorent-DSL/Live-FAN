@@ -846,7 +846,7 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
 #tvscreen .tvr{grid-template-columns:7vh 8vh 1fr minmax(0,auto) 19vw 9.5vh!important}
 #tvscreen .tvlg{width:8vh;height:8vh;display:grid;place-items:center;background:#fff;border-radius:1.2vh;overflow:hidden}#tvscreen .tvlg:empty{background:transparent}#tvscreen .tvlg img{max-width:90%;max-height:90%;object-fit:contain}
 #tvscreen .tvt.split{color:#fff;display:flex;flex-direction:column;align-items:flex-end;line-height:1}#tvscreen .tvt.split small{font-size:2.4vh;color:#ffd23f;font-weight:700;margin-top:.4vh}
-#tvscreen .tvp.live{opacity:.85;outline:.35vh dashed rgba(255,255,255,.35);outline-offset:-.35vh}
+#tvscreen .tvrows.ranked .tvr{position:relative;z-index:1;will-change:transform}#tvscreen .tvrows.ranked .tvr.rkd .tvp{transform:scale(1.08)}#tvscreen .tvp.live{opacity:.85;outline:.35vh dashed rgba(255,255,255,.35);outline-offset:-.35vh}
 @media (max-aspect-ratio:3/2){#tvscreen .tvr{grid-template-columns:6vh 7vh 1fr minmax(0,auto) 24vw 8.5vh!important}#tvscreen .tvlg{width:7vh;height:7vh}}
 #tvscreen{display:none}
 body.tv #tvscreen{--accent:#ffd23f;--ink:#fff;--muted:#b9c8e4;--line:#24345a;--card:#13203a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;position:fixed;inset:0;z-index:9999;background:#0a1220;color:#fff;font-family:inherit;overflow:hidden}
@@ -1383,12 +1383,13 @@ function poolIn(key){const h=state.live==="bassin"&&POOL&&POOL.heat;if(!h||!h.st
 
 /* ===== écran géant (16:9 ou 4:3, lisible à 20-30 m) : couloirs pendant la course, liste de départ entre les courses, attente pendant les pauses ===== */
 function tvLanes(h,se){const ks=new Set([...Object.keys(h.names||{}),...Object.keys(h.lanes||{})].map(Number));(se&&se.swimmers||[]).forEach(w=>w.lane&&ks.add(+w.lane));const mx=Math.max(8,...ks);return Array.from({length:mx},(_,i)=>i+1).filter(n=>ks.has(n)||mx<=10)}
-/* résultats gardés 20 s après l'arrivée du dernier nageur, même si l'opérateur charge déjà la série suivante */
-let TVLAST=null;
-function tvPick(){const h=POOL&&POOL.heat;if(!h)return TVLAST&&Date.now()-TVLAST.at<20000?TVLAST.h:null;
+/* résultats gardés 20 s dans l'ordre des couloirs après l'arrivée du dernier nageur, puis 10 s classés de 1 à 8 (glissement animé),
+   même si l'opérateur charge déjà la série suivante ; sans nouvelle série chargée, le classement reste affiché */
+let TVLAST=null,TVRANK=false;const TVHOLD=30000,TVSORT=20000;
+function tvPick(){TVRANK=false;const h=POOL&&POOL.heat;if(!h){if(TVLAST&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}return null}
   const key=[h.event,h.heat,h.start].join("|"),fin=h.start&&(h.status==="done"||poolAllIn(h));
-  if(fin){if(!TVLAST||TVLAST.key!==key)TVLAST={key,at:Date.now(),h:JSON.parse(JSON.stringify(h))};else TVLAST.h=JSON.parse(JSON.stringify(h));return h}
-  if(TVLAST&&TVLAST.key!==key&&!(h.start&&h.status==="running")&&Date.now()-TVLAST.at<20000)return TVLAST.h;
+  if(fin){if(!TVLAST||TVLAST.key!==key)TVLAST={key,at:Date.now(),h:JSON.parse(JSON.stringify(h))};else TVLAST.h=JSON.parse(JSON.stringify(h));TVRANK=Date.now()-TVLAST.at>=TVSORT;return h}
+  if(TVLAST&&TVLAST.key!==key&&!(h.start&&h.status==="running")&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}
   return h}
 function tvScreenHtml(){
   const pw=state.live==="bassin"?poolHtml():"";
@@ -1399,7 +1400,8 @@ function tvScreenHtml(){
   /* positions pendant la course : au dernier passage commun (plus loin = devant ; même distance = plus rapide), écart avec le 1er à cette distance */
   const len0=poolLen(),pos=Object.entries(h.lanes||{}).map(([n,L])=>{if(L.fin)return null;const ks=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),k=ks[ks.length-1];if(k==null)return null;const x=L.laps[k];if(!x||x.t==null)return null;return{n,d:x.dist||k*len0,t:x.t}}).filter(Boolean).sort((a,b)=>b.d-a.d||a.t-b.t);
   const rkLive={},gapLive={},leadAt={};pos.forEach((p,i)=>{rkLive[p.n]=fins.length+i+1;if(leadAt[p.d]==null)leadAt[p.d]=p.t;gapLive[p.n]=p.t-leadAt[p.d]});
-  const rows=tvLanes(h,se).map(n=>{const w=poolWho(h,se,n),L=(h.lanes||{})[n]||{};const nm=w?splitName(w.name):null;
+  const ranked=TVRANK&&!ready&&fins.length;let lanes=tvLanes(h,se);if(ranked)lanes=fins.map(([n])=>+n);
+  const rows=lanes.map(n=>{const w=poolWho(h,se,n),L=(h.lanes||{})[n]||{};const nm=w?splitName(w.name):null;
     const lg=w&&w.club?logoFind(w.club):null;const who=(w?`<b>${relay?esc(w.club||w.name):esc(nm.last)+" "+esc(nm.first)}</b><span>${relay?"":esc(w.club||"")}</span>`:`<b class="tvempty">—</b><span></span>`);const whoL=`<div class="tvlg">${lg?`<img src="${lg}" alt="">`:""}</div><div class="tvw">${who}</div>`;
     if(ready){const eng=w&&w.time;return`<div class="tvr"><div class="tvn">${n}</div>${whoL}<div class="tvm"></div><div class="tvt tveng">${eng?fmt(eng):""}</div><div class="tvp"></div></div>`}
     const laps=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),lk=laps[laps.length-1],last=lk!=null?L.laps[lk]:null;
@@ -1407,12 +1409,18 @@ function tvScreenHtml(){
     if(L.fin&&L.fin.t!=null){tm=`<div class="tvt fin">${fmt(L.fin.t)}</div>`;pl=`<div class="tvp p${rk[n]<=3?rk[n]:""}">${rk[n]}</div>`;
       const B=!relay&&w&&ev?bestOf(w,ev):null;if(B&&B.t!=null){const d=L.fin.t-B.t;mid=d<-.005?`<span class="tvrp">RECORD PERSO</span><small>−${gapTxt(-d)} vs RP</small>`:`<em>${d>.005?"+":""}${Math.abs(d)<.005?"=":gapTxt(Math.abs(d))}</em><small>vs RP</small>`}}
     else if(last&&last.t!=null){const d=last.dist||lk*len,j=laps.indexOf(lk),seg=j>0&&L.laps[laps[j-1]]&&L.laps[laps[j-1]].t!=null?last.t-L.laps[laps[j-1]].t:last.t,g=gapLive[n];
-      const pd=j>0&&L.laps[laps[j-1]]?(L.laps[laps[j-1]].dist||laps[j-1]*len):0;mid=`<em>${fmt(seg)}</em><small>dernier ${d-pd} m</small>`;tm=`<div class="tvt split">${fmt(last.t)}<small>${d} m${g>.005?" · +"+gapTxt(g):""}</small></div>`;pl=`<div class="tvp live${rkLive[n]<=3?" p"+rkLive[n]:""}">${rkLive[n]||""}</div>`}
+      const pd=j>0&&L.laps[laps[j-1]]?(L.laps[laps[j-1]].dist||laps[j-1]*len):0;mid=j>0?`<em>${fmt(seg)}</em><small>dernier ${d-pd} m</small>`:"";tm=`<div class="tvt split">${fmt(last.t)}<small>${d} m${g>.005?" · +"+gapTxt(g):""}</small></div>`;pl=`<div class="tvp live${rkLive[n]<=3?" p"+rkLive[n]:""}">${rkLive[n]||""}</div>`}
     else{tm=`<div class="tvt"></div>`;pl=`<div class="tvp"></div>`}
-    return`<div class="tvr${best===String(n)?" lead":""}${L.fin?"":rkLive[n]===1?" lead":""}"><div class="tvn">${n}</div>${whoL}<div class="tvm">${mid}</div>${tm}${pl}</div>`}).join("");
+    return`<div class="tvr${best===String(n)?" lead":""}${L.fin?"":rkLive[n]===1?" lead":""}${ranked?" rkd":""}" data-ln="${n}"><div class="tvn">${n}</div>${whoL}<div class="tvm">${mid}</div>${tm}${pl}</div>`}).join("");
   const title=ev?ev.name:String(h.title||"").replace(/\s+Séries$/i,"");
-  return`<div class="tvhead"><div class="tvev"><h1>${esc(title)}</h1><p><span class="tvtag">${ready?"AU DÉPART · ":""}SÉRIE ${h.heat||"?"}${ev&&ev.series&&ev.series.length?" / "+ev.series.length:""}</span>${esc(state.title||"")}</p></div><div class="tvclk" id="tvclk">${ready?"0.0":""}</div></div><div class="tvrows${ready?" start":""}">${ready?`<div class="tvsub">Liste de départ</div>`:""}${rows}</div>`}
-function tvRender(){if(!document.body.classList.contains("tv"))return;try{let el=document.getElementById("tvscreen");if(!el){el=document.createElement("div");el.id="tvscreen";document.body.appendChild(el);el.addEventListener("click",e=>{if(e.target.closest(".tvx")){tvToggle(false);return}el.classList.add("tvshowx");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("tvshowx"),4000)})}el.innerHTML=tvScreenHtml()+`<button class="tvx" type="button" aria-label="Quitter l'écran géant">✕ Quitter</button>`}catch(e){console.warn("écran géant",e)}}
+  return`<div class="tvhead"><div class="tvev"><h1>${esc(title)}</h1><p><span class="tvtag">${ready?"AU DÉPART · ":ranked?"CLASSEMENT · ":""}SÉRIE ${h.heat||"?"}${ev&&ev.series&&ev.series.length?" / "+ev.series.length:""}</span>${esc(state.title||"")}</p></div><div class="tvclk" id="tvclk">${ready?"0.0":""}</div></div><div class="tvrows${ready?" start":""}${ranked?" ranked":""}">${ready?`<div class="tvsub">Liste de départ</div>`:""}${rows}</div>`}
+function tvRender(){if(!document.body.classList.contains("tv"))return;try{let el=document.getElementById("tvscreen");if(!el){el=document.createElement("div");el.id="tvscreen";document.body.appendChild(el);el.addEventListener("click",e=>{if(e.target.closest(".tvx")){tvToggle(false);return}el.classList.add("tvshowx");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("tvshowx"),4000)})}const old={},was=!!el.querySelector(".tvrows.ranked");el.querySelectorAll(".tvr[data-ln]").forEach(r=>old[r.dataset.ln]=r.getBoundingClientRect().top);
+    el.innerHTML=tvScreenHtml()+`<button class="tvx" type="button" aria-label="Quitter l'écran géant">✕ Quitter</button>`;
+    /* passage au classement : chaque ligne glisse de son couloir vers sa place */
+    if(!was&&el.querySelector(".tvrows.ranked")){const rs=[...el.querySelectorAll(".tvr[data-ln]")];rs.forEach(r=>{const o=old[r.dataset.ln];r.style.transition="none";r.style.transform=o!=null?`translateY(${o-r.getBoundingClientRect().top}px)`:"translateX(-110%)";r.style.opacity=o!=null?"1":"0"});
+      void el.offsetHeight;rs.forEach((r,i)=>{r.style.transition=`transform .9s cubic-bezier(.22,1,.36,1) ${i*.09}s,opacity .5s ${i*.09}s`;r.style.transform="";r.style.opacity="1"});
+      const run=t=>{if(t)rs.forEach(r=>r.style.transition="");};setTimeout(run,2500,1)}
+    else if(was&&el.querySelector(".tvrows.ranked"))el.querySelectorAll(".tvr[data-ln]").forEach(r=>{r.style.transition="none"})}catch(e){console.warn("écran géant",e)}}
 setInterval(()=>{if(!document.body.classList.contains("tv"))return;const c=document.getElementById("tvclk"),h=tvPick();if(!c||!h)return;if(h.start&&h.status==="running"&&!poolAllIn(h)){const t=Math.max(0,(Date.now()+(poolOff||0)-h.start)/1000);const m=Math.floor(t/60),x=(t%60).toFixed(1);c.textContent=m?m+":"+x.padStart(4,"0"):x}else if(h.start){const f=Object.values(h.lanes||{}).map(L=>L.fin&&L.fin.t).filter(x=>x!=null);c.textContent=f.length?"":""}},100);
 setInterval(tvRender,1000);
 /* sortir de l'écran géant : Échap ou double-clic */document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("tv"))tvToggle(false)});document.addEventListener("dblclick",e=>{if(e.target.closest&&e.target.closest("#tvscreen"))tvToggle(false)});
