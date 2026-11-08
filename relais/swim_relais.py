@@ -76,7 +76,8 @@ class Decoder:
             if j < 0: continue
             frame = frame[j:]
             if frame[1:2] == b"{":  # sortie réseau « Tableau Écran » (SCB Sport In The Box) : JSON
-                ev = self.decode_json(frame[1:-1], ts)
+                try: ev = self.decode_json(frame[1:-1], ts)
+                except Exception: ev = None  # un message bizarre ne fait plus perdre les autres
                 if ev: out.append(ev)
                 continue
             if frame == ALIVE or not frame.startswith(HEAD): continue
@@ -108,7 +109,7 @@ class Decoder:
             ln = j.get("Ln") or 0
             if not ln or j.get("Kind") not in ("I", "F") or not j.get("Time"): return None  # remise à zéro / couloir vide
             t = to_sec(j.get("Time")); rk = int(j.get("Rk") or 0) or None; lap = j.get("Lap") or 0
-            dist = int(j.get("Dist") or 0) or None
+            dist = int(re.sub(r"\D", "", str(j.get("Dist") or "")) or 0) or None  # « 150* » = passage corrigé
             kind = "finish" if j.get("Kind") == "F" else "split"
             return {"k": kind, "lane": ln, "lap": lap, "dist": dist, "t": t, "rank": rk, "edited": j.get("Type") not in (None, "T")}
         if m in ("HO", "HS", "SL", "HR"):

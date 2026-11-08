@@ -5,7 +5,9 @@ import { get as ffnGet } from "./ffn.js";
 
 const empty = () => ({ heat: null, prev: null, hist: {}, updatedAt: 0, relayAt: 0 });
 /* autre compétition ouverte dans le Quantum : rangée à part (jamais mélangée avec les séries de la compétition principale) */
-function isExtra(s, comp) { comp = String(comp || "").trim(); return !!(comp && s.mainComp && comp !== s.mainComp); } /* le site décide si elle compte (2 compétitions sur le live) ou non (rattrapage) */
+/* même compétition sur plusieurs réunions : le Quantum préfixe « R1 », « R2 »… → comparé sans ce préfixe */
+const compKey = (c) => String(c || "").trim().replace(/^(?:R|Réunion\s*)\d+\s*[-:·]?\s*/i, "").toLowerCase();
+function isExtra(s, comp) { comp = String(comp || "").trim(); return !!(comp && s.mainComp && compKey(comp) !== compKey(s.mainComp)); } /* le site décide si elle compte (2 compétitions sur le live) ou non (rattrapage) */
 // séries terminées gardées pour l'affichage des « séries précédentes » de l'épreuve en cours
 const archive = (s, h) => {
   if (!h || h.event == null || !h.heat || !Object.values(h.lanes || {}).some((L) => L.fin)) return;
@@ -163,7 +165,7 @@ export class PoolRoom {
       const out = []; const all = { ...(this.s.hist || {}) };
       const h = this.s.heat; if (h && h.event != null && h.heat && Object.values(h.lanes || {}).some((L) => L.fin)) all[(isExtra(this.s, h.comp) ? "x:" + h.comp + ":" : "") + h.event + "-" + h.heat] = h;
       for (const x of Object.values(all)) { if (x.sim) continue; const fin = {}; for (const n in x.lanes || {}) if (x.lanes[n].fin && x.lanes[n].fin.t != null) fin[n] = x.lanes[n].fin.t; const laps = {}; for (const n in x.lanes || {}) { const L = x.lanes[n].laps || {}; const ks = Object.keys(L).map(Number).sort((a, b) => a - b); if (ks.length) laps[n] = ks.map((k) => [k, L[k].t, L[k].dist || null]); }
-        out.push({ extra: isExtra(this.s, x.comp) || !!x.extra, event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, laps, start: x.start || null, doneAt: x.doneAt || null }); }
+        out.push({ extra: isExtra(this.s, x.comp), event: x.event, heat: x.heat, key: x.key || null, title: x.title || "", comp: x.comp || "", names: x.names || {}, fin, laps, start: x.start || null, doneAt: x.doneAt || null }); }
       return Response.json({ now: Date.now(), heats: out }, { headers: { "cache-control": "no-store" } });
     }
     if (url.pathname.endsWith("/applog")) {
