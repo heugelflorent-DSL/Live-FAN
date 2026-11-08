@@ -501,7 +501,7 @@ async function mppStatus(env, ev) {
   for (const k of want.keys()) { const x = store.sw[k]; if (!x || !x.at) continue; if (x.err) { err++; issues.push({ k, why: "err", msg: String(x.err).slice(0, 80) }); continue; } done++; if (x.iuf) found++; const has = x.b && Object.keys(x.b).length; if (has) best++; else if (x.iuf) { noRec++; issues.push({ k, why: "norec" }); } else { notFound++; issues.push({ k, why: "notfound" }); } }
   return { want: want.size, done, left: want.size - done, foundN: found, bestN: best, errN: err, noRecN: noRec, notFoundN: notFound, issues: issues.slice(0, 400) };
 }
-async function mppStep(env, ev, max = 2, force = false) {
+async function mppStep(env, ev, max = 2, force = false, missing = false) {
   const { config, data } = await load(env, ev); const now = Date.now();
   // compétition terminée : plus aucune relecture automatique des records, seulement à la demande
   if (!force && finished(config, data, now)) return 0;
@@ -518,7 +518,9 @@ async function mppStep(env, ev, max = 2, force = false) {
   // un record déjà lu n'est plus relu une fois la compétition commencée : on garde le record d'avant la course
   const stale = (x, w) => !x || (now - x.at > 5 * 864e5 && !(w && now >= w.day && !empty(x) && !x.err)) || (x.err && (force || now - x.at > 3600e3)) || (x.iuf && empty(x) && (force || now - x.at > 3600e3)) || (!x.iuf && (force || now - x.at > 864e5));
   const prio = (x) => (!x ? 0 : x.err ? 1 : empty(x) ? 2 : 3); // jamais lus d'abord, puis échecs, puis sans record, du plus ancien au plus récent
-  const todo = [...want.entries()].filter(([k, w]) => stale(store.sw[k], w)).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
+  /* « manquants » : seulement les nageurs introuvables ou en erreur, pas encore réessayés avec la recherche souple (v2) ; les records déjà lus ne sont pas touchés */
+  const miss = (x) => !x || x.err || (!x.iuf && (x.v || 1) < 2);
+  const todo = [...want.entries()].filter(([k, w]) => missing ? miss(store.sw[k]) : stale(store.sw[k], w)).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
   if (!todo.length) return 0;
   let used = 0;
   for (const [k, w] of todo) {
@@ -526,7 +528,7 @@ async function mppStep(env, ev, max = 2, force = false) {
       const iuf = w.iuf || store.sw[k]?.iuf || (used++, await findIuf(w.name, w.year));
       let b = {};
       if (iuf) { const all = await fetchMpp(iuf); used++; const p = all[w.pool] || {}; if (w.events.has("*")) Object.assign(b, p); for (const e of w.events) if (p[e]) b[e] = p[e]; }
-      store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b };
+      store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b, v: 2 };
     } catch (e) { store.sw[k] = { iuf: w.iuf || store.sw[k]?.iuf || null, at: now, b: {}, err: String(e.message || e) }; break; } // échec (Extranat) : nouvel essai dans 1 h
   }
   store.at = now; await env.KV.put(kk("mpp", ev), JSON.stringify(store));
@@ -756,7 +758,8 @@ export default {
       const body = await req.json().catch(() => ({}));
       // tout écraser : on oublie les records lus (en gardant les licences retrouvées) pour tout relire sur l'Extranat
       if (body.reset) { const st0 = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} }; for (const [k, x] of Object.entries(st0.sw)) st0.sw[k] = { iuf: x.iuf || null, at: 0, b: {} }; st0.at = 0; await env.KV.put(kk("mpp", ev), JSON.stringify(st0)); }
-      const used = await mppStep(env, ev, 6, true); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+      const used = await mppStep(env, ev, 6, true, !!body.missing); const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };
+      const wantM = mppWant((await load(env, ev)).config, (await load(env, ev)).data, ev, Date.now(), true); const missLeft = [...wantM.keys()].filter((k) => { const x = store.sw[k]; return !x || x.err || (!x.iuf && (x.v || 1) < 2); }).length;
       const all = Object.entries(store.sw);
       // diagnostic : quelques exemples (nom lu, licence trouvée, erreur éventuelle) pour comprendre un échec
       const sample = all.slice(-6).map(([k, x]) => ({ k, iuf: x.iuf, n: Object.keys(x.b || {}).length, err: x.err || null }));
@@ -764,7 +767,7 @@ export default {
       let probe2 = null; const one = all.find(([, x]) => x.iuf);
       if (one) { try { const r = await fetch("https://ffn.extranat.fr/webffn/nat_recherche.php?idact=nat", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SwimDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: one[1].iuf, idiuf: one[1].iuf, idopt: "mpp" }) }); const t = await r.text(); probe2 = { status: r.status, len: t.length, bassins: (t.match(/Bassin\s*:\s*\d+/gi) || []).length, rows: (t.match(/scope=["']row["']/g) || []).length, setCookie: r.headers.get("set-cookie") ? 1 : 0 }; } catch (e) { probe2 = { error: String(e.message || e) }; } }
       const st = await mppStatus(env, ev);
-      return json({ ok: true, used, ...st, total: all.length, probe2, found: all.filter(([, x]) => x.iuf).length, withBest: all.filter(([, x]) => x.b && Object.keys(x.b).length).length, sample, probe });
+      return json({ ok: true, used, missLeft, ...st, total: all.length, probe2, found: all.filter(([, x]) => x.iuf).length, withBest: all.filter(([, x]) => x.b && Object.keys(x.b).length).length, sample, probe });
     }
     if (p === "/api/mpp" && req.method === "GET") {
       const store = (await env.KV.get(kk("mpp", ev), "json")) || { sw: {} };

@@ -2580,8 +2580,9 @@ $("#pool-sort").onchange=e=>{state.poolSort=e.target.value;scheduleSave()};$("#p
 $("#sim-fix").onclick=async()=>{const h=simHeats()[+$("#sim-heat").value];if(!h){$("#sim-msg").textContent="Choisis la série.";return}const ev=EVENTS[h.key];await simSend([{k:"fix",key:h.key,event:+ev.numEp||null,heat:h.heat,title:ev.name}]);$("#sim-msg").textContent="Direct recalé : "+h.label+". Les départs suivants enchaînent à partir d'elle."};
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
 $("#mpp-go").onclick=async()=>{const b=$("#mpp-go"),m=$("#mpp-msg");b.disabled=true;let last=-1,stuck=0;
-  try{for(let i=0;i<120;i++){const j=await api("/api/admin/mpp",{method:"POST"});m.textContent=`Lecture en cours : ${j.done} / ${j.want} nageurs…`;mppStat(j);
-      if(!j.left||j.left<=j.errN)break;if(j.done===last){if(++stuck>=3)break}else stuck=0;last=j.done}
+  /* seulement les nageurs manquants (introuvables ou en erreur) : les records déjà trouvés ne sont ni relus ni effacés */
+  try{for(let i=0;i<120;i++){const j=await api("/api/admin/mpp",{method:"POST",body:JSON.stringify({missing:true})});m.textContent=`Recherche des nageurs manquants… encore ${j.missLeft} · ${j.foundN} retrouvés sur ${j.want}`;mppStat(j);
+      if(!j.missLeft)break;if(j.missLeft===last){if(++stuck>=3)break}else stuck=0;last=j.missLeft}
     m.textContent="Lecture terminée.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}b.disabled=false};
 $("#mpp-reset").onclick=async()=>{const b=$("#mpp-reset"),m=$("#mpp-msg");
   if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Confirmer : tout relire ?";m.textContent="Les records perso enregistrés pour ce live seront effacés puis relus un par un sur l'Extranat (avec leur date). Reclique pour confirmer.";setTimeout(()=>{delete b.dataset.sure;b.textContent="Tout relire et écraser"},8000);return}
