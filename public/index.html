@@ -2447,7 +2447,7 @@ function teamRanking(rule,done,sex){
     if(!done.has(k))for(const x of P[k]||[]){const dup=off.some(r=>ev.relay?norm(r.team||r.name)===norm(x.team):(r.iuf&&x.w.iuf?r.iuf===x.w.iuf:norm(r.name)===norm(x.w.name)));if(dup)continue;(per[x.team]=per[x.team]||[]).push({ev,w:x.w,p:x.p,prov:true})}
     for(const c in per){let l=per[c].sort((a,b)=>b.p-a.p);if(rule.perEvent>0)l=l.slice(0,rule.perEvent);(clubs[c]=clubs[c]||{club:c,total:0,prov:0,items:[],comp:ev.comp});l.forEach(x=>{clubs[c].total+=x.p;if(x.prov)clubs[c].prov=(clubs[c].prov||0)+x.p;clubs[c].items.push(x)})}}
   // relais obligatoires : une équipe absente d'un relais terminé n'est pas classée (affichée « non classée » en bas)
-  if(rule.needRelays!==false&&sex){const rel=allKeys().filter(k=>{const e=EVENTS[k];return e.relay&&rule.comps.includes(e.comp)&&done.has(k)&&(!sex||(sex==="F")===/Dames/.test(e.name))});
+  /* plus de « non classée » : on montre seulement le nombre d'épreuves de chaque équipe */if(false&&rule.needRelays!==false&&sex){const rel=allKeys().filter(k=>{const e=EVENTS[k];return e.relay&&rule.comps.includes(e.comp)&&done.has(k)&&(!sex||(sex==="F")===/Dames/.test(e.name))});
     for(const c of Object.values(clubs)){const miss=rel.filter(k=>!(EVENTS[k].results||[]).some(w=>(w.team||w.club||w.name)===c.club)).map(k=>EVENTS[k].name);if(miss.length)c.nc=miss}}
   // ex aequo : même total = même place
   const L=Object.values(clubs).sort((a,b)=>(!!a.nc-!!b.nc)||b.total-a.total);let rk=0;
