@@ -1,7 +1,7 @@
 // Swim Direct — serveur Cloudflare : API, stockage KV, récupération programmée du Live FFN.
 export { PoolRoom } from "./pool.js";
 export { StatsRoom } from "./stats.js";
-import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults, parseRoster, parseRosterEvents } from "./ffn.js";
+import { get as getDirect, urls, parseEntries, parseLive, parseProgramme, parseHeats, parseResults, parseRoster, parseRosterEvents, parseStructs, parseStruct } from "./ffn.js";
 import { normEvent, findIuf, fetchMpp } from "./extranat.js";
 import { euEnv } from "./eu.js";
 
@@ -291,6 +291,20 @@ async function runTask(task, data, now) {
       if (todo.length) { data.queue = [...todo.map((e) => ({ t: "rosterEv", c: task.c, epr: e.epr, name: e.name })), ...(data.queue || [])]; data.queueAt = now; } }
     return;
   }
+  if (task.t === "structs") { // Interclubs : clubs avec plusieurs équipes → composition officielle des équipes (une page par club concerné, lue une seule fois)
+    const relayEv = eventsOf(c).find((e) => /^\d+\s*x\s*\d+/i.test(e.name) && (c.events?.[e.key]?.heats || []).length);
+    const cnt = {}; for (const h of (relayEv && c.events[relayEv.key].heats) || []) for (const l of h.lanes || []) if (l.club) cnt[l.club] = (cnt[l.club] || 0) + 1;
+    const multi = Object.keys(cnt).filter((k) => cnt[k] >= 2); if (!multi.length) return;
+    const list = parseStructs(await get(urls.structs(task.c), { delay: 1500 })); const nk = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const todo = list.filter((x) => multi.some((k) => nk(k) === nk(x.name)) && !(c.teams && c.teams[x.name]));
+    if (todo.length) { data.queue = [...todo.map((x) => ({ t: "struct", c: task.c, id: x.id, name: x.name })), ...(data.queue || [])]; data.queueAt = now; }
+    return;
+  }
+  if (task.t === "struct") {
+    const rows = parseStruct(await get(urls.struct(task.c, task.id), { delay: 1500 }));
+    if (rows.length) { c.teams = c.teams || {}; c.teams[task.name] = rows; data.dirty = true; }
+    return;
+  }
   if (task.t === "rosterEv") {
     const list = parseRoster(await get(urls.rosterEv(task.c, task.epr), { delay: 1500 }));
     c.rosterEv = c.rosterEv || {}; const ids = list.map((x) => x.iuf);
@@ -574,6 +588,11 @@ async function rescrape(env, scope, what, ev = "main") {
   const comps = scope?.startsWith("c") ? [scope.slice(1)] : config.comps;
   const reu = scope?.startsWith("r") ? +scope.slice(1) : null;
   const tasks = [];
+  if (what === "teams") { // composition des équipes (Interclubs) : clubs à plusieurs équipes seulement, chaque club lu une fois
+    for (const id of comps) tasks.push({ t: "structs", c: id });
+    data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0;
+    await saveData(env, data, before, ev); return tasks.length;
+  }
   if (what === "roster") { // liste des engagés seulement : une page par compétition
     for (const id of comps) tasks.push({ t: "roster", c: id }); // déjà chargée : seules les épreuves manquantes sont lues
     data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0;

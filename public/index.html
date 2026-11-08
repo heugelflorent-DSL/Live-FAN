@@ -1110,7 +1110,7 @@ html[data-theme="interclubs"] .pwait{--pwc:#f3d36b;--card:#0e2133}html[data-them
             <b>Tout récupérer à nouveau</b>
             <p class="msg">Ajoute ce qui manque et met à jour ce qui a changé sur le Live FFN, sans rien effacer. La lecture reprend là où elle s'était arrêtée : les épreuves déjà complètes ne sont relues qu'avec « tout ». Tes réglages sont conservés.</p>
             <div class="grid2c"><label for="rs-scope">Périmètre<select class="field" id="rs-scope"></select></label>
-            <label for="rs-what">Données<select class="field" id="rs-what"><option value="all">Programme, séries et résultats</option><option value="start">Listes de départ (séries, relais, forfaits)</option><option value="res">Résultats uniquement</option><option value="roster">Liste des engagés (nageurs et clubs)</option></select></label></div>
+            <label for="rs-what">Données<select class="field" id="rs-what"><option value="all">Programme, séries et résultats</option><option value="start">Listes de départ (séries, relais, forfaits)</option><option value="res">Résultats uniquement</option><option value="roster">Liste des engagés (nageurs et clubs)</option><option value="teams">Composition des équipes (Interclubs, clubs à plusieurs équipes)</option></select></label></div>
             <div id="rs-act"><button class="btn small" id="rs-go">Tout récupérer à nouveau…</button></div>
           </div>
         </div>
@@ -1216,6 +1216,8 @@ function build(cfg,data){
     /* épreuves de chaque engagé (pages « par épreuve ») : remplissent les engagés tant que les séries ne sont pas publiées */
     for(const re of Object.values((c&&c.rosterEv)||{})){const ev=Object.values(EVENTS).find(e=>e.comp===id&&e.type==="event"&&norm(e.base||e.name)===norm(String(re.name||"").replace(/\s*D[ée]tail de la liste.*$/i,"")));if(!ev||ev.entries.length)continue;
       for(const fi of re.iufs||[]){const k=byIuf[fi],s=k&&SWIMMERS[k];if(!s)continue;if(!s.sex)s.sex=ev.sex;ev.entries.push({lane:null,heat:null,name:s.name,year:s.year,club:s.club,time:null,iuf:k,relay:false,members:null,dns:false,roster:true})}}}
+  /* composition officielle des équipes (Live FFN, « Equipe 1/2/3 ») : prioritaire */
+  for(const id of cfg.comps||[]){const c=data.comps&&data.comps[id];for(const club in (c&&c.teams)||{}){for(const r of c.teams[club]){const k=swId(r.name,r.year);const sw=SWIMMERS[k]||Object.values(SWIMMERS).find(x=>norm(x.name)===norm(r.name)&&String(x.year)===String(r.year));if(sw)sw.team=club+" "+r.team,sw.teamOff=true}}}
   /* plusieurs équipes d'un même club sous le même nom (« AC MOLSHEIM MUTZIG » ×5) : équipes reconstituées par les relais
      (relais qui partagent des nageurs = même équipe), numérotées dans l'ordre du programme puis des couloirs. Chaque nageur apporte ses points à SON équipe. */
   {const E=[];const evs=Object.values(EVENTS).filter(e=>e.relay).sort((a,b)=>(a.order||0)-(b.order||0));
@@ -1223,7 +1225,7 @@ function build(cfg,data){
     const P=E.map((_,i)=>i),f=i=>P[i]===i?i:(P[i]=f(P[i]));const by={};E.forEach((e,i)=>{for(const k of e.ks){const key=e.club+"|"+k;if(by[key]!=null)P[f(i)]=f(by[key]);else by[key]=i}});
     const groups={};E.forEach((e,i)=>{const r=f(i),gk=e.club+"|"+e.sex;(groups[gk]=groups[gk]||{})[r]=(groups[gk][r]||[]).concat(e)});/* par sexe : une équipe dames + une équipe messieurs = pas de numéro */
     for(const club in groups){const gs=Object.values(groups[club]).sort((a,b)=>Math.min(...a.map(x=>x.o))-Math.min(...b.map(x=>x.o)));if(gs.length<2)continue;
-      gs.forEach((g,gi)=>{const base=String(g[0].w.club||g[0].w.name||"").trim(),lab=base+" "+(gi+1);for(const e of g){e.w.team=lab;for(const k of e.ks)if(SWIMMERS[k])SWIMMERS[k].team=lab}})}}
+      gs.forEach((g,gi)=>{const base=String(g[0].w.club||g[0].w.name||"").trim();const votes={};for(const e of g)for(const k of e.ks){const t=SWIMMERS[k]&&SWIMMERS[k].teamOff&&SWIMMERS[k].team;if(t)votes[t]=(votes[t]||0)+1}const off=Object.keys(votes).sort((a,b)=>votes[b]-votes[a])[0];const lab=off||base+" "+(gi+1);for(const e of g){e.w.team=lab;for(const k of e.ks)if(SWIMMERS[k]&&!SWIMMERS[k].teamOff)SWIMMERS[k].team=lab}})}}
   // équipes (Interclubs) : composition des relais
   for(const ev of Object.values(EVENTS)){if(!ev.relay)continue;
     const teams=[...ev.results.map(r=>({team:r.name,m:r.members})),...ev.entries.map(e=>({team:e.name,m:e.members}))];

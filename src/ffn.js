@@ -298,6 +298,8 @@ export const urls = {
   live: (c) => `${BASE}/live.php?competition=${c}&langue=fra`,
   entries: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra`,
   roster: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra&go=detail&action=participant`,
+  structs: (c) => `${BASE}/startlist.php?competition=${c}&langue=fra&go=detail&action=structure`,
+  struct: (c, id) => `${BASE}/startlist.php?competition=${c}&langue=fra&go=detail&action=structure&structure=${id}`,
   rosterEvs: (c) => `${BASE}/liste_entree.php?competition=${c}&langue=fra&go=epreuve`,
   rosterEv: (c, epr) => `${BASE}/liste_entree.php?competition=${c}&langue=fra&go=epreuve&epreuve=${epr}`,
   home: (c) => `${BASE}/index.php?competition=${c}&langue=fra`,
@@ -404,6 +406,20 @@ export function parseLive(html) {
     const t = one(m[2]); if (!t) continue;
     const c = m[1], sport = !/NonSportif/.test(c);
     out.prog.push({ text: t.replace(/\s*\(En cours\)/i, ""), sport, state: /EnCours/i.test(c) || /En cours/i.test(t) ? "live" : !sport ? "note" : /NonNage/.test(c) ? "todo" : "done" });
+  }
+  return out;
+}
+
+/* Interclubs : liste des clubs (structures) et composition officielle des équipes d'un club (« Equipe 1 », « Equipe 2 »…) */
+export function parseStructs(html) {
+  const out = []; const seen = new Set();
+  for (const m of String(html || "").matchAll(/action=structure&(?:amp;)?structure=(\d+)"[^>]*>([^<]+)</g)) { const id = m[1]; if (seen.has(id)) continue; seen.add(id); out.push({ id, name: m[2].replace(/\s+/g, " ").trim() }); }
+  return out;
+}
+export function parseStruct(html) {
+  const out = []; let team = null;
+  for (const m of String(html || "").matchAll(/class="equipe"[^>]*>\s*Equipe\s*(\d+)|class="resStructureIndividu\d*"[^>]*>([^<(]+)\((\d{4})\)/g)) {
+    if (m[1]) team = +m[1]; else if (team != null) out.push({ team, name: m[2].replace(/\s+/g, " ").trim(), year: m[3] });
   }
   return out;
 }
