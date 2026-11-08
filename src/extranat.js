@@ -35,7 +35,8 @@ const fold = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g,
 // Le Live FFN abrège les noms longs : « LOYNTON-FERRAND S. », « LECONTE-DEROUBAIX E.M. ».
 // On cherche alors le nom seul, puis on garde le nageur de la bonne année dont le prénom a les mêmes initiales.
 export function splitInitials(name) {
-  const m = String(name || "").trim().match(/^(.*?)\s+((?:\p{L}\.[\s-]?)+)$/u);
+  // initiales avec point (« S. », « E.M. ») ou lettres seules en fin de nom (« BORGHOL M A », « LABEJOF ENGEL A »)
+  const m = String(name || "").trim().match(/^(.*?)\s+((?:\p{L}\.[\s-]?)+)$/u) || String(name || "").trim().match(/^(.*?\p{L}{2,})((?:\s+\p{L}){1,3})$/u);
   return m ? { base: m[1].trim(), ini: fold(m[2]).replace(/[^A-Z]/g, "") } : { base: String(name || "").trim(), ini: "" };
 }
 export function pickIuf(list, name, year) {
@@ -49,9 +50,18 @@ export function pickIuf(list, name, year) {
   return hit.length === 1 ? hit[0].iuf : null; // ambigu ou introuvable : on s'abstient
 }
 export async function findIuf(name, year) {
-  const r = await fetch(`${EXT}/_recherche.php?go=ind&idrch=${encodeURIComponent(splitInitials(name).base)}`, { headers: { "User-Agent": "SwimDirect/1.0" } });
-  if (!r.ok) throw new Error("Extranat " + r.status);
-  return pickIuf(await r.json().catch(() => []), name, year);
+  const get = async (q) => { const r = await fetch(`${EXT}/_recherche.php?go=ind&idrch=${encodeURIComponent(q)}`, { headers: { "User-Agent": "SwimDirect/1.0" } }); if (!r.ok) throw new Error("Extranat " + r.status); return r.json().catch(() => []); };
+  const { base, ini } = splitInitials(name);
+  const first = pickIuf(await get(base), name, year); if (first || ini || !year) return first;
+  // 2e essai (nom complet introuvable : prénom composé, orthographe…) : nom de famille seul, même année, prénom qui commence pareil
+  const t = String(name || "").trim().split(/\s+/); if (t.length < 2) return null;
+  for (let k = t.length - 1; k >= 1; k--) {
+    const last = t.slice(0, k).join(" "), fn = fold(t.slice(k).join(" ")); if (last.length < 3) continue;
+    const hit = (await get(last)).filter((x) => { const ind = String(x.ind || ""); if (!ind.includes("(" + year + ")")) return false; const nm = fold(ind.slice(0, ind.indexOf("(")).trim()); if (!nm.startsWith(fold(last))) return false; const f = nm.slice(fold(last).length).trim(); return f && (f.startsWith(fn.slice(0, 3)) || fn.startsWith(f.slice(0, 3))); });
+    if (hit.length === 1) return hit[0].iuf; if (hit.length > 1) return null;
+    break; // une seule requête de plus par nageur
+  }
+  return null;
 }
 export async function fetchMpp(iuf) {
   const r = await fetch(`${EXT}/nat_recherche.php?idact=nat`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "User-Agent": "SwimDirect/1.0" }, body: new URLSearchParams({ idact: "nat", idrch_id: String(iuf), idiuf: String(iuf), idopt: "mpp" }) });
