@@ -847,6 +847,8 @@ export default {
       const m = r.metadata || {}; const h = { "content-type": m.type || "application/octet-stream", "cache-control": "public, max-age=31536000, immutable" };
       if (m.type === "application/pdf") h["content-disposition"] = `inline; filename="${String(m.name || "document.pdf").replace(/[^\w .-]/g, "_")}"`;
       return new Response(r.value, { headers: h }); } }
+    // grilles de qualification (communes à tous les lives)
+    if (p === "/api/quals" && req.method === "GET") return json((await env.KV.get("quals", "json")) || []);
     if (p === "/api/sponsors" && req.method === "GET") {
       const [all, one, ta, te] = await Promise.all([env.KV.get("sponsors", "json"), env.KV.get(kk("sponsors", ev), "json"), env.KV.get("toplogo", "json"), env.KV.get("toplogo:ev:" + ev, "json")]);
       return edge(json({ all: all || [], ev: one || [], top: { all: ta, ev: te } }, 200, { "cache-control": "public, max-age=120" }));
@@ -950,6 +952,13 @@ export default {
     if (p === "/api/admin/state") {
       const { config, data } = await load(env, ev);
       return json({ config, data, now: Date.now(), role: ADM ? "admin" : "org" });
+    }
+    if (p === "/api/admin/quals" && req.method === "PUT") {
+      if (!ADM) return adminOnly();
+      const list = await req.json().catch(() => null);
+      if (!Array.isArray(list) || list.length > 60) return json({ error: "Liste invalide." }, 400);
+      const txt = JSON.stringify(list); if (txt.length > 400000) return json({ error: "Trop de grilles." }, 400);
+      await env.KV.put("quals", txt); return json({ ok: true });
     }
     if (p === "/api/admin/file" && req.method === "PUT") {
       const type = (req.headers.get("content-type") || "").split(";")[0].trim();
