@@ -1851,7 +1851,7 @@ function evA(k,n,h){return k?`<a href="#" class="clk" data-goheat="${esc(k)}|${h
 let QUALS=[],QSEL=null,QSEX="F";
 const QEVS=["50 NL","100 NL","200 NL","400 NL","800 NL","1500 NL","50 DOS","100 DOS","200 DOS","50 BRA","100 BRA","200 BRA","50 PAP","100 PAP","200 PAP","100 4N","200 4N","400 4N"];
 const QEVN={NL:"nage libre",DOS:"dos",BRA:"brasse",PAP:"papillon","4N":"4 nages"},qevName=k=>{const[d,t]=k.split(" ");return d+" "+QEVN[t]};
-async function loadQuals(){try{const r=await fetch("/api/quals");QUALS=r.ok?await r.json():[];if(!Array.isArray(QUALS))QUALS=[]}catch(_){QUALS=[]}if(state.admin)renderQuals();render()}
+async function loadQuals(){try{const r=await fetch("/api/quals");QUALS=r.ok?await r.json():[];if(!Array.isArray(QUALS))QUALS=[]}catch(_){QUALS=[]}/* pas de rendu sur la page de choix des compétitions ni avant le chargement du live : c'est ce qui affichait « Aucun événement en ligne » */if(state.admin)renderQuals();else if(!PICK&&RAW)render()}
 const qT=v=>{if(v==null||v==="")return null;const m=String(v).trim().replace(",",".").match(/^(?:(\d+):)?(\d{1,2}(?:\.\d{1,2})?)$/);return m?(+(m[1]||0))*60+ +m[2]:null};
 /* colonne d'âge du nageur : année de naissance exacte, ou « et plus jeunes » */
 /* âge en année civile : année de la compétition visée − année de naissance (en 2026, un nageur né en 2011 a 15 ans → U15 ; si la compétition est en 2027, il passe U16) */
