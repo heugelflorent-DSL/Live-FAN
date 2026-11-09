@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -269,8 +269,42 @@ class Core:
         while not self.stop:
             self.restart = False
             (self.serial_loop if self.cfg.get("mode") == "serie" else self.net_loop)()
+    # « udp:PORT » : écoute les paquets UDP (y compris diffusés) ; « ecoute:PORT » : attend que le chrono se connecte à nous
+    def listen_loop(self, kind, port):
+        while not self.stop and not self.restart:
+            try:
+                if kind == "udp":
+                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    s.bind(("", port)); s.settimeout(2)
+                    self.st["quantum"] = f"écoute UDP {port}"; self.log(f"✓ En écoute UDP sur le port {port} (attente des données du chronométrage)")
+                    seen = None
+                    while not self.stop and not self.restart:
+                        try: d, a = s.recvfrom(65535)
+                        except socket.timeout: continue
+                        if a[0] != seen: seen = a[0]; self.st["quantum"] = f"connecté (UDP de {a[0]})"; self.log(f"✓ Données reçues de {a[0]}")
+                        self.feed(d, time.time())
+                else:
+                    srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind(("", port)); srv.listen(2); srv.settimeout(2)
+                    self.st["quantum"] = f"en attente sur le port {port}"; self.log(f"✓ En attente que le chronométrage se connecte sur le port {port}")
+                    while not self.stop and not self.restart:
+                        try: c, a = srv.accept()
+                        except socket.timeout: continue
+                        c.settimeout(20); self.st["quantum"] = f"connecté ({a[0]})"; self.log(f"✓ Chronométrage connecté depuis {a[0]}")
+                        try:
+                            while not self.stop and not self.restart:
+                                try: d = c.recv(4096)
+                                except socket.timeout: continue
+                                if not d: break
+                                self.feed(d, time.time())
+                        except OSError: pass
+                        c.close(); self.st["quantum"] = f"en attente sur le port {port}"; self.log("✗ Le chronométrage s'est déconnecté : attente d'une nouvelle connexion…")
+            except Exception as e:
+                self.st["quantum"] = f"écoute impossible ({e})"; self.log(f"✗ Impossible d'écouter le port {port} ({e}) : pare-feu Windows ou port déjà pris ?"); time.sleep(5)
+
     def net_loop(self):
         quick = 0
+        h0, _, p0 = self.cfg["source"].rpartition(":")
+        if h0.lower() in ("udp", "ecoute") and p0.isdigit(): return self.listen_loop("udp" if h0.lower() == "udp" else "tcp", int(p0))
         while not self.stop and not self.restart:
             host, _, port = self.cfg["source"].rpartition(":")
             t0 = time.time()
@@ -434,7 +468,7 @@ def gui(cfg, demo=False, close_after=0):
     def settings():
         w = tk.Toplevel(root); w.title("Réglages"); w.grab_set(); w.resizable(False, False)
         SYS = [("Swiss Timing Quantum (sortie Sport In The Box)", "quantum", "reseau", ""),
-               ("Omega ARES 21 (mode OSM6)", "ares", "serie", "9600,7,E,1"),
+               ("Omega ARES 21 (série OSM6 ou réseau)", "ares", None, "9600,7,E,1"),
                ("Stramatel (sortie série, décodage à venir)", "stramatel", "serie", "9600,8,N,1"),
                ("ALGE TimeManager / SwimTime (sortie « Vidéo »)", "alge", "serie", "19200,8,N,1"),
                ("Autre / réglage manuel", "autre", None, "")]
@@ -446,7 +480,7 @@ def gui(cfg, demo=False, close_after=0):
         rb1 = ttk.Radiobutton(w, text="Réseau (adresse:port)", variable=mode, value="reseau"); rb1.grid(row=2, column=0, sticky="w", padx=10, pady=(8, 0))
         f1 = tk.Frame(w); f1.grid(row=3, column=0, sticky="w", padx=30)
         e1 = ttk.Entry(f1, width=26); e1.insert(0, cfg["source"]); e1.pack(side="left")
-        tk.Label(f1, text="  ex. 127.0.0.1:26700", fg=GREY).pack(side="left")
+        tk.Label(f1, text="  ex. 127.0.0.1:26700 · ecoute:4000 · udp:4000", fg=GREY).pack(side="left")
         rb2 = ttk.Radiobutton(w, text="Port série", variable=mode, value="serie"); rb2.grid(row=4, column=0, sticky="w", padx=10, pady=(8, 0))
         f2 = tk.Frame(w); f2.grid(row=5, column=0, sticky="w", padx=30)
         try:
@@ -463,7 +497,8 @@ def gui(cfg, demo=False, close_after=0):
             if key == "quantum" and ":" not in e1.get(): e1.delete(0, "end"); e1.insert(0, "127.0.0.1:26700")
             st_ = "disabled" if m else "normal"; rb1.config(state=st_); rb2.config(state=st_)
             hint.config(text={"quantum": "Active la sortie « Sport In The Box » dans Quantum (port 26700 par défaut).",
-                              "ares": "Câble null-modem + adaptateur USB-série, ARES en mode OSM6.\nSi rien n'arrive, essaie 9600,8,N,1.",
+                              "ares": "Série : câble null-modem + adaptateur USB-série, mode OSM6 (sinon 9600,8,N,1).\nRéseau : IP_ARES:port, ou « ecoute:port » si l'ARES envoie vers ce PC,\nou « udp:port » s'il diffuse en UDP.",
+                              "alge": "Sortie « Vidéo » d'ALGE vers le port série (19200,8,N,1).",
                               "stramatel": "Le flux est enregistré dans le journal ; l'affichage en direct\narrivera dès qu'on aura analysé un vrai journal.",
                               "autre": "Choisis toi-même réseau ou série."}[key] + ("\nAucun port listé ? Branche l'adaptateur puis rouvre ces réglages." if m == "serie" and not ports else ""))
         sysv.bind("<<ComboboxSelected>>", pick); pick()
