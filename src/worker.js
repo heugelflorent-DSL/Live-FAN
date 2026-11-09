@@ -965,7 +965,7 @@ export default {
       const type = (req.headers.get("content-type") || "").split(";")[0].trim();
       if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(type)) return json({ error: "Seules les photos (JPG, PNG, WebP) et les PDF sont acceptés." }, 400);
       const buf = await req.arrayBuffer(); if (!buf.byteLength) return json({ error: "Fichier vide." }, 400);
-      if (buf.byteLength > 10 * 1024 * 1024) return json({ error: "Fichier trop lourd (10 Mo maximum)." }, 400);
+      if (buf.byteLength > 20 * 1024 * 1024) return json({ error: "Fichier trop lourd (20 Mo maximum)." }, 400);
       const id = crypto.randomUUID().replace(/-/g, "").slice(0, 16), name = String(url.searchParams.get("name") || "").slice(0, 120);
       await env.KV.put("file:" + ev + ":" + id, buf, { metadata: { type, name, size: buf.byteLength } });
       return json({ ok: true, url: "/api/f/" + ev + "/" + id, type, name, size: buf.byteLength });
