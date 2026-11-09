@@ -530,7 +530,10 @@ input[type="checkbox"]{accent-color:var(--red);width:18px;height:18px}
 .comps{padding:4px 0}
 .comprow{display:grid;grid-template-columns:minmax(0,auto) 1fr auto;gap:10px;align-items:center;padding:10px 16px;color:#fff;text-decoration:none}
 .comprow+.comprow{border-top:1px solid var(--line)}
-.comprow .ext{font-size:13px;font-weight:600;white-space:nowrap}
+.comprow .ext{font-size:13px;font-weight:600;white-space:nowrap}.comprow .msg{white-space:nowrap}
+@media (max-width:520px){.comprow{grid-template-columns:1fr auto;row-gap:2px}.comprow>:first-child{grid-column:1/-1;max-width:100%;justify-self:start}.comprow .compbadge,.comprow>:first-child{white-space:normal}}
+.tlprov{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:6px 0 2px;font-size:17px}.tlprov span{color:var(--muted,#667);font-size:14px}
+footer .adminlink{margin:4px 3px 0;vertical-align:middle}
 textarea.field{resize:vertical;font:inherit;line-height:1.45}
 .board-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;align-items:center;padding:14px 16px;margin-bottom:10px}
 .board-head .lbl{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
@@ -742,7 +745,7 @@ body.pick{background:#e9f4f8;background-image:none}
 .co-times{font-size:26px;font-weight:300;color:var(--muted);line-height:1}.sp-l.co{height:88px;padding:10px 14px}.sp-l.co img{max-width:220px}.sp-l.co.nobg{padding:4px}
 .co-cap{flex:0 0 100%;text-align:center;font-size:13px;font-weight:600;color:var(--muted);margin-top:2px}
 @media (max-width:700px){.foot .sigw.has-sp .cobrand{order:-1;flex:0 0 100%}.foot .sigw.has-sp .cobrand .sig{order:0;flex:0 0 auto;width:72px;height:72px}.sp-l.co{height:72px}.sp-l.co img{max-width:150px}}
-.foot{justify-content:center}.foot p{flex:0 0 100%;max-width:none;text-align:center}.foot #admin-btn{margin:0 auto}
+.foot{justify-content:center}.foot p{flex:0 0 100%;max-width:none;text-align:center}.foot #admin-btn{margin:4px 3px 0}
 body.org .admin-only{display:none!important}.org-only{display:none}body.org .org-only{display:block}
 .pb-sys{display:flex;gap:8px;align-items:center;font-weight:600;flex-wrap:wrap}.pb-sys select{width:auto}.pairrow select{width:auto;margin-left:auto;margin-right:8px}
 .tl-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)}.tl-row b{min-width:150px}.tl-prev{height:40px;max-width:120px;object-fit:contain;border-radius:7px;border:1px solid var(--line)}.tl-prev.w{background:#fff}.tl-row select{width:auto}
@@ -2267,7 +2270,7 @@ function renderHome(){
         if(lk)nowK=lk.key;else if(t<sch[keys[0]].start)preStart=true;else nowK=[...keys].reverse().find(k=>(sch[k]||{}).start<=t)||keys[0];
         if(nowK&&done.has(nowK))nowK=keys.find(k=>!done.has(k))||nowK}}
     const frise=keys.length&&!prov?`<ol class="tl2">${tlItem("",sm&&sm.doors?sm.doors.replace(/^0/,""):"—","Portes")}${tlItem(live&&preStart?"mid cur":"mid",(state.starts[s]||"").replace(":","h").replace(/^0/,""),"Début")}${keys.map(k=>`<li class="mr${done.has(k)?" d":""}${k===nowK?" cur":""}${state.open["mt"+k]?" on":""}" data-mt="${k}" role="button" tabindex="0"><i></i><b>${hm((sch[k]||{}).start).replace(/^0/,"")}</b><span>${esc(short(EVENTS[k].name))}</span></li>`).join("")}${tlItem("",last?"~"+hm((sch[last]||{}).end).replace(/^0/,""):"—",allD?"Terminé":"Fin estimée")}</ol>`
-      :prov?`<ol class="tl"><li><b>${esc(((state.reuDay||{})[s]||"—").replace(/\s+\d{4}$/,""))}</b><span>Jour</span></li><li class="mid"><b>à venir</b><span>Horaires</span></li></ol>`
+      :prov?`<p class="tlprov">📅 <b>${esc(((state.reuDay||{})[s]||"Date à venir").replace(/\s+\d{4}$/,"").toLowerCase().replace(/^./,c=>c.toUpperCase()))}</b><span>horaires à venir</span></p>`
       :`<ol class="tl"><li><b>${sm&&sm.doors?sm.doors.replace(/^0/,""):"—"}</b><span>Portes</span></li><li class="mid"><b>${(state.starts[s]||"").replace(":","h").replace(/^0/,"")}</b><span>Début</span></li><li><b>${last?"~"+hm((sch[last]||{}).end).replace(/^0/,""):"—"}</b><span>Fin estimée</span></li></ol>`;
     return`<div class="card reu${isOpen(s)?"":" shut"}"><div class="reu-h"${multi?` data-reutog="${s}" role="button" tabindex="0"`:""}><b>Réunion ${s}</b><span>${plural(keys.length,"épreuve")}${multi?`<span class="reu-chev">${isOpen(s)?"▲":"▼"}</span>`:""}</span></div>${isOpen(s)?frise:""}${openK&&isOpen(s)?`<div class="mt-pop"><b>${hm((sch[openK]||{}).start).replace(/^0/,"")} · ${esc(EVENTS[openK].name)}</b><div class="md-sw"><span>${plural((EVENTS[openK].series||[]).length,"série")} · fin ~${hm((sch[openK]||{}).end).replace(/^0/,"")}${done.has(openK)?" · terminée":""}</span><span><a href="#" data-go="${done.has(openK)?"res":"prog"}">${done.has(openK)?"Voir les résultats ›":"Voir les séries ›"}</a></span></div></div>`:""}</div>`}).join("")}</div></div>`;
   if(MR.length){const byR={};for(const m of MR)(byR[m.s]=byR[m.s]||[]).push(m);
