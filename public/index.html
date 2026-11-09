@@ -867,7 +867,8 @@ body.tv{overflow:hidden}
 #tvscreen .tvr.lead{background:#1d3157;box-shadow:inset .8vh 0 0 #ffd23f}
 #tvscreen .tvn{font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;font-size:6vh;font-weight:800;color:#8fa6cc;text-align:center}
 #tvscreen .tvw{min-width:0}#tvscreen .tvw b{display:block;font-size:4.9vh;font-weight:800;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#tvscreen .tvw span{display:block;font-size:2.7vh;font-weight:600;color:#b9c8e4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tvscreen .tvw span.tvrl{font-size:2.3vh;white-space:normal;line-height:1.2;max-height:2.8em}.tvw .tvrl i{font-style:normal;white-space:nowrap}.tvw .tvrl i.on{color:#fff;font-weight:800;text-decoration:underline;text-underline-offset:.4vh}
+.tvw span{display:block;font-size:2.7vh;font-weight:600;color:#b9c8e4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tvscreen .tvm{font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;text-align:right;display:flex;flex-direction:column;align-items:flex-end}
 #tvscreen .tvm em{font-style:normal;font-size:3.8vh;color:#c9d6ee}#tvscreen .tvm small{font-size:2.2vh;color:#7f93b8}
 #tvscreen .tvrp{font-family:inherit;font-size:2.4vh;font-weight:800;background:#7c4dff;color:#fff;padding:.2vh .8vw;border-radius:99px}
@@ -1135,7 +1136,8 @@ body.tv{overflow:hidden}
               <h4>1. Ce qu'il faut</h4>
               <ul><li>Le <b>PC du chronométrage</b> (celui du Quantum), sous Windows, avec Internet (Wi-Fi de la piscine, câble ou partage de connexion d'un téléphone).</li>
               <li>Le logiciel <b>Swim Direct · Chrono</b>, à télécharger avec le lien de ce module. Il n'a pas besoin d'être installé : on lance directement le fichier.</li>
-              <li>Sur le Quantum, une <b>sortie réseau « Sport In The Box »</b> (format tableau écran). Par défaut le logiciel la cherche sur le port <b>26700</b>.</li></ul>
+              <li>Sur le Quantum, une <b>sortie réseau « Sport In The Box »</b> (format tableau écran). Par défaut le logiciel la cherche sur le port <b>26700</b>.</li>
+              <li><b>Omega ARES 21</b> : en série (câble null-modem + adaptateur USB-série, mode OSM6) ou <b>en réseau</b> (version 1.4.1 et suivantes). Dans « Réglages » du logiciel, case Réseau : <code>IP_ARES:port</code> si le logiciel va chercher les données, <code>ecoute:port</code> si l'ARES les envoie vers l'IP de ce PC, <code>udp:port</code> s'il les diffuse en UDP. Demander ces infos au chronométreur.</li></ul>
 
               <h4>2. Relier le logiciel à ce live</h4>
               <ol><li>Lancer Swim Direct · Chrono sur le PC du Quantum. Au premier lancement, si Windows le demande, <b>autoriser l'accès au réseau privé</b>.</li>
@@ -1160,12 +1162,21 @@ body.tv{overflow:hidden}
 
               <h4>5. Écran géant</h4>
               <ul><li><b>Aujourd'hui</b> : sur le PC qui gère l'affichage, ouvrir la page publique du live dans Chrome ou Edge, onglet <b>Direct</b>, bouton « <b>⛶ Écran géant</b> », puis <b>F11</b> pour le plein écran. Les temps passent par Internet : compter 0,3 à 1,5 s de décalage sur les touches. Le chrono qui tourne, lui, est calculé sur place.</li>
-              <li><b>Écran local (recommandé, sans délai)</b> : le logiciel du chrono (version 1.4.0 et suivantes) sert l'écran géant sur le réseau de la piscine. Le PC de l'écran doit être sur le même réseau (Wi-Fi ou câble) que le PC du Quantum. Dans le logiciel, la ligne <b>« Écran géant »</b> donne l'adresse à ouvrir sur le PC de l'écran (ex. <code>http://192.168.1.20:8765</code>) : l'écran géant s'ouvre directement, puis <b>F11</b>. Au premier lancement, Windows demande d'autoriser le logiciel sur le réseau : accepter (réseau privé). La mise en page vient du site (toujours à jour) et une copie est gardée sur le PC du chrono : si Internet coupe, l'écran continue.</li></ul>
+              <li><b>Écran local (recommandé, sans délai)</b> : le logiciel du chrono (version 1.4.0 et suivantes) sert l'écran géant sur le réseau de la piscine. Le PC de l'écran doit être sur le même réseau (Wi-Fi ou câble) que le PC du Quantum. Dans le logiciel, la ligne <b>« Écran géant »</b> donne l'adresse à ouvrir sur le PC de l'écran (ex. <code>http://192.168.1.20:8765</code>) : l'écran géant s'ouvre directement, puis <b>F11</b>. Pour les relais, les noms des 4 relayeurs envoyés par le Quantum s'affichent sous le club, celui qui nage est souligné. Au premier lancement, Windows demande d'autoriser le logiciel sur le réseau : accepter (réseau privé). La mise en page vient du site (toujours à jour) et une copie est gardée sur le PC du chrono : si Internet coupe, l'écran continue.</li></ul>
 
               <h4>6. En cas de problème</h4>
               <ul><li><b>« Site injoignable : certificate has expired »</b> : vérifier la <b>date et l'heure</b> du PC, puis ouvrir le site une fois dans Edge sur ce PC. La version 1.3.7 et suivantes embarquent leurs propres certificats.</li>
               <li><b>« Sortie occupée ? »</b> : la sortie du Quantum est déjà utilisée par autre chose (vidéo, tableau). Créer une 2e sortie Sport In The Box sur un autre port, et l'indiquer dans « Réglages » du logiciel.</li>
               <li><b>Le Direct ne bouge pas</b> : regarder la ligne « Envoyé » du logiciel. Si elle reste à 0, le Quantum n'envoie rien : charger la série, vérifier la sortie. Si elle augmente, vérifier que le mode du direct est sur « Bassin ».</li>
+              <li><b>L'écran local ne s'ouvre pas sur le PC de l'écran</b> :
+                <ol><li>Sur le PC du chrono, ouvrir <code>http://localhost:8765</code>. S'il ne s'ouvre pas : le logiciel n'est pas lancé, ou sa version est antérieure à 1.4.0.</li>
+                <li>Le <b>pare-feu Windows</b> bloque les autres PC. À partir de la version 1.4.2, le logiciel demande lui-même l'autorisation au lancement : répondre <b>Oui</b>. Sinon, dans une invite de commandes « en tant qu'administrateur » : <code>netsh advfirewall firewall add rule name="SwimDirect ecran" dir=in action=allow protocol=TCP localport=8765 profile=any</code></li>
+                <li><b>Prendre la bonne adresse</b> : un PC branché au câble <i>et</i> au Wi-Fi a plusieurs adresses. Le logiciel les affiche toutes : utiliser celle du réseau sur lequel est branché le PC de l'écran (souvent le câble). On peut aussi essayer <code>http://NOM-DU-PC:8765</code>.</li>
+                <li>Si le câble et le Wi-Fi ont des adresses de la même famille (ex. 192.168.1.4 et 192.168.1.35), Windows peut se tromper de réseau : couper le Wi-Fi du PC du chrono, ou mettre le réseau câblé sur une autre plage (ex. 192.168.10.x, IP fixe sur les deux PC).</li>
+                <li>Test simple depuis le PC de l'écran : <code>ping adresse-du-PC-chrono</code>. S'il ne répond pas, les deux PC ne sont pas sur le même réseau.</li></ol></li>
+              <li><b>Décalage entre les deux PC</b> : en écran local, les touches arrivent quasi instantanément (moins d'un dixième de seconde). Le chrono qui tourne est calculé par chaque écran : il peut avoir quelques dixièmes d'écart avec le tableau officiel, il se recale à chaque départ et à chaque touche. Les temps affichés aux touches sont toujours ceux de la plaque. Un vrai retard (1 s ou plus) veut dire que l'écran passe par Internet : vérifier que l'adresse ouverte est bien celle du PC du chrono.</li>
+              <li><b>ARES en réseau : rien n'arrive</b> : vérifier l'IP, le port et le mode (client, écoute ou UDP) avec le chronométreur. En mode écoute ou UDP, autoriser le logiciel dans le pare-feu si Windows le demande. Tout ce qui arrive est gardé dans le journal, même ce qui n'est pas encore compris : l'envoyer pour adapter le logiciel.</li>
+              <li><b>Records perso sans Internet</b> : l'écran local garde une copie des records. L'ouvrir au moins une fois avec Internet (idéalement le matin, engagements en ligne).</li>
               <li><b>Pour une analyse</b> : « Messages du logiciel du chrono » ci-dessus, bouton <b>📋 Copier le journal</b>, ou le <b>Journal complet</b> du jour (lien au-dessus) à transmettre.</li></ul>
               </div>
             </details>
@@ -1413,7 +1424,10 @@ function tvScreenHtml(){
   const rkLive={},gapLive={},leadAt={};pos.forEach((p,i)=>{rkLive[p.n]=fins.length+i+1;if(leadAt[p.d]==null)leadAt[p.d]=p.t;gapLive[p.n]=p.t-leadAt[p.d]});
   const ranked=TVRANK&&!ready&&fins.length;let lanes=tvLanes(h,se);if(ranked)lanes=fins.map(([n])=>+n);
   const rows=lanes.map(n=>{const w=poolWho(h,se,n),L=(h.lanes||{})[n]||{};const nm=w?splitName(w.name):null;
-    const lg=w&&w.club?logoFind(w.club):null;const who=(w?`<b>${relay?esc(w.club||w.name):esc(nm.last)+" "+esc(nm.first)}</b><span>${relay?"":esc(w.club||"")}</span>`:`<b class="tvempty">—</b><span></span>`);const whoL=`<div class="tvlg">${lg?`<img src="${lg}" alt="">`:""}</div><div class="tvw">${who}</div>`;
+    const lg=w&&w.club?logoFind(w.club):null;/* relais : les 4 relayeurs (noms envoyés par le Quantum), celui dans l'eau en surbrillance */
+    const RMv=relay&&w&&(w.members||[]).length>1?w.members:null;let rlh="";if(RMv){const Lr=(h.lanes||{})[n]||{},tot=(t=>{const r=t.match(/(\d+)\s*x\s*(\d+)/i);return r?r[1]*r[2]:0})(String(ev&&ev.name||h.title||"")),ks=Object.keys(Lr.laps||{}).map(Number).filter(k=>Lr.laps[k]&&Lr.laps[k].t!=null),dk=ks.length?Math.max(...ks.map(k=>Lr.laps[k].dist||k*poolLen())):0,on=h.start&&!Lr.fin&&tot?Math.min(RMv.length-1,Math.floor(dk/(tot/RMv.length))):-1;
+      rlh=`<span class="tvrl">${RMv.map((m,i)=>{const z=splitName(m.name);return`<i${i===on?' class="on"':""}>${esc(z.last)}</i>`}).join(" · ")}</span>`}
+    const who=(w?`<b>${relay?esc(w.club||w.name):esc(nm.last)+" "+esc(nm.first)}</b>${RMv?rlh:`<span>${relay?"":esc(w.club||"")}</span>`}`:`<b class="tvempty">—</b><span></span>`);const whoL=`<div class="tvlg">${lg?`<img src="${lg}" alt="">`:""}</div><div class="tvw">${who}</div>`;
     if(ready){const eng=w&&w.time;return`<div class="tvr"><div class="tvn">${n}</div>${whoL}<div class="tvm"></div><div class="tvt tveng">${eng?fmt(eng):""}</div><div class="tvp"></div></div>`}
     const laps=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),lk=laps[laps.length-1],last=lk!=null?L.laps[lk]:null;
     let mid="",tm="",pl="",qline="";
