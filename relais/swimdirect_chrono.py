@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -50,10 +50,36 @@ def lan_ip():
         try: return socket.gethostbyname(socket.gethostname())
         except OSError: return "127.0.0.1"
 
+def all_ips():
+    """toutes les adresses IPv4 du PC (câble, Wi-Fi…) : l'écran peut être sur n'importe quel réseau"""
+    ips = []
+    try:
+        for x in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            a = x[4][0]
+            if not a.startswith(("127.", "169.254.")) and a not in ips: ips.append(a)
+    except OSError: pass
+    m = lan_ip()
+    if m in ips: ips.remove(m)
+    return [m] + ips if not m.startswith("127.") else ips or [m]
+
+def open_firewall(port, log):
+    """Windows : ouvre une fois pour toutes le port de l'écran local (demande l'accord administrateur la 1re fois)"""
+    if os.name != "nt": return
+    import subprocess
+    name = f"SwimDirect ecran {port}"
+    try:
+        r = subprocess.run(["netsh", "advfirewall", "firewall", "show", "rule", f"name={name}"], capture_output=True, creationflags=0x08000000)
+        if r.returncode == 0: return
+        import ctypes
+        args = f'advfirewall firewall add rule name="{name}" dir=in action=allow protocol=TCP localport={port} profile=any'
+        rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", "netsh", args, None, 0)
+        log("🛡 Pare-feu : autorisation de l'écran local demandée (accepte la fenêtre Windows)" if rc > 32 else "⚠ Pare-feu non modifié : les autres PC ne verront peut-être pas l'écran local")
+    except Exception as e: log(f"⚠ Pare-feu : vérification impossible ({e})")
+
 class LocalScreen:
     def __init__(self, core):
         self.core = core; self.evs = []; self.lock = threading.Lock(); self.clients = []
-        self.cache = os.path.join(HOME, "ecran"); os.makedirs(self.cache, exist_ok=True); self.port = int(core.cfg.get("ecran_port") or LOCAL_PORT); self.ok = False; self.ip = ""
+        self.cache = os.path.join(HOME, "ecran"); os.makedirs(self.cache, exist_ok=True); self.port = int(core.cfg.get("ecran_port") or LOCAL_PORT); self.ok = False; self.ip = ""; self.ips = []
     def push(self, ev):
         item = {"t": int(time.time() * 1000), "ev": ev}
         with self.lock:
@@ -122,7 +148,10 @@ class LocalScreen:
                         if q in me.clients: me.clients.remove(q)
         try:
             srv = http.server.ThreadingHTTPServer(("0.0.0.0", self.port), H); srv.daemon_threads = True; self.ok = True
-            self.ip = lan_ip(); self.core.log(f"🖥 Écran géant local : sur le PC de l'écran, ouvrir http://{self.ip}:{self.port}")
+            self.ips = all_ips(); self.ip = self.ips[0]
+            self.core.log(f"🖥 Écran géant local : sur le PC de l'écran, ouvrir " + "  ou  ".join(f"http://{a}:{self.port}" for a in self.ips) + f"  (ou http://{socket.gethostname()}:{self.port})")
+            if len(self.ips) > 1: self.core.log("   Plusieurs réseaux sur ce PC (câble, Wi-Fi…) : prends l'adresse du réseau où est branché l'écran.")
+            threading.Thread(target=open_firewall, args=(self.port, self.core.log), daemon=True).start()
             srv.serve_forever()
         except OSError as e: self.core.log(f"✗ Écran géant local indisponible (port {self.port}) : {e}")
 
@@ -524,7 +553,7 @@ def gui(cfg, demo=False, close_after=0):
         lines["site"].config(text=(f"✓ {s['name']}" if s["linked"] else "en attente : colle la clé dans l'admin de ton live" if s["linked"] is False else "connexion au site…") + (f"  ·  ⚠ {s['err']}" if s["err"] else ""),
                              fg=RED if (s["err"] or s["linked"] is False) else BLUE)
         lines["q"].config(text=s["quantum"], fg=RED if not s["quantum"].startswith(("connecté", "démo")) else BLUE)
-        lines["ecran"].config(text=(f"http://{core.screen.ip}:{core.screen.port}  ·  {len(core.screen.clients)} écran(s) connecté(s)" if core.screen.ok else "démarrage…"))
+        lines["ecran"].config(text=("  ·  ".join(f"http://{a}:{core.screen.port}" for a in (core.screen.ips or [core.screen.ip])) + f"  ·  {len(core.screen.clients)} écran(s) connecté(s)" if core.screen.ok else "démarrage…"))
         lines["last"].config(text=s["last"] or "—")
         if s.get("update") and not getattr(bupd, "do", False):
             for w in (upd, updl): w.config(bg="#ffcc29")
