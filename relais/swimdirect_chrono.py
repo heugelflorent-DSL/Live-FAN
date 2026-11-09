@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -425,7 +425,10 @@ def self_update(site, log=print):
         if os.path.getsize(new) < 1_000_000: raise ValueError("fichier téléchargé incomplet")
         if os.path.exists(old): os.remove(old)
         os.rename(exe, old); os.rename(new, exe)  # un exe en cours d'exécution peut être renommé (pas écrasé)
-        import subprocess; subprocess.Popen([exe] + sys.argv[1:], close_fds=True)
+        # le nouvel exe doit repartir de zéro : sinon il réutilise le dossier temporaire _MEI de l'ancien (supprimé à sa fermeture) → « base_library.zip introuvable »
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("_MEI", "_PYI")) and k not in ("TCL_LIBRARY", "TK_LIBRARY")}
+        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+        import subprocess; subprocess.Popen([exe] + sys.argv[1:], close_fds=True, env=env)
         return True
     except Exception as e:
         log(f"✗ Mise à jour impossible : {e}")
