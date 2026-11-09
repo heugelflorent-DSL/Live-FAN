@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -454,27 +454,42 @@ def startup_update(cfg):
 def gui(cfg, demo=False, close_after=0):
     import tkinter as tk
     from tkinter import ttk, messagebox
-    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("620x560"); root.minsize(520, 460)
-    BLUE, RED, GREY = "#06324f", "#d6202f", "#5b7685"
-    root.configure(bg="#e9f4f8")
+    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("780x780"); root.minsize(640, 600)
+    NAVY, INK, BG, CARD, LINE = "#0b1e3f", "#13284d", "#eef3f8", "#ffffff", "#d6e1ec"
+    BLUE, RED, GREY, GREEN, GOLD = "#06324f", "#d6202f", "#5b7685", "#16a34a", "#f2c94c"
+    F = "Segoe UI"
+    root.configure(bg=BG)
     logs = []
     core = Core(cfg, on_log=lambda m: logs.append(m))
 
-    head = tk.Frame(root, bg=BLUE); head.pack(fill="x")
-    tk.Label(head, text="Swim Direct · Chrono", fg="white", bg=BLUE, font=("Segoe UI", 18, "bold")).pack(anchor="w", padx=16, pady=(12, 0))
-    tk.Label(head, text="Envoie le chronométrage en direct sur ton live Swim Direct", fg="#cfe6f3", bg=BLUE, font=("Segoe UI", 10)).pack(anchor="w", padx=16, pady=(0, 12))
+    def btn(parent, text, cmd, kind="ghost", **kw):
+        st = {"primary": (NAVY, "white", "#1d3a6b"), "ghost": (CARD, INK, "#e3ebf3"), "gold": (GOLD, NAVY, "#ffd96b")}[kind]
+        b = tk.Button(parent, text=text, command=cmd, bg=st[0], fg=st[1], activebackground=st[2], activeforeground=st[1], relief="flat", bd=0,
+                      font=(F, 10, "bold"), padx=14, pady=6, cursor="hand2", highlightthickness=1 if kind == "ghost" else 0, highlightbackground=LINE, **kw)
+        b.bind("<Enter>", lambda e: b.config(bg=st[2])); b.bind("<Leave>", lambda e: b.config(bg=b._bg)); b._bg = st[0]
+        return b
+    def card(parent, title, icon):
+        f = tk.Frame(parent, bg=CARD, highlightbackground=LINE, highlightthickness=1)
+        h = tk.Frame(f, bg=CARD); h.pack(fill="x", padx=14, pady=(12, 4))
+        dot = tk.Label(h, text="●", bg=CARD, fg=GREY, font=(F, 11)); dot.pack(side="left")
+        tk.Label(h, text=f"{icon}  {title}", bg=CARD, fg=GREY, font=(F, 9, "bold")).pack(side="left", padx=(4, 0))
+        v = tk.Label(f, text="…", bg=CARD, fg=INK, font=(F, 11, "bold"), anchor="w", justify="left", wraplength=210); v.pack(fill="x", padx=14, pady=(0, 12))
+        f.dot, f.val = dot, v
+        return f
 
-    box = tk.Frame(root, bg="white", highlightbackground="#c9dde6", highlightthickness=1); box.pack(fill="x", padx=14, pady=12)
-    tk.Label(box, text="Clé de liaison — à coller dans l'admin de ton live (Direct → Chronométrage relié)", bg="white", fg=GREY, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(10, 2))
-    row = tk.Frame(box, bg="white"); row.pack(fill="x", padx=12, pady=(0, 10))
-    tk.Label(row, text=cfg["token"], bg="white", fg=BLUE, font=("Consolas", 20, "bold")).pack(side="left")
-    def copy():
-        root.clipboard_clear(); root.clipboard_append(cfg["token"]); bcopy.config(text="Copié ✓"); root.after(2000, lambda: bcopy.config(text="Copier"))
-    bcopy = ttk.Button(row, text="Copier", command=copy); bcopy.pack(side="right")
+    # ---- en-tête
+    head = tk.Frame(root, bg=NAVY); head.pack(fill="x")
+    hl = tk.Frame(head, bg=NAVY); hl.pack(side="left", padx=18, pady=12)
+    tk.Label(hl, text="Swim Direct · Chrono", fg="white", bg=NAVY, font=(F, 18, "bold")).pack(anchor="w")
+    tk.Label(hl, text="Chronométrage en direct sur ton live et sur l'écran géant", fg="#b9c8e4", bg=NAVY, font=(F, 10)).pack(anchor="w")
+    hr = tk.Frame(head, bg=NAVY); hr.pack(side="right", padx=18)
+    tk.Label(hr, text=f"v{VERSION}", fg=NAVY, bg=GOLD, font=(F, 9, "bold"), padx=8, pady=2).pack(anchor="e", pady=(14, 4))
+    tk.Label(hr, text="© Mat-et-Flo", fg=GOLD, bg=NAVY, font=(F, 9, "bold")).pack(anchor="e")
+    tk.Frame(root, bg=GOLD, height=3).pack(fill="x")
 
-    # bande « mise à jour » toujours visible : verte quand tout est à jour, jaune avec un gros bouton quand une nouvelle version existe
-    upd = tk.Frame(root, bg="#d9f2e1"); upd.pack(fill="x", padx=14, pady=(0, 8))
-    updl = tk.Label(upd, text=f"✓ Logiciel à jour · version {VERSION}", bg="#d9f2e1", fg="#0f5c2e", font=("Segoe UI", 10, "bold")); updl.pack(side="left", padx=12, pady=8)
+    # ---- bande mise à jour
+    upd = tk.Frame(root, bg="#dcf3e4"); upd.pack(fill="x", padx=16, pady=(12, 0))
+    updl = tk.Label(upd, text=f"✓ Logiciel à jour · version {VERSION}", bg="#dcf3e4", fg="#0f5c2e", font=(F, 10, "bold")); updl.pack(side="left", padx=12, pady=8)
     def check_now():
         updl.config(text="Recherche d'une nouvelle version…"); root.update(); core.check_update(force=True)
         if not core.st.get("update"): updl.config(text=f"✓ Logiciel à jour · version {VERSION}")
@@ -483,20 +498,52 @@ def gui(cfg, demo=False, close_after=0):
         updl.config(text="Téléchargement de la nouvelle version…"); root.update()
         if self_update(cfg["site"], core.log): core.stop = True; root.destroy()
         else: updl.config(text="Mise à jour impossible : télécharge-la depuis l'admin du live.")
-    bupd = tk.Button(upd, text="Vérifier les mises à jour", command=check_now, bg="white", fg="#0f5c2e", relief="flat", font=("Segoe UI", 10, "bold"), padx=12, pady=4, cursor="hand2")
-    bupd.pack(side="right", padx=10, pady=6)
-    stat = tk.Frame(root, bg="#e9f4f8"); stat.pack(fill="x", padx=14)
-    lines = {}
-    for k, lab in (("site", "Live relié"), ("q", "Chronométrage"), ("ecran", "Écran géant"), ("last", "Dernier événement"), ("sent", "Envoyé")):
-        f = tk.Frame(stat, bg="#e9f4f8"); f.pack(fill="x", pady=1)
-        tk.Label(f, text=lab, width=17, anchor="w", bg="#e9f4f8", fg=GREY, font=("Segoe UI", 10)).pack(side="left")
-        v = tk.Label(f, text="…", anchor="w", bg="#e9f4f8", fg=BLUE, font=("Segoe UI", 10, "bold"), wraplength=420, justify="left"); v.pack(side="left", fill="x"); lines[k] = v
+    bupd = btn(upd, "Vérifier les mises à jour", check_now); bupd.pack(side="right", padx=8, pady=5)
 
-    bar = tk.Frame(root, bg="#e9f4f8"); bar.pack(fill="x", padx=14, pady=8)
+    # ---- trois cartes d'état
+    cards = tk.Frame(root, bg=BG); cards.pack(fill="x", padx=16, pady=12)
+    for i in range(3): cards.columnconfigure(i, weight=1, uniform="c")
+    cLive, cChrono, cTv = card(cards, "LIVE RELIÉ", "🌐"), card(cards, "CHRONOMÉTRAGE", "⏱"), card(cards, "ÉCRAN GÉANT", "🖥")
+    for i, c in enumerate((cLive, cChrono, cTv)): c.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 6, 0))
+
+    # ---- écran géant local : une ligne par adresse, avec Copier / Ouvrir
+    tv = tk.Frame(root, bg=CARD, highlightbackground=LINE, highlightthickness=1); tv.pack(fill="x", padx=16)
+    tvh = tk.Frame(tv, bg=CARD); tvh.pack(fill="x", padx=14, pady=(10, 2))
+    tk.Label(tvh, text="Écran géant local (sans délai)", bg=CARD, fg=INK, font=(F, 11, "bold")).pack(side="left")
+    tvn = tk.Label(tvh, text="", bg=CARD, fg=GREY, font=(F, 9)); tvn.pack(side="right")
+    tk.Label(tv, text="Sur le PC de l'écran, ouvre l'adresse du réseau où il est branché (câble ou Wi-Fi), puis F11.", bg=CARD, fg=GREY, font=(F, 9), anchor="w").pack(fill="x", padx=14)
+    tvl = tk.Frame(tv, bg=CARD); tvl.pack(fill="x", padx=14, pady=(6, 12)); tvl.sig = None
+    def tv_rows():
+        ips = core.screen.ips or ([core.screen.ip] if core.screen.ip else [])
+        urls = [f"http://{a}:{core.screen.port}" for a in ips] + ([f"http://{socket.gethostname()}:{core.screen.port}"] if ips else [])
+        if urls == tvl.sig: return
+        tvl.sig = urls
+        for w in tvl.winfo_children(): w.destroy()
+        if not core.screen.ok: tk.Label(tvl, text="démarrage…", bg=CARD, fg=GREY, font=(F, 10)).pack(anchor="w"); return
+        for i, u in enumerate(urls):
+            r = tk.Frame(tvl, bg="#f4f8fb" if i % 2 == 0 else CARD); r.pack(fill="x", pady=1)
+            tk.Label(r, text=u, bg=r["bg"], fg=BLUE, font=("Consolas", 12, "bold"), anchor="w").pack(side="left", padx=8, pady=4)
+            tk.Label(r, text="nom du PC" if i == len(urls) - 1 else ("principal" if i == 0 else "autre réseau"), bg=r["bg"], fg=GREY, font=(F, 8)).pack(side="left")
+            def cp(u=u, r=r):
+                root.clipboard_clear(); root.clipboard_append(u); r.cpb.config(text="Copié ✓"); root.after(1500, lambda: r.cpb.config(text="Copier"))
+            btn(r, "Ouvrir", lambda u=u: webbrowser.open(u + "/")).pack(side="right", padx=(4, 6), pady=3)
+            r.cpb = btn(r, "Copier", cp); r.cpb.pack(side="right", pady=3)
+
+    # ---- clé de liaison + actions
+    mid = tk.Frame(root, bg=BG); mid.pack(fill="x", padx=16, pady=12)
+    key = tk.Frame(mid, bg=CARD, highlightbackground=LINE, highlightthickness=1); key.pack(side="left", fill="both", expand=True)
+    tk.Label(key, text="🔑  CLÉ DE LIAISON · à coller dans l'admin du live (Chronométrage relié)", bg=CARD, fg=GREY, font=(F, 9, "bold")).pack(anchor="w", padx=14, pady=(10, 2))
+    kr = tk.Frame(key, bg=CARD); kr.pack(fill="x", padx=14, pady=(0, 10))
+    tk.Label(kr, text=cfg["token"], bg=CARD, fg=NAVY, font=("Consolas", 16, "bold")).pack(side="left")
+    def copy():
+        root.clipboard_clear(); root.clipboard_append(cfg["token"]); bcopy.config(text="Copié ✓"); root.after(2000, lambda: bcopy.config(text="Copier"))
+    bcopy = btn(kr, "Copier", copy, "primary"); bcopy.pack(side="right")
+
+    bar = tk.Frame(root, bg=BG); bar.pack(fill="x", padx=16)
     def pause():
-        core.paused = not core.paused; bpause.config(text="Reprendre l'envoi" if core.paused else "Pause")
-    bpause = ttk.Button(bar, text="Pause", command=pause); bpause.pack(side="left")
-    ttk.Button(bar, text="Ouvrir le live", command=lambda: core.st["url"] and webbrowser.open(core.st["url"])).pack(side="left", padx=6)
+        core.paused = not core.paused; bpause.config(text="▶ Reprendre l'envoi" if core.paused else "⏸ Pause")
+    bpause = btn(bar, "⏸ Pause", pause); bpause.pack(side="left")
+    btn(bar, "Ouvrir le live", lambda: core.st["url"] and webbrowser.open(core.st["url"])).pack(side="left", padx=6)
     def settings():
         w = tk.Toplevel(root); w.title("Réglages"); w.grab_set(); w.resizable(False, False)
         SYS = [("Swiss Timing Quantum (sortie Sport In The Box)", "quantum", "reseau", ""),
@@ -546,23 +593,31 @@ def gui(cfg, demo=False, close_after=0):
             cfg.update(sys=SYS[sysv.current()][1], mode=mode.get(), source=src, port=port, serial=ser, forward=fw); save_cfg(cfg); w.destroy()
             messagebox.showinfo(APP, "Réglages enregistrés. Ferme et relance le logiciel pour les appliquer.")
         ttk.Button(w, text="Enregistrer", command=ok).grid(row=10, column=0, sticky="e", padx=10, pady=10)
-    ttk.Button(bar, text="Réglages", command=settings).pack(side="left")
-    ttk.Button(bar, text="Dossier des journaux", command=lambda: os.startfile(os.path.join(HOME, "journaux")) if hasattr(os, "startfile") else None).pack(side="right")
+    btn(bar, "⚙ Réglages", settings).pack(side="left")
+    btn(bar, "Dossier des journaux", lambda: os.startfile(os.path.join(HOME, "journaux")) if hasattr(os, "startfile") else None).pack(side="right")
 
-    txt = tk.Text(root, height=10, bg="#06324f", fg="#e6f2f8", font=("Consolas", 9), relief="flat", padx=8, pady=6); txt.pack(fill="both", expand=True, padx=14, pady=(0, 14))
+    # ---- compteurs + journal
+    info = tk.Frame(root, bg=BG); info.pack(fill="x", padx=16, pady=(12, 4))
+    ilast = tk.Label(info, text="", bg=BG, fg=INK, font=(F, 9), anchor="w"); ilast.pack(side="left")
+    isent = tk.Label(info, text="", bg=BG, fg=GREY, font=(F, 9), anchor="e"); isent.pack(side="right")
+    txt = tk.Text(root, height=8, bg=NAVY, fg="#e6f2f8", insertbackground="white", font=("Consolas", 9), relief="flat", padx=10, pady=8, highlightthickness=0)
+    txt.pack(fill="both", expand=True, padx=16, pady=(0, 16))
 
+    def state(c, ok, text, warn=False):
+        c.dot.config(fg=GREEN if ok else (GOLD if warn else RED)); c.val.config(text=text, fg=INK if ok else (INK if warn else RED))
     def tick():
         s = core.st
-        lines["site"].config(text=(f"✓ {s['name']}" if s["linked"] else "en attente : colle la clé dans l'admin de ton live" if s["linked"] is False else "connexion au site…") + (f"  ·  ⚠ {s['err']}" if s["err"] else ""),
-                             fg=RED if (s["err"] or s["linked"] is False) else BLUE)
-        lines["q"].config(text=s["quantum"], fg=RED if not s["quantum"].startswith(("connecté", "démo")) else BLUE)
-        lines["ecran"].config(text=("  ·  ".join(f"http://{a}:{core.screen.port}" for a in (core.screen.ips or [core.screen.ip])) + f"  ·  {len(core.screen.clients)} écran(s) connecté(s)" if core.screen.ok else "démarrage…"))
-        lines["last"].config(text=s["last"] or "—")
+        state(cLive, s["linked"] and not s["err"], (f"{s['name']}" if s["linked"] else "Colle la clé dans l'admin du live" if s["linked"] is False else "Connexion au site…") + (f"\n⚠ {str(s['err'])[:70]}" if s["err"] else ""), warn=s["linked"] is None and not s["err"])
+        state(cChrono, s["quantum"].startswith(("connecté", "démo")), s["quantum"], warn=s["quantum"].startswith(("en attente", "écoute")))
+        n = len(core.screen.clients)
+        state(cTv, core.screen.ok and n > 0, (f"{n} écran(s) affiché(s)" if n else "Prêt · aucun écran ouvert") if core.screen.ok else "démarrage…", warn=core.screen.ok and not n)
+        tvn.config(text=f"port {core.screen.port}"); tv_rows()
+        ilast.config(text="Dernier événement : " + (s["last"] or "—"))
+        isent.config(text=("EN PAUSE · " if core.paused else "") + f"{s['sent']} événement(s) envoyé(s) · journal : {s['jsent']}", fg=RED if core.paused else GREY)
         if s.get("update") and not getattr(bupd, "do", False):
-            for w in (upd, updl): w.config(bg="#ffcc29")
-            updl.config(text=f"⚠ Nouvelle version {s['update']} disponible (installée : {VERSION})", fg="#3d2c00")
-            bupd.config(text="▶  METTRE À JOUR", command=do_update, bg="#06324f", fg="white", font=("Segoe UI", 12, "bold"), padx=16, pady=6); bupd.do = True
-        lines["sent"].config(text=("EN PAUSE · " if core.paused else "") + f"{s['sent']} événement(s) · journal : {s['jsent']} message(s)")
+            for w in (upd, updl): w.config(bg=GOLD)
+            updl.config(text=f"⚠ Nouvelle version {s['update']} disponible (installée : {VERSION})", fg=NAVY)
+            bupd.config(text="▶  METTRE À JOUR", command=do_update, bg=NAVY, fg="white", font=(F, 11, "bold")); bupd._bg = NAVY; bupd.do = True
         while logs:
             txt.insert("end", logs.pop(0) + "\n")
             if int(txt.index("end-1c").split(".")[0]) > 400: txt.delete("1.0", "100.0")
