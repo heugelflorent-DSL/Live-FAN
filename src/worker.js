@@ -841,13 +841,13 @@ export default {
     }
 
     // partenaires : ceux de tous les lives + ceux de cet événement
-    // pièces jointes des informations de l'accueil (photo ou PDF), stockées dans KV
-    { const fm = p.match(/^\/api\/f\/([\w-]{1,60})\/([a-z0-9]{6,40})$/); if (fm && req.method === "GET") {
-      const r = await env.KV.getWithMetadata("file:" + fm[1] + ":" + fm[2], { type: "arrayBuffer" });
-      if (!r || !r.value) return new Response("Fichier introuvable", { status: 404 });
-      const m = r.metadata || {}; const h = { "content-type": m.type || "application/octet-stream", "cache-control": "public, max-age=31536000, immutable" };
-      if (m.type === "application/pdf") h["content-disposition"] = `inline; filename="${String(m.name || "document.pdf").replace(/[^\w .-]/g, "_")}"`;
-      return new Response(r.value, { headers: h }); } }
+    // pièces jointes des informations de l'accueil (photo ou PDF) : stockées en base (UE) en morceaux base64 ;
+    // le serveur ne fait que lire / écrire du texte (pas de décodage : trop coûteux en temps de calcul), la page recolle les morceaux
+    { const fm = p.match(/^\/api\/f\/([\w-]{1,60})\/([a-z0-9]{6,40})(?:\/(\d{1,3}))?$/); if (fm && req.method === "GET") {
+      const base = "file:" + fm[1] + ":" + fm[2];
+      const v = await env.KV.get(fm[3] == null ? base : base + ":" + fm[3]);
+      if (v == null) return new Response("Fichier introuvable", { status: 404 });
+      return new Response(v, { headers: { "content-type": fm[3] == null ? "application/json" : "text/plain", "cache-control": "public, max-age=31536000, immutable" } }); } }
     // grilles de qualification (communes à tous les lives)
     if (p === "/api/quals" && req.method === "GET") return json((await env.KV.get("quals", "json")) || []);
     if (p === "/api/sponsors" && req.method === "GET") {
@@ -962,13 +962,20 @@ export default {
       await env.KV.put("quals", txt); return json({ ok: true });
     }
     if (p === "/api/admin/file" && req.method === "PUT") {
-      const type = (req.headers.get("content-type") || "").split(";")[0].trim();
-      if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(type)) return json({ error: "Seules les photos (JPG, PNG, WebP) et les PDF sont acceptés." }, 400);
-      const buf = await req.arrayBuffer(); if (!buf.byteLength) return json({ error: "Fichier vide." }, 400);
-      if (buf.byteLength > 20 * 1024 * 1024) return json({ error: "Fichier trop lourd (20 Mo maximum)." }, 400);
-      const id = crypto.randomUUID().replace(/-/g, "").slice(0, 16), name = String(url.searchParams.get("name") || "").slice(0, 120);
-      await env.KV.put("file:" + ev + ":" + id, buf, { metadata: { type, name, size: buf.byteLength } });
-      return json({ ok: true, url: "/api/f/" + ev + "/" + id, type, name, size: buf.byteLength });
+      // envoi en plusieurs fois : ?id=…&i=0..n-1 (morceau base64), puis ?id=…&done=n avec type / nom / taille
+      const id = String(url.searchParams.get("id") || ""); if (!/^[a-z0-9]{16}$/.test(id)) return json({ error: "Identifiant invalide." }, 400);
+      const base = "file:" + ev + ":" + id;
+      if (url.searchParams.has("i")) {
+        const i = +url.searchParams.get("i"); if (!(i >= 0 && i < 40)) return json({ error: "Fichier trop lourd (20 Mo maximum)." }, 400);
+        const t = await req.text(); if (!t || t.length > 1500000 || !/^[A-Za-z0-9+/=]+$/.test(t.slice(0, 200))) return json({ error: "Morceau invalide." }, 400);
+        await env.KV.put(base + ":" + i, t); return json({ ok: true });
+      }
+      const n = +url.searchParams.get("done"), type = String(url.searchParams.get("type") || "");
+      if (!(n >= 1 && n <= 40)) return json({ error: "Envoi incomplet." }, 400);
+      if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(type)) return json({ error: "Seules les photos et les PDF sont acceptés." }, 400);
+      const name = String(url.searchParams.get("name") || "").slice(0, 120), size = +url.searchParams.get("size") || 0;
+      await env.KV.put(base, JSON.stringify({ type, name, size, n }));
+      return json({ ok: true, url: "/api/f/" + ev + "/" + id, type, name, size });
     }
     if (p === "/api/admin/sponsors" && req.method === "PUT") {
       const { scope, list } = await req.json();
