@@ -1834,6 +1834,18 @@ function renderPublic(){
   ({live:renderLive,rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,part:renderPart,club:renderClub})[state.view]();
 }
 function nl(t){return esc(t).replace(/\n/g,"<br>")}
+/* mise en forme des informations : **gras**, _italique_, ++souligné++, ~~barré~~, [grand]…[/grand], [rouge]…[/rouge], liens cliquables */
+const RTCOL=[["rouge","#d62828"],["orange","#e8590c"],["vert","#2b8a3e"],["bleu","#1c64d6"],["violet","#7b2cbf"]];
+function richText(t){let h=esc(t);
+  h=h.replace(/\*\*([^*\n][^\n]*?)\*\*/g,"<b>$1</b>").replace(/(^|[^\w])_([^_\n]+?)_(?=[^\w]|$)/g,"$1<i>$2</i>").replace(/\+\+([^\n]+?)\+\+/g,"<u>$1</u>").replace(/~~([^\n]+?)~~/g,"<s>$1</s>");
+  h=h.replace(/\[grand\]([\s\S]*?)\[\/grand\]/g,'<span style="font-size:1.25em;font-weight:700">$1</span>');
+  for(const[k,c]of RTCOL)h=h.replace(new RegExp("\\["+k+"\\]([\\s\\S]*?)\\[\\/"+k+"\\]","g"),`<span style="color:${c}">$1</span>`);
+  h=h.replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');
+  return h.replace(/\n/g,"<br>")}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".rtbar button");if(!b)return;e.preventDefault();const bar=b.closest(".rtbar"),ta=bar.nextElementSibling;if(!ta||ta.tagName!=="TEXTAREA")return;
+  const a=ta.selectionStart,z=ta.selectionEnd,v=ta.value,sel=v.slice(a,z)||"texte";const[o,c]=b.dataset.rtw?[b.dataset.rtw,b.dataset.rtw]:["["+b.dataset.rtt+"]","[/"+b.dataset.rtt+"]"];
+  ta.value=v.slice(0,a)+o+sel+c+v.slice(z);ta.focus();ta.setSelectionRange(a+o.length,a+o.length+sel.length);ta.dispatchEvent(new Event("input",{bubbles:true}));ta.dispatchEvent(new Event("change",{bubbles:true}))});
+document.head.insertAdjacentHTML("beforeend",`<style>.rtbar{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 4px}.rtbar button{min-width:34px;height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font:600 14px system-ui,sans-serif;color:#222}.rtbar .rtc{min-width:26px;width:26px;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}</style>`);
 function teamRules(){return state.podRules.filter(r=>r.type==="team"&&r.comps.some(c=>comp(c)))}
 function ruleKeys(rule){return allKeys().filter(k=>rule.comps.includes(EVENTS[k].comp))}
 function teamBoard(rule,sex){
@@ -2250,7 +2262,7 @@ function renderHome(){
   for(const r of teamRules())for(const sx of ["F","M"]){const b=teamBoard(r,sx);if(!b.now.length)continue;
     teams+=`<div class="session">${secTitle(esc(r.name)+(sx?" · "+(sx==="F"?"Filles":"Garçons"):""),"en direct · "+b.nDone+"/"+b.nAll+" épreuves")}<div class="compline" style="margin:-2px 0 8px">${r.comps.filter(c=>comp(c)).map(compBadge).join("")}</div><div class="card top3">${b.now.slice(0,3).map(t=>`<div class="t3"><span class="rk r${t.rank}">${t.rank}</span><b>${esc(t.club)}</b>${moveHtml(t,b.prev)}<span class="tpts">${t.total.toLocaleString("fr-FR")}<small> pts</small></span></div>`).join("")}<a href="#" class="more" data-go="rank" data-rr2="${r.id}" data-sx2="${sx||""}">Classement complet ›</a></div></div>`}
   const infos=state.infos.filter(i=>i.title||i.text||i.att);
-  top+=`<div class="session" style="margin-top:4px">${secTitle("Informations de l'organisateur")}<div class="list">${infos.map(i=>`<div class="card info${i.important?" imp":""}">${i.important?`<span class="imptag">Important</span>`:""}${i.title?`<h4>${esc(i.title)}</h4>`:""}${i.text?`<p>${nl(i.text)}</p>`:""}${infoAtt(i)}</div>`).join("")||`<p class="empty">Aucune information de l'organisateur pour le moment.</p>`}</div></div>`;
+  top+=`<div class="session" style="margin-top:4px">${secTitle("Informations de l'organisateur")}<div class="list">${infos.map(i=>`<div class="card info${i.important?" imp":""}">${i.important?`<span class="imptag">Important</span>`:""}${i.title?`<h4>${esc(i.title)}</h4>`:""}${i.text?`<p>${richText(i.text)}</p>`:""}${infoAtt(i)}</div>`).join("")||`<p class="empty">Aucune information de l'organisateur pour le moment.</p>`}</div></div>`;
   const MR=myRaces(sch);
   const reus=Object.keys(state.order),multi=reus.length>1,curR=reus.find(r=>state.order[r].some(k=>EVENTS[k]&&EVENTS[k].type==="event"&&!done.has(k)))||reus[reus.length-1];
   const isOpen=r=>!multi||(state.open["reu"+r]!=null?state.open["reu"+r]:r===curR);
@@ -2756,6 +2768,7 @@ function renderAdmin(){renderLogos();renderFinRules();renderQuals();
   </div>`).join("")||`<p class="msg">Aucun classement.</p>`;
   $("#info-list").innerHTML=state.infos.map((i,ix)=>`<div class="rule">
     <div class="inline"><input class="field" data-if="title" data-iid="${i.id}" value="${esc(i.title)}" placeholder="Titre" aria-label="Titre de l'information"><span class="mv"><button data-imv="${i.id}" data-d="-1" aria-label="Monter">↑</button><button data-imv="${i.id}" data-d="1" aria-label="Descendre">↓</button></span><button class="x" data-idel="${i.id}" aria-label="Supprimer">×</button></div>
+    <div class="rtbar" data-rt="${i.id}"><button type="button" data-rtw="**" title="Gras"><b>G</b></button><button type="button" data-rtw="_" title="Italique"><i>I</i></button><button type="button" data-rtw="++" title="Souligné"><u>S</u></button><button type="button" data-rtw="~~" title="Barré"><s>B</s></button><button type="button" data-rtt="grand" title="Texte plus grand">A+</button>${RTCOL.map(([k,c])=>`<button type="button" data-rtt="${k}" title="${k}" class="rtc" style="background:${c}"></button>`).join("")}</div>
     <textarea class="field" rows="3" data-if="text" data-iid="${i.id}" placeholder="Texte de l'information" aria-label="Texte de l'information">${esc(i.text)}</textarea>
     <div class="inf-att">${i.att?`${infoAtt(i)}<button class="btn small ghost" type="button" data-iattdel="${i.id}">Retirer ${i.att.type==="pdf"?"le PDF":"la photo"}</button>${i.att.type!=="pdf"?`<label class="chk"><input type="checkbox" data-if="center" data-iid="${i.id}" ${i.center!==false?"checked":""}> Centrer</label>`:""}`:`<label class="btn small ghost inf-up">📎 Ajouter une photo ou un PDF<input type="file" accept="image/*,application/pdf" data-iatt="${i.id}" hidden></label>`}<span class="msg" id="iatt-msg-${i.id}"></span></div>
     <label class="chk"><input type="checkbox" data-if="important" data-iid="${i.id}" ${i.important?"checked":""}>Important</label></div>`).join("")||`<p class="msg">Aucune information.</p>`;
