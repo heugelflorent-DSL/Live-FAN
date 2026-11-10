@@ -538,7 +538,7 @@ async function mppStep(env, ev, max = 2, force = false, missing = false) {
   const stale = (x, w) => !x || (now - x.at > 5 * 864e5 && !(w && now >= w.day && !empty(x) && !x.err)) || (x.err && (force || now - x.at > 3600e3)) || (x.iuf && empty(x) && (force || now - x.at > 3600e3)) || (!x.iuf && (force || now - x.at > 864e5));
   const prio = (x) => (!x ? 0 : x.err ? 1 : empty(x) ? 2 : 3); // jamais lus d'abord, puis échecs, puis sans record, du plus ancien au plus récent
   /* « manquants » : seulement les nageurs introuvables ou en erreur, pas encore réessayés avec la recherche souple (v2) ; les records déjà lus ne sont pas touchés */
-  const miss = (x) => !x || x.err || (!x.iuf && (x.v || 1) < 2);
+  const miss = (x) => !x || x.err || (!x.iuf && (x.v || 1) < 3); // v3 : année « 1980 C5 » des masters comprise
   const todo = [...want.entries()].filter(([k, w]) => missing ? miss(store.sw[k]) || (w.iuf && !store.sw[k]?.iuf) : stale(store.sw[k], w)).sort(([a], [b]) => prio(store.sw[a]) - prio(store.sw[b]) || (store.sw[a]?.at || 0) - (store.sw[b]?.at || 0)).slice(0, max);
   if (!todo.length) return 0;
   let used = 0;
@@ -547,7 +547,7 @@ async function mppStep(env, ev, max = 2, force = false, missing = false) {
       const iuf = w.iuf || store.sw[k]?.iuf || (used++, await findIuf(w.name, w.year));
       let b = {};
       if (iuf) { const all = await fetchMpp(iuf); used++; const p = all[w.pool] || {}; if (w.events.has("*")) Object.assign(b, p); for (const e of w.events) if (p[e]) b[e] = p[e]; }
-      store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b, v: 2 };
+      store.sw[k] = { iuf: iuf || null, at: now, pool: w.pool, b, v: 3 };
     } catch (e) { store.sw[k] = { iuf: w.iuf || store.sw[k]?.iuf || null, at: now, b: {}, err: String(e.message || e) }; break; } // échec (Extranat) : nouvel essai dans 1 h
   }
   store.at = now; await env.KV.put(kk("mpp", ev), JSON.stringify(store));

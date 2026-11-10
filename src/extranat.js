@@ -40,6 +40,7 @@ export function splitInitials(name) {
   return m ? { base: m[1].trim(), ini: fold(m[2]).replace(/[^A-Z]/g, "") } : { base: String(name || "").trim(), ini: "" };
 }
 export function pickIuf(list, name, year) {
+  year = yearOf(year);
   const { base, ini } = splitInitials(name);
   const hit = (Array.isArray(list) ? list : []).filter((x) => {
     const ind = String(x.ind || ""); if (year && !ind.includes("(" + year + ")")) return false;
@@ -49,7 +50,10 @@ export function pickIuf(list, name, year) {
   });
   return hit.length === 1 ? hit[0].iuf : null; // ambigu ou introuvable : on s'abstient
 }
+// année de naissance seule : les listes masters donnent « 1980 C5 » (année + catégorie)
+export const yearOf = (y) => (String(y || "").match(/(19|20)\d\d/) || [""])[0];
 export async function findIuf(name, year) {
+  year = yearOf(year);
   const get = async (q) => { const r = await fetch(`${EXT}/_recherche.php?go=ind&idrch=${encodeURIComponent(q)}`, { headers: { "User-Agent": "SwimDirect/1.0" } }); if (!r.ok) throw new Error("Extranat " + r.status); return r.json().catch(() => []); };
   const { base, ini } = splitInitials(name);
   const first = pickIuf(await get(base), name, year); if (first || ini || !year) return first;
