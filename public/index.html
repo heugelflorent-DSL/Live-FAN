@@ -2655,10 +2655,25 @@ function participants(){
       for(const x of ev.results)(x.members||[]).forEach((m,i)=>add(m,x.name,i,x.club))}}
   /* nageurs de la liste des engagés pas encore dans les séries : affichés avec leur club, sans épreuve */
   for(const s of Object.values(SWIMMERS))if(!map[s.iuf])map[s.iuf]={sw:s,items:[]};
+  dedupSwimmers(map);
   return map;
 }
+/* doublons : « RETOURNARD A. » (liste de départ, relais) et « RETOURNARD Aurélien » (résultats) = une seule fiche, si l'initiale ne peut désigner qu'un nageur de même nom et même année */
+let SWCANON={};
+const canonSw=id=>SWCANON[id]||id;
+function splitNm(n){const t=String(n||"").trim().split(/\s+/);let i=0;while(i<t.length-1&&t[i]===t[i].toUpperCase()&&/\p{L}{2}/u.test(t[i]))i++;return{last:norm(t.slice(0,i||1).join(" ")),first:t.slice(i||1).join(" ")}}
+function dedupSwimmers(map){const G={};
+  for(const [id,p] of Object.entries(map)){const s=p.sw||{};const n=splitNm(s.name);(G[n.last+"|"+(s.year||"")]=G[n.last+"|"+(s.year||"")]||[]).push({id,p,first:n.first})}
+  for(const L of Object.values(G)){if(L.length<2)continue;
+    const full=L.filter(x=>!/^(?:\p{L}\.?[\s-]?){1,3}$/u.test(x.first.trim()));
+    for(const x of L){if(full.includes(x))continue;const ini=norm(x.first).replace(/[^A-Z]/g,"");if(!ini)continue;
+      const c=full.filter(f=>norm(f.first).split(/[\s-]+/).filter(Boolean).map(w=>w[0]).join("").startsWith(ini));
+      const tgt=[...new Set(c.map(f=>norm(f.first)))].length===1?c[0]:null;if(!tgt)continue;
+      for(const it of x.p.items)if(!tgt.p.items.some(y=>y.ev.key===it.ev.key))tgt.p.items.push(it);SWCANON[x.id]=tgt.id;delete map[x.id]}
+    /* même nom écrit pareil mais deux identifiants (relais / épreuve individuelle) */
+    const byF={};for(const f of full){if(!map[f.id])continue;const k=norm(f.first);if(byF[k]&&byF[k]!==f){const t=byF[k];for(const it of f.p.items)if(!t.p.items.some(y=>y.ev.key===it.ev.key))t.p.items.push(it);SWCANON[f.id]=t.id;delete map[f.id]}else byF[k]=f}}}
 // progression : écart avec le record perso d'avant la compétition, en % — seulement les courses nagées (pas les forfaits ni DSQ)
-function progOf(p){const out=[];for(const {ev,w,leg} of p.items){if(leg||ev.relay)continue;const r=(ev.results||[]).find(x=>x.iuf&&x.iuf===w.iuf);if(!r||r.dsq||r.res==null)continue;
+function progOf(p){const out=[];for(const {ev,w,leg} of p.items){if(leg||ev.relay)continue;const r=(ev.results||[]).find(x=>x.iuf&&canonSw(x.iuf)===canonSw(w.iuf))||(ev.results||[]).find(x=>x.name&&norm(x.name)===norm(w.name)&&String(x.year||"")===String(w.year||""));if(!r||r.dsq||r.res==null)continue;
     let B=bestOf(w,ev);if(B&&B.self)B=null;const ref=B&&B.t!=null?B.t:null;out.push({ev,res:r.res,ref,pct:ref?(ref-r.res)/ref*100:null,rp:ref!=null&&r.res<ref-.004,gain:ref!=null?ref-r.res:0})}
   // statistiques par épreuve (séries + finale = une seule épreuve, avec son meilleur temps de la compétition)
   const by={};for(const x of out){const k=(evKey(x.ev.name)||x.ev.name)+"|"+(/Dames/.test(x.ev.name)?"F":/Messieurs/.test(x.ev.name)?"M":"X");if(!by[k]||x.res<by[k].res)by[k]=x}
