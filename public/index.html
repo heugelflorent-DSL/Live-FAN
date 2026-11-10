@@ -1253,7 +1253,7 @@ function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m
 
 function build(cfg,data){loadTeamsF(cfg.comps);
   state.name=cfg.name||"";state.theme=cfg.theme||"alsace";state.color=cfg.color||"";state.org=cfg.org??(state.theme==="alsace"?"Fédération Alsacienne de Natation":"");applyTheme();state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";state.chronoSys=cfg.chronoSys||"quantum";
-  state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.qualFor=cfg.qualFor||[];state.qualReset=cfg.qualReset||{};state.rankTab=cfg.rankTab||"";state.finals=cfg.finals||{};state.lines=cfg.lines||{};
+  state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.qualFor=cfg.qualFor||[];state.masters=!!cfg.masters;state.qualReset=cfg.qualReset||{};state.rankTab=cfg.rankTab||"";state.finals=cfg.finals||{};state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
   EVENTS={};SWIMMERS={};state.comps=[];
   const byReu={};let anyLane=false;
@@ -1365,7 +1365,7 @@ function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min,...(EVENTS[k].ffn?{ffn:1}:{}),...(EVENTS[k].man?{man:1}:{})};
   const inOrd=new Set(Object.values(state.order).flat());const linesOff=(state.ffnNotes||[]).filter(k=>!inOrd.has(k));
   return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
-    rankings:state.podRules,finals:state.finals||{},infos:state.infos,qualFor:state.qualFor||[],qualReset:state.qualReset||{},published:state.published,scrape:state.scrape};
+    rankings:state.podRules,finals:state.finals||{},infos:state.infos,qualFor:state.qualFor||[],masters:!!state.masters,qualReset:state.qualReset||{},published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
 
@@ -1888,7 +1888,7 @@ const qYear=q=>+String(q.date||q.to||"").slice(0,4)||new Date().getFullYear();
 function qAge(q,sex,year){year=+year;if(!year)return -1;const age=qYear(q)-year;let best=-1;(q.ages||[]).forEach((a,i)=>{/* tranche d'âge (masters : C1 = 25-29 ans…) */if(a.to!=null&&a.to!==""){if(age>=+a.age&&age<=+a.to)best=i;return}if(age===+a.age||(age<+a.age&&a["young"+sex]&&best<0)||(age>+a.age&&a["old"+sex]))best=i});return best}
 /* badges « QUALIFIÉ » pour une arrivée : seulement si le live est qualificatif, si le temps passe la grille, et si le nageur ne l'était pas déjà */
 /* compétition maîtres (masters) : seulement les grilles maîtres ; sinon seulement les grilles « natation course » */
-function isMastersLive(){return /ma[iî]tres|masters/i.test([state.name,...(state.comps||[]).map(c=>(c&&(c.name||c.title||c.label))||"")].join(" "))}
+function isMastersLive(){return !!state.masters} /* réglé par l'organisateur dans le module Qualifications */
 function qualsForLive(){const m=isMastersLive();return QUALS.filter(q=>(q.kind==="maitres")===m)}
 function qualOf(w,ev,t){if(!w||!ev||t==null||ev.relay||!(state.qualFor||[]).length||!QUALS.length)return[];const k=evKey(ev.name);if(!k)return[];const sex=/Dames|Filles/i.test(ev.name)?"F":"M";const year=yr4(w,ev);const out=[];
   const mp=(()=>{const c=comp(ev.comp)||state.comps[0];const m=String(c&&(c.bassin||c.pool)||"").match(/(\d+)/);return m&&+m[1]===50?50:25})();
@@ -1896,7 +1896,7 @@ function qualOf(w,ev,t){if(!w||!ev||t==null||ev.relay||!(state.qualFor||[]).leng
     if(!(state.qualReset||{})[q.id]){const B=bestOf({...w,res:t},ev);if(B&&!B.self&&B.t<=L+.0049&&(!q.from||!B.d||B.d>=q.from)&&(!q.to||!B.d||B.d<=q.to))continue}
     const nm=String(q.short||q.name).trim();out.push(nm.length>16?nm.slice(0,15).trim()+"…":nm)}return out}
 const qualHtml=(w,ev,t,cls)=>qualOf(w,ev,t).map(n=>`<span class="${cls||"qbadge"}">QUALIFIÉ ${esc(n)}</span>`).join("");
-function renderQuals(){const el=$("#qual-body");if(!el)return;const live=`<div class="rule"><b>Ce live est qualificatif pour</b>${isMastersLive()?`<p class="msg">Compétition maîtres : seules les grilles maîtres sont proposées.</p>`:""}${qualsForLive().length?qualsForLive().map(q=>`<div class="inline qrow"><label class="chk"><input type="checkbox" data-qfor="${q.id}" ${(state.qualFor||[]).includes(q.id)?"checked":""}> ${esc(q.name)}</label><label class="chk"><input type="checkbox" data-qreset="${q.id}" ${(state.qualReset||{})[q.id]?"checked":""}> compteurs remis à zéro</label></div>`).join(""):`<p class="msg">Aucune grille pour l'instant : crée-la ci-dessous.</p>`}<p class="msg">Le badge « QUALIFIÉ » s'affiche à l'arrivée seulement pour les compétitions cochées, et seulement si le nageur n'avait pas déjà le temps dans la période de qualification (sauf « compteurs remis à zéro »).</p></div>`;
+function renderQuals(){const el=$("#qual-body");if(!el)return;const live=`<div class="rule"><b>Ce live est qualificatif pour</b><div class="inline qrow"><label class="chk"><input type="checkbox" id="q-masters" ${state.masters?"checked":""}> Compétition maîtres</label><span class="msg">${state.masters?"seules les grilles maîtres sont proposées":"seules les grilles natation course sont proposées"}</span></div>${qualsForLive().length?qualsForLive().map(q=>`<div class="inline qrow"><label class="chk"><input type="checkbox" data-qfor="${q.id}" ${(state.qualFor||[]).includes(q.id)?"checked":""}> ${esc(q.name)}</label><label class="chk"><input type="checkbox" data-qreset="${q.id}" ${(state.qualReset||{})[q.id]?"checked":""}> compteurs remis à zéro</label></div>`).join(""):`<p class="msg">Aucune grille pour l'instant : crée-la ci-dessous.</p>`}<p class="msg">Le badge « QUALIFIÉ » s'affiche à l'arrivée seulement pour les compétitions cochées, et seulement si le nageur n'avait pas déjà le temps dans la période de qualification (sauf « compteurs remis à zéro »).</p></div>`;
   const q=QUALS.find(x=>x.id===QSEL)||null;
   const list=`<div class="inline">${QUALS.map(x=>`<button class="btn small ${x.id===QSEL?"":"ghost"}" data-qsel="${x.id}">${esc(x.name)}</button>`).join("")}<button class="btn small ghost" id="q-add">+ Nouvelle grille</button>${QUALS.some(x=>x.id==="m27n1e")?"":`<button class="btn small ghost" id="q-m27">+ Grilles Maîtres FFN 2027</button>`}</div>`;
   let ed="";if(q){const ages=q.ages||[];
@@ -1929,6 +1929,7 @@ document.addEventListener("click",async e=>{const t=e.target;if(!t.closest||!t.c
   if(t.id==="q-save"){await qSave();return}});
 async function qSave(){const m=$("#q-msg");try{await api("/api/admin/quals",{method:"PUT",body:JSON.stringify(QUALS)});if(m)m.textContent="Grilles enregistrées ✓"}catch(err){if(m)m.textContent=err.message}}
 document.addEventListener("change",e=>{const t=e.target;if(!t.closest||!t.closest("#qual-body"))return;const q=QUALS.find(x=>x.id===QSEL);
+  if(t.id==="q-masters"){state.masters=t.checked;scheduleSave();renderQuals();return}
   if(t.dataset.qfor){const id=t.dataset.qfor;state.qualFor=(state.qualFor||[]).filter(x=>x!==id);if(t.checked)state.qualFor.push(id);scheduleSave();return}
   if(t.dataset.qreset){state.qualReset=state.qualReset||{};if(t.checked)state.qualReset[t.dataset.qreset]=new Date().toISOString().slice(0,10);else delete state.qualReset[t.dataset.qreset];scheduleSave();return}
   if(!q)return;
