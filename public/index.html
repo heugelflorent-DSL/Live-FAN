@@ -2881,9 +2881,10 @@ $("#sim-fix").onclick=async()=>{const h=simHeats()[+$("#sim-heat").value];if(!h)
 $("#sim-go").onclick=()=>{if(state.live!=="bassin"){$("#sim-msg").textContent="Mets d'abord le direct en mode « Bassin » et enregistre.";return}simRun()};
 $("#mpp-go").onclick=async()=>{const b=$("#mpp-go"),m=$("#mpp-msg");b.disabled=true;let last=-1,stuck=0;
   /* seulement les nageurs manquants (introuvables ou en erreur) : les records déjà trouvés ne sont ni relus ni effacés */
-  try{for(let i=0;i<120;i++){const j=await api("/api/admin/mpp",{method:"POST",body:JSON.stringify({missing:true})});m.textContent=`Recherche des nageurs manquants… encore ${j.missLeft} · ${j.foundN} retrouvés sur ${j.want}`;mppStat(j);
+  let J=null;try{for(let i=0;i<120;i++){const j=J=await api("/api/admin/mpp",{method:"POST",body:JSON.stringify({missing:true})});m.textContent=`Recherche des nageurs manquants… encore ${j.missLeft} · ${j.foundN} retrouvés sur ${j.want}`;mppStat(j);
       if(!j.missLeft)break;if(j.missLeft===last){if(++stuck>=3)break}else stuck=0;last=j.missLeft}
-    m.textContent="Lecture terminée.";loadMpp()}catch(e){m.textContent="Échec : "+e.message}b.disabled=false};
+    /* diagnostic : ce que l'Extranat répond au serveur (pour comprendre les « introuvables ») */
+    const P=J&&J.probe;m.textContent="Lecture terminée."+(P?" · Test Extranat depuis le serveur : "+(P.error?"erreur "+P.error:"HTTP "+P.status+" · "+String(P.body||"").replace(/\s+/g," ").slice(0,140)):"");loadMpp()}catch(e){m.textContent="Échec : "+e.message}b.disabled=false};
 $("#mpp-reset").onclick=async()=>{const b=$("#mpp-reset"),m=$("#mpp-msg");
   if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Confirmer : tout relire ?";m.textContent="Les records perso enregistrés pour ce live seront effacés puis relus un par un sur l'Extranat (avec leur date). Reclique pour confirmer.";setTimeout(()=>{delete b.dataset.sure;b.textContent="Tout relire et écraser"},8000);return}
   delete b.dataset.sure;b.disabled=true;b.textContent="Relecture…";let first=true,last=-1,stuck=0;
