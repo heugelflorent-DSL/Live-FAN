@@ -146,6 +146,15 @@ function progDue(c, now) { return (c?.reunions || []).some((r) => reuDue(c, r, n
 function evStartAt(c, ev) { const r = (c.reunions || []).find((x) => x.n === ev.reunion); const dt = compDate({ date: r?.day }) || compDate(c.meta); const m = hToMin(ev.time); return dt && m != null ? parisEpoch(dt.y, dt.m, dt.d) + m * 60e3 : null; }
 function beforeDay(c, r, now) { const dt = compDate({ date: r.day }) || compDate(c.meta); return !!dt && now < parisEpoch(dt.y, dt.m, dt.d); }
 // une réunion : vrai si une relecture est due dans sa fenêtre « ouverture des portes → 20 min avant la 1re course »
+// dernière relecture « 20 min avant la réunion » : si elle n'a pas pu passer (refus 403, pause), elle est rattrapée dès que possible,
+// épreuve par épreuve, tant que l'épreuve n'est pas nagée
+function reuFinalMissing(c, r, now, lastAt) {
+  const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) return false;
+  const evs = r.items.filter((i) => i.kind === "event" && i.time);
+  const start = hToMin(evs[0]?.time); if (start == null) return false;
+  const b = parisEpoch(dt.y, dt.m, dt.d) + (start - 20) * 60e3;
+  return now >= b && now < b + 14 * 3600e3 && (!lastAt || lastAt < b - 12 * 60e3);
+}
 function reuDue(c, r, now, lastAt) {
   const dt = compDate({ date: r.day }) || compDate(c.meta); if (!dt) return false;
   const evs = r.items.filter((i) => i.kind === "event" && i.time);
@@ -165,7 +174,7 @@ function finDue(c, r, now, lastAt) {
   const day = parisEpoch(dt.y, dt.m, dt.d); const a = day + (start - 180) * 60e3, b = day + (start - 20) * 60e3;
   return now >= a && now <= b && (!lastAt || now - lastAt >= 40 * 60e3);
 }
-function plan(cfg, data, now, live, LI = {}) {
+export function plan(cfg, data, now, live, LI = {}) {
   const tasks = [];
   for (const id of cfg.comps) {
     const c = data.comps[id];
@@ -191,7 +200,8 @@ function plan(cfg, data, now, live, LI = {}) {
         // finale qui vient de devenir cliquable le jour même : sa liste de départ (qualifiés officiels) est lue tout de suite
         const fresh = fin && !pub && !e.soon && !beforeDay(c, r, now) && (!st.heatsAt || (e.nPart && now - st.heatsAt > 30 * 60e3)); // nombre de participants affiché = liste publiée
         const due = fresh || (!st.heatsAt && !fin) || (fin && !pub ? finDue(c, r, now, st.heatsAt) : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
-        if (due) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
+        const catchUp = pub && !st.results?.rows?.length && (evStartAt(c, e) || Infinity) > now - 5 * 60e3 && reuFinalMissing(c, r, now, st.heatsAt);
+        if (due || catchUp) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
       if (!live) continue;
       // épreuves en cours : la première non terminée de la réunion et la suivante
