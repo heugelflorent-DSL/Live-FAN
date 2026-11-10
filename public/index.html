@@ -2646,7 +2646,9 @@ function renderPod(){
 }
 function participants(){
   const map={};
-  for(const k of allKeys()){const ev=EVENTS[k];for(const w of ev.entries){if(!w.iuf)continue;(map[w.iuf]=map[w.iuf]||{sw:SWIMMERS[w.iuf],items:[]}).items.push({ev,w})}
+  for(const k of allKeys()){const ev=EVENTS[k];const seen=new Set();for(const w of ev.entries){if(!w.iuf)continue;seen.add(canonSw(w.iuf));(map[w.iuf]=map[w.iuf]||{sw:SWIMMERS[w.iuf],items:[]}).items.push({ev,w})}
+    /* changements pendant la compétition : nageur qui apparaît dans les résultats sans être sur la liste de départ */
+    if(!ev.relay)for(const x of ev.results||[]){if(!x.iuf||seen.has(canonSw(x.iuf)))continue;const nk=norm(x.name)+"|"+(x.year||"");if((ev.entries||[]).some(w=>norm(w.name)+"|"+(w.year||"")===nk))continue;seen.add(canonSw(x.iuf));if(!SWIMMERS[x.iuf])SWIMMERS[x.iuf]={iuf:x.iuf,name:x.name,year:x.year,club:x.club,sex:ev.sex,comp:ev.comp};(map[x.iuf]=map[x.iuf]||{sw:SWIMMERS[x.iuf],items:[]}).items.push({ev,w:x})}
     // relais : chaque relayeur connu (liste de départ ou résultats) retrouve le relais dans son programme
     if(ev.relay){const got=new Set();const add=(m,team,i,club)=>{if(!m||!m.name)return;const id0=swId(m.name,m.year),id=(SWALIAS[id0]&&SWALIAS[id0].iuf)||id0;if(got.has(id))return;
         if(!SWIMMERS[id])SWIMMERS[id]={iuf:id,name:m.name,year:m.year||"",club:club||String(team||"").replace(/\s+\d+$/,""),sex:ev.sex,comp:ev.comp,relayOnly:true};got.add(id);
