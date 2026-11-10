@@ -1255,6 +1255,15 @@ function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m
 /* listes masters du Live FFN : « 1980 C5 » → année 1980 + catégorie C5 (mcat) ; la clé des records perso garde la forme d'origine (myear) */
 function normYears(o,d){if(!o||typeof o!=="object"||d>12)return;if(Array.isArray(o)){for(const x of o)normYears(x,d+1);return}
   if(typeof o.year==="string"){const m=o.year.match(/^((?:19|20)\d\d)\s+(C\d{1,2})$/);if(m){o.myear=o.year;o.year=m[1];o.mcat=m[2]}}for(const k in o){const v=o[k];if(v&&typeof v==="object")normYears(v,d+1)}}
+/* un même nageur écrit « MERCIER P.A. » sur une page du Live FFN et « MERCIER Pierre-Alexandre » sur une autre : une seule fiche (nom complet), même année */
+let SWALIAS={};
+function mergeInitials(){const A={};SWALIAS=A;const all=Object.values(SWIMMERS);
+  for(const s of all){const m=String(s.name||"").trim().match(/^(.*?)\s+((?:\p{L}\.[\s-]?)+)$/u);if(!m)continue;const last=norm(m[1]),ini=norm(m[2]).replace(/[^A-Z]/g,"");if(!ini)continue;
+    const c=all.filter(o=>o!==s&&String(o.year||"")===String(s.year||"")&&!/\p{L}\.\s*$/u.test(o.name||"")&&norm(o.name).startsWith(last+" ")&&norm(o.name).slice(last.length+1).split(/[\s-]+/).filter(Boolean).map(x=>x[0]).join("")===ini);
+    if(c.length===1)A[s.iuf]=c[0]}
+  if(!Object.keys(A).length)return;const fix=x=>{if(x&&A[x.iuf]){const f=A[x.iuf];x.iuf=f.iuf;x.name=f.name}};
+  for(const ev of Object.values(EVENTS)){for(const x of [...(ev.entries||[]),...(ev.results||[]),...(ev.series||[]).flatMap(h=>h.swimmers||[])]){fix(x);for(const m of x&&x.members||[])fix(m)}}
+  for(const k in A)delete SWIMMERS[k]}
 function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
   state.name=cfg.name||"";state.theme=cfg.theme||"alsace";state.color=cfg.color||"";state.org=cfg.org??(state.theme==="alsace"?"Fédération Alsacienne de Natation":"");applyTheme();state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";state.chronoSys=cfg.chronoSys||"quantum";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.qualFor=cfg.qualFor||[];state.masters=!!cfg.masters;{const mc=document.getElementById("ev-masters");if(mc)mc.checked=state.masters}state.qualReset=cfg.qualReset||{};state.rankTab=cfg.rankTab||"";state.finals=cfg.finals||{};state.lines=cfg.lines||{};
@@ -1362,6 +1371,7 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
   }
   for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn,man:!!l.man};
   state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));state.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
+  mergeInitials();
   if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
   state.loaded=true;
 }
@@ -2638,7 +2648,7 @@ function participants(){
   const map={};
   for(const k of allKeys()){const ev=EVENTS[k];for(const w of ev.entries){if(!w.iuf)continue;(map[w.iuf]=map[w.iuf]||{sw:SWIMMERS[w.iuf],items:[]}).items.push({ev,w})}
     // relais : chaque relayeur connu (liste de départ ou résultats) retrouve le relais dans son programme
-    if(ev.relay){const got=new Set();const add=(m,team,i,club)=>{if(!m||!m.name)return;const id=swId(m.name,m.year);if(got.has(id))return;
+    if(ev.relay){const got=new Set();const add=(m,team,i,club)=>{if(!m||!m.name)return;const id0=swId(m.name,m.year),id=(SWALIAS[id0]&&SWALIAS[id0].iuf)||id0;if(got.has(id))return;
         if(!SWIMMERS[id])SWIMMERS[id]={iuf:id,name:m.name,year:m.year||"",club:club||String(team||"").replace(/\s+\d+$/,""),sex:ev.sex,comp:ev.comp,relayOnly:true};got.add(id);
         const w=ev.entries.find(x=>x.name===team)||{name:team,heat:null,lane:null,time:null};(map[id]=map[id]||{sw:SWIMMERS[id],items:[]}).items.push({ev,w,leg:i+1})};
       for(const w of ev.entries)(w.members||[]).forEach((m,i)=>add(m,w.name,i));
