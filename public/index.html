@@ -1542,10 +1542,12 @@ function schedule0(){
       else if(ev.ffnSec!=null&&!anchored&&!state.order[s].some(x=>doneNow.has(x))&&!(pa&&pa.key===key)&&ev.ffnSec-t<3*3600)t=Math.max(t,ev.ffnSec);
       /* jour de la réunion, épreuve pas encore nagée, aucun repère du chrono : jamais estimée dans le passé (sinon « dans les temps » alors qu'on attend) */
       if(!anchored&&!doneNow.has(key)&&nowS!=null&&t<nowS&&state.order[s].some(x=>doneNow.has(x)||true)&&sessToday(s))t=nowS;
+      /* direct « Live FFN » : horaires du Live FFN tels quels, pas de retard estimé (il dépendrait de la lecture des pages) */
+      if(state.live==="ffn"&&ev.ffnSec!=null)t=ev.ffnSec;
       out[key]={start:t};t+=duration(ev);out[key].end=t;
       if(anchored&&pa.key===key&&pa.done){const rest=ev.series.slice(pa.heat).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=Math.max(t,parisSec(Date.now())+rest);out[key].end=t}
       // chronométrage électronique : on se recale sur l'heure réelle d'arrivée des résultats
-      if(state.timing==="elec"&&!anchored&&doneNow.has(key)&&ev.doneAt&&!(CSD&&ev.doneAt>CSD+3*864e5)){const real=parisSec(ev.doneAt);if(Math.abs(real-t)<4*3600){t=real;out[key].end=t}}
+      if(state.timing==="elec"&&state.live!=="ffn"&&!anchored&&doneNow.has(key)&&ev.doneAt&&!(CSD&&ev.doneAt>CSD+3*864e5)){const real=parisSec(ev.doneAt);if(Math.abs(real-t)<4*3600){t=real;out[key].end=t}}
     }
   }
   return out;
