@@ -32,5 +32,10 @@ Site : https://swim-direct.swim-direct.workers.dev (Cloudflare Worker `swim-dire
 - Navigateur : changer seulement le `#` ne recharge pas la page → ajouter `?v=`.
 
 ## À suivre
-- Omega ARES : décodage OSM6 jamais testé sur un vrai appareil (test prévu le mercredi 11 novembre 2026) → analyser le journal brut et adapter.
+- Omega ARES (test du 11/11/2026 à Schiltigheim, journaux bruts dans l'admin) :
+  - OSM6 seulement sur le port GP de l'IF-ARES (RS-422, adaptateur à acheter — refusé pour l'instant par Florent).
+  - « DH sur un port série du PC » = Bi-directionnel uniquement : trames `55 AA 00 <seq> FE …` toutes les ~47 s (3 essais), attend une réponse ; temps seulement sur demande après la série (HY-TEK). Protocole inconnu.
+  - Piste suivante : boîtier noir (DB9 → USB) qui alimente déjà le PC de l'écran géant ; dupliquer son port COM avec hub4com pour Swim Direct. Relever : prise IF-ARES utilisée (SCB/GP), logiciel d'affichage + port COM, modèle du boîtier, journal pendant une course.
+  - Contraintes de Florent : aucun achat, ne jamais toucher au chronométrage (liaison PC↔IF-ARES, câble SCB), ne pas perturber la compétition.
+  - Idées notées : bouton « créer les ports com0com » dans l'exe ; message clair quand un port COM est déjà pris.
 - Deux grilles de qualification vides (« France U13 », « Nouvelle grille ») : demander avant de supprimer.
