@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -364,13 +364,16 @@ class Core:
     def serial_loop(self):
         try: import serial
         except ImportError: self.st["quantum"] = "module série absent"; self.log("✗ Lecture série indisponible (pyserial manquant)"); return
-        port = self.cfg.get("port") or ""
+        def pname(x):  # « COM9 — description » → COM9 ; ports virtuels com0com « CNCB0 » → \\.\CNCB0 (Windows)
+            x = (x or "").split(" — ")[0].strip()
+            return "\\\\.\\" + x if os.name == "nt" and x and not x.upper().startswith("COM") and not x.startswith("\\") else x
+        port = pname(self.cfg.get("port"))
         baud, bits, parity, stop = (self.cfg.get("serial", "9600,7,E,1").split(",") + ["9600", "7", "E", "1"])[:4]
         kw = dict(port=port, baudrate=int(baud), bytesize={"7": serial.SEVENBITS, "8": serial.EIGHTBITS}.get(bits, serial.SEVENBITS),
                   parity={"N": serial.PARITY_NONE, "E": serial.PARITY_EVEN, "O": serial.PARITY_ODD}.get(parity.upper(), serial.PARITY_EVEN),
                   stopbits=serial.STOPBITS_TWO if stop == "2" else serial.STOPBITS_ONE, timeout=1)
         while not self.stop and not self.restart:
-            if not port: self.st["quantum"] = "aucun port série choisi (Réglages)"; time.sleep(3); port = self.cfg.get("port") or ""; kw["port"] = port; continue
+            if not port: self.st["quantum"] = "aucun port série choisi (Réglages)"; time.sleep(3); port = pname(self.cfg.get("port")); kw["port"] = port; continue
             try:
                 with serial.Serial(**kw) as sp:
                     self.st["quantum"] = f"connecté ({port}, {baud},{bits},{parity},{stop})"; self.log(f"✓ Port série {port} ouvert ({baud},{bits},{parity},{stop})")
@@ -576,7 +579,7 @@ def gui(cfg, demo=False, close_after=0):
             if key == "quantum" and ":" not in e1.get(): e1.delete(0, "end"); e1.insert(0, "127.0.0.1:26700")
             st_ = "disabled" if m else "normal"; rb1.config(state=st_); rb2.config(state=st_)
             hint.config(text={"quantum": "Active la sortie « Sport In The Box » dans Quantum (port 26700 par défaut).",
-                              "ares": "Série : câble null-modem + adaptateur USB-série, mode OSM6 (sinon 9600,8,N,1).\nRéseau : IP_ARES:port, ou « ecoute:port » si l'ARES envoie vers ce PC,\nou « udp:port » s'il diffuse en UDP.",
+                              "ares": "Série : sortie DH d'ARES Swimming en OSM6 (9600,7,E,1) ; sinon 9600,8,N,1.\nSur le PC ARES : paire de ports virtuels com0com (ex. COM8 ↔ COM9), ou câble null-modem.\nRéseau : IP_ARES:port, ou « ecoute:port » si l'ARES envoie vers ce PC,\nou « udp:port » s'il diffuse en UDP.",
                               "alge": "Sortie « Vidéo » d'ALGE vers le port série (19200,8,N,1).",
                               "stramatel": "Le flux est enregistré dans le journal ; l'affichage en direct\narrivera dès qu'on aura analysé un vrai journal.",
                               "autre": "Choisis toi-même réseau ou série."}[key] + ("\nAucun port listé ? Branche l'adaptateur puis rouvre ces réglages." if m == "serie" and not ports else ""))
