@@ -1034,9 +1034,8 @@ export default {
       await env.KV.put(kk("config", ev), JSON.stringify(cfg));
       // réglages modifiés : un live marqué terminé est de nouveau suivi (la tâche vérifiera s'il l'est toujours)
       { const h = (await env.KV.get("hot", "json")) || {}; if (h[ev] && h[ev].f) { delete h[ev]; await env.KV.put("hot", JSON.stringify(h)); } }
-      // passage en mode « Bassin » : on repart d'un direct vide (les tests chrono d'avant ne s'affichent pas)
-      if (cfg.live === "bassin" && (!prev || prev.live !== "bassin"))
-        await env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev)).fetch(new Request("https://pool/event", { method: "POST", body: JSON.stringify([{ k: "clear" }]) }));
+      // passage en mode « Bassin » : plus d'effacement automatique (il faisait perdre les séries déjà chronométrées
+      // si l'on changeait de mode pendant la compétition) ; pour repartir de zéro : bouton « Vider le direct »
       await purge();
       // nouvelle compétition : on lance tout de suite la lecture de son programme
       const { data } = await load(env, ev);
