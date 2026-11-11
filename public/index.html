@@ -1430,7 +1430,9 @@ function poolIsTest(h){if(!h||h.sim)return false;const ev=poolEvent(h);if(!ev)re
 function poolIn(key){const h=state.live==="bassin"&&POOL&&POOL.heat;if(!h||!h.start||!h.heat||poolOther(h)||h.status==="done")return"";const ev=poolEvent(h);return ev&&ev.key===key?h.heat+" / "+((ev.series||[]).length||"?"):""}
 
 /* ===== écran géant (16:9 ou 4:3, lisible à 20-30 m) : couloirs pendant la course, liste de départ entre les courses, attente pendant les pauses ===== */
-function tvLanes(h,se){const ks=new Set([...Object.keys(h.names||{}),...Object.keys(h.lanes||{})].map(Number));(se&&se.swimmers||[]).forEach(w=>w.lane&&ks.add(+w.lane));const mx=Math.max(8,...ks);return Array.from({length:mx},(_,i)=>i+1).filter(n=>ks.has(n)||mx<=10)}
+/* nombre de couloirs du bassin : réglage de l'admin, sinon le plus grand couloir vu dans les listes de départ du live (6, 8, 10…) */
+function poolLaneCount(){if(+state.lanesN>0)return +state.lanesN;let m=0;for(const e of Object.values(EVENTS||{}))for(const se of e.series||[])for(const w of se.swimmers||[])if(+w.lane>m)m=+w.lane;return m>=4&&m<=10?m:8}
+function tvLanes(h,se){const ks=new Set([...Object.keys(h.names||{}),...Object.keys(h.lanes||{})].map(Number));(se&&se.swimmers||[]).forEach(w=>w.lane&&ks.add(+w.lane));const mx=Math.max(poolLaneCount(),...ks);return Array.from({length:mx},(_,i)=>i+1).filter(n=>ks.has(n)||mx<=10)}
 /* résultats gardés 20 s dans l'ordre des couloirs après l'arrivée du dernier nageur, puis 10 s classés de 1 à 8 (glissement animé),
    même si l'opérateur charge déjà la série suivante ; sans nouvelle série chargée, le classement reste affiché */
 let TVLAST=null,TVRANK=false;const TVHOLD=30000,TVSORT=20000;
