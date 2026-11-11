@@ -1135,13 +1135,13 @@ body.tv{overflow:hidden}
             <details class="cdoc" id="chrono-doc"><summary><b>📖 Documentation : relier le chronométrage et l'écran géant</b></summary>
               <div class="cdoc-b"><p class="cdoc-n" data-sysnote="1"></p>
               <h4>1. Ce qu'il faut</h4>
-              <ul><li>Le <b>PC du chronométrage</b> (celui du Quantum), sous Windows, avec Internet (Wi-Fi de la piscine, câble ou partage de connexion d'un téléphone).</li>
+              <ul><li>Le <b>PC du chronométrage</b>, sous Windows, avec Internet (Wi-Fi de la piscine, câble ou partage de connexion d'un téléphone).</li>
               <li>Le logiciel <b>Swim Direct · Chrono</b>, à télécharger avec le lien de ce module. Il n'a pas besoin d'être installé : on lance directement le fichier.</li>
               <li data-dsys="quantum">Sur le Quantum, une <b>sortie réseau « Sport In The Box »</b> (format tableau écran). Par défaut le logiciel la cherche sur le port <b>26700</b>.</li>
               <li data-dsys="ares"><b>Omega ARES 21</b> : pas de sortie réseau. Les temps sortent par la <b>Data Handling (DH)</b> d'ARES Swimming, en série. Le plus simple : Swim Direct · Chrono sur le <b>PC ARES</b> lui-même, relié à la sortie DH par une paire de <b>ports série virtuels com0com</b> (aucun câble). Sinon : câble null-modem vers un autre PC (2ᵉ port série du PC ARES, 9600-8-N-1), ou convertisseur RS485 sur le port GP de l'IF-ARES.</li></ul>
 
               <h4>2. Relier le logiciel à ce live</h4>
-              <ol><li>Lancer Swim Direct · Chrono sur le PC du Quantum. Au premier lancement, si Windows le demande, <b>autoriser l'accès au réseau privé</b>.</li>
+              <ol><li>Lancer Swim Direct · Chrono sur le PC du chronométrage. Au premier lancement, si Windows le demande, <b>autoriser l'accès au réseau privé</b>.</li>
               <li>Le logiciel affiche une <b>clé de liaison</b> (SD-XXXX-XXXX-XXXX-XXXX) : « Copier ».</li>
               <li>La coller ci-dessus puis « <b>Relier</b> ». La ligne « Chrono relié » passe au vert, avec la version du logiciel.</li>
               <li>Dans le module « <b>Mode du direct</b> », choisir « <b>Bassin</b> » puis enregistrer.</li>
@@ -1149,7 +1149,7 @@ body.tv{overflow:hidden}
               <p class="cdoc-n">Une seule clé par PC : pour changer de compétition, <b>Délier</b> ici puis relier la clé dans l'admin du nouveau live. Sinon les courses du jour s'affichent dans l'ancien live.</p>
 
               <h4>3. Pendant la compétition</h4>
-              <ul><li><b>Tout est automatique</b> : à chaque série chargée sur le Quantum, le site reçoit l'épreuve, la série et les noms, puis le départ, les passages et les arrivées.</li>
+              <ul><li><b>Tout est automatique</b> : à chaque série chargée sur le chronométrage, le site reçoit l'épreuve, la série et les noms, puis le départ, les passages et les arrivées.</li>
               <li>Le <b>temps de la plaque</b> est toujours prioritaire sur les boutons de secours (« poires »). Le temps officiel validé par l'opérateur remplace ensuite le provisoire.</li>
               <li data-dsys="quantum"><b>Départ rappelé</b> : quand l'opérateur recharge la série, le direct revient « Au départ » et repart au nouveau départ.</li>
               <li><b>Courses tests</b> avant la réunion : affichées dans le direct, jamais comptées dans les résultats ni le classement.</li>
@@ -1163,12 +1163,12 @@ body.tv{overflow:hidden}
 
               <h4>5. Écran géant</h4>
               <ul><li><b>Aujourd'hui</b> : sur le PC qui gère l'affichage, ouvrir la page publique du live dans Chrome ou Edge, onglet <b>Direct</b>, bouton « <b>⛶ Écran géant</b> », puis <b>F11</b> pour le plein écran. Les temps passent par Internet : compter 0,3 à 1,5 s de décalage sur les touches. Le chrono qui tourne, lui, est calculé sur place.</li>
-              <li><b>Écran local (recommandé, sans délai)</b> : le logiciel du chrono (version 1.4.0 et suivantes) sert l'écran géant sur le réseau de la piscine. Le PC de l'écran doit être sur le même réseau (Wi-Fi ou câble) que le PC du Quantum. Dans le logiciel, la ligne <b>« Écran géant »</b> donne l'adresse à ouvrir sur le PC de l'écran (ex. <code>http://192.168.1.20:8765</code>) : l'écran géant s'ouvre directement, puis <b>F11</b>. Pour les relais, les noms des 4 relayeurs envoyés par le Quantum s'affichent sous le club, celui qui nage est souligné. Au premier lancement, Windows demande d'autoriser le logiciel sur le réseau : accepter (réseau privé). La mise en page vient du site (toujours à jour) et une copie est gardée sur le PC du chrono : si Internet coupe, l'écran continue.</li></ul>
+              <li><b>Écran local (recommandé, sans délai)</b> : le logiciel du chrono (version 1.4.0 et suivantes) sert l'écran géant sur le réseau de la piscine. Le PC de l'écran doit être sur le même réseau (Wi-Fi ou câble) que le PC du chronométrage. Dans le logiciel, la ligne <b>« Écran géant »</b> donne l'adresse à ouvrir sur le PC de l'écran (ex. <code>http://192.168.1.20:8765</code>) : l'écran géant s'ouvre directement, puis <b>F11</b>. Pour les relais, les noms des 4 relayeurs envoyés par le chronométrage s'affichent sous le club, celui qui nage est souligné. Au premier lancement, Windows demande d'autoriser le logiciel sur le réseau : accepter (réseau privé). La mise en page vient du site (toujours à jour) et une copie est gardée sur le PC du chrono : si Internet coupe, l'écran continue.</li></ul>
 
               <h4>6. En cas de problème</h4>
               <ul><li><b>« Site injoignable : certificate has expired »</b> : vérifier la <b>date et l'heure</b> du PC, puis ouvrir le site une fois dans Edge sur ce PC. La version 1.3.7 et suivantes embarquent leurs propres certificats.</li>
               <li data-dsys="quantum"><b>« Sortie occupée ? »</b> : la sortie du Quantum est déjà utilisée par autre chose (vidéo, tableau). Créer une 2e sortie Sport In The Box sur un autre port, et l'indiquer dans « Réglages » du logiciel.</li>
-              <li><b>Le Direct ne bouge pas</b> : regarder la ligne « Envoyé » du logiciel. Si elle reste à 0, le Quantum n'envoie rien : charger la série, vérifier la sortie. Si elle augmente, vérifier que le mode du direct est sur « Bassin ».</li>
+              <li><b>Le Direct ne bouge pas</b> : regarder la ligne « Envoyé » du logiciel. Si elle reste à 0, le chronométrage n'envoie rien : charger la série, vérifier la sortie (<span data-dsys="quantum">Sport In The Box</span><span data-dsys="ares"><i>DH → On</i> dans ARES Swimming</span>). Si elle augmente, vérifier que le mode du direct est sur « Bassin ».</li>
               <li><b>L'écran local ne s'ouvre pas sur le PC de l'écran</b> :
                 <ol><li>Sur le PC du chrono, ouvrir <code>http://localhost:8765</code>. S'il ne s'ouvre pas : le logiciel n'est pas lancé, ou sa version est antérieure à 1.4.0.</li>
                 <li>Le <b>pare-feu Windows</b> bloque les autres PC. À partir de la version 1.4.2, le logiciel demande lui-même l'autorisation au lancement : répondre <b>Oui</b>. Sinon, dans une invite de commandes « en tant qu'administrateur » : <code>netsh advfirewall firewall add rule name="SwimDirect ecran" dir=in action=allow protocol=TCP localport=8765 profile=any</code></li>
