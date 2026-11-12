@@ -24,11 +24,12 @@ export function applyEvent(s, ev, t) {
     const pcT = (ts) => (ts && s.skew != null && ev.sent && Math.abs(t - ev.sent - s.skew) < 30000 ? ts + s.skew : null);
     switch (ev.k) {
       case "ready": // nouvelle série au départ : la précédente devient « dernière série »
-        if (s.heat && (s.heat.event !== ev.event || s.heat.heat !== ev.heat)) { if (s.heat.start) (archive(s, s.heat), s.prev = s.heat); }
+        const otherC = !!(ev.comp && s.heat && s.heat.comp && compKey(ev.comp) !== compKey(s.heat.comp));
+        if (s.heat && (otherC || s.heat.event !== ev.event || s.heat.heat !== ev.heat)) { if (s.heat.start) (archive(s, s.heat), s.prev = s.heat); }
         // départ rappelé (2e départ aux interclubs) : la même série est remise au départ avant toute arrivée → chrono figé, on attend le nouveau départ
         else if (s.heat && s.heat.status === "running" && !Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "ready"; s.heat.start = null; s.heat.lanes = {}; s.heat.at = t; s.heat.recall = true; break; }
-        if (!s.heat || s.heat.event !== ev.event || s.heat.heat !== ev.heat || s.heat.status === "done")
-          s.heat = { event: ev.event, heat: ev.heat, laps: ev.laps || null, lanesUsed: ev.lanes || null, status: "ready", start: null, lanes: {}, at: t };
+        if (!s.heat || otherC || s.heat.event !== ev.event || s.heat.heat !== ev.heat || s.heat.status === "done")
+          s.heat = { event: ev.event, heat: ev.heat, comp: ev.comp || "", laps: ev.laps || null, lanesUsed: ev.lanes || null, status: "ready", start: null, lanes: {}, at: t };
         break;
       case "start": { /* Quantum sans message de fin : la série précédente a des arrivées → elle est terminée, ce départ est celui de la série suivante (sinon : départ rappelé) */ if (s.heat && s.heat.status === "running" && Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } if (s.heat && s.heat.status === "done") { (archive(s, s.heat), s.prev = s.heat); s.heat = null; } const h = ensure(); h.start = ev.srv || pcT(ev.ts) || (ev.ts && ev.sent ? t - Math.max(0, ev.sent - ev.ts) : ev.ts || t); h.status = "running"; h.lanes = {}; h.recall = false; if (h.heat == null) { const p = s.prev; const near = p && p.event != null && p.doneAt && t - p.doneAt < 30 * 60000 && !(p.heats && (p.heat || 1) >= +p.heats); if (h.event == null && near) { h.event = p.event; h.key = p.key || null; h.title = p.title || ""; h.comp = p.comp || ""; h.heats = p.heats; h.laps = p.laps; } h.heat = near && p.event === h.event ? (p.heat || 1) + 1 : 1; h.heatGuess = true; } /* Quantum sans numéro de série : série suivante de la même épreuve */ break; }
       case "clock": { // temps de course du Quantum : recale l'heure de départ (sans retour en arrière visible de plus de 0,3 s)
@@ -53,7 +54,9 @@ export function applyEvent(s, ev, t) {
       case "end": if (s.heat) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } break;
       case "heat": { // noms et résultats envoyés par le Quantum (série chargée, puis officielle)
         const fresh = ev.stat !== "O" && ev.stat !== "F"; // liste de départ (W) : série (re)mise au départ
-        const same = s.heat && ((s.heat.event === ev.event && (s.heat.heat === ev.heat || (ev.heat == null && s.heat.heatGuess)) && !(fresh && s.heat.status === "done")) || (s.heat.event == null && s.heat.status !== "done"));
+        /* même numéro d'épreuve et de série mais autre compétition du Quantum : c'est une autre série (sinon temps et classement de la précédente restent affichés) */
+        const sameC = !ev.comp || !s.heat || !s.heat.comp || compKey(ev.comp) === compKey(s.heat.comp);
+        const same = s.heat && sameC && ((s.heat.event === ev.event && (s.heat.heat === ev.heat || (ev.heat == null && s.heat.heatGuess)) && !(fresh && s.heat.status === "done")) || (s.heat.event == null && s.heat.status !== "done"));
         if (same) { s.heat.event = ev.event; if (ev.heat != null) { s.heat.heat = ev.heat; s.heat.heatGuess = false; } }
         // départ rappelé : liste de départ (SL) renvoyée pour la série en cours, aucune arrivée, plus de 3 s après le départ → chrono figé jusqu'au nouveau départ
         if (same && ev.msg === "SL" && s.heat.status === "running" && s.heat.start && t - s.heat.start > 3000 && !Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "ready"; s.heat.start = null; s.heat.lanes = {}; s.heat.recall = true; }
