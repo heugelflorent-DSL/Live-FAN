@@ -808,7 +808,8 @@ export default {
       if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); c.roster = c.roster || [];
         const at = {}; c.roster.forEach((r, i) => (at[String(r.iuf || r.name + "|" + r.year)] = i));
         for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } else if (r.iuf && at[k] != null) c.roster[at[k]] = { ...c.roster[at[k]], ...r }; } if (n.roster) c.rosterAt = now; }
-      c.ffxLog = [{ at: now, lines: log }, ...(c.ffxLog || [])]; // tout l'historique des imports (pas de limite)
+      // journal gardé à part (pas dans les données publiques du live, qui grossiraient à chaque import) : tout l'historique
+      { const LG = (await env.KV.get(kk("ffxlog", ev), "json")) || {}; LG[b.c] = [{ at: now, lines: log }, ...(LG[b.c] || c.ffxLog || [])]; delete c.ffxLog; await env.KV.put(kk("ffxlog", ev), JSON.stringify(LG)); }
       data.dirty = true; await saveData(env, data, before, ev);
       return json({ ok: true, ...n, clubs: Object.keys(alias).length, log });
     }
@@ -992,7 +993,8 @@ export default {
 
     if (p === "/api/admin/state") {
       const { config, data } = await load(env, ev);
-      return json({ config, data, now: Date.now(), role: ADM ? "admin" : "org" });
+      const ffxLog = (await env.KV.get(kk("ffxlog", ev), "json")) || {};
+      return json({ config, data, ffxLog, now: Date.now(), role: ADM ? "admin" : "org" });
     }
     if (p === "/api/admin/quals" && req.method === "PUT") {
       if (!ADM) return adminOnly();
