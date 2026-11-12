@@ -286,7 +286,7 @@ async function runTask(task, data, now) {
   }
   if (task.t === "roster") { // liste des engagés par participant : nageurs, années, clubs, IUF (sert aux records perso et à l'onglet nageurs)
     /* liste déjà chargée : elle est figée, on ne relit que les épreuves qui manquent */
-    const list = c.roster?.length ? c.roster : parseRoster(await get(urls.roster(task.c), { delay: 1500 }));
+    const list = c.roster?.length && !task.force ? c.roster : parseRoster(await get(urls.roster(task.c), { delay: 1500 }));
     if (list.length && list !== c.roster) { if (JSON.stringify(list) !== JSON.stringify(c.roster)) data.dirty = true; c.roster = list; c.rosterAt = now; }
     else if (!list.length) throw new Error("Liste des engagés pas encore publiée sur le Live FFN");
     // puis les épreuves (une page chacune, lues à la suite au rythme habituel) : qui nage quoi, relais exclus (pas de nageurs listés)
@@ -609,7 +609,7 @@ async function rescrape(env, scope, what, ev = "main") {
     await saveData(env, data, before, ev); return tasks.length;
   }
   if (what === "roster") { // liste des engagés seulement : une page par compétition
-    for (const id of comps) tasks.push({ t: "roster", c: id }); // déjà chargée : seules les épreuves manquantes sont lues
+    for (const id of comps) tasks.push({ t: "roster", c: id, force: true }); // relecture demandée : la liste est relue (nouveaux engagés), puis les épreuves manquantes
     data.queue = tasks; data.queueAt = Date.now(); data.savedAt = 0;
     await saveData(env, data, before, ev); return tasks.length;
   }
