@@ -480,7 +480,8 @@ input[type="checkbox"]{accent-color:var(--red);width:18px;height:18px}
 .step>summary .hint{margin-left:auto;font-weight:500;font-size:13px;color:var(--muted)}
 .step[open]>summary{border-bottom:1px solid var(--line)}
 .step-body{padding:14px 16px 16px;display:grid;gap:12px}
-.comp{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--card-in);border:1px solid var(--line)}
+.comp{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--card-in);border:1px solid var(--line)}
+.comp .plock{display:flex;gap:5px;align-items:center;font-size:12px;white-space:nowrap;color:var(--muted);cursor:pointer}
 .comp small{display:block;font-size:12px;color:var(--muted)}
 .x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px}
 .x:hover{color:#fff}
@@ -2837,7 +2838,7 @@ function renderAdmin(){renderLogos();renderFinRules();renderQuals();
   $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";if(document.activeElement!==$("#rank-tab"))$("#rank-tab").value=state.rankTab||"";if(state.color)$("#ev-color").value=state.color;$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
   $("#s-heat").value=state.heatGap;
-  $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
+  $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><label class="plock" title="Le programme ne change plus (ni import extraNat, ni Live FFN)"><input type="checkbox" data-plock="${c.id}" ${RAW&&RAW.data&&RAW.data.comps&&RAW.data.comps[c.id]&&RAW.data.comps[c.id].progLock?"checked":""}> 🔒 Figer le programme</label><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
   // saisie en cours dans un horaire : on ne reconstruit pas les champs (sinon on perd le curseur après le 1er chiffre)
   if(!$("#sess-starts").contains(document.activeElement))$("#sess-starts").innerHTML=Object.keys(state.order).map(s=>`<label for="st-${s}">Début réunion ${s}<input class="field" type="time" id="st-${s}" data-start="${s}" value="${state.starts[s]}"></label>`).join("");
   const sch=schedule();
@@ -2930,6 +2931,7 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
       if(heats.length)events[key]={heats}});
     reunions.push(R)});
   return{c:A(M,"id"),meta,reunions,events,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
+document.addEventListener("change",async e=>{const pl=e.target&&e.target.dataset&&e.target.dataset.plock;if(!pl)return;const on=e.target.checked;try{await api("/api/admin/proglock",{method:"POST",body:JSON.stringify({c:pl,on})});const d=RAW&&RAW.data;if(d){d.comps=d.comps||{};d.comps[pl]=d.comps[pl]||{};if(on)d.comps[pl].progLock=1;else delete d.comps[pl].progLock}}catch(x){e.target.checked=!on;alertMsg(x.message)}});
 document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-file")return;const f=e.target.files[0],m=$("#ffx-msg");if(!f)return;m.textContent="Lecture du fichier…";
   try{const P=ffxParse(await ffxRead(f));m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
     const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme ajouté · ":"programme déjà présent (Live FFN) · "}${j.heats} épreuve(s) avec séries · ${j.roster} nageur(s) ajouté(s) aux engagés. Le Live FFN complétera.`;try{refresh&&refresh()}catch(_){}}
