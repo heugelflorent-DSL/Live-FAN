@@ -790,6 +790,9 @@ export default {
       if (!b || !b.c) return json({ error: "Fichier illisible." }, 400);
       const { config, data } = await load(env, ev); const before = JSON.stringify(data);
       if (!config.comps.map(String).includes(String(b.c))) return json({ error: `Ce fichier est celui de la compétition ${b.c}, qui n'est pas dans ce live.` }, 400);
+      // L'extraNat donne le nom officiel long du club (« CERCLE DES NAGEURS DU FLORIVAL ») ; le Live FFN le nom court
+      // (« C.N DU FLORIVAL GUEBWILLER »). On reprend le nom déjà connu dans le live, d'après les nageurs en commun.
+      const alias = ffxAlias(b, data.comps);
       const c = (data.comps[b.c] = data.comps[b.c] || {}); const now = Date.now(); const n = { prog: 0, heats: 0, roster: 0 };
       if (b.meta && !c.meta) c.meta = b.meta;
       if (Array.isArray(b.reunions) && b.reunions.length && !(c.reunions && c.reunions.length)) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
@@ -801,7 +804,7 @@ export default {
       if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); c.roster = c.roster || [];
         for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } } if (n.roster) c.rosterAt = now; }
       data.dirty = true; await saveData(env, data, before, ev);
-      return json({ ok: true, ...n });
+      return json({ ok: true, ...n, clubs: Object.keys(alias).length });
     }
     if (p === "/api/admin/mpp" && req.method === "GET") {
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
@@ -1174,4 +1177,17 @@ async function audience(env, url, ev = "main") {
     browsers: pick(a.browsers, "userAgentBrowser"), referers: pick(a.referers, "refererHost"),
     os: pick(extra[1].value?.os, "userAgentOS"), byLive, perf, own,
     warn: extra.filter((x) => x.status === "rejected").map((x) => x.reason?.message).filter(Boolean) });
+}
+
+// Nom des clubs : l'extraNat donne le nom officiel long, le Live FFN le nom court. On reprend le nom déjà connu dans le live
+// (vote d'après les nageurs en commun) et on corrige le fichier importé et les données déjà présentes.
+export function ffxAlias(b, comps) {
+  const longs = new Set((b.roster || []).map((r) => r.club).filter(Boolean)); const nk = (o) => (o.name && o.year ? "n" + String(o.name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim() + "|" + String(o.year).slice(0, 4) : ""); const keys = (o) => [o.iuf ? "i" + o.iuf : "", nk(o)].filter(Boolean);
+  const walk = (o, f) => { if (!o || typeof o !== "object") return; if (Array.isArray(o)) { for (const x of o) walk(x, f); return; } f(o); for (const v of Object.values(o)) if (v && typeof v === "object") walk(v, f); };
+  const known = {}; walk(comps, (o) => { if (typeof o.club === "string" && o.club && !longs.has(o.club)) { for (const k of keys(o)) (known[k] = known[k] || {})[o.club] = 1; } });
+  const votes = {}; for (const r of b.roster || []) { const k = Object.assign({}, ...keys(r).map((x) => known[x] || {})); if (r.club) for (const nm of Object.keys(k)) { const v = (votes[r.club] = votes[r.club] || {}); v[nm] = (v[nm] || 0) + 1; } }
+  const alias = {}; for (const [lg, v] of Object.entries(votes)) alias[lg] = Object.entries(v).sort((x, y) => y[1] - x[1])[0][0];
+  const fix = (o) => { for (const f of ["club", "team"]) if (typeof o[f] === "string") for (const [lg, sh] of Object.entries(alias)) if (o[f] === lg || o[f].startsWith(lg + " ")) { o[f] = sh + o[f].slice(lg.length); break; } if (typeof o.name === "string" && alias[o.name] && !o.iuf) o.name = alias[o.name]; };
+  if (Object.keys(alias).length) { walk(b, fix); walk(comps, fix); }
+  return alias;
 }
