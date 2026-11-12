@@ -11,11 +11,11 @@ Fenêtre par défaut ; « --console » pour le mode texte (tests) :
   SwimDirect-Chrono.exe --console --source 127.0.0.1:26700
   python swimdirect_chrono.py --console --demo --site http://localhost:8787
 """
-import argparse, gzip, io, json, os, queue, random, socket, sys, threading, time, urllib.error, urllib.request, webbrowser
+import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, time, urllib.error, urllib.request, webbrowser
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.6"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -92,7 +92,10 @@ class LocalScreen:
             except queue.Full: pass
     def live_path(self):
         u = self.core.st.get("url") or ""
-        i = u.find("/e/"); return u[i:].split("#")[0] if i >= 0 else "/"
+        i = u.find("/e/")
+        if i >= 0: return u[i:].split("#")[0].split("?")[0]
+        m = re.search(r"[?&]e=([\w-]+)", u)
+        return "/e/" + m.group(1) if m else ""
     def fetch(self, path):
         """page ou donnée du site ; copie gardée sur le PC pour fonctionner sans Internet"""
         fp = os.path.join(self.cache, hashlib.sha1(path.encode()).hexdigest())
@@ -120,6 +123,8 @@ class LocalScreen:
             def do_GET(self):
                 path = self.path
                 if path == "/" or path.startswith("/?"):
+                    if not me.live_path():  # pas de live choisi : sinon « / » se redirige vers lui-même (ERR_TOO_MANY_REDIRECTS)
+                        return self.out(200, "text/html; charset=utf-8", "<meta charset=utf-8><body style='font:20px system-ui;padding:40px'><h1>Swim Direct · écran local</h1><p>Aucun live choisi dans le logiciel <b>Swim Direct · Chrono</b> sur ce PC.</p><p>Colle l'adresse du live (…/e/nom-du-live) dans le logiciel, puis recharge cette page.</p>".encode())
                     self.send_response(302); self.send_header("location", me.live_path() + "?ecran=local#tv"); self.send_header("content-length", "0"); self.end_headers(); return
                 if path.startswith("/local/events"): return self.events()
                 if path.startswith("/local/now"):
