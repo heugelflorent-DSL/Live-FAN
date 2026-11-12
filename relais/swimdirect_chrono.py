@@ -610,6 +610,10 @@ def gui(cfg, demo=False, close_after=0):
         if tech.winfo_ismapped(): tech.pack_forget(); btech.config(text="Voir le détail technique")
         else: tech.pack(fill="both", expand=True, padx=16, pady=(10, 14)); btech.config(text="Masquer le détail technique")
     btech = btn(bar, "Voir le détail technique", toggle); btech.pack(side="right")
+    def check_now():
+        bchk.config(text="Recherche…"); root.update(); core.check_update(force=True)
+        bchk.config(text="Nouvelle version !" if core.st.get("update") else "✓ À jour"); root.after(3000, lambda: bchk.config(text="Vérifier les mises à jour"))
+    bchk = btn(bar, "Vérifier les mises à jour", check_now); bchk.pack(side="right", padx=(6, 0))
     btn(bar, "Dossier des journaux", lambda: os.startfile(os.path.join(HOME, "journaux")) if hasattr(os, "startfile") else None).pack(side="right", padx=6)
     foot = tk.Label(root, text="", bg=BG, fg=GREY, font=(F, 9), anchor="w"); foot.pack(fill="x", padx=16, pady=(8, 12))
     info = tk.Frame(tech, bg=BG); info.pack(fill="x", pady=(0, 4))
@@ -643,7 +647,7 @@ def gui(cfg, demo=False, close_after=0):
         else: hero_set("ok", "Tout fonctionne", "Les temps du chronométrage partent sur le site et sur l'écran géant." + (f"  Dernier : {s['last']}" if s["last"] else ""))
         ilast.config(text="Dernier événement : " + (s["last"] or "—"))
         isent.config(text=("EN PAUSE · " if core.paused else "") + f"{s['sent']} événement(s) envoyé(s) · journal : {s['jsent']}", fg=RED if core.paused else GREY)
-        foot.config(text=f"Journal envoyé au site toutes les 15 s · {s['sent']} événement(s) envoyé(s)" + (" · EN PAUSE" if core.paused else ""))
+        foot.config(text=(f"Nouvelle version {s['update']} disponible" if s.get("update") else f"Logiciel à jour · version {VERSION}") + f" · journal envoyé au site toutes les 15 s · {s['sent']} événement(s) envoyé(s)" + (" · EN PAUSE" if core.paused else ""))
         if s.get("update") and not upd.winfo_ismapped():
             updl.config(text=f"⚠ Nouvelle version {s['update']} disponible (installée : {VERSION})"); upd.pack(fill="x", before=hero)
         while logs:
