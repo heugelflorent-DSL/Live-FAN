@@ -783,7 +783,7 @@ export default {
     }
 
     // import du fichier extraNat (ffnex.xml, lu dans le navigateur de l'admin) : programme, séries/couloirs, engagés.
-    // Ne remplit que ce qui manque : le Live FFN reste la référence (le scraping continue et corrige ensuite).
+    // Remplit ce qui manque et met à jour ce qui vient d'un import précédent ; ce que le Live FFN a déjà fourni reste prioritaire.
     if (p === "/api/admin/ffnex" && req.method === "POST") {
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
       const b = await req.json().catch(() => null);
@@ -795,14 +795,15 @@ export default {
       const alias = ffxAlias(b, data.comps);
       const c = (data.comps[b.c] = data.comps[b.c] || {}); const now = Date.now(); const n = { prog: 0, heats: 0, roster: 0 };
       if (b.meta && !c.meta) c.meta = b.meta;
-      if (Array.isArray(b.reunions) && b.reunions.length && !(c.reunions && c.reunions.length)) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
+      if (Array.isArray(b.reunions) && b.reunions.length && (!(c.reunions && c.reunions.length) || c.progSrc === "ffnex")) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
       c.events = c.events || {};
       for (const [k, e] of Object.entries(b.events || {})) {
         const cur = (c.events[k] = c.events[k] || {});
-        if ((!cur.heats || !cur.heats.length) && e.heats && e.heats.length) { cur.heats = e.heats; cur.heatsAt = 1; cur.heatsSrc = "ffnex"; n.heats++; }
+        if ((!cur.heats || !cur.heats.length || cur.heatsSrc === "ffnex") && e.heats && e.heats.length) { cur.heats = e.heats; cur.heatsAt = 1; cur.heatsSrc = "ffnex"; n.heats++; }
       }
       if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); c.roster = c.roster || [];
-        for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } } if (n.roster) c.rosterAt = now; }
+        const at = {}; c.roster.forEach((r, i) => (at[String(r.iuf || r.name + "|" + r.year)] = i));
+        for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } else if (r.iuf && at[k] != null) c.roster[at[k]] = { ...c.roster[at[k]], ...r }; } if (n.roster) c.rosterAt = now; }
       data.dirty = true; await saveData(env, data, before, ev);
       return json({ ok: true, ...n, clubs: Object.keys(alias).length });
     }
