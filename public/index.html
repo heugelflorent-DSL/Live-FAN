@@ -2965,16 +2965,16 @@ function raceCards(){const sch=schedule(),C=[];const t2=sec=>hm(sec);
     <table class="tm"><tr><th>Temps final<small>(Veuillez entourer le temps officiel)</small></th><th>min.</th><th>sec.</th><th>1/100e</th></tr><tr><td>Chrono 1</td><td></td><td></td><td></td></tr><tr><td>Chrono 2</td><td></td><td></td><td></td></tr><tr><td>Chrono 3</td><td></td><td></td><td></td></tr></table>
     <div class="vs">Temps de passage au verso</div></div>`};
   const css=`*{box-sizing:border-box}body{font:11px/1.3 Verdana,Geneva,sans-serif;margin:0;color:#000}.tools{text-align:center;margin:10px;font-size:14px}
-  .pg{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:138mm;width:186mm;margin:0 auto}
-  .cd{border:1px dashed #aaa;padding:5mm 5mm 4mm;display:flex;flex-direction:column;align-items:center;text-align:center;break-inside:avoid;overflow:hidden}
+  .pg{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:143.4mm;width:200mm;margin:0 auto}
+  .cd{border:1px dashed #aaa;padding:6mm 6mm 5mm;display:flex;flex-direction:column;align-items:center;text-align:center;break-inside:avoid;overflow:hidden}
   .hd{display:grid;grid-template-columns:24mm 1fr;align-items:center;width:100%;gap:4px}.hd .lg img{max-width:24mm;max-height:15mm;object-fit:contain}.ti{display:flex;flex-direction:column;font-size:10px}.ti b{font-size:12px}
   .cp{margin:6px 0 2px;font-size:12px;font-weight:700;text-transform:uppercase;padding:2px 10px;border:2px solid #000;border-radius:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact;max-width:100%}.cp.k2{border-style:double;border-width:4px}.cp.k3{border-style:dashed}.cp.k4{border-style:dotted}
   .ev{font-size:15px;font-weight:700;margin-top:6px}.j{font-size:8px}.te{font-size:11px}.sl{font-size:16px;font-weight:700;margin:8px 0 4px}
   .cl{font-size:14px;font-weight:700;font-style:italic}.cl.sm{font-size:12px;font-style:normal;font-weight:400}.who{font-size:15px;font-weight:700;margin-top:3px}
   .mem{font-size:11px;text-align:left;align-self:flex-start;margin-top:5px}
-  table.tm{width:100%;border-collapse:collapse;margin-top:auto}table.tm th,table.tm td{border:1px solid #000;font-size:11px;font-weight:400;height:11mm}table.tm th:first-child{font-weight:700;width:28%}table.tm th small{display:block;font-weight:400;font-style:italic;font-size:8px}
+  table.tm{width:100%;border-collapse:collapse;margin-top:auto}table.tm th,table.tm td{border:1px solid #000;font-size:12px;font-weight:400;height:13mm}table.tm th:first-child{font-weight:700;width:28%}table.tm th small{display:block;font-weight:400;font-style:italic;font-size:8px}
   .vs{font-size:10px;margin-top:3px;align-self:flex-end}
-  @page{size:A4;margin:8mm 12mm}@media print{.tools{display:none}}`;
+  @page{size:A4;margin:5mm}@media print{.tools{display:none}.pg{width:100%}}`;
   const reus=[...new Set(C.map(c=>c.r))];
   const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Fiches de course</title><style>${css}</style></head><body>
   <div class="tools">Réunion : <select id="rs">${reus.map(r=>`<option value="${r}">Réunion ${r}</option>`).join("")}<option value="">Toutes</option></select>
