@@ -2722,7 +2722,7 @@ function statsCard(ps){if(!ps.length)return"";const sx={F:0,M:0};const catOf=p=>
   const cats={};for(const p of ps){const s=p.sw.sex||(p.items.some(i=>/Dames/.test(i.ev.name))?"F":p.items.some(i=>/Messieurs/.test(i.ev.name))?"M":"");if(sx[s]!=null)sx[s]++;const c=catOf(p);if(c)cats[c]=(cats[c]||0)+1}
   const L=state.masters?MASTERS_CATS:FFN_CATS,g=progClub(ps),Q=qualsOfPs(ps);
   return`<details class="stats-card"${state.open.stats?" open":""} data-stopen="1"><summary><b>📊 Statistiques</b> <span class="sub">${plural(ps.length,"nageur")} · ${sx.F} dames · ${sx.M} messieurs</span></summary><div class="st-g">
-   <div><h5>Par catégorie</h5>${L.filter(c=>cats[c.name]).map(c=>`<div class="st-r"><span>${esc(c.name)}</span><b>${cats[c.name]}</b></div>`).join("")||"<p class='msg'>—</p>"}</div>
+   <div><h5>Par année de naissance</h5>${(()=>{const Y={};for(const p of ps){const y=parseInt(p.sw.year);if(y)Y[y]=(Y[y]||0)+1}const ref=refYearDefault();return Object.keys(Y).sort((a,b)=>b-a).map(y=>`<div class="st-r"><span>${y} <small class="sub">· ${ref-y} ans</small></span><b>${Y[y]}</b></div>`).join("")||"<p class='msg'>—</p>"})()}</div>
    <div><h5>Performances</h5><div class="st-r"><span>Épreuves comparées au RP</span><b>${g.n}</b></div><div class="st-r"><span>Records perso battus</span><b>${g.rp}${g.n?` (${Math.round(g.rp/g.n*100)} %)`:""}</b></div><div class="st-r"><span>Nouvelles épreuves</span><b>${g.nNew||0}</b></div></div>
    <div><h5>Qualifiés par championnat</h5>${Object.keys(Q).length?Object.keys(Q).map(n=>`<div class="st-r"><span>${esc(n)}</span><b>${Q[n]}</b></div>`).join(""):"<p class='msg'>Aucun qualifié pour l'instant.</p>"}</div></div></details>`}
 function renderPart(){
