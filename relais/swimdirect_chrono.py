@@ -462,7 +462,7 @@ def startup_update(cfg):
 def gui(cfg, demo=False, close_after=0):
     import tkinter as tk
     from tkinter import ttk, messagebox
-    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("780x780"); root.minsize(640, 600)
+    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("900x640"); root.minsize(760, 520)
     NAVY, INK, BG, CARD, LINE = "#0b1e3f", "#13284d", "#eef3f8", "#ffffff", "#d6e1ec"
     BLUE, RED, GREY, GREEN, GOLD = "#06324f", "#d6202f", "#5b7685", "#16a34a", "#f2c94c"
     F = "Segoe UI"
@@ -495,64 +495,45 @@ def gui(cfg, demo=False, close_after=0):
     tk.Label(hr, text="© Mat-et-Flo", fg=GOLD, bg=NAVY, font=(F, 9, "bold")).pack(anchor="e")
     tk.Frame(root, bg=GOLD, height=3).pack(fill="x")
 
-    # ---- bande mise à jour
-    upd = tk.Frame(root, bg="#dcf3e4"); upd.pack(fill="x", padx=16, pady=(12, 0))
-    updl = tk.Label(upd, text=f"✓ Logiciel à jour · version {VERSION}", bg="#dcf3e4", fg="#0f5c2e", font=(F, 10, "bold")); updl.pack(side="left", padx=12, pady=8)
-    def check_now():
-        updl.config(text="Recherche d'une nouvelle version…"); root.update(); core.check_update(force=True)
-        if not core.st.get("update"): updl.config(text=f"✓ Logiciel à jour · version {VERSION}")
+    # ---- bande mise à jour (cachée quand tout est à jour)
+    upd = tk.Frame(root, bg=GOLD)
+    updl = tk.Label(upd, text="", bg=GOLD, fg=NAVY, font=(F, 10, "bold")); updl.pack(side="left", padx=12, pady=8)
     def do_update():
         if core.st["sent"] and not messagebox.askyesno(APP, "Mettre à jour maintenant ? Le logiciel va redémarrer (quelques secondes sans envoi). À éviter pendant une course."): return
         updl.config(text="Téléchargement de la nouvelle version…"); root.update()
         if self_update(cfg["site"], core.log): core.stop = True; root.destroy()
         else: updl.config(text="Mise à jour impossible : télécharge-la depuis l'admin du live.")
-    bupd = btn(upd, "Vérifier les mises à jour", check_now); bupd.pack(side="right", padx=8, pady=5)
+    bupd = btn(upd, "▶  METTRE À JOUR", do_update, "primary"); bupd.pack(side="right", padx=8, pady=5)
 
-    # ---- trois cartes d'état
-    cards = tk.Frame(root, bg=BG); cards.pack(fill="x", padx=16, pady=12)
-    for i in range(3): cards.columnconfigure(i, weight=1, uniform="c")
-    cLive, cChrono, cTv = card(cards, "LIVE RELIÉ", "🌐"), card(cards, "CHRONOMÉTRAGE", "⏱"), card(cards, "ÉCRAN GÉANT", "🖥")
-    for i, c in enumerate((cLive, cChrono, cTv)): c.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 6, 0))
+    # ---- grand bandeau d'état : tout va bien, ou ce qu'il faut faire
+    hero = tk.Frame(root, bg="#0f5c2e"); hero.pack(fill="x")
+    hico = tk.Label(hero, text="✓", bg="#16a34a", fg="white", font=(F, 22, "bold"), width=3, height=1); hico.pack(side="left", padx=(18, 14), pady=14)
+    htx = tk.Frame(hero, bg=hero["bg"]); htx.pack(side="left", fill="x", expand=True, pady=12)
+    ht = tk.Label(htx, text="Démarrage…", bg=hero["bg"], fg="white", font=(F, 17, "bold"), anchor="w"); ht.pack(fill="x")
+    hs = tk.Label(htx, text="", bg=hero["bg"], fg="#d7f5e1", font=(F, 10), anchor="w", justify="left", wraplength=520); hs.pack(fill="x")
+    hbtn = btn(hero, "📖 Que faire ?", lambda: show_help(root, tk, ttk, NAVY, INK, BG, CARD, F, tab=hero.tab), "gold"); hero.tab = 0
 
-    # ---- écran géant local : une ligne par adresse, avec Copier / Ouvrir
-    tv = tk.Frame(root, bg=CARD, highlightbackground=LINE, highlightthickness=1); tv.pack(fill="x", padx=16)
-    tvh = tk.Frame(tv, bg=CARD); tvh.pack(fill="x", padx=14, pady=(10, 2))
-    tk.Label(tvh, text="Écran géant local (sans délai)", bg=CARD, fg=INK, font=(F, 11, "bold")).pack(side="left")
-    tvn = tk.Label(tvh, text="", bg=CARD, fg=GREY, font=(F, 9)); tvn.pack(side="right")
-    tk.Label(tv, text="Sur le PC de l'écran, ouvre l'adresse du réseau où il est branché (câble ou Wi-Fi), puis F11.", bg=CARD, fg=GREY, font=(F, 9), anchor="w").pack(fill="x", padx=14)
-    tvl = tk.Frame(tv, bg=CARD); tvl.pack(fill="x", padx=14, pady=(6, 12)); tvl.sig = None
-    def tv_rows():
-        ips = core.screen.ips or ([core.screen.ip] if core.screen.ip else [])
-        urls = [f"http://{a}:{core.screen.port}" for a in ips] + ([f"http://{socket.gethostname()}:{core.screen.port}"] if ips else [])
-        if urls == tvl.sig: return
-        tvl.sig = urls
-        for w in tvl.winfo_children(): w.destroy()
-        if not core.screen.ok: tk.Label(tvl, text="démarrage…", bg=CARD, fg=GREY, font=(F, 10)).pack(anchor="w"); return
-        for i, u in enumerate(urls):
-            r = tk.Frame(tvl, bg="#f4f8fb" if i % 2 == 0 else CARD); r.pack(fill="x", pady=1)
-            tk.Label(r, text=u, bg=r["bg"], fg=BLUE, font=("Consolas", 12, "bold"), anchor="w").pack(side="left", padx=8, pady=4)
-            tk.Label(r, text="nom du PC" if i == len(urls) - 1 else ("principal" if i == 0 else "autre réseau"), bg=r["bg"], fg=GREY, font=(F, 8)).pack(side="left")
-            def cp(u=u, r=r):
-                root.clipboard_clear(); root.clipboard_append(u); r.cpb.config(text="Copié ✓"); root.after(1500, lambda: r.cpb.config(text="Copier"))
-            btn(r, "Ouvrir", lambda u=u: webbrowser.open(u + "/")).pack(side="right", padx=(4, 6), pady=3)
-            r.cpb = btn(r, "Copier", cp); r.cpb.pack(side="right", pady=3)
-
-    # ---- clé de liaison + actions
-    mid = tk.Frame(root, bg=BG); mid.pack(fill="x", padx=16, pady=12)
-    key = tk.Frame(mid, bg=CARD, highlightbackground=LINE, highlightthickness=1); key.pack(side="left", fill="both", expand=True)
-    tk.Label(key, text="🔑  CLÉ DE LIAISON · à coller dans l'admin du live (Chronométrage relié)", bg=CARD, fg=GREY, font=(F, 9, "bold")).pack(anchor="w", padx=14, pady=(10, 2))
-    kr = tk.Frame(key, bg=CARD); kr.pack(fill="x", padx=14, pady=(0, 10))
-    tk.Label(kr, text=cfg["token"], bg=CARD, fg=NAVY, font=("Consolas", 16, "bold")).pack(side="left")
+    # ---- trois étapes numérotées
+    steps = tk.Frame(root, bg=BG); steps.pack(fill="both", padx=16, pady=14)
+    for i in range(3): steps.columnconfigure(i, weight=1, uniform="c")
+    def step(col, n, title):
+        f = tk.Frame(steps, bg=CARD, highlightbackground=LINE, highlightthickness=1); f.grid(row=0, column=col, sticky="nsew", padx=(0 if col == 0 else 8, 0))
+        h = tk.Frame(f, bg=CARD); h.pack(fill="x", padx=14, pady=(12, 6))
+        f.num = tk.Label(h, text=str(n), bg=GREY, fg="white", font=(F, 11, "bold"), width=2); f.num.pack(side="left")
+        tk.Label(h, text=title, bg=CARD, fg=INK, font=(F, 12, "bold")).pack(side="left", padx=(8, 0))
+        f.val = tk.Label(f, text="…", bg=CARD, fg=INK, font=(F, 11, "bold"), anchor="w", justify="left", wraplength=200); f.val.pack(fill="x", padx=14)
+        f.sub = tk.Label(f, text="", bg=CARD, fg=GREY, font=(F, 9), anchor="w", justify="left", wraplength=200); f.sub.pack(fill="x", padx=14, pady=(2, 8))
+        f.body = tk.Frame(f, bg=CARD); f.body.pack(fill="both", expand=True, padx=14, pady=(0, 12))
+        return f
+    cLive, cChrono, cTv = step(0, 1, "Le live"), step(1, 2, "Le chronométrage"), step(2, 3, "L'écran géant")
+    # 1 · clé de liaison
+    tk.Label(cLive.body, text="Clé à coller dans l'admin du live :", bg=CARD, fg=GREY, font=(F, 9), anchor="w").pack(fill="x")
+    tk.Label(cLive.body, text=cfg["token"], bg=CARD, fg=NAVY, font=("Consolas", 12, "bold"), anchor="w").pack(fill="x", pady=(2, 8))
     def copy():
-        root.clipboard_clear(); root.clipboard_append(cfg["token"]); bcopy.config(text="Copié ✓"); root.after(2000, lambda: bcopy.config(text="Copier"))
-    bcopy = btn(kr, "Copier", copy, "primary"); bcopy.pack(side="right")
-
-    bar = tk.Frame(root, bg=BG); bar.pack(fill="x", padx=16)
-    def pause():
-        core.paused = not core.paused; bpause.config(text="▶ Reprendre l'envoi" if core.paused else "⏸ Pause")
-    bpause = btn(bar, "⏸ Pause", pause); bpause.pack(side="left")
-    btn(bar, "Ouvrir le live", lambda: core.st["url"] and webbrowser.open(core.st["url"])).pack(side="left", padx=6)
-    btn(bar, "📖 Aide", lambda: show_help(root, tk, ttk, NAVY, INK, BG, CARD, F), "gold").pack(side="left", padx=(0, 6))
+        root.clipboard_clear(); root.clipboard_append(cfg["token"]); bcopy.config(text="Copié ✓"); root.after(2000, lambda: bcopy.config(text="Copier la clé"))
+    bcopy = btn(cLive.body, "Copier la clé", copy, "primary"); bcopy.pack(fill="x")
+    btn(cLive.body, "Ouvrir le live", lambda: core.st["url"] and webbrowser.open(core.st["url"])).pack(fill="x", pady=(6, 0))
+    # 2 · réglages du chronométrage
     def settings():
         w = tk.Toplevel(root); w.title("Réglages"); w.grab_set(); w.resizable(False, False)
         SYS = [("Swiss Timing Quantum (sortie Sport In The Box)", "quantum", "reseau", ""),
@@ -602,31 +583,69 @@ def gui(cfg, demo=False, close_after=0):
             cfg.update(sys=SYS[sysv.current()][1], mode=mode.get(), source=src, port=port, serial=ser, forward=fw); save_cfg(cfg); w.destroy()
             messagebox.showinfo(APP, "Réglages enregistrés. Ferme et relance le logiciel pour les appliquer.")
         ttk.Button(w, text="Enregistrer", command=ok).grid(row=10, column=0, sticky="e", padx=10, pady=10)
-    btn(bar, "⚙ Réglages", settings).pack(side="left")
-    btn(bar, "Dossier des journaux", lambda: os.startfile(os.path.join(HOME, "journaux")) if hasattr(os, "startfile") else None).pack(side="right")
+    btn(cChrono.body, "⚙ Changer de système", settings).pack(side="bottom", fill="x")
+    # 3 · écran géant : adresse principale en grand, les autres en petit
+    tvbig = tk.Label(cTv.body, text="", bg=NAVY, fg="white", font=("Consolas", 12, "bold"), padx=8, pady=6, anchor="w"); tvbig.pack(fill="x")
+    tvb = tk.Frame(cTv.body, bg=CARD); tvb.pack(fill="x", pady=(6, 0))
+    def cp_main():
+        u = tvbig.cget("text")
+        if u: root.clipboard_clear(); root.clipboard_append(u); bcp.config(text="Copié ✓"); root.after(1500, lambda: bcp.config(text="Copier"))
+    bcp = btn(tvb, "Copier", cp_main, "primary"); bcp.pack(side="left", fill="x", expand=True)
+    btn(tvb, "Ouvrir ici", lambda: tvbig.cget("text") and webbrowser.open(tvbig.cget("text") + "/")).pack(side="left", fill="x", expand=True, padx=(6, 0))
+    tvo = tk.Label(cTv.body, text="", bg=CARD, fg=GREY, font=(F, 8), anchor="w", justify="left", wraplength=200); tvo.pack(fill="x", pady=(6, 0))
+    def tv_rows():
+        ips = core.screen.ips or ([core.screen.ip] if core.screen.ip else [])
+        urls = [f"http://{a}:{core.screen.port}" for a in ips] + ([f"http://{socket.gethostname()}:{core.screen.port}"] if ips else [])
+        tvbig.config(text=urls[0] if urls and core.screen.ok else "")
+        tvo.config(text=("Autres adresses : " + " · ".join(u.replace("http://", "") for u in urls[1:])) if len(urls) > 1 else "")
 
-    # ---- compteurs + journal
-    info = tk.Frame(root, bg=BG); info.pack(fill="x", padx=16, pady=(12, 4))
+    # ---- barre du bas + détail technique (caché par défaut)
+    bar = tk.Frame(root, bg=BG); bar.pack(fill="x", padx=16)
+    def pause():
+        core.paused = not core.paused; bpause.config(text="▶ Reprendre l'envoi" if core.paused else "⏸ Pause")
+    bpause = btn(bar, "⏸ Pause", pause); bpause.pack(side="left")
+    btn(bar, "📖 Aide", lambda: show_help(root, tk, ttk, NAVY, INK, BG, CARD, F), "gold").pack(side="left", padx=6)
+    tech = tk.Frame(root, bg=BG)
+    def toggle():
+        if tech.winfo_ismapped(): tech.pack_forget(); btech.config(text="Voir le détail technique")
+        else: tech.pack(fill="both", expand=True, padx=16, pady=(10, 14)); btech.config(text="Masquer le détail technique")
+    btech = btn(bar, "Voir le détail technique", toggle); btech.pack(side="right")
+    btn(bar, "Dossier des journaux", lambda: os.startfile(os.path.join(HOME, "journaux")) if hasattr(os, "startfile") else None).pack(side="right", padx=6)
+    foot = tk.Label(root, text="", bg=BG, fg=GREY, font=(F, 9), anchor="w"); foot.pack(fill="x", padx=16, pady=(8, 12))
+    info = tk.Frame(tech, bg=BG); info.pack(fill="x", pady=(0, 4))
     ilast = tk.Label(info, text="", bg=BG, fg=INK, font=(F, 9), anchor="w"); ilast.pack(side="left")
     isent = tk.Label(info, text="", bg=BG, fg=GREY, font=(F, 9), anchor="e"); isent.pack(side="right")
-    txt = tk.Text(root, height=8, bg=NAVY, fg="#e6f2f8", insertbackground="white", font=("Consolas", 9), relief="flat", padx=10, pady=8, highlightthickness=0)
-    txt.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+    txt = tk.Text(tech, height=9, bg=NAVY, fg="#e6f2f8", insertbackground="white", font=("Consolas", 9), relief="flat", padx=10, pady=8, highlightthickness=0)
+    txt.pack(fill="both", expand=True)
 
-    def state(c, ok, text, warn=False):
-        c.dot.config(fg=GREEN if ok else (GOLD if warn else RED)); c.val.config(text=text, fg=INK if ok else (INK if warn else RED))
+    def state(c, lvl, text, sub=""):
+        c.num.config(bg={"ok": GREEN, "warn": GOLD, "bad": RED}[lvl], fg=NAVY if lvl == "warn" else "white"); c.val.config(text=text, fg=RED if lvl == "bad" else INK); c.sub.config(text=sub)
+    def hero_set(lvl, title, sub, tab=0):
+        bg, ib, fg2 = {"ok": ("#0f5c2e", GREEN, "#d7f5e1"), "warn": ("#7a4a05", GOLD, "#fdebc8"), "bad": ("#7f1d1d", RED, "#fde2e2")}[lvl]
+        for w in (hero, htx, ht, hs): w.config(bg=bg)
+        hs.config(fg=fg2); hico.config(text={"ok": "✓", "warn": "!", "bad": "✕"}[lvl], bg=ib, fg=NAVY if lvl == "warn" else "white")
+        ht.config(text=title); hs.config(text=sub); hero.tab = tab
+        if lvl == "ok": hbtn.pack_forget()
+        elif not hbtn.winfo_ismapped(): hbtn.pack(side="right", padx=18)
     def tick():
-        s = core.st
-        state(cLive, s["linked"] and not s["err"], (f"{s['name']}" if s["linked"] else "Colle la clé dans l'admin du live" if s["linked"] is False else "Connexion au site…") + (f"\n⚠ {str(s['err'])[:70]}" if s["err"] else ""), warn=s["linked"] is None and not s["err"])
-        state(cChrono, s["quantum"].startswith(("connecté", "démo")), s["quantum"], warn=s["quantum"].startswith(("en attente", "écoute")))
-        n = len(core.screen.clients)
-        state(cTv, core.screen.ok and n > 0, (f"{n} écran(s) affiché(s)" if n else "Prêt · aucun écran ouvert") if core.screen.ok else "démarrage…", warn=core.screen.ok and not n)
-        tvn.config(text=f"port {core.screen.port}"); tv_rows()
+        s = core.st; q = s["quantum"]; n = len(core.screen.clients)
+        lv = "ok" if s["linked"] and not s["err"] else ("bad" if s["linked"] is False or s["err"] else "warn")
+        state(cLive, lv, s["name"] if s["linked"] else ("Clé pas encore reliée" if s["linked"] is False else "Connexion au site…"), (f"⚠ {str(s['err'])[:80]}" if s["err"] else ("Les temps partent sur ce live" if s["linked"] else "")))
+        cq = "ok" if q.startswith(("connecté", "démo")) else ("warn" if q.startswith(("en attente", "écoute", "recherche")) else "bad")
+        state(cChrono, cq, {"quantum": "Swiss Timing Quantum", "ares": "Omega ARES 21", "alge": "ALGE", "stramatel": "Stramatel"}.get(cfg.get("sys") or "quantum", "Chronométrage"), q)
+        state(cTv, "ok" if core.screen.ok and n else "warn", (f"{n} écran(s) connecté(s)" if n else "Aucun écran ouvert") if core.screen.ok else "démarrage…", "Sur le PC de l'écran, ouvre :" if core.screen.ok else "")
+        tv_rows()
+        if lv == "bad" and s["linked"] is False: hero_set("bad", "Relie le logiciel à ton live", "Copie la clé (étape 1) et colle-la dans l'admin du live › Jour J › Chronométrage électronique relié.", 0)
+        elif lv != "ok": hero_set("warn" if not s["err"] else "bad", "Le site ne répond pas" if s["err"] else "Connexion au site…", "Vérifie Internet sur ce PC. Le chronométrage et l'écran géant local continuent ; les temps partiront dès le retour de la connexion." if s["err"] else "Quelques secondes…", 6)
+        elif cq == "bad": hero_set("bad", "Le chronométrage ne répond pas", f"{q}. Vérifie que le logiciel de chronométrage est ouvert avec une compétition chargée et que sa sortie est active, ou change de système (étape 2).", {"ares": 2, "alge": 3, "stramatel": 4}.get(cfg.get("sys"), 1))
+        elif cq == "warn": hero_set("warn", "En attente du chronométrage", f"{q}. Le direct démarre tout seul dès que les données arrivent.", {"ares": 2, "alge": 3, "stramatel": 4}.get(cfg.get("sys"), 1))
+        elif core.paused: hero_set("warn", "Envoi en pause", "Les temps ne partent plus sur le site. Bouton « Reprendre l'envoi » en bas.", 0)
+        else: hero_set("ok", "Tout fonctionne", "Les temps du chronométrage partent sur le site et sur l'écran géant." + (f"  Dernier : {s['last']}" if s["last"] else ""))
         ilast.config(text="Dernier événement : " + (s["last"] or "—"))
         isent.config(text=("EN PAUSE · " if core.paused else "") + f"{s['sent']} événement(s) envoyé(s) · journal : {s['jsent']}", fg=RED if core.paused else GREY)
-        if s.get("update") and not getattr(bupd, "do", False):
-            for w in (upd, updl): w.config(bg=GOLD)
-            updl.config(text=f"⚠ Nouvelle version {s['update']} disponible (installée : {VERSION})", fg=NAVY)
-            bupd.config(text="▶  METTRE À JOUR", command=do_update, bg=NAVY, fg="white", font=(F, 11, "bold")); bupd._bg = NAVY; bupd.do = True
+        foot.config(text=f"Journal envoyé au site toutes les 15 s · {s['sent']} événement(s) envoyé(s)" + (" · EN PAUSE" if core.paused else ""))
+        if s.get("update") and not upd.winfo_ismapped():
+            updl.config(text=f"⚠ Nouvelle version {s['update']} disponible (installée : {VERSION})"); upd.pack(fill="x", before=hero)
         while logs:
             txt.insert("end", logs.pop(0) + "\n")
             if int(txt.index("end-1c").split(".")[0]) > 400: txt.delete("1.0", "100.0")
