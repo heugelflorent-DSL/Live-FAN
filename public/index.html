@@ -1460,7 +1460,8 @@ function tvScreenHtml(){
   const rows=lanes.map(n=>{const w=poolWho(h,se,n),L=(h.lanes||{})[n]||{};const nm=w?splitName(w.name):null;
     const lg=w&&w.club?logoFind(w.club):null;/* relais : les 4 relayeurs (noms envoyés par le Quantum), celui dans l'eau en surbrillance */
     const RMv=relay&&w&&(w.members||[]).length>1?w.members:null;let rlh="";if(RMv){const Lr=(h.lanes||{})[n]||{},tot=(t=>{const r=t.match(/(\d+)\s*x\s*(\d+)/i);return r?r[1]*r[2]:0})(String(ev&&ev.name||h.title||"")),ks=Object.keys(Lr.laps||{}).map(Number).filter(k=>Lr.laps[k]&&Lr.laps[k].t!=null),dk=ks.length?Math.max(...ks.map(k=>Lr.laps[k].dist||k*poolLen())):0,on=h.start&&!Lr.fin&&tot?Math.min(RMv.length-1,Math.floor(dk/(tot/RMv.length))):-1;
-      rlh=`<span class="tvrl">${RMv.map((m,i)=>{const z=splitName(m.name);return`<i${i===on?' class="on"':""}>${esc(z.last)}</i>`}).join(" · ")}</span>`}
+      /* seulement le relayeur dans l'eau (le 1er avant le départ, rien après l'arrivée) : les 4 noms ne tiennent pas sur la ligne */
+      const ix=Lr.fin?-1:(on>=0?on:0);if(ix>=0){const m=RMv[ix],z=splitName(m.name);rlh=`<span class="tvrl"><i class="on">${ix+1}/${RMv.length} · ${esc(z.last)}${z.first?" "+esc(z.first):""}</i></span>`}}
     const who=(w?`<b>${relay?esc(w.club||w.name):esc(nm.last)+" "+esc(nm.first)}</b>${RMv?rlh:`<span>${relay?"":esc(w.club||"")}</span>`}`:`<b class="tvempty">—</b><span></span>`);const whoL=`<div class="tvlg">${lg?`<img src="${lg}" alt="">`:""}</div><div class="tvw">${who}</div>`;
     if(ready){const eng=w&&w.time;return`<div class="tvr"><div class="tvn">${n}</div>${whoL}<div class="tvm"></div><div class="tvt tveng">${eng?fmt(eng):""}</div><div class="tvp"></div></div>`}
     const laps=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),lk=laps[laps.length-1],last=lk!=null?L.laps[lk]:null;
