@@ -808,7 +808,7 @@ export default {
       if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); c.roster = c.roster || [];
         const at = {}; c.roster.forEach((r, i) => (at[String(r.iuf || r.name + "|" + r.year)] = i));
         for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } else if (r.iuf && at[k] != null) c.roster[at[k]] = { ...c.roster[at[k]], ...r }; } if (n.roster) c.rosterAt = now; }
-      c.ffxLog = [{ at: now, lines: log }, ...(c.ffxLog || [])].slice(0, 10);
+      c.ffxLog = [{ at: now, lines: log }, ...(c.ffxLog || [])]; // tout l'historique des imports (pas de limite)
       data.dirty = true; await saveData(env, data, before, ev);
       return json({ ok: true, ...n, clubs: Object.keys(alias).length, log });
     }
