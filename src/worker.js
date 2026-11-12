@@ -794,6 +794,7 @@ export default {
       // (« C.N DU FLORIVAL GUEBWILLER »). On reprend le nom déjà connu dans le live, d'après les nageurs en commun.
       const alias = ffxAlias(b, data.comps);
       const c = (data.comps[b.c] = data.comps[b.c] || {}); const now = Date.now(); const n = { prog: 0, heats: 0, roster: 0 };
+      const log = ffxDiff(c, b, alias);
       if (b.meta && !c.meta) c.meta = b.meta;
       if (Array.isArray(b.reunions) && b.reunions.length) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
       c.events = c.events || {};
@@ -807,8 +808,9 @@ export default {
       if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); c.roster = c.roster || [];
         const at = {}; c.roster.forEach((r, i) => (at[String(r.iuf || r.name + "|" + r.year)] = i));
         for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } else if (r.iuf && at[k] != null) c.roster[at[k]] = { ...c.roster[at[k]], ...r }; } if (n.roster) c.rosterAt = now; }
+      c.ffxLog = [{ at: now, lines: log }, ...(c.ffxLog || [])].slice(0, 10);
       data.dirty = true; await saveData(env, data, before, ev);
-      return json({ ok: true, ...n, clubs: Object.keys(alias).length });
+      return json({ ok: true, ...n, clubs: Object.keys(alias).length, log });
     }
     if (p === "/api/admin/mpp" && req.method === "GET") {
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
@@ -1201,4 +1203,34 @@ export function ffxAlias(b, comps) {
   const fix = (o) => { for (const f of ["club", "team"]) if (typeof o[f] === "string") for (const [lg, sh] of Object.entries(alias)) if (o[f] === lg || o[f].startsWith(lg + " ")) { o[f] = sh + o[f].slice(lg.length); break; } if (typeof o.name === "string" && alias[o.name] && !o.iuf) o.name = alias[o.name]; };
   if (Object.keys(alias).length) { walk(b, fix); walk(comps, fix); }
   return alias;
+}
+
+// Journal d'un import extraNat : ce qui change par rapport à ce que Swim Direct avait (programme, séries, couloirs, engagés, équipes, clubs)
+export function ffxDiff(c, b, alias = {}) {
+  const L = []; const fmtT = (t) => { if (t == null) return "NT"; const m = Math.floor(t / 60), sx = (t - m * 60).toFixed(2); return m ? m + ":" + sx.padStart(5, "0") : sx; };
+  for (const [lg, sh] of Object.entries(alias)) L.push(`Club « ${lg} » affiché sous le nom du live « ${sh} »`);
+  const evs = (rs) => { const o = []; for (const r of rs || []) for (const it of r.items || []) if (it.kind === "event") o.push({ r: r.n, key: it.key || String(it.epr), name: it.name }); return o; };
+  const A = evs(c.reunions), B = evs(b.reunions), nameOf = {}; for (const x of [...A, ...B]) nameOf[x.key] = x.name;
+  if (!A.length && B.length) L.push(`Programme ajouté : ${B.length} épreuve(s)`);
+  else if (B.length) { const ak = new Set(A.map((x) => x.key)), bk = new Set(B.map((x) => x.key));
+    for (const x of B) if (!ak.has(x.key)) L.push(`Épreuve ajoutée : ${x.name} (réunion ${x.r})`);
+    for (const x of A) if (!bk.has(x.key)) L.push(`Épreuve retirée : ${x.name}`);
+    const ao = A.filter((x) => bk.has(x.key)).map((x) => x.key).join(), bo = B.filter((x) => ak.has(x.key)).map((x) => x.key).join(); if (ao !== bo) L.push("Ordre des épreuves modifié dans le programme"); }
+  const who = (l) => (l.members && l.members.length ? (l.team || l.club || l.name) : l.name) || "?";
+  const kOf = (l) => (l.members && l.members.length ? "R" + (l.team || l.club) : l.iuf ? "i" + l.iuf : "n" + String(l.name).toUpperCase() + "|" + l.year);
+  for (const [k, e] of Object.entries(b.events || {})) { const nh = e.heats || []; if (!nh.length) continue; const oh = ((c.events || {})[k] || {}).heats || []; const nm = nameOf[k] || k;
+    if (!oh.length) { L.push(`${nm} : séries ajoutées (${nh.length} série(s), ${nh.reduce((s, h) => s + h.lanes.length, 0)} engagé(s))`); continue; }
+    const om = {}, nmap = {}; for (const h of oh) for (const l of h.lanes || []) om[kOf(l)] = { h: h.n, l }; for (const h of nh) for (const l of h.lanes || []) nmap[kOf(l)] = { h: h.n, l };
+    const ch = []; if (oh.length !== nh.length) ch.push(`${oh.length} → ${nh.length} séries`);
+    for (const [x, v] of Object.entries(nmap)) { const o = om[x]; if (!o) { ch.push(`+ ${who(v.l)} (S${v.h} C${v.l.lane})`); continue; }
+      if (o.h !== v.h || o.l.lane !== v.l.lane) ch.push(`${who(v.l)} : S${o.h} C${o.l.lane} → S${v.h} C${v.l.lane}`);
+      else if ((o.l.entry ?? null) !== (v.l.entry ?? null)) ch.push(`${who(v.l)} : engagé ${fmtT(o.l.entry)} → ${fmtT(v.l.entry)}`);
+      if (v.l.members && o.l.members && v.l.members.map((m) => m.name).join() !== o.l.members.map((m) => m.name).join()) ch.push(`${who(v.l)} : relayeurs modifiés`); }
+    for (const [x, o] of Object.entries(om)) if (!nmap[x]) ch.push(`− ${who(o.l)} (était S${o.h} C${o.l.lane})`);
+    if (ch.length) L.push(`${nm} : ${ch.join(" ; ")}`); }
+  if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); const add = b.roster.filter((r) => !seen.has(String(r.iuf || r.name + "|" + r.year)));
+    if (add.length) L.push(`Engagés : ${add.length} nageur(s) ajouté(s)${add.length <= 12 ? " (" + add.map((r) => r.name).join(", ") + ")" : ""}`); }
+  if (b.teams && Object.keys(b.teams).length && (!c.teams || !Object.keys(c.teams).length)) L.push(`Équipes Interclubs ajoutées pour ${Object.keys(b.teams).length} club(s)`);
+  if (!L.length) L.push("Aucun changement : Swim Direct avait déjà tout ce que contient ce fichier");
+  return L;
 }
