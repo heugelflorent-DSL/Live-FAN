@@ -783,7 +783,7 @@ export default {
     }
 
     // import du fichier extraNat (ffnex.xml, lu dans le navigateur de l'admin) : programme, séries/couloirs, engagés.
-    // Remplit ce qui manque et met à jour ce qui vient d'un import précédent ; ce que le Live FFN a déjà fourni reste prioritaire.
+    // Le dernier fichier importé remplace programme et séries (secours quand le Live FFN est en 403) ; la synchro Live FFN reprend la main dès qu'elle relit.
     if (p === "/api/admin/ffnex" && req.method === "POST") {
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
       const b = await req.json().catch(() => null);
@@ -795,11 +795,11 @@ export default {
       const alias = ffxAlias(b, data.comps);
       const c = (data.comps[b.c] = data.comps[b.c] || {}); const now = Date.now(); const n = { prog: 0, heats: 0, roster: 0 };
       if (b.meta && !c.meta) c.meta = b.meta;
-      if (Array.isArray(b.reunions) && b.reunions.length && (!(c.reunions && c.reunions.length) || c.progSrc === "ffnex")) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
+      if (Array.isArray(b.reunions) && b.reunions.length) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
       c.events = c.events || {};
       for (const [k, e] of Object.entries(b.events || {})) {
         const cur = (c.events[k] = c.events[k] || {});
-        if ((!cur.heats || !cur.heats.length || cur.heatsSrc === "ffnex") && e.heats && e.heats.length) { cur.heats = e.heats; cur.heatsAt = 1; cur.heatsSrc = "ffnex"; n.heats++; }
+        if (e.heats && e.heats.length) { cur.heats = e.heats; cur.heatsAt = 1; cur.heatsSrc = "ffnex"; n.heats++; }
       }
       if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); c.roster = c.roster || [];
         const at = {}; c.roster.forEach((r, i) => (at[String(r.iuf || r.name + "|" + r.year)] = i));
