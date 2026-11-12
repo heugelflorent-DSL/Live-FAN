@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.6"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.7"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -552,6 +552,7 @@ def gui(cfg, demo=False, close_after=0):
         core.paused = not core.paused; bpause.config(text="▶ Reprendre l'envoi" if core.paused else "⏸ Pause")
     bpause = btn(bar, "⏸ Pause", pause); bpause.pack(side="left")
     btn(bar, "Ouvrir le live", lambda: core.st["url"] and webbrowser.open(core.st["url"])).pack(side="left", padx=6)
+    btn(bar, "📖 Aide", lambda: show_help(root, tk, ttk, NAVY, INK, BG, CARD, F), "gold").pack(side="left", padx=(0, 6))
     def settings():
         w = tk.Toplevel(root); w.title("Réglages"); w.grab_set(); w.resizable(False, False)
         SYS = [("Swiss Timing Quantum (sortie Sport In The Box)", "quantum", "reseau", ""),
@@ -635,6 +636,79 @@ def gui(cfg, demo=False, close_after=0):
     if close_after: root.after(int(close_after * 1000), lambda: (print("fenêtre OK"), setattr(core, "stop", True), root.destroy()))
     root.protocol("WM_DELETE_WINDOW", lambda: (setattr(core, "stop", True), root.destroy()))
     root.mainloop()
+
+# ---- aide intégrée : ce qu'il faut régler, système par système (lisible sans Internet)
+AIDE = [
+    ("Démarrer", [
+        ("h", "En 4 étapes"),
+        ("p", "1. Lance Swim Direct · Chrono sur le PC du chronométrage. Si Windows le demande, autorise l'accès au réseau privé."),
+        ("p", "2. Dans l'admin du live (site Swim Direct), onglet Jour J › « Chronométrage électronique relié » : colle la CLÉ DE LIAISON affichée ici (bouton « Copier »), puis « Relier »."),
+        ("p", "3. Toujours dans l'admin, « Mode du direct » : choisis « Bassin », puis Enregistrer."),
+        ("p", "4. Ici, bouton « Réglages » : choisis ton système de chronométrage (onglets suivants)."),
+        ("h", "C'est bon quand…"),
+        ("p", "• « LIVE RELIÉ » est vert, avec le nom du live.\n• « CHRONOMÉTRAGE » indique « connecté » et les compteurs bougent pendant une course.\n• « ÉCRAN GÉANT » est vert."),
+        ("h", "Changer de compétition"),
+        ("p", "Une seule clé par PC : dans l'admin de l'ancien live, « Délier », puis relie la clé dans l'admin du nouveau live. Sinon les courses partent dans l'ancien live."),
+    ]),
+    ("Quantum", [
+        ("h", "Swiss Timing Quantum AQ"),
+        ("p", "Dans Quantum, active la sortie réseau « Sport In The Box » (format tableau écran). Le logiciel la cherche par défaut sur le port 26700."),
+        ("p", "Ici, Réglages : système « Swiss Timing Quantum », connexion réseau. Adresse : 127.0.0.1:26700 si Quantum tourne sur ce PC, sinon l'adresse IP du PC Quantum suivie de :26700."),
+        ("h", "Deux compétitions dans Quantum"),
+        ("p", "Tu peux passer d'une compétition à l'autre dans Quantum : Swim Direct retrouve la bonne épreuve grâce au nom de la compétition, au nom de l'épreuve et à l'horaire. Garde l'ordre du bassin figé dans l'admin (Programme et horaires)."),
+        ("h", "Ça ne marche pas ?"),
+        ("p", "• « aucun signal » : vérifie que Quantum est ouvert avec une compétition chargée, et que la sortie est bien sur le port 26700.\n• L'ordre des couloirs dans Quantum (1→8 ou 8→1) ne change rien : chaque temps arrive avec son numéro de couloir."),
+    ]),
+    ("ARES", [
+        ("h", "Omega ARES 21"),
+        ("p", "Le vrai direct (chrono qui tourne, passages, touches) arrive en OSM6, uniquement par le port GP de l'IF-ARES. Il faut un adaptateur USB ↔ RS-422/485 : broche 3 → Rx+, broche 7 → Rx−."),
+        ("p", "Ici, Réglages : système « Omega ARES 21 », connexion série, le port COM de l'adaptateur, 9600,7,E,1."),
+        ("p", "La sortie DH d'ARES Swimming vers le PC ne marche qu'en bi-directionnel et ne donne les temps qu'après la série : pas de direct par ce chemin."),
+        ("h", "À ne jamais faire pendant une compétition"),
+        ("p", "Ne touche pas à la liaison PC ↔ IF-ARES ni au câble SCB du tableau."),
+    ]),
+    ("ALGE", [
+        ("h", "ALGE TimeManager / SwimTime"),
+        ("p", "Utilise la sortie « Vidéo » du TimeManager, reliée en série au PC."),
+        ("p", "Ici, Réglages : système « ALGE », connexion série, le port COM, 19200,8,N,1."),
+    ]),
+    ("Stramatel", [
+        ("h", "Stramatel"),
+        ("p", "Sortie série du tableau, 9600,8,N,1. Le décodage n'est pas encore terminé : le logiciel enregistre le journal brut pour qu'on puisse l'ajouter."),
+    ]),
+    ("Écran géant", [
+        ("h", "Afficher l'écran géant"),
+        ("p", "1. Le PC de l'écran doit être sur le même réseau que ce PC (même box, câble ou Wi-Fi)."),
+        ("p", "2. Sur le PC de l'écran, ouvre dans Chrome ou Edge l'adresse affichée dans « Écran géant local » (par exemple http://192.168.1.4:8765). Bouton « Copier » pour la recopier."),
+        ("p", "3. Touche F11 pour le plein écran (Fn + F11 sur certains portables)."),
+        ("h", "Plein écran automatique (mode kiosque)"),
+        ("p", "Crée un raccourci sur le bureau du PC de l'écran avec pour cible :\n\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --kiosk \"http://ADRESSE:8765/\"\nAlt + F4 pour en sortir."),
+        ("h", "Si l'écran n'affiche rien"),
+        ("p", "• Page « Aucun live choisi » : relie d'abord la clé dans l'admin (onglet Démarrer).\n• Page injoignable : essaie l'autre adresse de la liste (câble plutôt que Wi-Fi). Le pare-feu est ouvert automatiquement par le logiciel.\n• Tu es sorti de l'écran géant : bouton « 📺 Écran géant » en bas à droite."),
+    ]),
+    ("Problèmes", [
+        ("h", "Les messages et quoi faire"),
+        ("p", "• Port COM déjà utilisé : un autre logiciel lit ce port. Ferme-le, ou choisis un autre port dans Réglages.\n• Pas d'Internet : le chronométrage continue, l'écran géant local aussi ; les temps partent sur le site dès que la connexion revient.\n• Nouvelle version : bandeau en haut, « Mettre à jour » (le logiciel redémarre en quelques secondes ; à éviter pendant une course)."),
+        ("h", "Envoyer un journal"),
+        ("p", "Le journal brut part tout seul sur le site toutes les 15 s. Il est consultable dans l'admin du live (Chronométrage électronique relié)."),
+    ]),
+]
+
+def show_help(root, tk, ttk, NAVY, INK, BG, CARD, F, tab=0):
+    w = tk.Toplevel(root); w.title(f"{APP} · Aide"); w.geometry("760x600"); w.configure(bg=BG)
+    tk.Label(w, text="Aide · ce qu'il faut régler", bg=NAVY, fg="white", font=(F, 14, "bold"), anchor="w", padx=16, pady=10).pack(fill="x")
+    nb = ttk.Notebook(w); nb.pack(fill="both", expand=True, padx=12, pady=12)
+    for title, blocks in AIDE:
+        fr = tk.Frame(nb, bg=CARD); nb.add(fr, text=title)
+        t = tk.Text(fr, wrap="word", bg=CARD, fg=INK, relief="flat", bd=0, padx=18, pady=14, font=(F, 11), spacing1=2, spacing3=6, cursor="arrow")
+        sb = ttk.Scrollbar(fr, orient="vertical", command=t.yview); t.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y"); t.pack(side="left", fill="both", expand=True)
+        t.tag_configure("h", font=(F, 13, "bold"), foreground=NAVY, spacing1=12, spacing3=4)
+        for kind, txt in blocks: t.insert("end", txt + "\n", kind if kind == "h" else ())
+        t.configure(state="disabled")
+    try: nb.select(tab)
+    except Exception: pass
+    tk.Button(w, text="Fermer", command=w.destroy, bg=NAVY, fg="white", relief="flat", font=(F, 10, "bold"), padx=16, pady=6, cursor="hand2").pack(side="right", padx=12, pady=(0, 12))
 
 def main():
     ap = argparse.ArgumentParser(description=APP)
