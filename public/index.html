@@ -1038,6 +1038,7 @@ body.tv{overflow:hidden}
         <div class="step-body">
           <label for="timing">Chronométrage<select class="field" id="timing"><option value="elec:quantum">Électronique · Swiss Timing Quantum</option><option value="elec:ares">Électronique · Omega ARES 21</option><option value="elec:stramatel">Électronique · Stramatel</option><option value="elec:alge">Électronique · ALGE TimeManager</option><option value="manual">Manuel · horaires théoriques, retard saisi à la main</option></select><span class="msg" style="font-weight:400" id="timing-hint"></span></label>
           <div class="grid2c" id="sess-starts"></div>
+          <div class="inline" style="margin-top:8px"><button class="btn small ghost" id="prog-print" type="button">🖨️ Programme pour les officiels (PDF)</button><span class="msg">Les deux compétitions dans l'ordre du bassin, série par série, couloir par couloir.</span></div>
           <label for="s-heat">Battement entre deux départs (secondes)<input class="field" type="number" id="s-heat" min="0" step="5"><span class="msg" style="font-weight:400">Le même temps entre deux séries et entre deux épreuves.</span></label>
           <p class="msg">Ordre du bassin : glisse-dépose les épreuves, ou utilise les flèches sur téléphone. « + Ligne libre » ajoute le texte de ton choix (pause, remise des médailles…) avec une durée, 0 si elle ne prend pas de temps.</p>
           <label style="display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-weight:600;cursor:pointer;margin:4px 0 10px"><input type="checkbox" id="prog-lock"> 🔒 Figer l'ordre du programme <span class="msg" style="font-weight:400;grid-column:2">L'ordre et les heures de début ne bougent plus quand le Live FFN ou un import extraNat change (alternance entre compétitions conservée). Une épreuve nouvelle s'ajoute à la fin de sa réunion.</span></label>
@@ -2940,6 +2941,26 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
       if(heats.length)events[key]={heats}});
     reunions.push(R)});
   return{c:A(M,"id"),meta,reunions,events,teams,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
+/* programme des officiels : ordre du bassin (alternance des compétitions), chaque série avec son heure estimée et ses couloirs, à imprimer ou enregistrer en PDF */
+function officialsProgram(){const sch=schedule(),L=[];const t2=sec=>hm(sec).replace("h",":");const live=state.name||(state.comps[0]&&state.comps[0].name)||"Swim Direct";
+  const day=c=>{const m=String((comp(c)||{}).date||"");return m};
+  for(const s of Object.keys(state.order).sort((a,b)=>a-b)){const evs=state.order[s].map(k=>EVENTS[k]).filter(Boolean);if(!evs.length)continue;
+    L.push(`<section class="reu"><h2>Réunion ${s}${day(evs.find(e=>e.comp)&&evs.find(e=>e.comp).comp)?" · "+esc(day(evs.find(e=>e.comp).comp)):""}</h2>`);
+    if((state.doors||{})[s])L.push(`<p class="ln">Ouverture des portes, début de l'échauffement à ${esc(String(state.doors[s]).replace("h",":"))}</p>`);
+    if((state.evac||{})[s])L.push(`<p class="ln">Fin de l'échauffement, évacuation du bassin à ${esc(String(state.evac[s]).replace("h",":"))}</p>`);
+    for(const ev of evs){const st=sch[ev.key]||{};
+      if(ev.type==="pause"){L.push(`<p class="ln pause">${esc(ev.name||"Pause")}${st.start!=null?" à "+t2(st.start):""}</p>`);continue}
+      if(ev.type!=="event")continue;const cm=comp(ev.comp)||{},nl=compLanes(ev.comp)||8;let t=st.start;const n=ev.series.length;
+      ev.series.forEach((sr,i)=>{const by={};for(const w of sr.swimmers)if(w.lane)by[w.lane]=w;
+        const rows=[];for(let l=1;l<=nl;l++){const w=by[l];rows.push(`<tr><td class="c">${l}.</td><td>${w?esc(w.relay?(w.team||w.club||w.name):w.name):""}${w&&w.members&&w.members.length?`<div class="mem">${w.members.map(m=>esc(m.name)).join(" · ")}</div>`:""}</td><td class="c">${w&&!w.relay?esc(String(w.year||"").slice(0,4)):""}</td><td>${w?esc(w.club||""):""}</td><td class="r">${w?(w.time?fmt(w.time):"AT"):""}</td></tr>`)}
+        L.push(`<div class="ser"><h3><span class="ctag k${cm.k||1}">${esc(cm.name||"")}</span>${esc(ev.name)} <small>(Série ${sr.n||i+1}/${n})</small>${t!=null?` <span class="h">${t2(t)}</span>`:""}</h3><table>${rows.join("")}</table></div>`);
+        if(t!=null)t+=sr.slowest+state.heatGap});}
+    L.push(`</section>`)}
+  const css=`body{font:12px/1.35 system-ui,Segoe UI,Arial,sans-serif;color:#111;margin:18px}h1{font-size:18px;text-align:center;margin:0}.sub{text-align:center;color:#555;margin:2px 0 14px}h2{font-size:15px;border-bottom:2px solid #111;margin:16px 0 6px}.ln{text-align:center;font-weight:600;margin:4px 0}.pause{color:#555}.ser{break-inside:avoid;margin:10px 0 4px}h3{font-size:13px;margin:0 0 3px;display:flex;gap:8px;align-items:baseline}h3 .h{margin-left:auto}h3 small{font-weight:400}.ctag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;border:1px solid #888;white-space:nowrap}.k1{background:#fde2e4}.k2{background:#fdecc8}.k3{background:#dbeafe}.k4{background:#dcfce7}table{width:100%;border-collapse:collapse;table-layout:fixed}td:nth-child(2){width:42%}td:nth-child(3){width:50px}td{padding:2px 4px;border-bottom:1px solid #ddd;vertical-align:top}td.c{width:28px;text-align:center}td.r{width:70px;text-align:right;font-variant-numeric:tabular-nums}.mem{font-size:10px;color:#555}.tools{text-align:center;margin-bottom:10px}@media print{.tools{display:none}body{margin:0}}@page{margin:12mm}`;
+  const comps=state.comps.map(c=>`<span class="ctag k${c.k}">${esc(c.name)}</span>`).join(" ");
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Programme officiels</title><style>${css}</style></head><body><div class="tools"><button onclick="print()">🖨️ Imprimer / PDF</button></div><h1>${esc(live)}</h1><div class="sub">Programme · ${comps}</div>${L.join("")}<p class="sub" style="margin-top:16px">Horaires estimés · édité le ${new Date().toLocaleString("fr-FR")} · Swim Direct</p></body></html>`;
+  const w=window.open("","_blank");if(!w){alertMsg("Autorise les fenêtres pop-up pour ce site.");return}w.document.write(html);w.document.close()}
+document.addEventListener("click",e=>{if(e.target&&e.target.id==="prog-print")officialsProgram()});
 document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-file")return;const f=e.target.files[0],m=$("#ffx-msg");if(!f)return;m.textContent="Lecture du fichier…";
   try{const P=ffxParse(await ffxRead(f));m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
     const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme ajouté · ":"programme déjà présent (Live FFN) · "}${j.heats} épreuve(s) avec séries · ${j.roster} nageur(s) ajouté(s) aux engagés. Le Live FFN complétera.`;try{refresh&&refresh()}catch(_){}}
