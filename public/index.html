@@ -1025,6 +1025,7 @@ body.tv{overflow:hidden}
         <div class="step-body">
           <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
           <label class="chk"><input type="checkbox" id="ev-masters"> Compétition maîtres <small>(les grilles de qualification proposées deviennent les grilles maîtres)</small></label>
+          <div class="inline ffx"><label class="btn small ghost ffx-up">📥 Importer le fichier extraNat (ffnex)<input type="file" id="ffx-file" accept=".zip,.xml" hidden></label><span class="msg" id="ffx-msg">Programme, séries et engagés d'une compétition, sans lire le Live FFN (le Live FFN reste la référence et complète ensuite).</span></div>
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <input type="hidden" id="ev-progdate"></div>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button><button class="btn ghost" id="link-replace" title="Retire les autres compétitions et suit uniquement celle-ci">Remplacer tout</button></div>
@@ -2894,6 +2895,39 @@ addEventListener("popstate",e=>{if(state.admin||PICK)return;const S=e.state&&e.s
   const h=location.hash.slice(1);const v=["live","prog","res","pod","part","rank"].includes(h)?h:"home";if(v!==state.view){POPPING=true;state.view=v;try{render()}finally{POPPING=false}window.scrollTo(0,0)}});
 /* documentation du chrono : seulement les parties du système choisi (Quantum, ARES…) */
 function docSys(){const z=state.chronoSys||"quantum",D=document.getElementById("chrono-doc");if(!D)return;D.querySelectorAll("[data-dsys]").forEach(el=>{el.hidden=!el.dataset.dsys.split(" ").includes(z)});let hn=0;D.querySelectorAll("h4").forEach(h=>{if(h.closest("[data-dsys][hidden]"))return;h.textContent=(++hn)+". "+h.textContent.replace(/^\d+\.\s*/,"")});const n=D.querySelector("[data-sysnote]");if(n)n.textContent="Documentation pour : "+({quantum:"Swiss Timing Quantum",ares:"Omega ARES 21",alge:"ALGE",stramatel:"Stramatel"}[z]||"réglage manuel")+" (système choisi dans ce module)."}
+
+/* ---------- import du fichier extraNat « ffnex » (zip ou xml) ---------- */
+const FFX_EPR={1:"50 Nage Libre",2:"100 Nage Libre",3:"200 Nage Libre",4:"400 Nage Libre",5:"800 Nage Libre",6:"1500 Nage Libre",9:"10x50 Nage Libre",11:"50 Dos",12:"100 Dos",13:"200 Dos",21:"50 Brasse",22:"100 Brasse",23:"200 Brasse",31:"50 Papillon",32:"100 Papillon",33:"200 Papillon",40:"100 4 Nages",41:"200 4 Nages",42:"400 4 Nages",43:"4x100 Nage Libre",44:"4x200 Nage Libre",46:"4x100 4 Nages",47:"4x50 Nage Libre",48:"4x50 4 Nages"};
+function ffxEvName(id){id=+id;const d=id>=50&&id<100?"Messieurs":id<50?"Dames":"";const b=FFX_EPR[id>=50&&id<100?id-50:id];return b?b+" "+d:"Épreuve "+id}
+function ffxTime(v){const x=parseFloat(v);if(!x||x>=59.59)return null;/* 59.5999 = sans temps d'engagement */const m=Math.floor(x),r=Math.round((x-m)*10000);return +(m*60+r/100).toFixed(2)}
+async function ffxRead(file){let txt;if(/\.zip$/i.test(file.name)){const buf=new Uint8Array(await file.arrayBuffer());txt=await unzipFind(buf,/\.xml$/i);if(!txt)throw new Error("pas de fichier .xml dans le zip")}else txt=await file.text();return txt}
+/* zip minimal (méthodes 0 et 8) via DecompressionStream */
+async function unzipFind(u8,re){const dv=new DataView(u8.buffer);let i=0;while(i+30<u8.length&&dv.getUint32(i,true)===0x04034b50){const meth=dv.getUint16(i+8,true),csz=dv.getUint32(i+18,true),nl=dv.getUint16(i+26,true),xl=dv.getUint16(i+28,true);const name=new TextDecoder().decode(u8.subarray(i+30,i+30+nl));const st=i+30+nl+xl,data=u8.subarray(st,st+csz);
+  if(re.test(name)){if(meth===0)return new TextDecoder().decode(data);const ds=new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));return await new Response(ds).text()}i=st+csz}return null}
+function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/xml"),M=D.querySelector("MEET");if(!M)throw new Error("ce n'est pas un fichier extraNat (ffnex)");
+  const A=(e,k)=>e.getAttribute(k)||"",days=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"],mois=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const dayOf=s=>{const d=new Date(s.slice(0,10)+"T12:00:00");return isNaN(d)?"":`${days[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]} ${d.getFullYear()}`},hh=s=>{const m=String(s).match(/(\d{2}):(\d{2})/);return m?m[1]+"h"+m[2]:""};
+  const P=M.querySelector("POOL"),clubs={},sw={};M.querySelectorAll("CLUB").forEach(c=>clubs[A(c,"id")]=A(c,"name"));
+  M.querySelectorAll("SWIMMER").forEach(s=>sw[A(s,"id")]={iuf:A(s,"id"),name:A(s,"lastname").toUpperCase()+" "+A(s,"firstname").replace(/(^|[\s-])(\p{Ll})/gu,(m,a,b)=>a+b.toUpperCase()),year:+A(s,"birthdate").slice(0,4)||null,club:clubs[A(s,"clubid")]||"",sex:A(s,"gender")});
+  const meta={name:A(M,"name"),city:A(M,"city"),pool:P&&A(P,"size")?A(P,"size")+" m":"",date:dayOf(A(M,"startdate"))};
+  const res={};M.querySelectorAll("RESULT").forEach(r=>{(res[A(r,"raceid")+"|"+A(r,"roundid")]=res[A(r,"raceid")+"|"+A(r,"roundid")]||[]).push(r)});
+  const reunions=[],events={};
+  M.querySelectorAll("SESSION").forEach(S=>{const R={n:+A(S,"number"),day:dayOf(A(S,"datetime")),doors:"",items:[]};
+    S.querySelectorAll("EVENT").forEach(E=>{if(A(E,"type")!=="RACE"){R.items.push({kind:"note",text:A(E,"name")});return}
+      const epr=+A(E,"raceid"),typ=+A(E,"roundid"),key=String(epr)+(typ&&typ!==60?"-"+typ:""),name=ffxEvName(epr),rows=res[A(E,"raceid")+"|"+A(E,"roundid")]||[];
+      const byH={};rows.forEach(r=>{const h=+A(r,"heat")||1;(byH[h]=byH[h]||[]).push(r)});const hs=Object.keys(byH).map(Number).sort((a,b)=>a-b);
+      const heats=hs.map(h=>({n:h,of:hs.length,time:hh(A(E,"datetime")),lanes:byH[h].map(r=>{const solo=r.querySelector("SOLO"),rel=r.querySelector("RELAY"),entry=ffxTime(A(r,"qualifyingtime"));
+        if(rel){const ms=[...r.querySelectorAll("RELAYPOSITION")].sort((a,b)=>A(a,"number")-A(b,"number")).map(p=>sw[A(p,"swimmerid")]).filter(Boolean).map(w=>({name:w.name,year:String(w.year||"")}));
+          const club=clubs[A(r,"clubid")]||"",nt=rows.filter(x=>A(x,"clubid")===A(r,"clubid")).length;return{lane:+A(r,"lane"),name:ms[0]?ms[0].name:club,year:ms[0]?ms[0].year:"",club,team:nt>1?(club+" "+(A(r,"team")||"")).trim():club,...(entry?{entry}:{}),members:ms}}
+        const w=sw[solo?A(solo,"swimmerid"):""]||{};return{lane:+A(r,"lane"),name:w.name||"",year:String(w.year||""),club:w.club||clubs[A(r,"clubid")]||"",iuf:w.iuf,...(entry?{entry}:{})}}).sort((a,b)=>a.lane-b.lane)}));
+      R.items.push({kind:"event",epr,cat:+A(E,"agegroupid")||0,typ,num:R.items.filter(x=>x.kind==="event").length,time:hh(A(E,"datetime")),name,round:typ===60?"Séries":"",alias:"",category:"",fin:"",key,nSeries:hs.length,nPart:rows.length});
+      if(heats.length)events[key]={heats}});
+    reunions.push(R)});
+  return{c:A(M,"id"),meta,reunions,events,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
+document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-file")return;const f=e.target.files[0],m=$("#ffx-msg");if(!f)return;m.textContent="Lecture du fichier…";
+  try{const P=ffxParse(await ffxRead(f));m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
+    const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme ajouté · ":"programme déjà présent (Live FFN) · "}${j.heats} épreuve(s) avec séries · ${j.roster} nageur(s) ajouté(s) aux engagés. Le Live FFN complétera.`;try{refresh&&refresh()}catch(_){}}
+  catch(err){m.textContent="Import impossible : "+err.message}e.target.value=""});
 function render(){try{docSys()}catch(_){}if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history[RV&&RV!==state.view&&!POPPING?"pushState":"replaceState"](null,"",location.pathname+location.search+want)}catch(_){}RV=state.view}
   if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");/* écran du mot de passe ouvert : les rafraîchissements du direct ne doivent pas le refermer */
   if(state.login&&!state.admin){$("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-admin").hidden=true;$("#view-login").hidden=false;return}
