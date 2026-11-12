@@ -953,6 +953,7 @@ body.tv{overflow:hidden}
 @keyframes fw{0%{opacity:0;transform:scale(.1)}12%{opacity:1}55%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.25) translateY(3px)}}
 @media (prefers-reduced-motion:reduce){.recb::after,.recb .fw s{animation:none!important}.recb .fw{display:none}}
 </style>
+<link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
 <div class="sea" aria-hidden="true"></div>
@@ -1846,7 +1847,7 @@ let LOGOS={};
 /* ---------- Mes nageurs (favoris enregistrés sur le téléphone) ---------- */
 // nageurs et clubs suivis : propres à chaque live
 let FAV={sw:{},cl:{}};try{const f=JSON.parse(localStorage.getItem("sd-fav:"+EV)||"null");if(f&&f.sw&&f.cl)FAV=f}catch(_){}
-function favSave(){try{localStorage.setItem("sd-fav:"+EV,JSON.stringify(FAV))}catch(_){}}
+function favSave(){try{localStorage.setItem("sd-fav:"+EV,JSON.stringify(FAV))}catch(_){}try{setTimeout(()=>pushSync(false),300)}catch(_){}}
 function favCount(){return Object.keys(FAV.sw).length+Object.keys(FAV.cl).length}
 function isFavSw(id){return!!id&&!!FAV.sw[id]}
 function isFavName(name){if(!name)return false;const n=norm(name);return Object.values(FAV.sw).some(x=>norm(x)===n)}
@@ -2485,7 +2486,7 @@ function alertWatched(key){const ev=EVENTS[key];if(!ev||ev.type!=="event")return
 function alertShow(title,body,key){try{if("Notification"in window&&Notification.permission==="granted"){const n=new Notification(title,{body,icon:"/favicon.png",tag:"sd-"+(key||title)});n.onclick=()=>{window.focus();if(key){DEEP={v:"prog",arg:key};state.view="prog";render()}}}}catch(_){}
   let box=$("#al-toasts");if(!box){box=document.createElement("div");box.id="al-toasts";box.setAttribute("role","status");box.setAttribute("aria-live","polite");document.body.appendChild(box)}
   const t=document.createElement("button");t.type="button";t.className="al-toast";t.innerHTML=`<b>${esc(title)}</b><span>${esc(body)}</span>`;t.onclick=()=>{t.remove();if(key){DEEP={v:"prog",arg:key};state.view="prog";render()}};box.appendChild(t);setTimeout(()=>t.remove(),12000);try{navigator.vibrate&&navigator.vibrate([120,60,120])}catch(_){}}
-function alertTick(){if(state.admin||!state.order||!Object.keys(EVENTS).length)return;const done=doneSet(),sch=schedule(),now={},st=evStatus();
+let PSYNC=0;function alertTick(){if(state.admin||!state.order||!Object.keys(EVENTS).length)return;if(!PSYNC){PSYNC=1;setTimeout(()=>pushSync(false),1500)}const done=doneSet(),sch=schedule(),now={},st=evStatus();
   for(const k of allKeys()){if(!alertWatched(k))continue;now[k]={live:!!poolIn(k),done:done.has(k),t:sch[k]?Math.round(sch[k].start/60):null}}
   const first=!ALS;const prev=ALS||{ev:{},fin:false};
   if(!first)for(const [k,v] of Object.entries(now)){const p=prev.ev[k],nm=EVENTS[k].name,cm=state.comps.length>1?" · "+((comp(EVENTS[k].comp)||{}).name||""):"";if(!p)continue;
@@ -2496,7 +2497,17 @@ function alertTick(){if(state.admin||!state.order||!Object.keys(EVENTS).length)r
   ALS={ev:now,fin};try{localStorage.setItem("sd-als:"+EV,JSON.stringify(ALS))}catch(_){}}
 document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("[data-follow]");if(!b)return;e.preventDefault();e.stopPropagation();const k=b.dataset.follow;
   if(FOLLOW[k])delete FOLLOW[k];else{FOLLOW[k]=1;try{if("Notification"in window&&Notification.permission==="default")await Notification.requestPermission()}catch(_){}}
-  followSave();if(ALS&&ALS.ev&&FOLLOW[k]){const sch=schedule();ALS.ev[k]={live:!!poolIn(k),done:doneSet().has(k),t:sch[k]?Math.round(sch[k].start/60):null}}render()},true);
+  followSave();pushSync(!!FOLLOW[k]);if(ALS&&ALS.ev&&FOLLOW[k]){const sch=schedule();ALS.ev[k]={live:!!poolIn(k),done:doneSet().has(k),t:sch[k]?Math.round(sch[k].start/60):null}}render()},true);
+/* notifications push (page fermée) : le téléphone s'abonne avec la liste de ses épreuves suivies (épreuves « M'alerter » + épreuves des nageurs/clubs suivis) */
+let PUSHK=undefined;
+async function pushSync(ask){try{if(!("serviceWorker"in navigator)||!("PushManager"in window)||!("Notification"in window))return false;
+  if(PUSHK===undefined){PUSHK=(await (await fetch("/api/push/key")).json()).key||null}if(!PUSHK)return false;
+  const want=[];const seen=new Set();for(const k of allKeys()){const ev=EVENTS[k];if(!ev||ev.type!=="event")continue;if(FOLLOW[k]||alertWatched(k)){if(seen.has(k))continue;seen.add(k);want.push({key:k,name:ev.name,comp:(comp(ev.comp)||{}).name||""})}}
+  const reg=await navigator.serviceWorker.register("/sw.js");let sub=await reg.pushManager.getSubscription();
+  if(!want.length){if(sub)await fetch(evq("/api/push/sub"),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sub,follow:[]})});return true}
+  if(Notification.permission!=="granted"){if(!ask)return false;if(await Notification.requestPermission()!=="granted")return false}
+  if(!sub){const k=Uint8Array.from(atob(PUSHK.replace(/-/g,"+").replace(/_/g,"/")+"===".slice((PUSHK.length+3)%4)),c=>c.charCodeAt(0));sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:k})}
+  await fetch(evq("/api/push/sub"),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sub,follow:want})});return true}catch(e){return false}}
 function renderProg(){
   const sch=schedule(),done=doneSet(),q=getQ(),fc=$("#filter-comp").value,eng=state.phase==="eng";let html=engBanner();
   if(!eng)html+=`<p class="tnote">${state.timing==="elec"?"Horaires recalculés en direct à partir des résultats":"Horaires estimés, ajustés par l'organisation"+(Object.values(state.delay).some(v=>v)?" · retard pris en compte":"")}</p>`;

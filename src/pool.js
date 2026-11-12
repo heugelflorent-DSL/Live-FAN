@@ -4,6 +4,8 @@ import { get as ffnGet } from "./ffn.js";
 // les spectateurs reçoivent l'état complet par WebSocket. Le chrono tourne sur chaque téléphone à partir de l'heure de départ.
 
 import { empty, applyEvent, isExtra } from "./poolcore.js";
+import { pushNotify, evSig, compClose } from "./push.js";
+import { euEnv } from "./eu.js";
 
 export class PoolRoom {
   constructor(ctx, env) {
@@ -122,8 +124,19 @@ export class PoolRoom {
       { const ver = url.searchParams.get("ver"); if (ver) { this.s.chronoVer = ver; this.s.chronoAt = Date.now(); } }
       const body = await req.json().catch(() => null);
       const list = Array.isArray(body) ? body : body ? [body] : [];
+      const snap = () => { const h = this.s.heat; return h ? { st: h.status, e: h.event, h: h.heat, of: h.heats, t: h.title || "", c: h.comp || "", sim: !!h.sim } : null; };
+      const b0 = snap();
       let n = 0; for (const ev of list.slice(0, 50)) if (ev && typeof ev === "object" && this.apply(ev)) n++;
       if (n) { await this.ctx.storage.put("s", this.s); this.broadcast(); }
+      /* notifications push des épreuves suivies : départ de la 1re série, résultats à la fin de la dernière série (titre du Quantum → signature de l'épreuve) */
+      const live = url.searchParams.get("ev"), b1 = snap();
+      if (live && b1 && !b1.sim && b1.t) {
+        const m = (f) => f.sig === evSig(b1.t) && compClose(f.comp, b1.c);
+        const started = b1.st === "running" && (!b0 || b0.st !== "running" || b0.e !== b1.e || b0.h !== b1.h) && (b1.h || 1) === 1;
+        const ended = b1.st === "done" && (!b0 || b0.st !== "done" || b0.h !== b1.h) && b1.of && (b1.h || 1) >= +b1.of;
+        if (started) this.ctx.waitUntil(pushNotify(euEnv(this.env), live, m, { title: "▶ C'est parti : " + b1.t, body: "L'épreuve commence" + (b1.c ? " · " + b1.c : "") }).catch(() => {}));
+        if (ended) this.ctx.waitUntil(pushNotify(euEnv(this.env), live, m, { title: "✓ Terminé : " + b1.t, body: "Dernière série terminée, résultats en cours de publication" }).catch(() => {}));
+      }
       return Response.json({ ok: true, applied: n, spectators: this.ctx.getWebSockets().length, now: Date.now() });
     }
     return new Response(this.snapshot(), { headers: { "content-type": "application/json", "cache-control": "no-store" } });

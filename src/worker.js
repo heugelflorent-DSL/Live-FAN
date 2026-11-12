@@ -354,7 +354,7 @@ async function runTask(task, data, now) {
       // série finale d'une épreuve au temps (800, 1500) : même page que les séries lentes du matin → pas terminée avant son heure
       const sf = ev.typ === 61 && evs.some((x) => x.typ === 62); const at = sf ? evStartAt(c, ev) : null;
       if (sf && at && now < at + 3 * 60e3) { if (st.doneAt) { delete st.doneAt; data.dirty = true; } continue; }
-      if (n && !st.doneAt && (n >= exp || exp === 0)) st.doneAt = now;
+      if (n && !st.doneAt && (n >= exp || exp === 0)) { st.doneAt = now; (data.pushQ = data.pushQ || []).push({ t: "res", key: task.c + "-" + ev.key, name: ev.name }); }
     }
   }
 }
@@ -488,8 +488,15 @@ async function cycleOnce(env, { force = false, ev = "main", budget = BUDGET } = 
   if (!errors) { data.lastOk = now; data.error = null; if (data.block) { delete data.block; data.dirty = true; } }
   // les horodatages seuls ne justifient pas une écriture KV (1 000 écritures/jour en gratuit) : on écrit si le contenu a changé
   // (repéré pendant la lecture, sans recomparer tout le fichier : trop coûteux pour une grosse compétition)
+  const pq = data.pushQ || []; delete data.pushQ;
+  /* toutes les épreuves terminées : « classement final » une seule fois */
+  { const all = Object.values(data.comps || {}).flatMap((c) => Object.values(c.events || {})); if (all.length && all.every((e) => e.doneAt) && !data.pushFinal) { data.pushFinal = now; data.dirty = true; pq.push({ t: "fin" }); } }
   const dirty = data.dirty || errors || data.queue.length; delete data.dirty;
   if (dirty || !data.savedAt) { data.savedAt = now; await saveData(env, data, "", ev); }
+  for (const x of pq.slice(0, 5)) { try {
+    if (x.t === "fin") await pushNotify(env, ev, true, { title: "🏁 Classement final", body: "La compétition est terminée : classements et podiums définitifs." });
+    else await pushNotify(env, ev, (f) => f.key === x.key, { title: "✓ Résultats : " + x.name, body: "Les résultats sont publiés", key: x.key });
+  } catch (e) {} }
   return used;
 }
 
@@ -637,6 +644,7 @@ async function rescrape(env, scope, what, ev = "main") {
   return tasks.length;
 }
 
+import { pushNotify, evSig, compClose } from "./push.js";
 export default {
   async fetch(req, env, ctx) {
     env = euEnv(env); // données et relais en Europe
@@ -697,6 +705,17 @@ export default {
 
     // logiciel du chrono relié par clé de liaison
     const TOKEN = req.headers.get("x-relay-token") || "";
+    // notifications push (page fermée) : clé publique, abonnement / désabonnement d'un téléphone avec ses épreuves suivies
+    if (p === "/api/push/key") return json({ key: env.VAPID_PUBLIC || null });
+    if (p === "/api/push/sub" && req.method === "POST") {
+      const b = await req.json().catch(() => null); const sub = b && b.sub;
+      if (!sub || !/^https:\/\//.test(sub.endpoint || "") || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return json({ error: "abonnement invalide" }, 400);
+      const id = sub.endpoint.slice(-48); const all = (await env.KV.get(kk("push", ev), "json")) || {};
+      const follow = (Array.isArray(b.follow) ? b.follow : []).slice(0, 200).map((f) => ({ key: String(f.key || "").slice(0, 60), name: String(f.name || "").slice(0, 80), comp: String(f.comp || "").slice(0, 80), sig: evSig(f.name) }));
+      if (!follow.length) delete all[id]; else all[id] = { sub: { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } }, follow, at: Date.now() };
+      const ids = Object.keys(all); if (ids.length > 3000) for (const x of ids.sort((a, z) => all[a].at - all[z].at).slice(0, ids.length - 3000)) delete all[x];
+      await env.KV.put(kk("push", ev), JSON.stringify(all)); return json({ ok: true, n: follow.length });
+    }
     if (TOKEN && p.startsWith("/api/relay/")) {
       const pr = await pairOf(env, TOKEN);
       if (p === "/api/relay/hello") {
@@ -707,7 +726,7 @@ export default {
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
       const ver = encodeURIComponent((req.headers.get("x-chrono-version") || "").slice(0, 20));
-      if (p === "/api/relay/event" && req.method === "POST") return room.fetch(new Request("https://pool/event?ver=" + ver, { method: "POST", body: await req.text() }));
+      if (p === "/api/relay/event" && req.method === "POST") return room.fetch(new Request("https://pool/event?ver=" + ver + "&ev=" + encodeURIComponent(pr.ev), { method: "POST", body: await req.text() }));
       if (p === "/api/relay/log" && req.method === "POST") return room.fetch(new Request("https://pool/log?ver=" + ver + "&day=" + (url.searchParams.get("day") || ""), { method: "POST", body: await req.arrayBuffer() }));
       return json({ error: "Inconnu" }, 404);
     }
