@@ -480,8 +480,7 @@ input[type="checkbox"]{accent-color:var(--red);width:18px;height:18px}
 .step>summary .hint{margin-left:auto;font-weight:500;font-size:13px;color:var(--muted)}
 .step[open]>summary{border-bottom:1px solid var(--line)}
 .step-body{padding:14px 16px 16px;display:grid;gap:12px}
-.comp{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--card-in);border:1px solid var(--line)}
-.comp .plock{display:flex;gap:5px;align-items:center;font-size:12px;white-space:nowrap;color:var(--muted);cursor:pointer}
+.comp{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--card-in);border:1px solid var(--line)}
 .comp small{display:block;font-size:12px;color:var(--muted)}
 .x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px}
 .x:hover{color:#fff}
@@ -1041,6 +1040,7 @@ body.tv{overflow:hidden}
           <div class="grid2c" id="sess-starts"></div>
           <label for="s-heat">Battement entre deux départs (secondes)<input class="field" type="number" id="s-heat" min="0" step="5"><span class="msg" style="font-weight:400">Le même temps entre deux séries et entre deux épreuves.</span></label>
           <p class="msg">Ordre du bassin : glisse-dépose les épreuves, ou utilise les flèches sur téléphone. « + Ligne libre » ajoute le texte de ton choix (pause, remise des médailles…) avec une durée, 0 si elle ne prend pas de temps.</p>
+          <label style="display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-weight:600;cursor:pointer;margin:4px 0 10px"><input type="checkbox" id="prog-lock"> 🔒 Figer l'ordre du programme <span class="msg" style="font-weight:400;grid-column:2">L'ordre et les heures de début ne bougent plus quand le Live FFN ou un import extraNat change (alternance entre compétitions conservée). Une épreuve nouvelle s'ajoute à la fin de sa réunion.</span></label>
           <div id="order"></div>
         </div>
       </details>
@@ -1371,10 +1371,10 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
   for(const n of Object.keys(byReu)){
     const saved=((cfg.order||{})[n]||[]).filter(k=>EVENTS[k]||state.lines[k]);
     const fresh=byReu[n].keys.filter(k=>!saved.includes(k)).sort((a,b)=>(EVENTS[a].ffnSec??0)-(EVENTS[b].ffnSec??0));
-    const list=[...saved];
-    for(const k of fresh){const t=EVENTS[k].ffnSec??0;let i=list.findIndex(x=>EVENTS[x]&&(EVENTS[x].ffnSec??0)>t);if(i<0)i=list.length;list.splice(i,0,k)}
+    const list=[...saved];const lock=!!cfg.progLock&&saved.length;
+    if(lock)list.push(...fresh);else for(const k of fresh){const t=EVENTS[k].ffnSec??0;let i=list.findIndex(x=>EVENTS[x]&&(EVENTS[x].ffnSec??0)>t);if(i<0)i=list.length;list.splice(i,0,k)}
     const off=new Set(cfg.linesOff||[]);
-    for(const x of byReu[n].notes||[]){if(list.includes(x.key)||off.has(x.key))continue;let i=x.after?list.indexOf(x.after)+1:0;
+    for(const x of byReu[n].notes||[]){if(lock||list.includes(x.key)||off.has(x.key))continue;let i=x.after?list.indexOf(x.after)+1:0;
       while(i>0&&i<list.length&&state.lines[list[i]]&&state.lines[list[i]].ffn)i++; // plusieurs lignes à la suite : gardées dans l'ordre
       list.splice(i,0,x.key)}
     order[n]=list;
@@ -1382,10 +1382,10 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
     // heure de début : celle du Live FFN, sauf si l'admin l'a changée depuis la dernière heure FFN connue
     // (si le Live FFN change son horaire après coup, c'est le nouvel horaire FFN qui l'emporte)
     const ffnH=first<1e9?secToHHMM(first):"",sv=(cfg.starts||{})[n];state.startsFfn=state.startsFfn||{};state.startsFfn[n]=ffnH;
-    state.starts[n]=sv&&(!ffnH||(cfg.startsFfn||{})[n]===ffnH)?sv:(ffnH||sv||"10:00");
+    state.starts[n]=sv&&(lock||!ffnH||(cfg.startsFfn||{})[n]===ffnH)?sv:(ffnH||sv||"10:00");
   }
   for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn,man:!!l.man};
-  state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));state.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
+  state.progLock=!!cfg.progLock;state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));state.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
   mergeInitials();
   if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
   state.loaded=true;
@@ -1393,7 +1393,7 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min,...(EVENTS[k].ffn?{ffn:1}:{}),...(EVENTS[k].man?{man:1}:{})};
   const inOrd=new Set(Object.values(state.order).flat());const linesOff=(state.ffnNotes||[]).filter(k=>!inOrd.has(k));
-  return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
+  return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,progLock:!!state.progLock,lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
     rankings:state.podRules,finals:state.finals||{},infos:state.infos,qualFor:state.qualFor||[],masters:!!state.masters,qualReset:state.qualReset||{},published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -2837,8 +2837,8 @@ function shrink(file,W=96,H=96,max=40000,q=.85){return new Promise((ok,ko)=>{con
 function renderAdmin(){renderLogos();renderFinRules();renderQuals();
   $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";if(document.activeElement!==$("#rank-tab"))$("#rank-tab").value=state.rankTab||"";if(state.color)$("#ev-color").value=state.color;$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
-  $("#s-heat").value=state.heatGap;
-  $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><label class="plock" title="Le programme ne change plus (ni import extraNat, ni Live FFN)"><input type="checkbox" data-plock="${c.id}" ${RAW&&RAW.data&&RAW.data.comps&&RAW.data.comps[c.id]&&RAW.data.comps[c.id].progLock?"checked":""}> 🔒 Figer le programme</label><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
+  $("#s-heat").value=state.heatGap;if($("#prog-lock"))$("#prog-lock").checked=!!state.progLock;
+  $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
   // saisie en cours dans un horaire : on ne reconstruit pas les champs (sinon on perd le curseur après le 1er chiffre)
   if(!$("#sess-starts").contains(document.activeElement))$("#sess-starts").innerHTML=Object.keys(state.order).map(s=>`<label for="st-${s}">Début réunion ${s}<input class="field" type="time" id="st-${s}" data-start="${s}" value="${state.starts[s]}"></label>`).join("");
   const sch=schedule();
@@ -2931,7 +2931,6 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
       if(heats.length)events[key]={heats}});
     reunions.push(R)});
   return{c:A(M,"id"),meta,reunions,events,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
-document.addEventListener("change",async e=>{const pl=e.target&&e.target.dataset&&e.target.dataset.plock;if(!pl)return;const on=e.target.checked;try{await api("/api/admin/proglock",{method:"POST",body:JSON.stringify({c:pl,on})});const d=RAW&&RAW.data;if(d){d.comps=d.comps||{};d.comps[pl]=d.comps[pl]||{};if(on)d.comps[pl].progLock=1;else delete d.comps[pl].progLock}}catch(x){e.target.checked=!on;alertMsg(x.message)}});
 document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-file")return;const f=e.target.files[0],m=$("#ffx-msg");if(!f)return;m.textContent="Lecture du fichier…";
   try{const P=ffxParse(await ffxRead(f));m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
     const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme ajouté · ":"programme déjà présent (Live FFN) · "}${j.heats} épreuve(s) avec séries · ${j.roster} nageur(s) ajouté(s) aux engagés. Le Live FFN complétera.`;try{refresh&&refresh()}catch(_){}}
@@ -3023,6 +3022,7 @@ $("#ev-slug-go").onclick=async()=>{const to=($("#ev-slug").value||"").toLowerCas
   try{await saveNow();const j=await api("/api/admin/events",{method:"PATCH",body:JSON.stringify({to})});await switchEvent(j.id);msg.textContent="Adresse changée ✓"}catch(err){msg.textContent=err.message}};
 $("#ev-del").onclick=async()=>{if(EV==="main")return;if(!confirm("Supprimer définitivement cet événement (réglages et données) ? Le lien public ne fonctionnera plus."))return;try{await api("/api/admin/events",{method:"DELETE"});await switchEvent("main")}catch(err){alert(err.message)}};
 $("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
+$("#prog-lock").onchange=e=>{state.progLock=e.target.checked;render()};
 $("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};
 
 $("#link-replace").onclick=async()=>{

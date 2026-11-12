@@ -178,7 +178,7 @@ export function plan(cfg, data, now, live, LI = {}) {
   const tasks = [];
   for (const id of cfg.comps) {
     const c = data.comps[id];
-    if (c && c.progLock) {} else if (!c || !c.progAt || now - c.progAt > progEvery(c, now) || progDue(c, now)) tasks.push({ t: "prog", c: id });
+    if (!c || !c.progAt || now - c.progAt > progEvery(c, now) || progDue(c, now)) tasks.push({ t: "prog", c: id });
     if (!c) continue;
     for (const r of c.reunions || []) {
       const evs = r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, key: i.key || String(i.epr) }));
@@ -795,7 +795,7 @@ export default {
       const alias = ffxAlias(b, data.comps);
       const c = (data.comps[b.c] = data.comps[b.c] || {}); const now = Date.now(); const n = { prog: 0, heats: 0, roster: 0 };
       if (b.meta && !c.meta) c.meta = b.meta;
-      if (Array.isArray(b.reunions) && b.reunions.length && !c.progLock) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
+      if (Array.isArray(b.reunions) && b.reunions.length) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
       c.events = c.events || {};
       for (const [k, e] of Object.entries(b.events || {})) {
         const cur = (c.events[k] = c.events[k] || {});
@@ -806,14 +806,6 @@ export default {
         for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } else if (r.iuf && at[k] != null) c.roster[at[k]] = { ...c.roster[at[k]], ...r }; } if (n.roster) c.rosterAt = now; }
       data.dirty = true; await saveData(env, data, before, ev);
       return json({ ok: true, ...n, clubs: Object.keys(alias).length });
-    }
-    // figer le programme d'une compétition : ni l'import extraNat ni le Live FFN ne le changent plus
-    if (p === "/api/admin/proglock" && req.method === "POST") {
-      if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
-      const b = await req.json().catch(() => null); const { config, data } = await load(env, ev); const before = JSON.stringify(data);
-      if (!b || !config.comps.map(String).includes(String(b.c))) return json({ error: "Compétition inconnue." }, 400);
-      const c = (data.comps[b.c] = data.comps[b.c] || {}); if (b.on) c.progLock = 1; else delete c.progLock;
-      data.dirty = true; await saveData(env, data, before, ev); return json({ ok: true, on: !!c.progLock });
     }
     if (p === "/api/admin/mpp" && req.method === "GET") {
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
