@@ -2918,6 +2918,11 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
   M.querySelectorAll("SWIMMER").forEach(s=>sw[A(s,"id")]={iuf:A(s,"id"),name:A(s,"lastname").toUpperCase()+" "+A(s,"firstname").replace(/(^|[\s-])(\p{Ll})/gu,(m,a,b)=>a+b.toUpperCase()),year:+A(s,"birthdate").slice(0,4)||null,club:clubs[A(s,"clubid")]||"",sex:A(s,"gender")});
   const meta={name:A(M,"name"),city:A(M,"city"),pool:P&&A(P,"size")?A(P,"size")+" m":"",date:dayOf(A(M,"startdate"))};
   const res={};M.querySelectorAll("RESULT").forEach(r=>{(res[A(r,"raceid")+"|"+A(r,"roundid")]=res[A(r,"raceid")+"|"+A(r,"roundid")]||[]).push(r)});
+  // Interclubs : numéro d'équipe de chaque engagement (RESULT team) → composition des équipes, comme la page « structures » du Live FFN
+  const tmax={};M.querySelectorAll("RESULT").forEach(r=>{const c=A(r,"clubid"),t=+A(r,"team")||1;tmax[c]=Math.max(tmax[c]||1,t)});
+  const teams={},tseen={};M.querySelectorAll("RESULT").forEach(r=>{const cid=A(r,"clubid");if(!(tmax[cid]>1))return;const club=clubs[cid];if(!club)return;const t=+A(r,"team")||1;
+    const ids=r.querySelector("RELAY")?[...r.querySelectorAll("RELAYPOSITION")].map(p=>A(p,"swimmerid")):[A(r.querySelector("SOLO")||r,"swimmerid")];
+    for(const id of ids){const w=sw[id];if(!w||tseen[id])continue;tseen[id]=1;(teams[club]=teams[club]||[]).push({team:t,name:w.name,year:String(w.year||"")})}});
   const reunions=[],events={};
   M.querySelectorAll("SESSION").forEach(S=>{const R={n:+A(S,"number"),day:dayOf(A(S,"datetime")),doors:"",items:[]};
     S.querySelectorAll("EVENT").forEach(E=>{if(A(E,"type")!=="RACE"){R.items.push({kind:"note",text:A(E,"name")});return}
@@ -2925,12 +2930,12 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
       const byH={};rows.forEach(r=>{const h=+A(r,"heat")||1;(byH[h]=byH[h]||[]).push(r)});const hs=Object.keys(byH).map(Number).sort((a,b)=>a-b);
       const heats=hs.map(h=>({n:h,of:hs.length,time:hh(A(E,"datetime")),lanes:byH[h].map(r=>{const solo=r.querySelector("SOLO"),rel=r.querySelector("RELAY"),entry=ffxTime(A(r,"qualifyingtime"));
         if(rel){const ms=[...r.querySelectorAll("RELAYPOSITION")].sort((a,b)=>A(a,"number")-A(b,"number")).map(p=>sw[A(p,"swimmerid")]).filter(Boolean).map(w=>({name:w.name,year:String(w.year||"")}));
-          const club=clubs[A(r,"clubid")]||"",nt=rows.filter(x=>A(x,"clubid")===A(r,"clubid")).length;return{lane:+A(r,"lane"),name:ms[0]?ms[0].name:club,year:ms[0]?ms[0].year:"",club,team:nt>1?(club+" "+(A(r,"team")||"")).trim():club,...(entry?{entry}:{}),members:ms}}
+          const club=clubs[A(r,"clubid")]||"",nt=Math.max(rows.filter(x=>A(x,"clubid")===A(r,"clubid")).length,tmax[A(r,"clubid")]||1);return{lane:+A(r,"lane"),name:ms[0]?ms[0].name:club,year:ms[0]?ms[0].year:"",club,team:nt>1?(club+" "+(A(r,"team")||"")).trim():club,...(entry?{entry}:{}),members:ms}}
         const w=sw[solo?A(solo,"swimmerid"):""]||{};return{lane:+A(r,"lane"),name:w.name||"",year:String(w.year||""),club:w.club||clubs[A(r,"clubid")]||"",iuf:w.iuf,...(entry?{entry}:{})}}).sort((a,b)=>a.lane-b.lane)}));
       R.items.push({kind:"event",epr,cat:+A(E,"agegroupid")||0,typ,num:R.items.filter(x=>x.kind==="event").length,time:hh(A(E,"datetime")),name,round:typ===60?"Séries":"",alias:"",category:"",fin:"",key,nSeries:hs.length,nPart:rows.length});
       if(heats.length)events[key]={heats}});
     reunions.push(R)});
-  return{c:A(M,"id"),meta,reunions,events,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
+  return{c:A(M,"id"),meta,reunions,events,teams,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
 document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-file")return;const f=e.target.files[0],m=$("#ffx-msg");if(!f)return;m.textContent="Lecture du fichier…";
   try{const P=ffxParse(await ffxRead(f));m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
     const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme ajouté · ":"programme déjà présent (Live FFN) · "}${j.heats} épreuve(s) avec séries · ${j.roster} nageur(s) ajouté(s) aux engagés. Le Live FFN complétera.`;try{refresh&&refresh()}catch(_){}}

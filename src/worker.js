@@ -801,6 +801,9 @@ export default {
         const cur = (c.events[k] = c.events[k] || {});
         if (e.heats && e.heats.length) { cur.heats = e.heats; cur.heatsAt = 1; cur.heatsSrc = "ffnex"; n.heats++; }
       }
+      // Interclubs : composition des équipes (remplace celle d'un import précédent, jamais celle lue sur le Live FFN)
+      if (b.teams && typeof b.teams === "object") { for (const [lg, sh] of Object.entries(alias)) if (b.teams[lg]) { b.teams[sh] = b.teams[lg]; delete b.teams[lg]; }
+        if (Object.keys(b.teams).length && (!c.teams || !Object.keys(c.teams).length || c.teamsSrc === "ffnex")) { c.teams = b.teams; c.teamsSrc = "ffnex"; n.teams = Object.keys(b.teams).length; } }
       if (Array.isArray(b.roster)) { const seen = new Set((c.roster || []).map((r) => String(r.iuf || r.name + "|" + r.year))); c.roster = c.roster || [];
         const at = {}; c.roster.forEach((r, i) => (at[String(r.iuf || r.name + "|" + r.year)] = i));
         for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } else if (r.iuf && at[k] != null) c.roster[at[k]] = { ...c.roster[at[k]], ...r }; } if (n.roster) c.rosterAt = now; }
