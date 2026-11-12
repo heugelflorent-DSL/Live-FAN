@@ -1039,6 +1039,7 @@ body.tv{overflow:hidden}
           <label for="timing">Chronométrage<select class="field" id="timing"><option value="elec:quantum">Électronique · Swiss Timing Quantum</option><option value="elec:ares">Électronique · Omega ARES 21</option><option value="elec:stramatel">Électronique · Stramatel</option><option value="elec:alge">Électronique · ALGE TimeManager</option><option value="manual">Manuel · horaires théoriques, retard saisi à la main</option></select><span class="msg" style="font-weight:400" id="timing-hint"></span></label>
           <div class="grid2c" id="sess-starts"></div>
           <div class="inline" style="margin-top:8px"><button class="btn small ghost" id="prog-print" type="button">🖨️ Programme pour les officiels (PDF)</button><label class="btn small ghost">Logo en haut à gauche (FFN)<input type="file" id="prog-lg" accept="image/*" hidden></label><button class="btn small ghost" id="prog-lgx" type="button" hidden>Retirer ce logo</button><span class="msg">Les deux compétitions dans l'ordre du bassin, série par série, couloir par couloir.</span></div>
+          <label for="s-nt">Nageur sans temps (NT) : secondes prévues par 50 m<input class="field" type="number" id="s-nt" min="20" step="5"><span class="msg" style="font-weight:400">Une série dont personne n'a de temps dure ce temps × la distance (75 → 1:15 au 50 m, 2:30 au 100 m, 5:00 au 4x50).</span></label>
           <label for="s-heat">Battement entre deux départs (secondes)<input class="field" type="number" id="s-heat" min="0" step="5"><span class="msg" style="font-weight:400">Le même temps entre deux séries et entre deux épreuves.</span></label>
           <p class="msg">Ordre du bassin : glisse-dépose les épreuves, ou utilise les flèches sur téléphone. « + Ligne libre » ajoute le texte de ton choix (pause, remise des médailles…) avec une durée, 0 si elle ne prend pas de temps.</p>
           <label style="display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-weight:600;cursor:pointer;margin:4px 0 10px"><input type="checkbox" id="prog-lock"> 🔒 Figer l'ordre du programme <span class="msg" style="font-weight:400;grid-column:2">L'ordre et les heures de début ne bougent plus quand le Live FFN ou un import extraNat change (alternance entre compétitions conservée). Une épreuve nouvelle s'ajoute à la fin de sa réunion.</span></label>
@@ -1265,7 +1266,8 @@ const swId=(name,year)=>norm(name)+"|"+(year||"");
 const hToSec=t=>{const m=String(t||"").match(/(\d{1,2})[h:](\d{2})/);return m?(+m[1]*3600+ +m[2]*60):null};
 const secToHHMM=s=>{s=Math.round(s/60);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
 function parisSec(ms){const p=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ms)).map(x=>[x.type,x.value]));return +p.hour*3600+ +p.minute*60+ +p.second}
-function defaultDur(name){const d=parseInt(name)||100;return {25:25,50:45,100:95,200:200,400:400,800:800,1500:1500}[d]||d}
+/* série sans temps d'engagement (NT / AT) : durée prévue = distance × temps réglé pour 50 m (relais 4x50 = 200 m) */
+function defaultDur(name){const m=String(name||"").match(/^(\d+)\s*[xX×]\s*(\d+)/),d=m?+m[1]*+m[2]:(parseInt(name)||100);return Math.round(d/50*(+state.ntPer50||75))}
 function totalDist(name){const m=name.match(/^(\d+)x(\d+)/);return m?(+m[1])*(+m[2]):parseInt(name)}
 
 /* listes masters du Live FFN : « 1980 C5 » → année 1980 + catégorie C5 (mcat) ; la clé des records perso garde la forme d'origine (myear) */
@@ -1307,7 +1309,7 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
           const sw=h.lanes.map(l=>{const team=relay?(l.club||l.name):null;const id2=relay?null:swId(l.name,l.year);
             return{lane:l.lane,heat:j+1,name:relay?team:l.name,year:relay?"":l.year,club:relay?team:l.club,time:l.entry,iuf:id2,relay,members:l.members||null,dns:!relay&&out.has(id2)}});
           const tms=sw.map(x=>x.time).filter(x=>x!=null);
-          return{n:h.n||j+1,swimmers:sw.sort((a,b)=>a.lane-b.lane),slowest:tms.length?Math.max(...tms):defaultDur(it.name)}});
+          return{n:h.n||j+1,swimmers:sw.sort((a,b)=>a.lane-b.lane),slowest:Math.max(tms.length?Math.max(...tms):0,sw.some(x=>x.time==null&&!x.dns)||!sw.length?defaultDur(it.name):0)}});
         const entries=series.flatMap(s=>s.swimmers);
         const results=res.map(x=>({iuf:x.relay?null:swId(x.name,x.year),name:x.relay?(x.team||x.club):x.name,year:x.relay?"":x.year,club:x.club,team:x.team,
           nat:x.relay?"":(x.nat||""),lic:x.relay?null:(x.iuf||null),res:x.time,dsq:!!x.status||!!x.hc,hc:!!x.hc,status:x.status,reason:x.reason,rank:x.place,points:x.points,members:x.relay||null,
@@ -1386,7 +1388,7 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
     state.starts[n]=sv&&(lock||!ffnH||(cfg.startsFfn||{})[n]===ffnH)?sv:(ffnH||sv||"10:00");
   }
   for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn,man:!!l.man};
-  state.progLock=!!cfg.progLock;state.order=order;state.progLogo=cfg.progLogo||"";state.doorsMan={...(cfg.doorsMan||{})};state.evac={...(cfg.evac||{})};state.doorsFfn=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||""]));state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||state.doorsMan[n]||""])); // ouverture des portes : Live FFN, sinon celle saisie dans l'adminstate.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
+  state.progLock=!!cfg.progLock;state.order=order;state.progLogo=cfg.progLogo||"";state.ntPer50=+cfg.ntPer50||75;state.doorsMan={...(cfg.doorsMan||{})};state.evac={...(cfg.evac||{})};state.doorsFfn=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||""]));state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||state.doorsMan[n]||""])); // ouverture des portes : Live FFN, sinon celle saisie dans l'adminstate.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
   mergeInitials();
   if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
   state.loaded=true;
@@ -1394,7 +1396,7 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min,...(EVENTS[k].ffn?{ffn:1}:{}),...(EVENTS[k].man?{man:1}:{})};
   const inOrd=new Set(Object.values(state.order).flat());const linesOff=(state.ffnNotes||[]).filter(k=>!inOrd.has(k));
-  return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,progLock:!!state.progLock,progLogo:state.progLogo||"",doorsMan:state.doorsMan||{},evac:state.evac||{},lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
+  return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,progLock:!!state.progLock,progLogo:state.progLogo||"",ntPer50:+state.ntPer50||75,doorsMan:state.doorsMan||{},evac:state.evac||{},lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
     rankings:state.podRules,finals:state.finals||{},infos:state.infos,qualFor:state.qualFor||[],masters:!!state.masters,qualReset:state.qualReset||{},published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -2842,7 +2844,7 @@ function shrink(file,W=96,H=96,max=40000,q=.85){return new Promise((ok,ko)=>{con
 function renderAdmin(){renderLogos();renderFinRules();renderQuals();
   $("#ev-name").value=state.name;$("#ev-theme").value=state.theme||"alsace";if(document.activeElement!==$("#rank-tab"))$("#rank-tab").value=state.rankTab||"";if(state.color)$("#ev-color").value=state.color;$("#ev-org").value=state.org||"";$("#ev-live").value=state.live||"off";$("#pool-sort").value=state.poolSort||"touch";$("#pool-hold").value=String(state.poolHold??0);simFill();{const o=$("#sim-open");if(o)o.href=(EV==="main"?"/":"/e/"+EV)+"#live"}relayState();$("#ev-engend").value=state.engEnd||"";$("#ev-progdate").value=state.progDate||"";$("#ev-pub").checked=state.published;
   const p=$("#pub-pill");p.className="pill "+(state.published?"on":"off");p.textContent=state.published?"En ligne":"Brouillon";
-  $("#s-heat").value=state.heatGap;if($("#prog-lock"))$("#prog-lock").checked=!!state.progLock;if($("#prog-lgx"))$("#prog-lgx").hidden=!state.progLogo;
+  $("#s-heat").value=state.heatGap;if($("#s-nt"))$("#s-nt").value=state.ntPer50||75;if($("#prog-lock"))$("#prog-lock").checked=!!state.progLock;if($("#prog-lgx"))$("#prog-lgx").hidden=!state.progLogo;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
   // saisie en cours dans un horaire : on ne reconstruit pas les champs (sinon on perd le curseur après le 1er chiffre)
   if(!$("#sess-starts").contains(document.activeElement))$("#sess-starts").innerHTML=Object.keys(state.order).map(s=>`<label for="st-${s}">Début réunion ${s}<input class="field" type="time" id="st-${s}" data-start="${s}" value="${state.starts[s]}"></label><label for="dr-${s}">Portes réunion ${s}${(state.doorsFfn||{})[s]?" (Live FFN)":""}<input class="field" type="time" id="dr-${s}" data-doors="${s}" value="${String((state.doorsFfn||{})[s]||(state.doorsMan||{})[s]||"").replace("h",":").replace(/^(\d):/,"0$1:")}"${(state.doorsFfn||{})[s]?" disabled":""}></label><label for="ev-${s}">Évacuation des bassins réunion ${s}<input class="field" type="time" id="ev-${s}" data-evac="${s}" value="${String((state.evac||{})[s]||"").replace("h",":")}"></label>`).join("");
@@ -3075,6 +3077,7 @@ $("#ev-slug-go").onclick=async()=>{const to=($("#ev-slug").value||"").toLowerCas
   try{await saveNow();const j=await api("/api/admin/events",{method:"PATCH",body:JSON.stringify({to})});await switchEvent(j.id);msg.textContent="Adresse changée ✓"}catch(err){msg.textContent=err.message}};
 $("#ev-del").onclick=async()=>{if(EV==="main")return;if(!confirm("Supprimer définitivement cet événement (réglages et données) ? Le lien public ne fonctionnera plus."))return;try{await api("/api/admin/events",{method:"DELETE"});await switchEvent("main")}catch(err){alert(err.message)}};
 $("#ev-pub").onchange=e=>{state.published=e.target.checked;render()};
+$("#s-nt").onchange=e=>{state.ntPer50=Math.max(20,+e.target.value||75);try{const c=toConfig();if(RAW)build(c,RAW.data)}catch(_){}markDirty();render()};
 $("#prog-lock").onchange=e=>{state.progLock=e.target.checked;render()};
 $("#s-heat").onchange=e=>{state.heatGap=state.eventGap=Math.max(0,+e.target.value||0);render()};
 
