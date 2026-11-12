@@ -1385,7 +1385,7 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
     state.starts[n]=sv&&(lock||!ffnH||(cfg.startsFfn||{})[n]===ffnH)?sv:(ffnH||sv||"10:00");
   }
   for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn,man:!!l.man};
-  state.progLock=!!cfg.progLock;state.order=order;state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors]));state.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
+  state.progLock=!!cfg.progLock;state.order=order;state.doorsMan={...(cfg.doorsMan||{})};state.doorsFfn=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||""]));state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||state.doorsMan[n]||""])); // ouverture des portes : Live FFN, sinon celle saisie dans l'adminstate.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
   mergeInitials();
   if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
   state.loaded=true;
@@ -1393,7 +1393,7 @@ function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
 function toConfig(){
   const lines={};for(const s of Object.values(state.order))for(const k of s)if(EVENTS[k]&&EVENTS[k].type==="pause")lines[k]={name:EVENTS[k].name,min:EVENTS[k].min,...(EVENTS[k].ffn?{ffn:1}:{}),...(EVENTS[k].man?{man:1}:{})};
   const inOrd=new Set(Object.values(state.order).flat());const linesOff=(state.ffnNotes||[]).filter(k=>!inOrd.has(k));
-  return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,progLock:!!state.progLock,lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
+  return{linesOff,name:state.name,theme:state.theme||"alsace",color:state.color||"",org:state.org||"",live:state.live||"off",poolHold:state.poolHold??0,poolSort:state.poolSort||"touch",engEnd:state.engEnd,progDate:state.progDate,comps:state.comps.map(c=>c.id),order:state.order,progLock:!!state.progLock,doorsMan:state.doorsMan||{},lines,starts:state.starts,startsFfn:state.startsFfn||{},gap:state.heatGap,timing:state.timing,chronoSys:state.chronoSys||"quantum",rankTab:(state.rankTab||"").trim(),delay:state.delay,
     rankings:state.podRules,finals:state.finals||{},infos:state.infos,qualFor:state.qualFor||[],masters:!!state.masters,qualReset:state.qualReset||{},published:state.published,scrape:state.scrape};
 }
 let pauseId=Date.now();
@@ -2840,7 +2840,7 @@ function renderAdmin(){renderLogos();renderFinRules();renderQuals();
   $("#s-heat").value=state.heatGap;if($("#prog-lock"))$("#prog-lock").checked=!!state.progLock;
   $("#comp-list").innerHTML=state.comps.map(c=>`<div class="comp"><span class="cdot k${c.k}"><i></i></span><div><b>${esc(c.name)}</b><small>Compétition ${c.id} · ${c.city} · ${c.loading?"lecture en cours…":Object.values(EVENTS).filter(e=>e.comp===c.id&&e.type==="event").length+" épreuves"}</small></div><button class="x" data-rm="${c.id}" aria-label="Retirer ${esc(c.name)}">×</button></div>`).join("");
   // saisie en cours dans un horaire : on ne reconstruit pas les champs (sinon on perd le curseur après le 1er chiffre)
-  if(!$("#sess-starts").contains(document.activeElement))$("#sess-starts").innerHTML=Object.keys(state.order).map(s=>`<label for="st-${s}">Début réunion ${s}<input class="field" type="time" id="st-${s}" data-start="${s}" value="${state.starts[s]}"></label>`).join("");
+  if(!$("#sess-starts").contains(document.activeElement))$("#sess-starts").innerHTML=Object.keys(state.order).map(s=>`<label for="st-${s}">Début réunion ${s}<input class="field" type="time" id="st-${s}" data-start="${s}" value="${state.starts[s]}"></label><label for="dr-${s}">Portes réunion ${s}${(state.doorsFfn||{})[s]?" (Live FFN)":""}<input class="field" type="time" id="dr-${s}" data-doors="${s}" value="${String((state.doorsFfn||{})[s]||(state.doorsMan||{})[s]||"").replace("h",":").replace(/^(\d):/,"0$1:")}"${(state.doorsFfn||{})[s]?" disabled":""}></label>`).join("");
   const sch=schedule();
   $("#order").innerHTML=Object.keys(state.order).map(s=>`<div class="sess-admin"><h4>Réunion ${s}<button class="btn small ghost" data-addpause="${s}">+ Ligne libre</button></h4><ul class="order-list" data-sess="${s}">
    ${state.order[s].map(key=>{const ev=EVENTS[key];const t=sch[key];
@@ -3049,6 +3049,7 @@ document.addEventListener("click",e=>{
   if(t.dataset.del){const k=t.dataset.del;for(const s in state.order)state.order[s]=state.order[s].filter(x=>x!==k);render()}
 });
 document.addEventListener("change",e=>{const t=e.target;
+  if(t.dataset.doors){const n=t.dataset.doors;state.doorsMan=state.doorsMan||{};if(t.value)state.doorsMan[n]=t.value.replace(":","h");else delete state.doorsMan[n];if(!(state.doorsFfn||{})[n])state.doors[n]=state.doorsMan[n]||"";render()}
   if(t.dataset.start){state.starts[t.dataset.start]=t.value||state.starts[t.dataset.start];render()}
   if(t.dataset.pmin){EVENTS[t.dataset.pmin].min=Math.max(0,+t.value||0);EVENTS[t.dataset.pmin].man=true;render()}
   if(t.dataset.ptxt){EVENTS[t.dataset.ptxt].name=t.value;scheduleSave()}
