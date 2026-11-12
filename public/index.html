@@ -1038,7 +1038,7 @@ body.tv{overflow:hidden}
         <div class="step-body">
           <label for="timing">Chronométrage<select class="field" id="timing"><option value="elec:quantum">Électronique · Swiss Timing Quantum</option><option value="elec:ares">Électronique · Omega ARES 21</option><option value="elec:stramatel">Électronique · Stramatel</option><option value="elec:alge">Électronique · ALGE TimeManager</option><option value="manual">Manuel · horaires théoriques, retard saisi à la main</option></select><span class="msg" style="font-weight:400" id="timing-hint"></span></label>
           <div class="grid2c" id="sess-starts"></div>
-          <div class="inline" style="margin-top:8px"><button class="btn small ghost" id="prog-print" type="button">🖨️ Programme pour les officiels (PDF)</button><label class="btn small ghost">Logo en haut à gauche (FFN)<input type="file" id="prog-lg" accept="image/*" hidden></label><button class="btn small ghost" id="prog-lgx" type="button" hidden>Retirer ce logo</button><span class="msg">Les deux compétitions dans l'ordre du bassin, série par série, couloir par couloir.</span></div>
+          <div class="inline" style="margin-top:8px"><button class="btn small ghost" id="prog-print" type="button">🖨️ Programme pour les officiels (PDF)</button><button class="btn small ghost" id="cards-print" type="button">🖨️ Fiches de course (chronométreurs)</button><label class="btn small ghost">Logo en haut à gauche (FFN)<input type="file" id="prog-lg" accept="image/*" hidden></label><button class="btn small ghost" id="prog-lgx" type="button" hidden>Retirer ce logo</button><span class="msg">Les deux compétitions dans l'ordre du bassin, série par série, couloir par couloir.</span></div>
           <label for="s-nt">Nageur sans temps (NT) : secondes prévues par 50 m<input class="field" type="number" id="s-nt" min="20" step="5"><span class="msg" style="font-weight:400">Une série dont personne n'a de temps dure ce temps × la distance (75 → 1:15 au 50 m, 2:30 au 100 m, 5:00 au 4x50).</span></label>
           <label for="s-heat">Battement entre deux départs (secondes)<input class="field" type="number" id="s-heat" min="0" step="5"><span class="msg" style="font-weight:400">Le même temps entre deux séries et entre deux épreuves.</span></label>
           <p class="msg">Ordre du bassin : glisse-dépose les épreuves, ou utilise les flèches sur téléphone. « + Ligne libre » ajoute le texte de ton choix (pause, remise des médailles…) avec une durée, 0 si elle ne prend pas de temps.</p>
@@ -2943,6 +2943,50 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
       if(heats.length)events[key]={heats}});
     reunions.push(R)});
   return{c:A(M,"id"),meta,reunions,events,teams,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
+/* fiches de course : même format que les fiches extraNat (4 par page A4), une par nageur ou relais et par série, avec la compétition bien visible.
+   Rangées par course ou par couloir (une pile par couloir), réunion par réunion. */
+function raceCards(){const sch=schedule(),C=[];const t2=sec=>hm(sec);
+  const MO=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],JJ=["Di","Lu","Ma","Me","Je","Ve","Sa"];
+  const dOf=str=>{const t=String(str||"").toLowerCase();let m=t.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);m=t.match(/(\d{1,2})(?:er)?\s+([a-zéû]+)\s+(\d{4})/);if(m){const i=MO.indexOf(m[2]);if(i>=0)return new Date(+m[3],i,+m[1])}return null};
+  const c0=state.comps.find(c=>c.date)||state.comps[0]||{},logo=state.progLogo||"";
+  for(const r of Object.keys(state.order).sort((a,b)=>a-b)){let o=0;for(const k of state.order[r]){const ev=EVENTS[k];if(!ev||ev.type!=="event")continue;const cm=comp(ev.comp)||{};let t=(sch[k]||{}).start;const n=ev.series.length;
+    ev.series.forEach((sr,i)=>{for(const w of sr.swimmers){if(!w.lane)continue;C.push({r,o,lane:w.lane,ev,cm,sn:sr.n||i+1,n,t,w})}o++;if(t!=null)t+=sr.slowest+state.heatGap})}}
+  const stk=name=>/4\s*nages/i.test(name)?["Dos","Bra.","Pap.","NL"]:null;
+  const card=c=>{const w=c.w,rel=w.relay,d=dOf(c.cm.date||c0.date),dd=d?`${JJ[d.getDay()]} ${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`:"",
+    sub=[d?`${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`:"",(c.cm.bassin||c0.bassin)?"Bassin de "+esc(String(c.cm.bassin||c0.bassin).replace(/\s*m$/,""))+" m":""].filter(Boolean).join(" - "),
+    tn=teamOf(w)||"",club=esc(w.club||"")+(tn?` [${esc(tn)}]`:""),S=stk(c.ev.name),
+    reu=`R${c.r} (${(state.doors||{})[c.r]?"OP : "+esc(state.doors[c.r])+" - ":""}DE : ${esc(String(state.starts[c.r]||"").replace(":","h"))})${c.t!=null?" · série vers "+t2(c.t):""}`;
+    return `<div class="cd"><div class="hd"><div class="lg">${logo?`<img src="${logo}" alt="">`:""}</div><div class="ti"><b>${esc(c.cm.name||"")}</b><i>${esc(c.cm.city||c0.city||"")}</i><span>${sub}</span></div></div>
+    <div class="cp k${c.cm.k||1}">${esc(c.cm.name||"")}</div>
+    <div class="ev">${esc(c.ev.name)} (Séries)</div><div class="j">${dd?dd+" - ":""}${reu}</div><div class="te">Temps d'engagement: ${w.time?fmt(w.time):"NT"}</div>
+    <div class="sl">Série : ${c.sn}/${c.n} - Couloir : ${c.lane}</div>
+    ${rel?`<div class="cl">${club}</div>${(w.members||[]).length?`<div class="mem">${w.members.map((m,j)=>`<div>${S?S[j]+": ":(j+1)+". "}${esc(m.name)}${m.year?" ("+esc(String(m.year).slice(0,4))+")":""}</div>`).join("")}</div>`:""}`
+       :`<div class="cl sm">${club}</div><div class="who">${esc(w.name)}${w.year?" ("+esc(String(w.year).slice(0,4))+")":""}</div>`}
+    <table class="tm"><tr><th>Temps final<small>(Veuillez entourer le temps officiel)</small></th><th>min.</th><th>sec.</th><th>1/100e</th></tr><tr><td>Chrono 1</td><td></td><td></td><td></td></tr><tr><td>Chrono 2</td><td></td><td></td><td></td></tr><tr><td>Chrono 3</td><td></td><td></td><td></td></tr></table>
+    <div class="vs">Temps de passage au verso</div></div>`};
+  const css=`*{box-sizing:border-box}body{font:11px/1.3 Verdana,Geneva,sans-serif;margin:0;color:#000}.tools{text-align:center;margin:10px;font-size:14px}
+  .pg{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:138mm;width:186mm;margin:0 auto}
+  .cd{border:1px dashed #aaa;padding:5mm 5mm 4mm;display:flex;flex-direction:column;align-items:center;text-align:center;break-inside:avoid;overflow:hidden}
+  .hd{display:grid;grid-template-columns:24mm 1fr;align-items:center;width:100%;gap:4px}.hd .lg img{max-width:24mm;max-height:15mm;object-fit:contain}.ti{display:flex;flex-direction:column;font-size:10px}.ti b{font-size:12px}
+  .cp{margin:6px 0 2px;font-size:12px;font-weight:700;text-transform:uppercase;padding:2px 10px;border:2px solid #000;border-radius:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact;max-width:100%}.k1{background:#fde2e4}.k2{background:#fdecc8}.k3{background:#dbeafe}.k4{background:#dcfce7}
+  .ev{font-size:15px;font-weight:700;margin-top:6px}.j{font-size:8px}.te{font-size:11px}.sl{font-size:16px;font-weight:700;margin:8px 0 4px}
+  .cl{font-size:14px;font-weight:700;font-style:italic}.cl.sm{font-size:12px;font-style:normal;font-weight:400}.who{font-size:15px;font-weight:700;margin-top:3px}
+  .mem{font-size:11px;text-align:left;align-self:flex-start;margin-top:5px}
+  table.tm{width:100%;border-collapse:collapse;margin-top:auto}table.tm th,table.tm td{border:1px solid #000;font-size:11px;font-weight:400;height:11mm}table.tm th:first-child{font-weight:700;width:28%}table.tm th small{display:block;font-weight:400;font-style:italic;font-size:8px}
+  .vs{font-size:10px;margin-top:3px;align-self:flex-end}
+  @page{size:A4;margin:8mm 12mm}@media print{.tools{display:none}}`;
+  const reus=[...new Set(C.map(c=>c.r))];
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Fiches de course</title><style>${css}</style></head><body>
+  <div class="tools">Réunion : <select id="rs">${reus.map(r=>`<option value="${r}">Réunion ${r}</option>`).join("")}<option value="">Toutes</option></select>
+  &nbsp; Rangement : <select id="so"><option value="race">par course</option><option value="lane">par couloir (une pile par couloir)</option></select>
+  &nbsp; <button onclick="print()">🖨️ Imprimer / PDF</button><div id="nb" style="font-size:12px;color:#555;margin-top:4px"></div></div><div class="pg" id="pg"></div>
+  <script>const C=${JSON.stringify(C.map(c=>({r:c.r,o:c.o,lane:c.lane,h:card(c)}))).replace(/<\/script/gi,"<\\/script")};
+  function draw(){const r=document.getElementById("rs").value,so=document.getElementById("so").value;const L=C.filter(c=>!r||c.r===r).slice().sort((a,b)=>so==="lane"?(a.r-b.r)||(a.lane-b.lane)||(a.o-b.o):(a.r-b.r)||(a.o-b.o)||(a.lane-b.lane));
+    let h="",i=0,pl=null;for(const c of L){if(so==="lane"&&pl!==null&&c.lane!==pl)while(i%4){h+='<div></div>';i++}h+=c.h;i++;pl=c.lane}
+    document.getElementById("pg").innerHTML=h;document.getElementById("nb").textContent=L.length+" fiches · "+Math.ceil(i/4)+" pages"}
+  document.getElementById("rs").onchange=draw;document.getElementById("so").onchange=draw;draw()<\/script></body></html>`;
+  const w=window.open("","_blank");if(!w){alertMsg("Autorise les fenêtres pop-up pour ce site.");return}w.document.write(html);w.document.close()}
+document.addEventListener("click",e=>{if(e.target&&e.target.id==="cards-print")raceCards()});
 /* programme des officiels : même mise en forme que le programme extraNat (Verdana, en-têtes centrés, une ligne par couloir),
    les deux compétitions dans l'ordre du bassin ; en-tête (logos) et pied de page (partenaires, Mat-et-Flo) répétés sur chaque page */
 function officialsProgram(){const sch=schedule(),L=[];const t2=sec=>hm(sec).replace("h",":");const live=state.name||(state.comps[0]&&state.comps[0].name)||"Swim Direct";
