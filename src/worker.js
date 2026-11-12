@@ -1188,6 +1188,13 @@ export function ffxAlias(b, comps) {
   const known = {}; walk(comps, (o) => { if (typeof o.club === "string" && o.club && !longs.has(o.club)) { for (const k of keys(o)) (known[k] = known[k] || {})[o.club] = 1; } });
   const votes = {}; for (const r of b.roster || []) { const k = Object.assign({}, ...keys(r).map((x) => known[x] || {})); if (r.club) for (const nm of Object.keys(k)) { const v = (votes[r.club] = votes[r.club] || {}); v[nm] = (v[nm] || 0) + 1; } }
   const alias = {}; for (const [lg, v] of Object.entries(votes)) alias[lg] = Object.entries(v).sort((x, y) => y[1] - x[1])[0][0];
+  // Club sans nageur en commun : rapprochement par le nom (« MULHOUSE OLYMPIC NATATION » ↔ « MULHOUSE ON » : mêmes mots ou initiales).
+  const tok = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  const fits = (lg, sh) => { const L = tok(lg), S = tok(sh); if (!S.length || L[0] !== S[0] && !L.includes(S[0])) return false; let i = 0;
+    for (const t of S) { let ok = false; for (let j = i; j < L.length && !ok; j++) { if (L[j] === t || (t.length >= 3 && L[j].startsWith(t))) { i = j + 1; ok = true; break; }
+      let ini = ""; for (let k = j; k < L.length && ini.length < t.length; k++) { ini += L[k][0]; if (ini === t && t.length > 1) { i = k + 1; ok = true; break; } } } if (!ok) return false; } return true; };
+  const shorts = new Set(); walk(comps, (o) => { if (typeof o.club === "string" && o.club && !longs.has(o.club)) shorts.add(o.club); });
+  for (const lg of longs) if (!alias[lg] && !shorts.has(lg)) { const m = [...shorts].filter((sh) => fits(lg, sh)); if (m.length === 1) alias[lg] = m[0]; }
   const fix = (o) => { for (const f of ["club", "team"]) if (typeof o[f] === "string") for (const [lg, sh] of Object.entries(alias)) if (o[f] === lg || o[f].startsWith(lg + " ")) { o[f] = sh + o[f].slice(lg.length); break; } if (typeof o.name === "string" && alias[o.name] && !o.iuf) o.name = alias[o.name]; };
   if (Object.keys(alias).length) { walk(b, fix); walk(comps, fix); }
   return alias;
