@@ -1040,7 +1040,7 @@ body.tv{overflow:hidden}
         <div class="step-body">
           <label for="timing">Chronométrage<select class="field" id="timing"><option value="elec:quantum">Électronique · Swiss Timing Quantum</option><option value="elec:ares">Électronique · Omega ARES 21</option><option value="elec:stramatel">Électronique · Stramatel</option><option value="elec:alge">Électronique · ALGE TimeManager</option><option value="manual">Manuel · horaires théoriques, retard saisi à la main</option></select><span class="msg" style="font-weight:400" id="timing-hint"></span></label>
           <div class="grid2c" id="sess-starts"></div>
-          <div class="inline" style="margin-top:8px"><button class="btn small ghost" id="prog-print" type="button">🖨️ Programme pour les officiels (PDF)</button><button class="btn small ghost" id="cards-print" type="button">🖨️ Fiches de course (chronométreurs)</button><label class="btn small ghost">Logo en haut à gauche (FFN)<input type="file" id="prog-lg" accept="image/*" hidden></label><button class="btn small ghost" id="prog-lgx" type="button" hidden>Retirer ce logo</button><span class="msg">Les deux compétitions dans l'ordre du bassin, série par série, couloir par couloir.</span></div>
+
           <label for="s-nt">Nageur sans temps (NT) : secondes prévues par 50 m<input class="field" type="number" id="s-nt" min="20" step="5"><span class="msg" style="font-weight:400">Une série dont personne n'a de temps dure ce temps × la distance (75 → 1:15 au 50 m, 2:30 au 100 m, 5:00 au 4x50).</span></label>
           <label for="s-heat">Battement entre deux départs (secondes)<input class="field" type="number" id="s-heat" min="0" step="5"><span class="msg" style="font-weight:400">Le même temps entre deux séries et entre deux épreuves.</span></label>
           <p class="msg">Ordre du bassin : glisse-dépose les épreuves, ou utilise les flèches sur téléphone. « + Ligne libre » ajoute le texte de ton choix (pause, remise des médailles…) avec une durée, 0 si elle ne prend pas de temps.</p>
@@ -1114,6 +1114,13 @@ body.tv{overflow:hidden}
         </div>
       </details>
     <h3 class="grp">Direct au bord du bassin</h3>
+      <details class="step">
+        <summary><span class="n"></span>Impressions pour les officiels<span class="hint">programme et fiches de course</span></summary>
+        <div class="step-body">
+          <div class="inline" style="flex-wrap:wrap;gap:8px"><button class="btn small ghost" id="prog-print" type="button">🖨️ Programme pour les officiels (PDF)</button><button class="btn small ghost" id="cards-print" type="button">🖨️ Fiches de course (chronométreurs)</button><label class="btn small ghost">Logo en haut à gauche (FFN)<input type="file" id="prog-lg" accept="image/*" hidden></label><button class="btn small ghost" id="prog-lgx" type="button" hidden>Retirer ce logo</button><span class="msg">Les deux compétitions dans l'ordre du bassin, série par série, couloir par couloir.</span></div>
+          <p class="msg">À imprimer le jour J, une fois le dernier fichier extraNat importé : la page générée reprend l'ordre du bassin, les séries et les couloirs du moment. Choisis la réunion en haut de la page avant d'imprimer.</p>
+        </div>
+      </details>
       <details class="step">
         <summary><span class="n"></span>Mode du direct<span class="hint" id="h-live"></span></summary>
         <div class="step-body">
@@ -2879,7 +2886,7 @@ function alertMsg(m){const el=$("#logo-list");if(el)el.insertAdjacentHTML("after
 function shrink(file,W=96,H=96,max=40000,q=.85){return new Promise((ok,ko)=>{const img=new Image();img.onload=()=>{const r=Math.min(W/img.width,H/img.height,1)||1;const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.width*r));c.height=Math.max(1,Math.round(img.height*r));{const g=c.getContext("2d");g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(img,0,0,c.width,c.height)}URL.revokeObjectURL(img.src);let d=c.toDataURL("image/webp",q);if(!d.startsWith("data:image/webp"))d=c.toDataURL("image/png");d.length>max?ko(new Error("Image trop lourde même réduite.")):ok(d)};img.onerror=()=>ko(new Error("Image illisible."));img.src=URL.createObjectURL(file)})}
 /* ---------- poste de pilotage : sections rangées par moment (Préparer · Jour J · Après · Réglages), état en un coup d'œil, liste « prêt ? » ---------- */
 const MOMENTS=[["prep","Préparer"],["jourj","Jour J"],["apres","Après"]];
-const MOM_OF=t=>/^(Comp[ée]titions|Programme et horaires|Records perso|Qualifications|Informations de l'accueil|Finales|Classements)/i.test(t)?"prep":/^(Mode du direct|Chronom[ée]trage|Simulateur|Actualisation|Journal des incidents)/i.test(t)?"jourj":/^Audience/i.test(t)?"apres":"prep"; /* couleurs, logos, partenaires : se règlent avant de mettre le live en ligne */
+const MOM_OF=t=>/^(Comp[ée]titions|Programme et horaires|Records perso|Qualifications|Informations de l'accueil|Finales|Classements)/i.test(t)?"prep":/^(Impressions|Mode du direct|Chronom[ée]trage|Simulateur|Actualisation|Journal des incidents)/i.test(t)?"jourj":/^Audience/i.test(t)?"apres":"prep"; /* couleurs, logos, partenaires : se règlent avant de mettre le live en ligne */
 let MOM=(()=>{try{const m=localStorage.getItem("sd-mom");return m&&m!=="regl"?m:"prep"}catch(_){return"prep"}})(),PILOT={};
 function stepTitle(d){const sm=d.querySelector(":scope>summary");if(!sm)return"";const c=sm.cloneNode(true);c.querySelectorAll(".n,.hint,small").forEach(x=>x.remove());return c.textContent.trim()}
 function momApply(){const box=document.querySelector("#admin")||document;document.querySelectorAll("details.step").forEach(d=>{if(!d.dataset.mom)d.dataset.mom=MOM_OF(stepTitle(d));d.classList.toggle("mom-off",d.dataset.mom!==MOM)}); /* classe à part : ne pas toucher au hidden posé par d'autres réglages (ex. pas de finales) */
@@ -2907,7 +2914,6 @@ function pilotRender(){const el=$("#pilot");if(!el||!state.admin)return;const ev
     [!!state.progLock||state.comps.length<2,"Ordre du bassin",state.comps.length<2?"une seule compétition : l'ordre suit le programme":state.progLock?"alternance figée":"régler l'alternance puis cocher « Figer l'ordre »",/^Programme et horaires/],
     [!!(hasH&&hasD),"Horaires : portes, évacuation, début",reus.map(r=>`R${r} : ${[(state.doors||{})[r],(state.evac||{})[r],state.starts[r]].map(x=>x?String(x).replace(":","h"):"?").join(" · ")}`).join("   "),/^Programme et horaires/],
     [!clubs.size||withLogo===clubs.size,"Logos des clubs",clubs.size?`${withLogo} club${withLogo>1?"s":""} sur ${clubs.size} ont un logo`:"—",/^Logos/],
-    [null,"Imprimer pour les officiels","programme et fiches de course, réunion par réunion",null],
     [state.live!=="bassin"?null:cAgo!=null,"Tester le chrono et l'écran géant",ROLE==="admin"?"une course test sur le Quantum, ou le simulateur":"une course test sur le Quantum",ROLE==="admin"?/^Simulateur/:/^Chronom[ée]trage/]];
   const done=L.filter(x=>x[0]===true).length,tot=L.filter(x=>x[0]!==null).length,next=L.findIndex(x=>x[0]===false);
   el.innerHTML=`<div class="pl-st">${ST.map(([n,c,t])=>`<div class="pl-s"><span class="pl-dot ${c}" aria-hidden="true"></span><div><b>${n}</b><small>${esc(t)}</small></div></div>`).join("")}</div>
