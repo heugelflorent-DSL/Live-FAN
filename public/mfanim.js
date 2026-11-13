@@ -332,7 +332,7 @@ function sceneWait(t){
   o+=block(980)+block(1110);
   o+=waterBack(t)+deckLines();
   // Flo, le chrono à la main, suit les nageurs ; Mat fait les cent pas au bord
-  const sw=[lane(t,6.5,140,1150),lane(t+2.2,8.2,140,1150),lane(t+4.4,5.6,140,1150)];
+  const L0=Math.max(X0+120,-400),L1=Math.min(X1-120,1680),sw=[lane(t,6.5,L0,L1),lane(t+2.2,8.2,L0,L1),lane(t+4.4,5.6,L0,L1)];
   o+=FLO({x:250,y:DECK,s:0.9,t,pose:'stand',dir:1,head:Math.sin(t*0.9)*6,hprop:stopwatch()});
   const m=lane(t,9,470,800);
   o+=MAT({x:m.x,y:DECK,s:0.75,t,pose:'walk',dir:m.dir,clap:Math.sin(t*0.7)>0.85,head:Math.sin(t*2)*3});
@@ -344,7 +344,7 @@ function sceneWait(t){
 window.MFA={render(svg,mode,P,t,w,h){const r=w/h||1.6;
   if(r<1.6){VW=1280;VH=1280/r;VX=0;VY=(800-VH)*.6}else{VH=800;VW=800*r;VY=0;VX=(1280-VW)/2}
   X0=VX+24;X1=VX+VW-24;WB=VY+VH-24;
-  if(mode==="wait"){VX=0;VW=1280;VY=330;VH=WB-330+24;X0=-10;X1=1290;WB=715;const H=Math.max(300,1280*h/w);VY=739-H;VH=H;svg.setAttribute("viewBox",`0 ${f(VY)} 1280 ${f(VH)}`);svg.innerHTML=sceneWait(t%3600);return}
+  if(mode==="wait"){WB=715;let H=1280*h/w,W2=1280;if(H<330){H=330;W2=330*w/h}VX=(1280-W2)/2;VW=W2;VY=739-H;VH=H;X0=VX-10;X1=VX+VW+10;svg.setAttribute("preserveAspectRatio","xMidYMax meet");svg.setAttribute("viewBox",`${f(VX)} ${f(VY)} ${f(VW)} ${f(VH)}`);svg.innerHTML=sceneWait(t%3600);return}
   svg.setAttribute("viewBox",`${f(VX)} ${f(VY)} ${f(VW)} ${f(VH)}`);
   let o=`<defs>${CLIPF()}</defs>`;
   if(mode==="evac")o+=sceneEvac(t%8.2,P);else if(mode==="cer")o+=sceneMedal(t%7.5,P);else o+=scenePause(t%3600,P);
