@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.7"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.8"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -462,7 +462,7 @@ def startup_update(cfg):
 def gui(cfg, demo=False, close_after=0):
     import tkinter as tk
     from tkinter import ttk, messagebox
-    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("900x640"); root.minsize(760, 520)
+    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("920x740"); root.minsize(780, 600)
     NAVY, INK, BG, CARD, LINE = "#0b1e3f", "#13284d", "#eef3f8", "#ffffff", "#d6e1ec"
     BLUE, RED, GREY, GREEN, GOLD = "#06324f", "#d6202f", "#5b7685", "#16a34a", "#f2c94c"
     F = "Segoe UI"
@@ -598,6 +598,27 @@ def gui(cfg, demo=False, close_after=0):
         urls = [f"http://{a}:{core.screen.port}" for a in ips] + ([f"http://{socket.gethostname()}:{core.screen.port}"] if ips else [])
         tvbig.config(text=urls[0] if urls and core.screen.ok else "")
         tvo.config(text=("Autres adresses : " + " · ".join(u.replace("http://", "") for u in urls[1:])) if len(urls) > 1 else "")
+
+    # ---- ce qu'affiche l'écran géant (et le direct du site) : choisi ici, « Normal » rend la main au direct
+    scr = tk.Frame(root, bg=CARD, highlightbackground=LINE, highlightthickness=1); scr.pack(fill="x", padx=16, pady=(0, 12))
+    tk.Label(scr, text="Afficher sur l'écran géant", bg=CARD, fg=INK, font=(F, 12, "bold")).pack(anchor="w", padx=14, pady=(10, 6))
+    srow = tk.Frame(scr, bg=CARD); srow.pack(fill="x", padx=14, pady=(0, 12))
+    smode = {"v": "normal"}; sbtns = {}
+    def show(mode, title=""):
+        if mode == "msg":
+            from tkinter import simpledialog
+            title = simpledialog.askstring(APP, "Message à afficher en grand sur l'écran géant :", parent=root) or ""
+            if not title.strip(): return
+        ev = {"k": "screen", "mode": mode, "title": title, "ts": time.time()}
+        try: core.q.put_nowait(ev)
+        except Exception: pass
+        try: core.screen.push(ev)
+        except Exception: pass
+        smode["v"] = mode; core.log("Écran géant : " + {"normal": "direct (normal)", "evac": "évacuation du bassin", "cer": "cérémonie", "count": "compte à rebours", "pause": "pause", "msg": "message « " + title + " »"}[mode])
+        for k, b in sbtns.items(): b.config(bg=NAVY if k == mode else BG, fg="white" if k == mode else INK)
+    for k, label in (("normal", "▶ Normal (direct)"), ("count", "⏱ Compte à rebours"), ("evac", "🦈 Évacuation"), ("cer", "🏅 Cérémonie"), ("pause", "☕ Pause"), ("msg", "✎ Message…")):
+        b = tk.Button(srow, text=label, command=lambda k=k: show(k), bg=NAVY if k == "normal" else BG, fg="white" if k == "normal" else INK, activebackground=GOLD, relief="flat", font=(F, 10, "bold"), padx=10, pady=8, cursor="hand2")
+        b.pack(side="left", padx=(0, 6), fill="x", expand=True); sbtns[k] = b
 
     # ---- barre du bas + détail technique (caché par défaut)
     bar = tk.Frame(root, bg=BG); bar.pack(fill="x", padx=16)

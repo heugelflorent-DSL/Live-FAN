@@ -69,6 +69,8 @@ export function applyEvent(s, ev, t) {
         break;
       }
       case "clear": for (const k of Object.keys(s)) delete s[k]; Object.assign(s, empty()); break;
+      /* écran choisi depuis le logiciel du chrono : évacuation, cérémonie, compte à rebours, pause… ; « normal » rend la main au direct */
+      case "screen": s.screen = ev.mode && ev.mode !== "normal" ? { mode: String(ev.mode).slice(0, 20), at: t, title: String(ev.title || "").slice(0, 120) } : null; break;
       case "ping": break;
       default: return false;
     }
