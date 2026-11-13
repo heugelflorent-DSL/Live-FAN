@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.8"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.4.9"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -616,6 +616,20 @@ def gui(cfg, demo=False, close_after=0):
         except Exception: pass
         smode["v"] = mode; core.log("Écran géant : " + {"normal": "direct (normal)", "evac": "évacuation du bassin", "cer": "cérémonie", "count": "compte à rebours", "pause": "pause", "msg": "message « " + title + " »"}[mode])
         for k, b in sbtns.items(): b.config(bg=NAVY if k == mode else BG, fg="white" if k == mode else INK)
+    frow = tk.Frame(scr, bg=CARD); frow.pack(fill="x", padx=14, pady=(0, 12))
+    tk.Label(frow, text="Format de l'écran géant :", bg=CARD, fg=GREY, font=(F, 10)).pack(side="left", padx=(0, 8))
+    fbtns = {}
+    def set_fmt(f, save=True):
+        ev = {"k": "tvfmt", "fmt": f, "ts": time.time()}
+        try: core.q.put_nowait(ev)
+        except Exception: pass
+        try: core.screen.push(ev)
+        except Exception: pass
+        if save: cfg["tvfmt"] = f; save_cfg(cfg); core.log("Format de l'écran géant : " + {"": "automatique", "169": "16/9", "43": "4/3"}[f])
+        for k, b in fbtns.items(): b.config(bg=NAVY if k == f else BG, fg="white" if k == f else INK)
+    for k, label in (("", "Automatique"), ("169", "16/9 (large)"), ("43", "4/3 (carré)")):
+        b = tk.Button(frow, text=label, command=lambda k=k: set_fmt(k), bg=BG, fg=INK, activebackground=GOLD, relief="flat", font=(F, 10, "bold"), padx=10, pady=6, cursor="hand2"); b.pack(side="left", padx=(0, 6)); fbtns[k] = b
+    root.after(3000, lambda: set_fmt(cfg.get("tvfmt", ""), save=False))
     for k, label in (("normal", "▶ Normal (direct)"), ("count", "⏱ Compte à rebours"), ("evac", "🦈 Évacuation"), ("cer", "🏅 Cérémonie"), ("pause", "☕ Pause"), ("msg", "✎ Message…")):
         b = tk.Button(srow, text=label, command=lambda k=k: show(k), bg=NAVY if k == "normal" else BG, fg="white" if k == "normal" else INK, activebackground=GOLD, relief="flat", font=(F, 10, "bold"), padx=10, pady=8, cursor="hand2")
         b.pack(side="left", padx=(0, 6), fill="x", expand=True); sbtns[k] = b
