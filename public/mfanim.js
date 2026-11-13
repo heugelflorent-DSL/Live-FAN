@@ -318,10 +318,33 @@ function scenePause(u,P){
 }
 
 
+/* ---------- ÉCRAN D'ATTENTE DU DIRECT : échauffement ---------- */
+function crawler(x,y,cap,t,dir,sp){
+  const a=(t*sp*2.4)%(Math.PI*2), arm=(ang,ph)=>{const r=ang+ph,ex=Math.cos(r)*40,ey=Math.sin(r)*40;const up=ey<4;return `<path d="M0,-4 L${f(ex)},${f(ey-4)}" stroke="${DARK}" stroke-width="11" stroke-linecap="round" opacity="${up?1:.35}"/><path d="M0,-4 L${f(ex)},${f(ey-4)}" stroke="#f6caa3" stroke-width="6" stroke-linecap="round" opacity="${up?1:.35}"/>`};
+  const kick=`<path d="M-70,${f(2+Math.sin(t*14)*4)} q-14,-10 -28,0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".9"/><circle cx="${f(-96+Math.sin(t*11)*6)}" cy="${f(-6+Math.cos(t*13)*5)}" r="4" fill="#fff"/>`;
+  const head=`<g transform="rotate(${f(Math.sin(a)*10)} 22 -2)"><circle cx="22" cy="-2" r="15" fill="#f6caa3" stroke="${DARK}" stroke-width="3.2"/><path d="M8,-6 A15,15 0 0 1 36,-8 L30,-14 Q20,-20 10,-14 Z" fill="${cap}" stroke="${DARK}" stroke-width="3" stroke-linejoin="round"/><path d="M8,-4 A15,15 0 0 1 22,-17 A15,15 0 0 1 36,-4 Z" fill="${cap}" stroke="${DARK}" stroke-width="3" stroke-linejoin="round"/><circle cx="29" cy="-1" r="2" fill="${DARK}"/></g>`;
+  return `<g transform="translate(${f(x)} ${f(y)}) scale(${dir} 1)">${kick}<ellipse cx="-30" cy="4" rx="46" ry="11" fill="#2a5fd6" stroke="${DARK}" stroke-width="3"/>${arm(a,0)}${arm(a,Math.PI)}${head}</g>`;
+}
+function lane(t,period,x0,x1){const u=(t/period)%2,go=u<1;const e=go?u:2-u;return{x:lerp(x0,x1,e),dir:go?1:-1}}
+function stopwatch(){return ()=>`<g transform="translate(92 -140)"><path d="M0,-28 L0,-38 M-6,-40 H6" stroke="${DARK}" stroke-width="4" stroke-linecap="round"/><circle r="22" fill="#fff" stroke="${DARK}" stroke-width="4"/><path d="M0,0 L0,-14" stroke="${RED}" stroke-width="3.5" stroke-linecap="round" transform="rotate(${f((performance.now()/1000*120)%360)})"/><circle r="3" fill="${DARK}"/></g>`}
+function sceneWait(t){
+  let o=`<defs>${CLIPF()}</defs>`;
+  o+=block(980)+block(1110);
+  o+=waterBack(t)+deckLines();
+  // Flo, le chrono à la main, suit les nageurs ; Mat fait les cent pas au bord
+  const sw=[lane(t,6.5,140,1150),lane(t+2.2,8.2,140,1150),lane(t+4.4,5.6,140,1150)];
+  o+=FLO({x:250,y:DECK,s:0.9,t,pose:'stand',dir:1,head:Math.sin(t*0.9)*6,hprop:stopwatch()});
+  const m=lane(t,9,470,800);
+  o+=MAT({x:m.x,y:DECK,s:0.75,t,pose:'walk',dir:m.dir,clap:Math.sin(t*0.7)>0.85,head:Math.sin(t*2)*3});
+  o+=waterFront(t);
+  o+=`<g clip-path="url(#cw)">`+crawler(sw[0].x,DECK+36,'#ffd23f',t,sw[0].dir,1.1)+crawler(sw[1].x,DECK+70,'#ff7a2f',t+1,sw[1].dir,0.9)+crawler(sw[2].x,DECK+102,'#3fd1c7',t+2,sw[2].dir,1.25)+`</g>`;
+  return o;
+}
 /* ---------- LECTEUR SWIM DIRECT ---------- */
 window.MFA={render(svg,mode,P,t,w,h){const r=w/h||1.6;
   if(r<1.6){VW=1280;VH=1280/r;VX=0;VY=(800-VH)*.6}else{VH=800;VW=800*r;VY=0;VX=(1280-VW)/2}
   X0=VX+24;X1=VX+VW-24;WB=VY+VH-24;
+  if(mode==="wait"){VX=0;VW=1280;VY=330;VH=WB-330+24;X0=-10;X1=1290;WB=715;const H=Math.max(300,1280*h/w);VY=739-H;VH=H;svg.setAttribute("viewBox",`0 ${f(VY)} 1280 ${f(VH)}`);svg.innerHTML=sceneWait(t%3600);return}
   svg.setAttribute("viewBox",`${f(VX)} ${f(VY)} ${f(VW)} ${f(VH)}`);
   let o=`<defs>${CLIPF()}</defs>`;
   if(mode==="evac")o+=sceneEvac(t%8.2,P);else if(mode==="cer")o+=sceneMedal(t%7.5,P);else o+=scenePause(t%3600,P);
