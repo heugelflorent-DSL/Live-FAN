@@ -76,12 +76,12 @@ export function applyEvent(s, ev, t) {
       default: return false;
     }
     /* chronométrage aux poires (une seule par couloir) : si un officiel n'appuie pas, le Quantum n'annonce jamais la fin.
-       La série est considérée terminée quand tous les nageurs ont un temps, ou qu'il n'en manque qu'un depuis 20 s,
+       La série est considérée terminée quand tous les nageurs ont un temps, ou qu'il n'en manque qu'un depuis 40 s,
        ou que la moitié au moins a un temps depuis 60 s. Un temps saisi ensuite (correction du Quantum) est toujours pris. */
     { const h = s.heat; if (h && h.status === "running" && h.finAt) {
         const L = Object.values(h.lanes || {}), nf = L.filter((x) => x.fin).length, nn = Object.keys(h.names || {}).length;
         const tot = Math.max(nn, L.filter((x) => x.fin || x.rt || Object.keys(x.laps || {}).length).length, nf), w = t - h.finAt;
-        if ((nn && nf >= tot) || (nf >= tot - 1 && w > 20000) || (nf * 2 >= tot && w > 60000)) { h.status = "done"; h.doneAt = h.doneAt || t; h.autoEnd = true; }
+        if ((nn && nf >= tot) || (nf >= tot - 1 && w > 40000) || (nf * 2 >= tot && w > 60000)) { h.status = "done"; h.doneAt = h.doneAt || t; h.autoEnd = true; }
     } }
     s.updatedAt = t; s.relayAt = t;
     return true;
