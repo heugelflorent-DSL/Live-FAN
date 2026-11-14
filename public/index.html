@@ -1114,6 +1114,7 @@ body.tv{overflow:hidden}
         <summary><span class="n"></span>Partenaires et sponsors<span class="hint" id="h-spons"></span></summary>
         <div class="step-body">
           <p class="msg">Les logos s'affichent en bas de chaque page. Une image (PNG, JPG ou WebP) est réduite automatiquement ; le lien est facultatif. Chaque modification est enregistrée tout de suite.</p>
+          <p class="msg">Sur l'écran géant (bouton « Partenaires » et logo entre les séries), <b>Mat-et-Flo</b> fait toujours partie des partenaires : il est ajouté automatiquement et ne peut pas être retiré.</p>
           <h4 class="sp-h">Sur ce live uniquement</h4><div class="sp-list" id="sp-ev"></div>
           <label class="btn small ghost">+ Ajouter un logo à ce live<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" id="sp-add-ev" hidden></label>
           <div class="admin-only"><h4 class="sp-h">Sur tous les lives (et l'accueil)</h4><div class="sp-list" id="sp-all"></div>
@@ -1525,11 +1526,17 @@ function tvMfa(el){const cs=[...el.querySelectorAll(".mf-card:not(.mf-wait):not(
     MFA_RAF=requestAnimationFrame(loop)};MFA_RAF=requestAnimationFrame(loop)}}
 /* nom trop long (surtout en 4/3) : même taille, prénom en initiale (« BAUMGARTNER L. »), puis nom seul, sinon coupé avec « … » */
 function tvShrink(el){if(!el)return;try{tvMfa(el)}catch(_){}/* cartes Mat et Flo (évacuation, cérémonie, pause) : agrandies pour remplir l'écran géant, proportions gardées */
-el.querySelectorAll(".mf-card:not(.mfa-src)").forEach(c=>{const bw=el.clientWidth,bh=el.clientHeight;if(!bw||!bh)return;const W=Math.round(Math.max(1100,820*bw/bh)),H=Math.round(W*bh/bw),k=bw/W;c.classList.add("mf-fit");const R=el.getBoundingClientRect();for(const[q,v]of Object.entries({width:W+"px",height:H+"px","min-height":H+"px","max-height":H+"px","max-width":"none",margin:"0",position:"fixed","transform-origin":"0 0",transform:"scale("+k+")",left:R.left+"px",top:R.top+"px","z-index":"9999"}))c.style.setProperty(q,v,"important")});el.querySelectorAll(".tvw b[data-f]").forEach(x=>{x.textContent=x.dataset.full;if(x.scrollWidth<=x.clientWidth+1)return;x.textContent=x.dataset.f;if(x.scrollWidth<=x.clientWidth+1)return;x.textContent=x.dataset.l})}
+el.querySelectorAll(".mf-card:not(.mfa-src)").forEach(c=>{const bw=el.clientWidth,bh=el.clientHeight;if(!bw||!bh)return;const W=Math.round(Math.max(1100,820*bw/bh)),H=Math.round(W*bh/bw),k=bw/W;c.classList.add("mf-fit");c.style.setProperty("position","absolute","important");let ox=0,oy=0,n=c.offsetParent;while(n&&n!==el&&el.contains(n)){ox+=n.offsetLeft+n.clientLeft;oy+=n.offsetTop+n.clientTop;n=n.offsetParent}for(const[q,v]of Object.entries({width:W+"px",height:H+"px","min-height":H+"px","max-height":H+"px","max-width":"none",margin:"0",position:"absolute","transform-origin":"0 0",transform:"scale("+k+")",left:-ox+"px",top:-oy+"px","z-index":"9999"}))c.style.setProperty(q,v,"important")});el.querySelectorAll(".tvw b[data-f]").forEach(x=>{x.textContent=x.dataset.full;if(x.scrollWidth<=x.clientWidth+1)return;x.textContent=x.dataset.f;if(x.scrollWidth<=x.clientWidth+1)return;x.textContent=x.dataset.l})}
 function tvRender(){if(!document.body.classList.contains("tv"))return;try{tvFit()}catch(_){}try{let el=document.getElementById("tvscreen");if(!el){el=document.createElement("div");el.id="tvscreen";document.body.appendChild(el);el.addEventListener("mousemove",()=>{el.classList.add("tvshowx");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("tvshowx"),3000)});el.addEventListener("click",e=>{if(e.target.closest(".tvx")){tvToggle(false);return}el.classList.add("tvshowx");clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("tvshowx"),4000)})}/* on ne réécrit l'écran que s'il a changé, et on garde le chrono affiché : plus de scintillement */
-    const html=tvScreenHtml()+`<button class="tvx" type="button" aria-label="Quitter l'écran géant">✕ Quitter</button>`;if(el._html===html)return;
+    const html=tvScreenHtml()+`<button class="tvx" type="button" aria-label="Quitter l'écran géant">✕ Quitter</button>`;if(el._anim===1||el._html===html)return;
     /* seul le compte à rebours a changé : on ne touche qu'au texte, sinon les animations (cigognes, requin) repartent de zéro chaque seconde */
     {const nz=html.replace(/(<b class="pw-cd"[^>]*>)[^<]*/g,"$1");if(el._nz===nz){const t=[...html.matchAll(/<b class="pw-cd"[^>]*>([^<]*)/g)].map(m=>m[1]);el.querySelectorAll("b.pw-cd").forEach((b,i)=>{if(t[i]!=null&&b.innerHTML!==t[i])b.innerHTML=t[i]});el._html=html;return}el._nz=nz}
+    /* passage série ⇄ partenaire : l'écran tourne comme une face de cube */
+    {const kind=/mf-sp/.test(html)?"sp":"x";if(el._anim===1)return;
+     if(el._kind&&el._kind!==kind&&el._anim!==2&&el.animate&&!matchMedia("(prefers-reduced-motion: reduce)").matches){el._anim=1;el._html=el._nz=null;const z=el.clientWidth/2,cu=d=>`perspective(2400px) translateZ(-${z}px) rotateY(${d}deg) translateZ(${z}px)`;
+       const a=el.animate([{transform:cu(0)},{transform:cu(-90)}],{duration:450,easing:"ease-in",fill:"forwards"});
+       a.onfinish=()=>{el._anim=2;el._html=el._nz=null;try{tvRender()}catch(_){}el._anim=0;a.cancel();el.animate([{transform:cu(90)},{transform:cu(0)}],{duration:500,easing:"ease-out"})};return}
+     el._kind=kind}
     el._html=html;
     const old={},was=!!el.querySelector(".tvrows.ranked"),ck=el.querySelector("#tvclk"),ckt=ck&&ck.textContent;el.querySelectorAll(".tvr[data-ln]").forEach(r=>old[r.dataset.ln]=r.getBoundingClientRect().top);
     el.innerHTML=html;try{tvShrink(el)}catch(_){}{const c2=el.querySelector("#tvclk"),h=tvPick();if(c2&&ckt&&h&&h.start&&h.status==="running"&&!poolAllIn(h))c2.textContent=ckt}
@@ -2249,13 +2256,18 @@ function poolPauseCard(){const h=POOL&&POOL.heat;/* seulement une fois la derni�
   return`<div class="session"><div class="card lv-card pool pwait pbreak"><div class="pw-top"><span class="lv-tag">${cer?"Cérémonie":"Pause"}</span><span class="pw-sub">${ps.map(p=>esc(p.name||"Pause")).join(" · ")}</span></div>${nt!=null?`<div class="pw-ring sm" data-cdr="${nt}" data-span="${span}" style="--p:${Math.max(0,Math.min(1,1-(nt-now)/span)).toFixed(3)}"><div class="pw-in"><div class="pw-lbl">Reprise dans</div><div class="pw-cd" data-cd="${nt}">${cdTxt(nt-now)}</div><div class="pw-at">${hm(nt)}</div></div></div>`:""}${nk&&EVENTS[nk]?`<div class="pw-ev"><span>Prochaine épreuve</span><b>${esc(EVENTS[nk].name)}</b></div>`:""}<div class="pw-wave" aria-hidden="true"><i></i><i></i><i></i></div></div></div>`}
 /* écran imposé depuis le logiciel du chrono (bouton dans Swim Direct · Chrono) : prioritaire sur le direct, 4 h au plus */
 /* logos des partenaires sur l'écran géant : bouton « Partenaires » de l'exe (tous, à tour de rôle) ou entre deux séries (un seul, chacun son tour) */
-function spList(){const seen=new Set();return[...(SPONS.ev||[]),...(SPONS.all||[])].filter(x=>x&&x.img&&!seen.has(x.img)&&seen.add(x.img))}
+/* Mat-et-Flo est toujours l'un des partenaires de l'écran géant (fixe, non modifiable depuis l'admin) */
+function spList(){const seen=new Set();return[{img:"/matetflo.png",name:"Mat-et-Flo"},...[...(SPONS.ev||[]),...(SPONS.all||[])].filter(x=>x&&x.img&&!/mat-?et-?flo/i.test(x.name||"")&&!/matetflo/i.test(x.img)&&!seen.has(x.img)&&seen.add(x.img))]}
 function spHtml(L,tag){const n=L.length,D=6,p=100/n,k=`spc${n}`;
   const kf=n>1?`<style>@keyframes ${k}{0%{opacity:0;transform:scale(.55) rotate(-4deg)}${(p*.12).toFixed(2)}%{opacity:1;transform:scale(1.06) rotate(1deg)}${(p*.2).toFixed(2)}%{transform:scale(1) rotate(0)}${(p*.86).toFixed(2)}%{opacity:1;transform:scale(1)}${(p*.98).toFixed(2)}%,100%{opacity:0;transform:scale(.9)}}</style>`:"";
   return`<div class="session"><div class="card lv-card mf-card mf-wait mf-sp">${kf}<div class="mf-head"><span class="mf-tag">${esc(tag)}</span></div><div class="sp-stage">${L.map((x,i)=>`<div class="tsp-l" style="${n>1?`animation:${k} ${n*D}s ${i*D}s infinite both`:"animation:sppop 1.1s both"}"><div class="sp-in"><img src="${TRIMC[x.img]||x.img}" alt="${esc(x.name||"Partenaire")}"></div>${x.name?`<b>${esc(x.name)}</b>`:""}</div>`).join("")}<div class="mf-actor sp-a1">${storkSvg("crown")}</div><div class="mf-actor sp-a2">${storkSvg("glasses")}</div></div><div class="sp-water">${mfWaves()}</div></div></div>`}
-function spBetween(){const h=POOL&&POOL.heat;if(!POOL||!POOL.spons||!h||h.status!=="done"||!h.doneAt)return"";const L=spList();if(!L.length)return"";
-  if(Date.now()+(poolOff||0)-h.doneAt<15000)return"";/* les résultats restent 15 s, puis le logo d'un partenaire jusqu'au départ suivant */
-  const i=(((+h.event||0)*7+(+h.heat||0))%L.length+L.length)%L.length;return spHtml([L[i]],"Avec le soutien de")}
+/* entre deux séries : résultats 15 s, puis le partenaire jusqu'au départ suivant ; si la série suivante arrive avant, le partenaire passe quand même ~3 s (+ la rotation) */
+let SPS={key:null,shown:true,i:0,newAt:0},SPN=0;
+function spBetween(){if(!POOL||!POOL.spons)return"";const L=spList();if(!L.length)return"";const h=POOL.heat,now=Date.now()+(poolOff||0);
+  const key=h?[h.comp,h.event,h.heat,h.start].join("|"):"";
+  if(h&&h.status==="done"&&h.doneAt){if(SPS.key!==key)SPS={key,shown:false,i:(SPN++)%L.length,newAt:0};if(now-h.doneAt>=15000){SPS.shown=true;return spHtml([L[SPS.i%L.length]],"Avec le soutien de")}return""}
+  if(SPS.key&&SPS.key!==key&&!SPS.shown){if(!SPS.newAt)SPS.newAt=Date.now();if(Date.now()-SPS.newAt<4000)return spHtml([L[SPS.i%L.length]],"Avec le soutien de");SPS.shown=true}
+  return""}
 function screenOv(){const sc=POOL&&POOL.screen;if(!sc||!sc.mode||Date.now()+(poolOff||0)-sc.at>4*3600e3)return"";
   const now=parisSec(Date.now()+poolOff),rs=Object.keys(state.order||{}).sort((a,b)=>a-b).map(r=>({r,st:state.starts[r]?toMin(String(state.starts[r]).replace("h",":"))*60:null})).filter(x=>x.st!=null);
   const nx=rs.find(x=>x.st>now)||rs[rs.length-1]||{r:"1",st:now+600};
