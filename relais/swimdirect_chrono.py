@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.4.9"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.5.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -289,7 +289,7 @@ class Core:
             if not self.paused:
                 try: self.q.put_nowait(ev)
                 except queue.Full: pass
-                if ev["k"] != "ping": self.screen.push(ev)
+                self.screen.push(ev)  # le signe de vie sert aussi à l'écran local (fin de série sans appui de poire)
 
     # lecture du chronométrage (sortie réseau Sport In The Box)
     def source_loop(self, demo=False):

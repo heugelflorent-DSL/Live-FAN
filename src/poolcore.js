@@ -50,7 +50,7 @@ export function applyEvent(s, ev, t) {
         /* temps impossible : plus long que le temps écoulé depuis le départ (+10 s de marge), ex. appui parasite sur la plaque → ignoré, le vrai temps arrive ensuite */
         { const h0 = s.heat; if (h0 && h0.start && ev.t > (t - h0.start) / 1000 + 10) break; }
         l.laps[ev.lap] = { t: ev.t, rank: ev.rank || (old && old.rank) || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = Math.max(l.last || 0, ev.lap);
-        if (ev.k === "finish") l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null }; break; }
+        if (ev.k === "finish") { l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null }; s.heat.finAt = t; } break; }
       case "end": if (s.heat) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } break;
       case "heat": { // noms et résultats envoyés par le Quantum (série chargée, puis officielle)
         const fresh = ev.stat !== "O" && ev.stat !== "F"; // liste de départ (W) : série (re)mise au départ
@@ -75,6 +75,14 @@ export function applyEvent(s, ev, t) {
       case "ping": break;
       default: return false;
     }
+    /* chronométrage aux poires (une seule par couloir) : si un officiel n'appuie pas, le Quantum n'annonce jamais la fin.
+       La série est considérée terminée quand tous les nageurs ont un temps, ou qu'il n'en manque qu'un depuis 20 s,
+       ou que la moitié au moins a un temps depuis 60 s. Un temps saisi ensuite (correction du Quantum) est toujours pris. */
+    { const h = s.heat; if (h && h.status === "running" && h.finAt) {
+        const L = Object.values(h.lanes || {}), nf = L.filter((x) => x.fin).length, nn = Object.keys(h.names || {}).length;
+        const tot = Math.max(nn, L.filter((x) => x.fin || x.rt || Object.keys(x.laps || {}).length).length, nf), w = t - h.finAt;
+        if ((nn && nf >= tot) || (nf >= tot - 1 && w > 20000) || (nf * 2 >= tot && w > 60000)) { h.status = "done"; h.doneAt = h.doneAt || t; h.autoEnd = true; }
+    } }
     s.updatedAt = t; s.relayAt = t;
     return true;
 }
