@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.5.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.5.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -614,7 +614,7 @@ def gui(cfg, demo=False, close_after=0):
         except Exception: pass
         try: core.screen.push(ev)
         except Exception: pass
-        smode["v"] = mode; core.log("Écran géant : " + {"normal": "direct (normal)", "evac": "évacuation du bassin", "cer": "cérémonie", "count": "compte à rebours", "pause": "pause", "msg": "message « " + title + " »"}[mode])
+        smode["v"] = mode; core.log("Écran géant : " + {"normal": "direct (normal)", "evac": "évacuation du bassin", "cer": "cérémonie", "count": "compte à rebours", "pause": "pause", "spons": "logos des partenaires", "msg": "message « " + title + " »"}[mode])
         for k, b in sbtns.items(): b.config(bg=NAVY if k == mode else BG, fg="white" if k == mode else INK)
     frow = tk.Frame(scr, bg=CARD); frow.pack(fill="x", padx=14, pady=(0, 12))
     tk.Label(frow, text="Format de l'écran géant :", bg=CARD, fg=GREY, font=(F, 10)).pack(side="left", padx=(0, 8))
@@ -630,7 +630,18 @@ def gui(cfg, demo=False, close_after=0):
     for k, label in (("", "Automatique"), ("169", "16/9 (large)"), ("43", "4/3 (carré)")):
         b = tk.Button(frow, text=label, command=lambda k=k: set_fmt(k), bg=BG, fg=INK, activebackground=GOLD, relief="flat", font=(F, 10, "bold"), padx=10, pady=6, cursor="hand2"); b.pack(side="left", padx=(0, 6)); fbtns[k] = b
     root.after(3000, lambda: set_fmt(cfg.get("tvfmt", ""), save=False))
-    for k, label in (("normal", "▶ Normal (direct)"), ("count", "⏱ Compte à rebours"), ("evac", "🦈 Évacuation"), ("cer", "🏅 Cérémonie"), ("pause", "☕ Pause"), ("msg", "✎ Message…")):
+    # logo d'un partenaire entre deux séries (à tour de rôle), activable ou non
+    spv = tk.BooleanVar(value=bool(cfg.get("spons_between", False)))
+    def set_spons(save=True):
+        ev = {"k": "spons", "on": bool(spv.get()), "ts": time.time()}
+        try: core.q.put_nowait(ev)
+        except Exception: pass
+        try: core.screen.push(ev)
+        except Exception: pass
+        if save: cfg["spons_between"] = bool(spv.get()); save_cfg(cfg); core.log("Logo d'un partenaire entre les séries : " + ("activé" if spv.get() else "désactivé"))
+    tk.Checkbutton(frow, text="Logo d'un partenaire entre les séries", variable=spv, command=set_spons, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
+    root.after(3200, lambda: set_spons(save=False))
+    for k, label in (("normal", "▶ Normal (direct)"), ("count", "⏱ Compte à rebours"), ("evac", "🦈 Évacuation"), ("cer", "🏅 Cérémonie"), ("pause", "☕ Pause"), ("spons", "🤝 Partenaires"), ("msg", "✎ Message")):
         b = tk.Button(srow, text=label, command=lambda k=k: show(k), bg=NAVY if k == "normal" else BG, fg="white" if k == "normal" else INK, activebackground=GOLD, relief="flat", font=(F, 10, "bold"), padx=10, pady=8, cursor="hand2")
         b.pack(side="left", padx=(0, 6), fill="x", expand=True); sbtns[k] = b
 
