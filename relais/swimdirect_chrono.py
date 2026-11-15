@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.5.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.5.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -470,6 +470,14 @@ def gui(cfg, demo=False, close_after=0):
     import tkinter as tk
     from tkinter import ttk, messagebox
     root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("920x740"); root.minsize(780, 600)
+    try:  # logo Swim Direct dans la barre des tâches et la fenêtre (au lieu de la plume Tk)
+        _b = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+        if os.name == "nt":
+            try: import ctypes; ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SwimDirect.Chrono")
+            except Exception: pass
+            root.iconbitmap(default=os.path.join(_b, "swimdirect.ico"))
+        root._ico = tk.PhotoImage(file=os.path.join(_b, "swimdirect_icon.png")); root.iconphoto(True, root._ico)
+    except Exception: pass
     NAVY, INK, BG, CARD, LINE = "#0b1e3f", "#13284d", "#eef3f8", "#ffffff", "#d6e1ec"
     BLUE, RED, GREY, GREEN, GOLD = "#06324f", "#d6202f", "#5b7685", "#16a34a", "#f2c94c"
     F = "Segoe UI"
