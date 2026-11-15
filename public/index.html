@@ -960,6 +960,7 @@ body.tv{overflow:hidden}
 @keyframes fw{0%{opacity:0;transform:scale(.1)}12%{opacity:1}55%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.25) translateY(3px)}}
 @media (prefers-reduced-motion:reduce){.recb::after,.recb .fw s{animation:none!important}.recb .fw{display:none}}
 .org-off{display:none!important}.orgperm{margin-top:10px}.orgperm summary{cursor:pointer;font-weight:700}#orgperm{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:8px}.op-g b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;opacity:.7;margin-bottom:4px}.op{display:flex;gap:8px;align-items:center;padding:3px 0;cursor:pointer}.op input{width:18px;height:18px}.op-give{grid-column:1/-1;border-top:1px dashed #0002;padding-top:8px}
+.pub-body{display:flex;align-items:center;justify-content:center;gap:clamp(16px,4vw,56px);flex-wrap:wrap;padding:8px 16px 4px}.pub-qr{display:flex;flex-direction:column;align-items:center;gap:6px}.pub-qr svg{width:clamp(170px,36vh,420px);height:auto;border-radius:12px;box-shadow:0 6px 24px #0b1e3f33}.pub-qr small{font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0b1e3f}.pub-l{list-style:none;margin:0;padding:0;display:grid;gap:clamp(8px,1.6vh,18px);text-align:left;font-weight:700;font-size:clamp(15px,3vh,32px);color:#0b1e3f}.pub-url{text-align:center;font-weight:800;font-size:clamp(15px,2.6vh,28px);color:#0b1e3f;margin:10px 16px 18px;word-break:break-all}
 </style>
 <link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 </head>
@@ -2352,8 +2353,17 @@ function screenOv(){const sc=POOL&&POOL.screen,age=sc?Date.now()+(poolOff||0)-sc
   if(sc.mode==="pause")return`<div class="session"><div class="card lv-card mf-card pwait"><div class="mf-head"><span class="mf-tag">Pause</span><h2 class="mf-title">${esc(sc.title||"Pause")}</h2><p class="mf-sub">La compétition reprend dans quelques instants</p></div><div class="mf-scene mf-evac" aria-hidden="true"><div class="mf-deck"></div><div class="mf-blocks">${mfBlock("")}${mfBlock("")}</div><div class="mf-water">${mfWaves()}</div></div></div></div>`;
   if(sc.mode==="count"){const w=compWait();if(w)return w.replace('class="card lv-card','class="card lv-card pwait');return`<div class="session"><div class="card lv-card mf-card pwait"><div class="mf-head"><span class="mf-tag">Réunion ${esc(nx.r)}</span><h2 class="mf-title">Début des courses</h2><div class="mf-cd"><span>Premier départ dans</span><b class="pw-cd" data-cd="${nx.st}">${cdTxt(nx.st-now)}</b><small>à ${hm(nx.st)}</small></div></div></div></div>`}
   if(sc.mode==="spons"){const L=spList();if(L.length)return spHtml(L,"Merci à nos partenaires")}
+  if(sc.mode==="pub")return pubHtml();
   if(sc.mode==="msg")return`<div class="session"><div class="card lv-card mf-card pwait"><div class="mf-head"><h2 class="mf-title">${esc(sc.title||"")}</h2></div></div></div>`;
   return""}
+/* écran « pub » : suivre la compétition sur Swim Direct (QR code vers la page publique, même depuis l'écran local) */
+function pubUrl(){const o=window.SD_LOCAL||/^(\d+\.){3}\d+$|localhost/.test(location.hostname)?"https://swim-direct.swim-direct.workers.dev":location.origin;return o+(EV&&EV!=="main"?"/e/"+EV:"/")}
+let PUBQR={u:"",svg:""};
+function pubQr(){const u=pubUrl();if(PUBQR.u===u&&PUBQR.svg)return PUBQR.svg;if(window.qrcode){try{const q=qrcode(0,"M");q.addData(u);q.make();const n=q.getModuleCount();let d="";for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c} ${r}h1v1h-1z`;PUBQR={u,svg:`<svg viewBox="-2 -2 ${n+4} ${n+4}" shape-rendering="crispEdges"><rect x="-2" y="-2" width="${n+4}" height="${n+4}" fill="#fff"/><path d="${d}" fill="#0b1e3f"/></svg>`};return PUBQR.svg}catch(_){}}else loadQr().then(()=>{try{render()}catch(_){}}).catch(()=>{});return""}
+function pubHtml(){const u=pubUrl(),short=u.replace(/^https?:\/\//,"").replace(/\/$/,""),qr=pubQr();
+  return`<div class="session"><div class="card lv-card mf-card pwait pub-card"><div class="mf-head"><span class="mf-tag">Swim Direct</span><h2 class="mf-title">Suivez la compétition en direct</h2><p class="mf-sub">sur votre téléphone</p></div>
+  <div class="pub-body">${qr?`<div class="pub-qr">${qr}<small>Scannez-moi</small></div>`:""}<ul class="pub-l"><li>⏱ Les temps en direct, couloir par couloir</li><li>🏅 Résultats, classements et podiums</li><li>⭐ Records perso battus</li><li>📅 Programme et horaires</li></ul></div>
+  <p class="pub-url">${esc(short)}</p></div></div>`}
 function poolHtml(){const ov=screenOv();if(ov)return ov;const b=poolHtml1();if(!b||/pwait/.test(b))return b;const pc=poolPauseCard();return pc?pc+b:b}
 function poolHtml1(){
   /* ouverture/fermeture du direct bassin autour des réunions : écran d'attente avec minuteur 15 min avant la 1re course, fermeture 15 min après la dernière épreuve */

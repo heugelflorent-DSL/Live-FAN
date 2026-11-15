@@ -36,7 +36,7 @@ label.ck{display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:600
 </section>
 </main>
 <script>
-const M=[["normal","▶ Direct"],["count","⏱ Compte à rebours"],["cer","🏅 Cérémonie"],["pause","☕ Pause"],["spons","🤝 Partenaires"],["evac","🦈 Évacuation"],["msg","✎ Message"]],F=[["","Auto"],["169","16/9"],["43","4/3"]];
+const M=[["normal","▶ Direct"],["count","⏱ Compte à rebours"],["cer","🏅 Cérémonie"],["pause","☕ Pause"],["spons","🤝 Partenaires"],["pub","📱 Suivre en direct"],["evac","🦈 Évacuation"],["msg","✎ Message"]],F=[["","Auto"],["169","16/9"],["43","4/3"]];
 const $=s=>document.querySelector(s);let S={};
 M.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;b.dataset.k=k;b.onclick=()=>{if(k==="msg"){const t=prompt("Message à afficher en grand :");if(!t||!t.trim())return;cmd({act:"screen",mode:k,title:t.trim()})}else cmd({act:"screen",mode:k})};$("#modes").append(b)});
 F.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;b.dataset.f=k;b.onclick=()=>cmd({act:"fmt",f:k});$("#fmts").append(b)});
