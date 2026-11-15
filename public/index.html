@@ -2745,14 +2745,14 @@ function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[
   return out}
 function renderRes(){
   if(state.live==="bassin"){loadCot();loadPHist()}
-  const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();const PR=provRes();for(const k of done)delete PR[k];
+  const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();const PR=provRes();for(const k of done)if(EVENTS[k]&&(EVENTS[k].results||[]).length)delete PR[k];
   let html=reuChips(done);
   for(const s of reuShown(done)){
     const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&(done.has(k)||PR[k])&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
     if(!keys.length)continue;
     html+=`<div class="session">${secTitle("Réunion "+s,plural(keys.length,"épreuve"))}<div class="list">${keys.map(k=>{const ev=EVENTS[k],open=state.open["r"+k]||(q&&evMatches(ev,q));
      if(PR[k]){const p=PR[k],w0=p.rows[0];return`<div class="lane prov"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm((sch[k]||{}).start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span class="provtag">provisoire · ${p.n} série${p.n>1?"s":""}${p.of?" sur "+p.of:""}</span>${w0&&w0.time!=null?`<span>1er ${esc(w0.name)} · ${esc(w0.timeTxt||fmt(w0.time))}</span>`:""}</span></span><span class="chev" aria-hidden="true">▼</span></button>${open?`<div class="inner"><p class="qprov">Classement provisoire d'après les séries terminées du direct. Le classement officiel le remplacera dès sa publication sur le Live FFN.</p>${lvRows(p.rows,p.id,p.title)}</div>`:""}</div>`}
-     const win=ranking(ev)[0];
+     const win=ranking(ev)[0];if(!win)return`<div class="lane"><div class="row"><span class="time">${hm((sch[k]||{}).start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span>⏳ résultats officiels en attente du Live FFN</span></span></span></div></div>`;
      return`<div class="lane"><button class="row" data-open="r${k}" aria-expanded="${!!open}"><span class="time">${hm((sch[k]||{}).start)}</span><span class="ev"><b>${esc(ev.name)}</b><span class="sub">${compBadge(ev.comp)}<span>1er ${esc(win.name)} · ${fmt(win.res)}</span></span></span><span class="chev" aria-hidden="true">▼</span></button>${open?renderRanking(ev,q):""}</div>`}).join("")}</div></div>`;
   }
   $("#pub-body").innerHTML=html||`<p class="empty">${state.phase==="eng"?"Les résultats apparaîtront ici pendant la compétition.":"Aucun résultat pour le moment."}</p>`;
