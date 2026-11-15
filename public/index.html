@@ -2031,7 +2031,7 @@ function teamBoard(rule,sex){
   const now=teamRanking(rule,done,sex);let prev=null;
   if(doneKs.length>1){const d2=new Set(done);d2.delete(last);prev={};teamRanking(rule,d2,sex).forEach(t=>prev[t.club]=t.rank)}
   /* où en est le classement : épreuve par épreuve, officiel (Live FFN complet), provisoire (séries publiées ou chrono) ou à venir */
-  const PR=provRes(),st=ks.map(k=>{const ev=EVENTS[k];if(done.has(k)&&(ev.results||[]).length)return{k,s:"off"};const p=PR[k];if(p&&p.n){const rows=Object.values(p.heats).flat();return{k,s:"prov",n:p.n,of:p.of,chrono:rows.some(w=>w.chrono),ffn:rows.some(w=>!w.chrono)}}return{k,s:"todo"}});
+  const PR=provRes(),st=ks.map(k=>{const ev=EVENTS[k];if(done.has(k)&&offFull(ev))return{k,s:"off"};const p=PR[k];if(p&&p.n){const rows=Object.values(p.heats).flat();return{k,s:"prov",n:p.n,of:p.of,chrono:rows.some(w=>w.chrono),ffn:rows.some(w=>!w.chrono)}}return{k,s:"todo"}});
   return{now,prev,last,nDone:doneKs.length,nAll:ks.length,st};
 }
 /* style du compteur d'épreuves */document.head.insertAdjacentHTML("beforeend",`<style>.tnev{display:inline-block;margin:2px 0 3px;font-size:12px;font-weight:600;color:var(--muted,#667);padding:1px 7px;border-radius:99px;background:rgba(127,127,127,.12)}.tnev.less{color:#b45309;background:#fff3e0}.tnev.more{color:#1d4ed8;background:#e8f0ff}</style>`);
@@ -2724,18 +2724,20 @@ let HD=null,HDAT=0;function heatDone(ev,n){if(doneSet().has(ev.key))return true;
   const L=LIVE[ev.comp];const m=L&&L.cur&&liveMatch(ev.comp,L.cur.event);return!!(m&&m.key===ev.key&&L.cur.heat>=n)}
 /* passages du chrono électronique (direct bassin) au format des résultats : distance, temps cumulé, temps du tronçon */
 function poolSplits(x,n){const L=(x.laps||{})[n];if(!L||!L.length)return[];const len=poolLen();let prev=0;return L.filter(([,t])=>t!=null).map(([k,t,d])=>{const o={d:d||k*len,cum:t,lap:Math.round((t-prev)*100)/100};prev=t;return o})}
+/* résultats officiels du Live FFN complets ? (le Live FFN publie parfois une épreuve série par série : tant qu'il manque des nageurs arrivés au bassin, les temps du chrono complètent) */
+function offFull(ev){const r=(ev&&ev.results)||[];if(!r.length)return false;if(state.live!=="bassin"||!PHIST)return true;let n=0;for(const x of PHIST){if(x.sim||poolOther(x)||poolIsTest(x))continue;const e=poolEvent(x);if(e&&e.key===ev.key)n+=Object.keys(x.fin||{}).length}return r.length>=n}
 function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[id,[...(LH[id]||[]),...(LIVE[id]&&LIVE[id].cur&&LIVE[id].cur.heat&&LIVE[id].cur.rows.length?[{event:LIVE[id].cur.event,heat:LIVE[id].cur.heat,of:LIVE[id].cur.of,rows:LIVE[id].cur.rows}]:[])]]);for(const [id,hs] of src)for(const h of hs||[]){let ev=liveMatch(id,h.event);if(!ev)continue;if(sfEarly(ev))ev=epGroup(ev).find(x=>x.typ===62)||ev;(out[ev.key]=out[ev.key]||{id,title:h.event,heats:{},of:h.of}).heats[h.heat]=h.rows;if(h.of)out[ev.key].of=h.of}
   // résultats officiels déjà publiés série par série sur le Live FFN (lus toutes les 2 min) : ils complètent les séries manquées par le direct
   const done=doneSet();
   // forfaits déclarés à l'avance : ils ne font pas démarrer l'épreuve (seuls comptent un temps ou une disqualification)
   const swum=r=>r.res!=null||(r.dsq&&!/forf|dns|np|abs/i.test((r.status||"")+" "+(r.reason||"")));
-  for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||done.has(ev.key)||!(ev.results||[]).some(swum))continue;
+  for(const ev of Object.values(EVENTS)){if(ev.type!=="event"||(done.has(ev.key)&&offFull(ev))||!(ev.results||[]).some(swum))continue;
     const p=out[ev.key]=out[ev.key]||{id:ev.comp,title:ev.base+(ev.round?" "+ev.round:""),heats:{},of:(ev.series||[]).length||null};
     const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const hOf=n=>{const e=(ev.entries||[]).find(x=>norm(x.name)===norm(n));return e&&e.heat||"r"};
     for(const r of ev.results){if(seen.has(norm(r.name))||!swum(r))continue;const h=hOf(r.name);(p.heats[h]=p.heats[h]||[]).push({name:r.name,club:r.club,year:r.year,relay:(r.members||[]).length?r.members.map(m=>({name:m.name,leg:m.leg})):undefined,time:r.dsq?null:r.res,timeTxt:r.dsq?(r.status||"DSQ"):fmt(r.res),splits:(r.splits||[]).map(x=>({d:x.dist,cum:x.cum,lap:x.lap}))})}
     if(!p.of)p.of=(ev.series||[]).length||null}
   /* séries terminées au chronométrage électronique (direct bassin) : résultats non officiels tout de suite, remplacés par le Live FFN dès sa publication */
-  if(state.live==="bassin"&&PHIST)for(const x of PHIST){if(x.sim||poolOther(x)||poolIsTest(x)||!poolInOrder(x)||!x.fin||!Object.keys(x.fin).length)continue;const ev=poolEvent(x);if(!ev||(done.has(ev.key)&&(ev.results||[]).length)||!x.heat)continue; /* épreuve finie au bassin mais pas encore publiée sur le Live FFN : on garde les temps du chrono */
+  if(state.live==="bassin"&&PHIST)for(const x of PHIST){if(x.sim||poolOther(x)||poolIsTest(x)||!poolInOrder(x)||!x.fin||!Object.keys(x.fin).length)continue;const ev=poolEvent(x);if(!ev||(done.has(ev.key)&&offFull(ev))||!x.heat)continue; /* épreuve finie au bassin mais pas encore publiée sur le Live FFN : on garde les temps du chrono */
     const p=out[ev.key]=out[ev.key]||{id:ev.comp,title:ev.base+(ev.round?" "+ev.round:""),heats:{},of:(ev.series||[]).length||null};if(p.heats[x.heat]&&p.heats[x.heat].length)continue;
     const se=ev.series&&ev.series[x.heat-1];const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const rows=[];
     for(const n in x.fin){const w=poolWho({names:x.names||{}},se,n);if(!w||seen.has(norm(w.name)))continue;const t=x.fin[n];rows.push({name:w.name,club:w.club,year:w.year,relay:(w.members||[]).length?(()=>{const sp=poolSplits(x,n),k=relayLegs(ev.name,w.members.length).n,tot=totalDist(ev.name)||0,at=d=>{if(Math.abs(d-tot)<1e-6)return t;const y=sp.find(z=>Math.abs(z.d-d)<1e-6);return y?y.cum:null};return w.members.map((m,i)=>{const a=i?at(i*tot/k):0,b=at((i+1)*tot/k);return{name:m.name,leg:tot&&a!=null&&b!=null?Math.round((b-a)*100)/100:undefined}})})():undefined,time:t,timeTxt:fmt(t),splits:poolSplits(x,n),chrono:true})}
@@ -2745,7 +2747,7 @@ function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[
   return out}
 function renderRes(){
   if(state.live==="bassin"){loadCot();loadPHist()}
-  const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();const PR=provRes();for(const k of done)if(EVENTS[k]&&(EVENTS[k].results||[]).length)delete PR[k];
+  const done=doneSet(),q=getQ(),fc=$("#filter-comp").value,sch=schedule();const PR=provRes();for(const k of done)if(EVENTS[k]&&offFull(EVENTS[k]))delete PR[k];
   let html=reuChips(done);
   for(const s of reuShown(done)){
     const keys=state.order[s].filter(k=>EVENTS[k].type==="event"&&(done.has(k)||PR[k])&&(!fc||EVENTS[k].comp===fc)&&(!q||evMatches(EVENTS[k],q)));
@@ -2855,7 +2857,7 @@ function loadPHist(force){if(state.live!=="bassin"||PHL)return;if(!force&&PHAT&&
 setInterval(()=>{if((state.view==="rank"||state.view==="pod")&&!document.hidden)loadPHist()},20000);
 /* arrivées du chronométrage des épreuves pas encore officialisées sur le Live FFN, par épreuve, avec l'équipe de chaque nageur */
 function provRows(rule,done){const out={};if(state.live!=="bassin"||!PHIST||!COT)return out;
-  for(const x of PHIST){if(poolOther(x)||poolIsTest(x)||!poolInOrder(x))continue;const ev=poolEvent(x);if(!ev||!rule.comps.includes(ev.comp)||(done.has(ev.key)&&(ev.results||[]).length)||hasFinals(ev))continue; /* finie au bassin, pas encore publiée : on compte les temps du chrono */const se=ev.series&&ev.series[x.heat-1];
+  for(const x of PHIST){if(poolOther(x)||poolIsTest(x)||!poolInOrder(x))continue;const ev=poolEvent(x);if(!ev||!rule.comps.includes(ev.comp)||(done.has(ev.key)&&offFull(ev))||hasFinals(ev))continue; /* finie au bassin, pas encore publiée : on compte les temps du chrono */const se=ev.series&&ev.series[x.heat-1];
     for(const n in x.fin||{}){const t=x.fin[n];let w=poolWho({names:x.names||{}},se,n);const q=(x.names||{})[n];
       if(ev.relay&&se){const sl=se.swimmers.find(s=>+s.lane===+n);if(sl&&(!q||norm(sl.club||sl.name)===norm(q.club||q.name)||norm(sl.name).startsWith(norm(q.name))))w={...sl,members:(w&&w.members)||sl.members}}
       if(!w)continue;const team=ev.relay?((w.members||[]).map(m=>Object.values(SWIMMERS).find(x=>norm(x.name)===norm(m.name)&&x.team&&/ \d+$/.test(x.team))).find(Boolean)||{}).team||String(w.name||"").trim():(w.iuf&&SWIMMERS[w.iuf]&&SWIMMERS[w.iuf].team)||w.team||w.club;const p=cotPts(ev,t);if(p==null||!team)continue;
@@ -2872,7 +2874,7 @@ function teamRanking(rule,done,sex){
     const per={},off=fx?mergedRanking(ev):ranking(ev);
     for(const w of off){if(w.dsq)continue;/* résultats publiés sans points (épreuve en cours) : points calculés avec la table de cotation */const p=w.points||(w.res!=null?cotPts(ev,w.res)||0:0);if(!done.has(k)&&!p)continue;const c=w.team||w.club||w.name;(per[c]=per[c]||[]).push({ev,w,p})}
     /* épreuve pas encore officialisée : les arrivées du chronométrage complètent (sans doubler un résultat déjà publié) */
-    if(!done.has(k)||!(ev.results||[]).length)for(const x of P[k]||[]){const dup=off.some(r=>ev.relay?norm(r.team||r.name)===norm(x.team):(r.iuf&&x.w.iuf?r.iuf===x.w.iuf:norm(r.name)===norm(x.w.name)));if(dup)continue;(per[x.team]=per[x.team]||[]).push({ev,w:x.w,p:x.p,prov:true})}
+    if(!done.has(k)||!offFull(ev))for(const x of P[k]||[]){const dup=off.some(r=>ev.relay?norm(r.team||r.name)===norm(x.team):(r.iuf&&x.w.iuf?r.iuf===x.w.iuf:norm(r.name)===norm(x.w.name)));if(dup)continue;(per[x.team]=per[x.team]||[]).push({ev,w:x.w,p:x.p,prov:true})}
     for(const c in per){let l=per[c].sort((a,b)=>b.p-a.p);if(rule.perEvent>0)l=l.slice(0,rule.perEvent);(clubs[c]=clubs[c]||{club:c,total:0,prov:0,items:[],comp:ev.comp});l.forEach(x=>{clubs[c].total+=x.p;if(x.prov)clubs[c].prov=(clubs[c].prov||0)+x.p;clubs[c].items.push(x)})}}
   // relais obligatoires : une équipe absente d'un relais terminé n'est pas classée (affichée « non classée » en bas)
   /* plus de « non classée » : on montre seulement le nombre d'épreuves de chaque équipe */if(false&&rule.needRelays!==false&&sex){const rel=allKeys().filter(k=>{const e=EVENTS[k];return e.relay&&rule.comps.includes(e.comp)&&done.has(k)&&(!sex||(sex==="F")===/Dames/.test(e.name))});
@@ -2901,7 +2903,7 @@ function renderPod(){
   if(!rule){$("#pub-body").innerHTML=html+`<p class="empty">Aucun podium paramétré.</p>`;return}
   // regroupe les épreuves terminées du même nom sur les compétitions de la règle
   if(state.live==="bassin")loadPHist();
-  const groups=[];const byName={};const PRv=provRes();for(const k of done)if(EVENTS[k]&&(EVENTS[k].results||[]).length)delete PRv[k];
+  const groups=[];const byName={};const PRv=provRes();for(const k of done)if(EVENTS[k]&&offFull(EVENTS[k]))delete PRv[k];
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
