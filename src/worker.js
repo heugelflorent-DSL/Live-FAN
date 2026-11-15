@@ -681,9 +681,13 @@ export default {
         // page d'accueil : ville, bassin et dates lues dans le texte brut (sans relire tout le fichier de données)
         const raw = (await env.KV.get(kk("data", x.id))) || ""; const metas = [];
         /* seulement les compétitions encore reliées au live (une compétition retirée garde ses données mais ne doit plus faire « En direct ») */
-        try { const d = JSON.parse(raw || "{}"); for (const id of c.comps || []) { const m = d.comps && d.comps[id] && d.comps[id].meta; if (m) metas.push(m); if (metas.length >= 6) break; } }
+        let opens = null; /* ouverture des portes de la prochaine réunion du jour (ou à défaut 1 h avant son premier départ) : « En direct » seulement à partir de là */
+        try { const d = JSON.parse(raw || "{}"); for (const id of c.comps || []) { const cc = d.comps && d.comps[id], m = cc && cc.meta; if (m) metas.push(m); if (metas.length >= 6) break;
+            const dt0 = cc && compDate(m); for (const r of (cc && cc.reunions) || []) { const dt = compDate({ date: r.day }) || dt0; if (!dt) continue;
+              const evs = (r.items || []).filter((i) => i.kind === "event" && i.time); const f0 = hToMin(evs[0]?.time); const fd = hToMin(r.doors) ?? hToMin((c.doorsMan || {})[r.n]) ?? (f0 != null ? f0 - 60 : null); if (fd == null) continue;
+              const at = parisEpoch(dt.y, dt.m, dt.d) + fd * 60e3, end = parisEpoch(dt.y, dt.m, dt.d) + ((hToMin(evs[evs.length - 1]?.time) ?? fd) + 120) * 60e3; if (end > Date.now() && (opens == null || at < opens)) opens = at; } } }
         catch (e) { for (const m of raw.matchAll(/"meta":(\{[^{}]*\})/g)) { try { metas.push(JSON.parse(m[1])); } catch (e2) {} if (metas.length >= 6) break; } }
-        out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main", theme: c.theme || "alsace", color: c.color || "", org: c.org ?? (c.theme && c.theme !== "alsace" ? "" : "Fédération Alsacienne de Natation"), live: c.live || "off",
+        out.push({ id: x.id, name: c.name || x.name || "", main: x.id === "main", theme: c.theme || "alsace", color: c.color || "", org: c.org ?? (c.theme && c.theme !== "alsace" ? "" : "Fédération Alsacienne de Natation"), live: c.live || "off", opens,
           comps: metas.map((m) => ({ name: m.name || "", city: m.city || "", pool: m.pool || "", date: m.date || "" })) });
       }
       return edge(json(out, 200, { "cache-control": "public, max-age=60" }));
