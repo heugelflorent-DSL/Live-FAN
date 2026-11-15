@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Régie écran géant</title>
+<style>
+:root{--navy:#0b1e3f;--ink:#13284d;--bg:#eef3f8;--card:#fff;--line:#d6e1ec;--gold:#f2c94c;--grey:#5b7685;--red:#d6202f;--green:#16a34a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
+header{background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;flex:1}#st{font-size:13px;padding:4px 10px;border-radius:99px;background:#ffffff22}#st.ok{background:var(--green)}#st.ko{background:var(--red)}
+main{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,1fr);gap:16px;padding:16px;max-width:1400px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--grey);margin:0 0 10px}
+.pv{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden}
+.pv iframe{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;pointer-events:none}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px 10px;background:var(--bg);color:var(--ink);cursor:pointer}
+button:hover{background:var(--gold)}button.on{background:var(--navy);color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}.row button{flex:1}
+label.ck{display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:600;cursor:pointer}label.ck input{width:20px;height:20px}
+.big{width:100%;background:var(--gold);margin-top:12px}.hint{color:var(--grey);font-size:13px;margin:8px 0 0}
+</style></head><body>
+<header><h1>🎛 Régie de l'écran géant</h1><span id="st">connexion…</span></header>
+<main>
+<section class="card"><h2>Ce qu'affiche l'écran géant</h2>
+<div class="pv" id="pv"><iframe id="fr" src="/" title="Aperçu de l'écran géant"></iframe></div>
+<button class="big" id="open">🖥 Ouvrir l'affichage sur l'écran géant</button>
+<p class="hint">Ouvre une fenêtre sur le 2e écran (Windows : mode « Étendre », touche Windows + P). Si elle s'ouvre sur cet écran, glisse-la sur l'écran géant puis appuie sur F11.</p>
+</section>
+<section class="card"><h2>Écran</h2>
+<div class="g" id="modes"></div>
+<label class="ck"><input type="checkbox" id="auto"> ↩ Revenir au direct tout seul au prochain départ</label>
+<h2 style="margin-top:18px">Format</h2>
+<div class="row" id="fmts"></div>
+<label class="ck"><input type="checkbox" id="spons"> Logo d'un partenaire entre les séries</label>
+<p class="hint">Fonctionne sur le réseau local, même sans Internet : les commandes passent par le logiciel Swim Direct · Chrono.</p>
+</section>
+</main>
+<script>
+const M=[["normal","▶ Direct"],["count","⏱ Compte à rebours"],["cer","🏅 Cérémonie"],["pause","☕ Pause"],["spons","🤝 Partenaires"],["evac","🦈 Évacuation"],["msg","✎ Message"]],F=[["","Auto"],["169","16/9"],["43","4/3"]];
+const $=s=>document.querySelector(s);let S={};
+M.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;b.dataset.k=k;b.onclick=()=>{if(k==="msg"){const t=prompt("Message à afficher en grand :");if(!t||!t.trim())return;cmd({act:"screen",mode:k,title:t.trim()})}else cmd({act:"screen",mode:k})};$("#modes").append(b)});
+F.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;b.dataset.f=k;b.onclick=()=>cmd({act:"fmt",f:k});$("#fmts").append(b)});
+$("#auto").onchange=e=>cmd({act:"auto",on:e.target.checked});$("#spons").onchange=e=>cmd({act:"spons",on:e.target.checked});
+async function cmd(c){try{const r=await fetch("/local/cmd",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(c)});if(!r.ok)throw 0;setTimeout(poll,500)}catch(e){st(false)}}
+function st(ok){const s=$("#st");s.className=ok?"ok":"ko";s.textContent=ok?"✓ relié au logiciel chrono":"✗ logiciel chrono injoignable"}
+async function poll(){try{const r=await fetch("/local/state",{cache:"no-store"});S=await r.json();st(true);
+  document.querySelectorAll("#modes button").forEach(b=>b.classList.toggle("on",b.dataset.k===(S.mode||"normal")));
+  document.querySelectorAll("#fmts button").forEach(b=>b.classList.toggle("on",b.dataset.f===(S.fmt||"")));
+  if(document.activeElement!==$("#auto"))$("#auto").checked=!!S.auto;if(document.activeElement!==$("#spons"))$("#spons").checked=!!S.spons}catch(e){st(false)}}
+setInterval(poll,2000);poll();
+function fit(){const w=$("#pv").clientWidth;$("#fr").style.transform="scale("+(w/1920)+")"}addEventListener("resize",fit);fit();
+$("#open").onclick=async()=>{let f="width=1280,height=720";try{if(window.getScreenDetails){const d=await getScreenDetails(),o=d.screens.find(x=>x!==d.currentScreen)||d.currentScreen;f=`left=${o.availLeft},top=${o.availTop},width=${o.availWidth},height=${o.availHeight}`}}catch(e){}
+  const w=open("/","swimdirect-ecran",f+",popup");if(!w)alert("Le navigateur a bloqué la fenêtre : autorise les fenêtres pop-up pour cette adresse.")};
+</script></body></html>

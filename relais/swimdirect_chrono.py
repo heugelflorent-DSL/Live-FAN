@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.5.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.6.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -76,10 +76,13 @@ def open_firewall(port, log):
         log("🛡 Pare-feu : autorisation de l'écran local demandée (accepte la fenêtre Windows)" if rc > 32 else "⚠ Pare-feu non modifié : les autres PC ne verront peut-être pas l'écran local")
     except Exception as e: log(f"⚠ Pare-feu : vérification impossible ({e})")
 
+REGIE_HTML = open(os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__))), "regie.html"), encoding="utf-8").read() if os.path.exists(os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__))), "regie.html")) else "<h1>Régie indisponible</h1>"
+
 class LocalScreen:
     def __init__(self, core):
         self.core = core; self.evs = []; self.lock = threading.Lock(); self.clients = []
         self.cache = os.path.join(HOME, "ecran"); os.makedirs(self.cache, exist_ok=True); self.port = int(core.cfg.get("ecran_port") or LOCAL_PORT); self.ok = False; self.ip = ""; self.ips = []
+        self.cmds = queue.Queue(); self.state = {}  # régie : commandes reçues du réseau local, lues par la fenêtre ; état affiché
     def push(self, ev):
         item = {"t": int(time.time() * 1000), "ev": ev}
         with self.lock:
@@ -127,12 +130,21 @@ class LocalScreen:
                         return self.out(200, "text/html; charset=utf-8", "<meta charset=utf-8><body style='font:20px system-ui;padding:40px'><h1>Swim Direct · écran local</h1><p>Aucun live choisi dans le logiciel <b>Swim Direct · Chrono</b> sur ce PC.</p><p>Colle l'adresse du live (…/e/nom-du-live) dans le logiciel, puis recharge cette page.</p>".encode())
                     self.send_response(302); self.send_header("location", me.live_path() + "?ecran=local#tv"); self.send_header("content-length", "0"); self.end_headers(); return
                 if path.startswith("/local/events"): return self.events()
+                if path.split("?")[0] in ("/regie", "/regie/"): return self.out(200, "text/html; charset=utf-8", REGIE_HTML.encode())
+                if path.startswith("/local/state"): return self.out(200, "application/json", json.dumps(me.state, ensure_ascii=False).encode())
                 if path.startswith("/local/now"):
                     b = json.dumps({"now": int(time.time() * 1000)}).encode(); return self.out(200, "application/json", b)
                 code, ctype, body = me.fetch(path)
                 if code == 200 and ctype.startswith("text/html"):
                     body = body.replace(b"<head>", b"<head><script>window.SD_LOCAL=1</script>", 1)
                 self.out(code, ctype, body)
+            def do_POST(self):
+                if not self.path.startswith("/local/cmd"): return self.out(404, "text/plain", b"introuvable")
+                try:
+                    n = int(self.headers.get("content-length") or 0); c = json.loads(self.rfile.read(min(n, 4000)) or b"{}")
+                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto"): raise ValueError("commande inconnue")
+                    me.cmds.put(c); return self.out(200, "application/json", b'{"ok":true}')
+                except Exception as e: return self.out(400, "application/json", json.dumps({"ok": False, "err": str(e)}).encode())
             def out(self, code, ctype, body):
                 self.send_response(code); self.send_header("content-type", ctype); self.send_header("content-length", str(len(body))); self.send_header("cache-control", "no-store"); self.end_headers()
                 try: self.wfile.write(body)
@@ -155,6 +167,7 @@ class LocalScreen:
             srv = http.server.ThreadingHTTPServer(("0.0.0.0", self.port), H); srv.daemon_threads = True; self.ok = True
             self.ips = all_ips(); self.ip = self.ips[0]
             self.core.log(f"🖥 Écran géant local : sur le PC de l'écran, ouvrir " + "  ou  ".join(f"http://{a}:{self.port}" for a in self.ips) + f"  (ou http://{socket.gethostname()}:{self.port})")
+            self.core.log("🎛 Régie de l'écran géant (sur n'importe quel PC du réseau, même sans Internet) : " + "  ou  ".join(f"http://{a}:{self.port}/regie" for a in self.ips))
             if len(self.ips) > 1: self.core.log("   Plusieurs réseaux sur ce PC (câble, Wi-Fi…) : prends l'adresse du réseau où est branché l'écran.")
             threading.Thread(target=open_firewall, args=(self.port, self.core.log), daemon=True).start()
             srv.serve_forever()
@@ -620,8 +633,9 @@ def gui(cfg, demo=False, close_after=0):
     srow = tk.Frame(scr, bg=CARD); srow.pack(fill="x", padx=14, pady=(0, 12))
     smode = {"v": "normal"}; sbtns = {}
     autov = tk.BooleanVar(value=bool(cfg.get("screen_auto", True)))  # écran imposé retiré tout seul au départ suivant
-    def show(mode, title=""):
-        if mode == "msg":
+    def show_t(mode, title): show(mode, title, ask=False)
+    def show(mode, title="", ask=True):
+        if mode == "msg" and ask:
             from tkinter import simpledialog
             title = simpledialog.askstring(APP, "Message à afficher en grand sur l'écran géant :", parent=root) or ""
             if not title.strip(): return
@@ -630,7 +644,7 @@ def gui(cfg, demo=False, close_after=0):
         except Exception: pass
         try: core.screen.push(ev)
         except Exception: pass
-        smode["v"] = mode; core.log("Écran géant : " + {"normal": "direct (normal)", "evac": "évacuation du bassin", "cer": "cérémonie", "count": "compte à rebours", "pause": "pause", "spons": "logos des partenaires", "msg": "message « " + title + " »"}[mode])
+        smode["v"] = mode; core.screen.state.update(mode=mode, title=title); core.log("Écran géant : " + {"normal": "direct (normal)", "evac": "évacuation du bassin", "cer": "cérémonie", "count": "compte à rebours", "pause": "pause", "spons": "logos des partenaires", "msg": "message « " + title + " »"}[mode])
         for k, b in sbtns.items(): b.config(bg=NAVY if k == mode else BG, fg="white" if k == mode else INK)
     frow = tk.Frame(scr, bg=CARD); frow.pack(fill="x", padx=14, pady=(0, 12))
     tk.Label(frow, text="Format de l'écran géant :", bg=CARD, fg=GREY, font=(F, 10)).pack(side="left", padx=(0, 8))
@@ -641,6 +655,7 @@ def gui(cfg, demo=False, close_after=0):
         except Exception: pass
         try: core.screen.push(ev)
         except Exception: pass
+        core.screen.state["fmt"] = f
         if save: cfg["tvfmt"] = f; save_cfg(cfg); core.log("Format de l'écran géant : " + {"": "automatique", "169": "16/9", "43": "4/3"}[f])
         for k, b in fbtns.items(): b.config(bg=NAVY if k == f else BG, fg="white" if k == f else INK)
     for k, label in (("", "Automatique"), ("169", "16/9 (large)"), ("43", "4/3 (carré)")):
@@ -654,6 +669,7 @@ def gui(cfg, demo=False, close_after=0):
         except Exception: pass
         try: core.screen.push(ev)
         except Exception: pass
+        core.screen.state["spons"] = bool(spv.get())
         if save: cfg["spons_between"] = bool(spv.get()); save_cfg(cfg); core.log("Logo d'un partenaire entre les séries : " + ("activé" if spv.get() else "désactivé"))
     tk.Checkbutton(frow, text="Logo d'un partenaire entre les séries", variable=spv, command=set_spons, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
     root.after(3200, lambda: set_spons(save=False))
@@ -663,8 +679,26 @@ def gui(cfg, demo=False, close_after=0):
         core.test = bool(tstv.get()); core.test_auto = False; core.log("🧪 Mode test activé : les essais du chrono ne vont PAS sur le site (écran géant local seulement)" if core.test else "Mode test désactivé : les temps vont de nouveau sur le site")
     trow = tk.Frame(scr, bg=CARD); trow.pack(fill="x", padx=14, pady=(0, 12))
     def set_auto():
-        cfg["screen_auto"] = bool(autov.get()); save_cfg(cfg); core.log("Retour automatique au direct au départ suivant : " + ("oui" if autov.get() else "non"))
+        cfg["screen_auto"] = bool(autov.get()); save_cfg(cfg); core.screen.state["auto"] = bool(autov.get()); core.log("Retour automatique au direct au départ suivant : " + ("oui" if autov.get() else "non"))
     tk.Checkbutton(trow, text="↩ Revenir au direct tout seul au prochain départ", variable=autov, command=set_auto, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(0, 16))
+    core.screen.state["auto"] = bool(autov.get())
+    def regie_poll():  # commandes de la page « régie » (autre PC du réseau local)
+        try:
+            while True:
+                c = core.screen.cmds.get_nowait(); a = c.get("act")
+                if a == "screen" and c.get("mode") in sbtns:
+                    if c["mode"] == "msg":
+                        t = str(c.get("title") or "").strip()[:120]
+                        if t: show_t("msg", t)
+                    else: show(c["mode"])
+                elif a == "fmt" and c.get("f") in fbtns: set_fmt(c["f"])
+                elif a == "spons": spv.set(bool(c.get("on"))); set_spons()
+                elif a == "auto": autov.set(bool(c.get("on"))); set_auto()
+        except queue.Empty: pass
+        except Exception as e: core.log(f"✗ Régie : {e}")
+        core.screen.state["auto"] = bool(autov.get())
+        root.after(300, regie_poll)
+    root.after(1500, regie_poll)
     def test_sync():
         if core.test_auto and tstv.get(): tstv.set(False)
         root.after(1000, test_sync)
@@ -781,6 +815,7 @@ AIDE = [
         ("p", "2. Sur le PC de l'écran, ouvre dans Chrome ou Edge l'adresse affichée dans « Écran géant local » (par exemple http://192.168.1.4:8765). Bouton « Copier » pour la recopier."),
         ("p", "3. Touche F11 pour le plein écran (Fn + F11 sur certains portables)."),
         ("h", "Plein écran automatique (mode kiosque)"),
+        ("p", "Régie depuis le PC de l'écran (même sans Internet) : ouvre l'adresse suivie de /regie (par exemple http://192.168.1.4:8765/regie). Tu y as l'aperçu de l'écran géant et tous les boutons (direct, cérémonie, pause, partenaires, format). Avec Windows en mode « Étendre » (Windows + P), le bouton « Ouvrir l'affichage sur l'écran géant » place l'affichage sur le 2e écran."),
         ("p", "Crée un raccourci sur le bureau du PC de l'écran avec pour cible :\n\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --kiosk \"http://ADRESSE:8765/\"\nAlt + F4 pour en sortir."),
         ("h", "Si l'écran n'affiche rien"),
         ("p", "• Page « Aucun live choisi » : relie d'abord la clé dans l'admin (onglet Démarrer).\n• Page injoignable : essaie l'autre adresse de la liste (câble plutôt que Wi-Fi). Le pare-feu est ouvert automatiquement par le logiciel.\n• Tu es sorti de l'écran géant : bouton « 📺 Écran géant » en bas à droite."),
