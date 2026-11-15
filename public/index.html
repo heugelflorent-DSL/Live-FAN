@@ -2333,7 +2333,7 @@ function spBetween(){if(!POOL||!POOL.spons)return"";const L=spList();if(!L.lengt
   if(h&&h.status==="done"&&h.doneAt){if(SPS.key!==key)SPS={key,shown:false,i:(SPN++)%L.length,newAt:0};if(now-h.doneAt>=15000){SPS.shown=true;return spHtml([L[SPS.i%L.length]],"Avec le soutien de")}return""}
   if(SPS.key&&SPS.key!==key&&!SPS.shown){if(!SPS.newAt)SPS.newAt=Date.now();if(Date.now()-SPS.newAt<4000)return spHtml([L[SPS.i%L.length]],"Avec le soutien de");SPS.shown=true}
   return""}
-function screenOv(){const sc=POOL&&POOL.screen;if(!sc||!sc.mode||Date.now()+(poolOff||0)-sc.at>4*3600e3)return"";
+function screenOv(){const sc=POOL&&POOL.screen,age=sc?Date.now()+(poolOff||0)-sc.at:0;if(!sc||!sc.mode||age>4*3600e3)return""; /* compétition terminée : la dernière cérémonie s'efface au bout de 20 min */ if(age>20*60e3){const st=evStatus();if(st&&st.k==="done")return""}
   const now=parisSec(Date.now()+poolOff),rs=Object.keys(state.order||{}).sort((a,b)=>a-b).map(r=>({r,st:state.starts[r]?toMin(String(state.starts[r]).replace("h",":"))*60:null})).filter(x=>x.st!=null);
   const nx=rs.find(x=>x.st>now)||rs[rs.length-1]||{r:"1",st:now+600};
   if(sc.mode==="evac")return evacHtml(nx,0);
