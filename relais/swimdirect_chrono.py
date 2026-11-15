@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.5.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.5.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -163,7 +163,7 @@ class LocalScreen:
 # ---------- moteur ----------
 class Core:
     def __init__(self, cfg, on_log=print):
-        self.cfg = cfg; self.on_log = on_log; self.paused = False; self.stop = False
+        self.cfg = cfg; self.on_log = on_log; self.paused = False; self.test = False; self.stop = False
         self.q = queue.Queue(maxsize=5000); self.raw = []; self.raw_lock = threading.Lock()
         self.st = {"update": "", "linked": None, "name": "", "url": "", "bassin": None, "quantum": "recherche…", "last": "", "sent": 0, "jsent": 0, "err": "", "occupied": False}
         jdir = os.path.join(HOME, "journaux"); os.makedirs(jdir, exist_ok=True)
@@ -287,8 +287,10 @@ class Core:
         for ev in evs:
             if ev["k"] != "clock": self.st["last"] = describe(ev); self.log(self.st["last"])
             if not self.paused:
-                try: self.q.put_nowait(ev)
-                except queue.Full: pass
+                # mode test : les essais du chrono restent sur ce PC et l'écran géant local, rien ne part sur le site public
+                if not self.test or ev.get("k") == "ping":
+                    try: self.q.put_nowait(ev)
+                    except queue.Full: pass
                 self.screen.push(ev)  # le signe de vie sert aussi à l'écran local (fin de série sans appui de poire)
 
     # lecture du chronométrage (sortie réseau Sport In The Box)
@@ -641,6 +643,12 @@ def gui(cfg, demo=False, close_after=0):
         if save: cfg["spons_between"] = bool(spv.get()); save_cfg(cfg); core.log("Logo d'un partenaire entre les séries : " + ("activé" if spv.get() else "désactivé"))
     tk.Checkbutton(frow, text="Logo d'un partenaire entre les séries", variable=spv, command=set_spons, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
     root.after(3200, lambda: set_spons(save=False))
+    # mode test (jamais gardé au redémarrage, pour ne pas l'oublier activé)
+    tstv = tk.BooleanVar(value=False)
+    def set_test():
+        core.test = bool(tstv.get()); core.log("🧪 Mode test activé : les essais du chrono ne vont PAS sur le site (écran géant local seulement)" if core.test else "Mode test désactivé : les temps vont de nouveau sur le site")
+    trow = tk.Frame(scr, bg=CARD); trow.pack(fill="x", padx=14, pady=(0, 12))
+    tk.Checkbutton(trow, text="🧪 Mode test : les essais du chrono n'apparaissent pas dans le direct du site", variable=tstv, command=set_test, bg=CARD, fg="#b45309", activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left")
     for k, label in (("normal", "▶ Normal (direct)"), ("count", "⏱ Compte à rebours"), ("evac", "🦈 Évacuation"), ("cer", "🏅 Cérémonie"), ("pause", "☕ Pause"), ("spons", "🤝 Partenaires"), ("msg", "✎ Message")):
         b = tk.Button(srow, text=label, command=lambda k=k: show(k), bg=NAVY if k == "normal" else BG, fg="white" if k == "normal" else INK, activebackground=GOLD, relief="flat", font=(F, 10, "bold"), padx=10, pady=8, cursor="hand2")
         b.pack(side="left", padx=(0, 6), fill="x", expand=True); sbtns[k] = b
@@ -689,6 +697,7 @@ def gui(cfg, demo=False, close_after=0):
         elif lv != "ok": hero_set("warn" if not s["err"] else "bad", "Le site ne répond pas" if s["err"] else "Connexion au site…", "Vérifie Internet sur ce PC. Le chronométrage et l'écran géant local continuent ; les temps partiront dès le retour de la connexion." if s["err"] else "Quelques secondes…", 6)
         elif cq == "bad": hero_set("bad", "Le chronométrage ne répond pas", f"{q}. Vérifie que le logiciel de chronométrage est ouvert avec une compétition chargée et que sa sortie est active, ou change de système (étape 2).", {"ares": 2, "alge": 3, "stramatel": 4}.get(cfg.get("sys"), 1))
         elif cq == "warn": hero_set("warn", "En attente du chronométrage", f"{q}. Le direct démarre tout seul dès que les données arrivent.", {"ares": 2, "alge": 3, "stramatel": 4}.get(cfg.get("sys"), 1))
+        elif core.test: hero_set("warn", "🧪 Mode test", "Les essais du chrono s'affichent sur l'écran géant local mais ne vont pas sur le site. Décoche « Mode test » avant la compétition.", 0)
         elif core.paused: hero_set("warn", "Envoi en pause", "Les temps ne partent plus sur le site. Bouton « Reprendre l'envoi » en bas.", 0)
         else: hero_set("ok", "Tout fonctionne", "Les temps du chronométrage partent sur le site et sur l'écran géant." + (f"  Dernier : {s['last']}" if s["last"] else ""))
         ilast.config(text="Dernier événement : " + (s["last"] or "—"))
