@@ -658,6 +658,9 @@ export default {
     const ORG = !ADM && !!KEY && EV_RE.test(ev) && (await orgMatch(env, KEY, ev));
     const RELAYEV = !ADM && KEY && p === "/api/pool/event" && !url.searchParams.get("e") ? await orgEventOf(env, KEY) : null;
     const CAN = ADM || ORG;
+    // fonctionnalités de l'administrateur données à l'organisateur de ce live (cases cochées par l'administrateur ; rien par défaut)
+    const GR = ORG ? new Set((await env.KV.get("orgon:" + ev, "json")) || []) : null;
+    const can = (f) => ADM || (ORG && GR.has(f));
     if (KEY && (await tooManyFails(req, CAN || !!RELAYEV || (p === "/api/pool/event" && relayAuthed(req, env)))))
       return json({ error: "Trop d'essais de mot de passe. Réessaie dans 15 minutes." }, 429);
     if (!EV_RE.test(ev)) return json({ error: "Événement inconnu." }, 404);
@@ -751,7 +754,7 @@ export default {
       const room = env.POOL.get(env.POOL.idFromName(rid === "main" ? "bassin" : "bassin:" + rid));
       if (p === "/api/pool/event") {
         if (!relayAuthed(req, env) && !ORG && !RELAYEV) return json({ error: "Mot de passe incorrect." }, 401);
-        if (url.searchParams.get("sim") && !ADM) return adminOnly(); // simulateur : réservé à l'administrateur du site
+        if (url.searchParams.get("sim") && !can("sim")) return adminOnly(); // simulateur : réservé à l'administrateur du site
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
       }
       if (config.live !== "bassin" && !CAN) return json({ error: "Direct bassin non activé." }, 404);
@@ -845,7 +848,7 @@ export default {
       return json(await mppStatus(env, ev));
     }
     if (p === "/api/admin/mpp" && req.method === "POST") {
-      if (!ADM) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
+      if (!can("mpp")) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
       if (!CAN) return json({ error: "Mot de passe incorrect." }, 401);
       const body = await req.json().catch(() => ({}));
       // tout écraser : on oublie les records lus (en gardant les licences retrouvées) pour tout relire sur l'Extranat
@@ -954,7 +957,7 @@ export default {
       catch (e) { return json({ error: "Messages indisponibles : " + String(e.message || e).slice(0, 120) }, 503); }
     }
     if (p === "/api/admin/journal") {
-      if (!ADM) return adminOnly(); // journal brut du chrono : réservé à l'administrateur du site
+      if (!can("log")) return adminOnly(); // journal brut du chrono : réservé à l'administrateur du site
       const room = env.POOL.get(env.POOL.idFromName(ev === "main" ? "bassin" : "bassin:" + ev));
       const d = url.searchParams.get("day");
       try { return await room.fetch(new Request("https://pool/journal" + (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? "?day=" + d : ""))); }
@@ -1021,20 +1024,22 @@ export default {
     if (p === "/api/admin/state") {
       const { config, data } = await load(env, ev);
       const ffxLog = (await env.KV.get(kk("ffxlog", ev), "json")) || {};
-      const orgOff = (await env.KV.get("orgoff:" + ev, "json")) || [];
-      return json({ config, data, ffxLog, now: Date.now(), role: ADM ? "admin" : "org", orgOff });
+      const orgOff = (await env.KV.get("orgoff:" + ev, "json")) || [], orgOn = (await env.KV.get("orgon:" + ev, "json")) || [];
+      return json({ config, data, ffxLog, now: Date.now(), role: ADM ? "admin" : "org", orgOff, orgOn });
     }
     // fonctionnalités retirées à l'organisateur de ce live (réglé par l'administrateur du site seulement)
     if (p === "/api/admin/orgoff" && req.method === "PUT") {
       if (!ADM) return adminOnly();
-      const { off } = await req.json().catch(() => ({}));
+      const { off, on } = await req.json().catch(() => ({}));
       if (!Array.isArray(off) || off.length > 80) return json({ error: "Liste invalide." }, 400);
       const clean = [...new Set(off.map((x) => String(x || "").trim().slice(0, 80)).filter(Boolean))];
+      const ok = new Set(["mpp", "qual", "sim", "refresh", "log", "aud"]), gr = [...new Set((Array.isArray(on) ? on : []).filter((x) => ok.has(x)))];
       if (clean.length) await env.KV.put("orgoff:" + ev, JSON.stringify(clean)); else await env.KV.delete("orgoff:" + ev);
-      return json({ ok: true, off: clean });
+      if (gr.length) await env.KV.put("orgon:" + ev, JSON.stringify(gr)); else await env.KV.delete("orgon:" + ev);
+      return json({ ok: true, off: clean, on: gr });
     }
     if (p === "/api/admin/quals" && req.method === "PUT") {
-      if (!ADM) return adminOnly();
+      if (!can("qual")) return adminOnly();
       const list = await req.json().catch(() => null);
       if (!Array.isArray(list) || list.length > 60) return json({ error: "Liste invalide." }, 400);
       const txt = JSON.stringify(list); if (txt.length > 400000) return json({ error: "Trop de grilles." }, 400);
@@ -1112,13 +1117,13 @@ export default {
       return json({ ok: true });
     }
     if (p === "/api/refresh" && req.method === "POST") {
-      if (!ADM) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
+      if (!can("refresh")) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
       await cycle(env, { force: true, ev }); await purge();
       const { data } = await load(env, ev);
       return json({ ok: !data.error, lastOk: data.lastOk, error: data.error, queue: (data.queue || []).length });
     }
     if (p === "/api/rescrape" && req.method === "POST") {
-      if (!ADM) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
+      if (!can("refresh")) return adminOnly(); // synchronisations manuelles : réservées à l'administrateur du site
       const { scope = "all", what = "all" } = await req.json();
       const n = await rescrape(env, scope, what, ev);
       await cycle(env, { force: true, ev }); await purge();
@@ -1133,11 +1138,11 @@ export default {
       return json(await env.KV.migrateAll(url.searchParams.get("purge") === "1"));
     }
     if (p === "/api/admin/log") {
-      if (!ADM) return adminOnly();
+      if (!can("log")) return adminOnly();
       try { const r = await env.POOL.get(env.POOL.idFromName("journal")).fetch(new Request("https://pool/logs" + (req.method === "DELETE" ? "?clear=1" : ""))); return json(await r.json()); }
       catch (e) { return json({ error: "Journal indisponible pour le moment (quota Cloudflare du jour atteint ?) : " + String(e.message || e).slice(0, 120) }, 503); }
     }
-    if (p === "/api/admin/audience") return ADM ? audience(env, url, ev) : adminOnly();
+    if (p === "/api/admin/audience") return can("aud") ? audience(env, url, ev) : adminOnly();
     return json({ error: "Route inconnue" }, 404);
   },
 
