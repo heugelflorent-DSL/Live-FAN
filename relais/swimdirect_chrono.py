@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.5.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.5.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -163,7 +163,7 @@ class LocalScreen:
 # ---------- moteur ----------
 class Core:
     def __init__(self, cfg, on_log=print):
-        self.cfg = cfg; self.on_log = on_log; self.paused = False; self.test = False; self.stop = False
+        self.cfg = cfg; self.on_log = on_log; self.paused = False; self.test = False; self.test_auto = False; self.stop = False
         self.q = queue.Queue(maxsize=5000); self.raw = []; self.raw_lock = threading.Lock()
         self.st = {"update": "", "linked": None, "name": "", "url": "", "bassin": None, "quantum": "recherche…", "last": "", "sent": 0, "jsent": 0, "err": "", "occupied": False}
         jdir = os.path.join(HOME, "journaux"); os.makedirs(jdir, exist_ok=True)
@@ -198,6 +198,11 @@ class Core:
                 was = self.st["linked"]
                 self.st.update(linked=bool(j.get("linked")), name=j.get("name", ""), url=j.get("url", ""), bassin=j.get("bassin"), err="")
                 self.apply_sys(j.get("sys"))
+                # mode test oublié : il se coupe tout seul 2 minutes avant le premier départ prévu de la réunion
+                st0 = j.get("start")
+                if self.test and st0 and j.get("now") and j["now"] >= st0 - 120000:
+                    self.test = False; self.test_auto = True
+                    self.log("🧪 Mode test coupé automatiquement : la compétition commence, les temps partent sur le site")
                 if self.st["linked"] and not was: self.log(f"✓ Relié au live « {self.st['name']} »")
                 if self.st["linked"] and j.get("bassin") is False and was is None: self.log("⚠ Sur le site, le mode du direct de ce live n'est pas « Bassin » : les temps sont reçus mais pas affichés au public.")
             except Exception as e:
@@ -646,9 +651,13 @@ def gui(cfg, demo=False, close_after=0):
     # mode test (jamais gardé au redémarrage, pour ne pas l'oublier activé)
     tstv = tk.BooleanVar(value=False)
     def set_test():
-        core.test = bool(tstv.get()); core.log("🧪 Mode test activé : les essais du chrono ne vont PAS sur le site (écran géant local seulement)" if core.test else "Mode test désactivé : les temps vont de nouveau sur le site")
+        core.test = bool(tstv.get()); core.test_auto = False; core.log("🧪 Mode test activé : les essais du chrono ne vont PAS sur le site (écran géant local seulement)" if core.test else "Mode test désactivé : les temps vont de nouveau sur le site")
     trow = tk.Frame(scr, bg=CARD); trow.pack(fill="x", padx=14, pady=(0, 12))
-    tk.Checkbutton(trow, text="🧪 Mode test : les essais du chrono n'apparaissent pas dans le direct du site", variable=tstv, command=set_test, bg=CARD, fg="#b45309", activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left")
+    def test_sync():
+        if core.test_auto and tstv.get(): tstv.set(False)
+        root.after(1000, test_sync)
+    root.after(1000, test_sync)
+    tk.Checkbutton(trow, text="🧪 Mode test : les essais n'apparaissent pas dans le direct (coupé tout seul au 1er départ)", variable=tstv, command=set_test, bg=CARD, fg="#b45309", activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left")
     for k, label in (("normal", "▶ Normal (direct)"), ("count", "⏱ Compte à rebours"), ("evac", "🦈 Évacuation"), ("cer", "🏅 Cérémonie"), ("pause", "☕ Pause"), ("spons", "🤝 Partenaires"), ("msg", "✎ Message")):
         b = tk.Button(srow, text=label, command=lambda k=k: show(k), bg=NAVY if k == "normal" else BG, fg="white" if k == "normal" else INK, activebackground=GOLD, relief="flat", font=(F, 10, "bold"), padx=10, pady=8, cursor="hand2")
         b.pack(side="left", padx=(0, 6), fill="x", expand=True); sbtns[k] = b
