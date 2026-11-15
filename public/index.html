@@ -2855,7 +2855,7 @@ function loadPHist(force){if(state.live!=="bassin"||PHL)return;if(!force&&PHAT&&
 setInterval(()=>{if((state.view==="rank"||state.view==="pod")&&!document.hidden)loadPHist()},20000);
 /* arrivées du chronométrage des épreuves pas encore officialisées sur le Live FFN, par épreuve, avec l'équipe de chaque nageur */
 function provRows(rule,done){const out={};if(state.live!=="bassin"||!PHIST||!COT)return out;
-  for(const x of PHIST){if(poolOther(x)||poolIsTest(x)||!poolInOrder(x))continue;const ev=poolEvent(x);if(!ev||!rule.comps.includes(ev.comp)||done.has(ev.key)||hasFinals(ev))continue;const se=ev.series&&ev.series[x.heat-1];
+  for(const x of PHIST){if(poolOther(x)||poolIsTest(x)||!poolInOrder(x))continue;const ev=poolEvent(x);if(!ev||!rule.comps.includes(ev.comp)||(done.has(ev.key)&&(ev.results||[]).length)||hasFinals(ev))continue; /* finie au bassin, pas encore publiée : on compte les temps du chrono */const se=ev.series&&ev.series[x.heat-1];
     for(const n in x.fin||{}){const t=x.fin[n];let w=poolWho({names:x.names||{}},se,n);const q=(x.names||{})[n];
       if(ev.relay&&se){const sl=se.swimmers.find(s=>+s.lane===+n);if(sl&&(!q||norm(sl.club||sl.name)===norm(q.club||q.name)||norm(sl.name).startsWith(norm(q.name))))w={...sl,members:(w&&w.members)||sl.members}}
       if(!w)continue;const team=ev.relay?((w.members||[]).map(m=>Object.values(SWIMMERS).find(x=>norm(x.name)===norm(m.name)&&x.team&&/ \d+$/.test(x.team))).find(Boolean)||{}).team||String(w.name||"").trim():(w.iuf&&SWIMMERS[w.iuf]&&SWIMMERS[w.iuf].team)||w.team||w.club;const p=cotPts(ev,t);if(p==null||!team)continue;
