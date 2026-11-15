@@ -1447,7 +1447,7 @@ function evPast(ev){const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return false
    Le résultat est gardé le temps d'un affichage (vidé dès la fin de la tâche en cours) ; pas de cache côté admin, où les données changent pendant le calcul. */
 const MEMO={};function memo(k,f){if(state.admin)return f();if(k in MEMO)return MEMO[k];if(!MEMO._q){MEMO._q=1;setTimeout(()=>{for(const x in MEMO)delete MEMO[x]},0)}return MEMO[k]=f()}
 function doneSet(noPool){return memo("d"+(noPool?1:0),()=>doneSet0(noPool))}
-function schedule(){return memo("s",schedule0)}
+function schedule(){return memo("s",scheduleP)}
 function doneSet0(noPool){
   const done=new Set();if(state.phase==="eng")return done;
   for(const s of Object.keys(state.order)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");
@@ -1645,15 +1645,19 @@ function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];
   try{localStorage.setItem("sd-th:"+(PICK?"_":EV),JSON.stringify({t,v:cust?pal.vars:null,m:cust?pal.vars["--a"]:THEME_COL[t]}))}catch(_){}const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
 /* programme pas encore publié (épreuves provisoires) : aucun horaire estimé sur le live public (l'admin garde ses estimations) */
-function schedule0(){if(!state.admin&&Object.values(EVENTS).some(e=>e.type==="event"&&e.provisional))return{};return schedule0()}
+function scheduleP(){if(!state.admin&&Object.values(EVENTS).some(e=>e.type==="event"&&e.provisional))return{};return schedule0()}
 let CSD=0;/* retard estimé de la réunion : prochaine épreuve pas encore nagée, heure recalculée en direct − heure prévue (Live FFN) */
 function delayTag(s){try{const done=doneSet(),sch=schedule(),o=(state.order[s]||[]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event");if(!o.length||o.every(k=>done.has(k))||!o.some(k=>done.has(k)||(POOL&&POOL.heat&&poolEvent(POOL.heat)&&poolEvent(POOL.heat).key===k)))return"";
-  const k=o.find(x=>!done.has(x)&&EVENTS[x].ffnSec!=null&&sch[x]);if(!k)return"";const d=Math.round((sch[k].start-EVENTS[k].ffnSec)/60);
-  const t=Math.abs(d)<2?"Dans les temps":d>0?`Retard estimé : ${d} min`:`Avance estimée : ${-d} min`;return`<p class="delaytag ${Math.abs(d)<2?"ok":d>0?"late":"early"}">${t}<small> · ${esc(EVENTS[k].name)} prévue ${hm(EVENTS[k].ffnSec)}, estimée ${hm(sch[k].start)}</small></p>`}catch(e){return""}}
+  /* deux compétitions mêlées : les heures du Live FFN de chaque compétition ne tiennent pas compte de l'autre → référence = notre programme prévu */
+  const two=state.comps.length>1,pl=two?schedulePlan():null,ref=x=>two?(pl[x]&&pl[x].start):EVENTS[x].ffnSec;
+  const k=o.find(x=>!done.has(x)&&ref(x)!=null&&sch[x]);if(!k)return"";const d=Math.round((sch[k].start-ref(k))/60);
+  const t=Math.abs(d)<2?"Dans les temps":d>0?`Retard estimé : ${d} min`:`Avance estimée : ${-d} min`;return`<p class="delaytag ${Math.abs(d)<2?"ok":d>0?"late":"early"}">${t}<small> · ${esc(EVENTS[k].name)} prévue ${hm(ref(k))}, estimée ${hm(sch[k].start)}</small></p>`}catch(e){return""}}
+/* horaire « prévu » : le même calcul sans rien de ce qui s'est passé (ni direct, ni épreuves terminées, ni heure actuelle) — sert de référence au retard estimé */
+let PLAN=0;function schedulePlan(){return memo("p",()=>{PLAN=1;try{return schedule0()}finally{PLAN=0}})}
 function schedule0(){
   // résultats lus longtemps après la compétition (compétition passée relue) : l'heure de lecture n'est pas l'heure de la course
-  const csd=compStartDate();CSD=csd?csd.getTime():0;const nowS=parisSec(Date.now());
-  const out={};const doneNow=doneSet();const pa=poolAnchor();let anchored=false;
+  const csd=compStartDate();CSD=csd?csd.getTime():0;const nowS=PLAN?null:parisSec(Date.now());
+  const out={};const doneNow=PLAN?new Set():doneSet();const pa=PLAN?null:poolAnchor();let anchored=false;
   for(const s of Object.keys(state.order)){
     let t=toMin(state.starts[s]||"10:00")*60;let first=true;let delayed=false;
     /* l'heure de début du Live FFN est celle de la 1re course : présentation des équipes, accueil… placés juste avant, sans la décaler */
