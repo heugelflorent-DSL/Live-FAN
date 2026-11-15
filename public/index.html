@@ -1300,7 +1300,17 @@ function mergeInitials(){const A={};SWALIAS=A;const all=Object.values(SWIMMERS);
   if(!Object.keys(A).length)return;const fix=x=>{if(x&&A[x.iuf]){const f=A[x.iuf];x.iuf=f.iuf;x.name=f.name}};
   for(const ev of Object.values(EVENTS)){for(const x of [...(ev.entries||[]),...(ev.results||[]),...(ev.series||[]).flatMap(h=>h.swimmers||[])]){fix(x);for(const m of x&&x.members||[])fix(m)}}
   for(const k in A)delete SWIMMERS[k]}
-function build(cfg,data){normYears(data,0);loadTeamsF(cfg.comps);
+/* même club écrit différemment selon le live (« MULHOUSE OLYMPIC NATATION » ↔ « MULHOUSE ON ») : on garde le nom le plus utilisé */
+function clubUnify(comps){if(!comps)return;const walk=(o,f)=>{if(!o||typeof o!=="object")return;if(Array.isArray(o)){for(const x of o)walk(x,f);return}f(o);for(const v of Object.values(o))if(v&&typeof v==="object")walk(v,f)};
+  const cnt={};walk(comps,o=>{if(typeof o.club==="string"&&o.club){const k=clubKey(o.club);cnt[k]=(cnt[k]||0)+1}});
+  const tok=x=>norm(x).toUpperCase().replace(/[^A-Z0-9]+/g," ").trim().split(" ").filter(Boolean);
+  const fits=(lg,sh)=>{const L=tok(lg),S=tok(sh);if(!S.length||S.length>=L.length||L[0]!==S[0]&&!L.includes(S[0]))return false;let i=0;
+    for(const t of S){let ok=false;for(let j=i;j<L.length&&!ok;j++){if(L[j]===t||(t.length>=3&&L[j].startsWith(t))){i=j+1;ok=true;break}let ini="";for(let k=j;k<L.length&&ini.length<t.length;k++){ini+=L[k][0];if(ini===t&&t.length>1){i=k+1;ok=true;break}}}if(!ok)return false}return true};
+  const names=Object.keys(cnt),A={};
+  for(const a of names)for(const b of names)if(a!==b&&fits(a,b)){const keep=cnt[b]>=cnt[a]?b:a,drop=keep===b?a:b;if(!A[drop])A[drop]=keep}
+  if(!Object.keys(A).length)return;
+  walk(comps,o=>{for(const f of["club","team"])if(typeof o[f]==="string")for(const[x,y]of Object.entries(A))if(o[f]===x||o[f].startsWith(x+" ")){o[f]=y+o[f].slice(x.length);break}})}
+function build(cfg,data){normYears(data,0);try{clubUnify(data.comps)}catch(_){}loadTeamsF(cfg.comps);
   state.name=cfg.name||"";state.theme=cfg.theme||"alsace";state.color=cfg.color||"";state.org=cfg.org??(state.theme==="alsace"?"Fédération Alsacienne de Natation":"");applyTheme();state.live=cfg.live||"off";state.poolHold=cfg.poolHold??0;state.poolSort=cfg.poolSort||"touch";state.engEnd=cfg.engEnd||"";state.progDate=cfg.progDate||"";state.published=!!cfg.published;state.heatGap=state.eventGap=cfg.gap??40;state.timing=cfg.timing||"elec";state.chronoSys=cfg.chronoSys||"quantum";
   state.delay=cfg.delay||{};state.infos=cfg.infos||[];state.podRules=cfg.rankings||[];state.qualFor=cfg.qualFor||[];state.masters=!!cfg.masters;{const mc=document.getElementById("ev-masters");if(mc)mc.checked=state.masters}state.qualReset=cfg.qualReset||{};state.rankTab=cfg.rankTab||"";state.finals=cfg.finals||{};state.lines=cfg.lines||{};
   state.scrape=cfg.scrape||state.scrape;for(const r of state.podRules){if(r.mode==='groups')r.mode='age';if(r.mode==='age'&&!r.cats)r.cats=FFN_CATS.map(c=>({...c}))}state.lastOk=data.lastOk||null;state.finished=data.finished||null;state.error=data.error||null;state.queue=(data.queue||[]).length;
