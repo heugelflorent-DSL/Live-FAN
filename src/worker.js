@@ -1021,7 +1021,17 @@ export default {
     if (p === "/api/admin/state") {
       const { config, data } = await load(env, ev);
       const ffxLog = (await env.KV.get(kk("ffxlog", ev), "json")) || {};
-      return json({ config, data, ffxLog, now: Date.now(), role: ADM ? "admin" : "org" });
+      const orgOff = (await env.KV.get("orgoff:" + ev, "json")) || [];
+      return json({ config, data, ffxLog, now: Date.now(), role: ADM ? "admin" : "org", orgOff });
+    }
+    // fonctionnalités retirées à l'organisateur de ce live (réglé par l'administrateur du site seulement)
+    if (p === "/api/admin/orgoff" && req.method === "PUT") {
+      if (!ADM) return adminOnly();
+      const { off } = await req.json().catch(() => ({}));
+      if (!Array.isArray(off) || off.length > 80) return json({ error: "Liste invalide." }, 400);
+      const clean = [...new Set(off.map((x) => String(x || "").trim().slice(0, 80)).filter(Boolean))];
+      if (clean.length) await env.KV.put("orgoff:" + ev, JSON.stringify(clean)); else await env.KV.delete("orgoff:" + ev);
+      return json({ ok: true, off: clean });
     }
     if (p === "/api/admin/quals" && req.method === "PUT") {
       if (!ADM) return adminOnly();
