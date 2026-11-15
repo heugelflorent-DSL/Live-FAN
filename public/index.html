@@ -2930,7 +2930,8 @@ function renderPod(){
       // podium français complet (3 Français médaillés 1-2-3) + les étrangers admis, à leur place réelle dans la course
       const real=K?l.map((w,i)=>({...w,rank:i+1})):rerank(l);let c=0;
       return real.map(w=>(!w.nat||/^fra$/i.test(w.nat))?{...w,rank:++c}:{...w,intl:1})})():all0;let blocks="";
-    if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places,g);
+    if(!all.length)blocks=`<p class="empty">⏳ Course terminée, en attente des résultats officiels du Live FFN : le podium s'affiche dès leur arrivée.</p>`;
+    else if(rule.mode==="scratch"||relay)blocks=podCard(all,relay?"Relais":"Toutes catégories",rule.places,g);
     else if(rule.mode==="year"){blocks=[...new Set(all.map(w=>w.year))].sort().map(y=>podCard(renum(all.filter(w=>rule.upOpen?(+w.year>=+y):w.year===y).map(w=>rule.upOpen&&w.year!==y?{...w,sur:1}:w),K),"Né(e)s en "+y,rule.places,g)).join("")}
     else{const ref=+rule.refYear||refYearDefault();const cats=rule.cats||[];
       blocks=cats.map(c=>podCard(renum(all.filter(w=>{const a=ref-(+w.year);return w.year&&(c.open||a>=(+c.min||0))&&a<=(c.max===""||c.max==null?999:+c.max)}).map(w=>c.open&&ref-(+w.year)<(+c.min||0)?{...w,sur:1}:w)),c.name||`${c.min}-${c.max} ans`,rule.places,g)).join("")||`<p class="empty">Aucune catégorie d'âge définie pour ce classement.</p>`}
