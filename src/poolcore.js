@@ -71,6 +71,7 @@ export function applyEvent(s, ev, t) {
       case "clear": for (const k of Object.keys(s)) delete s[k]; Object.assign(s, empty()); break;
       /* écran choisi depuis le logiciel du chrono : évacuation, cérémonie, compte à rebours, pause… ; « normal » rend la main au direct */
       case "screen": s.screen = ev.mode && ev.mode !== "normal" ? { mode: String(ev.mode).slice(0, 20), at: t, title: String(ev.title || "").slice(0, 120), auto: !!ev.auto } : null; break;
+      case "pubauto": s.pubAuto = !!ev.on; break; /* pub « suivez sur Swim Direct » automatique (entre séries, pendant les pauses) */
       case "spons": s.spons = !!ev.on; break; /* logo d'un partenaire entre deux séries (choix fait dans le logiciel du chrono) */
       case "tvfmt": s.tvfmt = ev.fmt === "43" || ev.fmt === "169" ? ev.fmt : null; break;
       case "ping": break;

@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.6.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.6.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -142,7 +142,7 @@ class LocalScreen:
                 if not self.path.startswith("/local/cmd"): return self.out(404, "text/plain", b"introuvable")
                 try:
                     n = int(self.headers.get("content-length") or 0); c = json.loads(self.rfile.read(min(n, 4000)) or b"{}")
-                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto"): raise ValueError("commande inconnue")
+                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub"): raise ValueError("commande inconnue")
                     me.cmds.put(c); return self.out(200, "application/json", b'{"ok":true}')
                 except Exception as e: return self.out(400, "application/json", json.dumps({"ok": False, "err": str(e)}).encode())
             def out(self, code, ctype, body):
@@ -673,6 +673,18 @@ def gui(cfg, demo=False, close_after=0):
         if save: cfg["spons_between"] = bool(spv.get()); save_cfg(cfg); core.log("Logo d'un partenaire entre les séries : " + ("activé" if spv.get() else "désactivé"))
     tk.Checkbutton(frow, text="Logo d'un partenaire entre les séries", variable=spv, command=set_spons, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
     root.after(3200, lambda: set_spons(save=False))
+    # pub « suivez la compétition sur Swim Direct » : entre les séries (1 fois sur 3) et 12 s par minute pendant les pauses
+    pubv = tk.BooleanVar(value=bool(cfg.get("pub_auto", True)))
+    def set_pub(save=True):
+        ev = {"k": "pubauto", "on": bool(pubv.get()), "ts": time.time()}
+        try: core.q.put_nowait(ev)
+        except Exception: pass
+        try: core.screen.push(ev)
+        except Exception: pass
+        core.screen.state["pub"] = bool(pubv.get())
+        if save: cfg["pub_auto"] = bool(pubv.get()); save_cfg(cfg); core.log("Pub Swim Direct automatique : " + ("activée" if pubv.get() else "désactivée"))
+    tk.Checkbutton(frow, text="📱 Pub Swim Direct automatique", variable=pubv, command=set_pub, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
+    root.after(3400, lambda: set_pub(save=False))
     # mode test (jamais gardé au redémarrage, pour ne pas l'oublier activé)
     tstv = tk.BooleanVar(value=False)
     def set_test():
@@ -694,6 +706,7 @@ def gui(cfg, demo=False, close_after=0):
                 elif a == "fmt" and c.get("f") in fbtns: set_fmt(c["f"])
                 elif a == "spons": spv.set(bool(c.get("on"))); set_spons()
                 elif a == "auto": autov.set(bool(c.get("on"))); set_auto()
+                elif a == "pub": pubv.set(bool(c.get("on"))); set_pub()
         except queue.Empty: pass
         except Exception as e: core.log(f"✗ Régie : {e}")
         core.screen.state["auto"] = bool(autov.get())
