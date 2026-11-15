@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.5.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.5.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -611,12 +611,13 @@ def gui(cfg, demo=False, close_after=0):
     tk.Label(scr, text="Afficher sur l'écran géant", bg=CARD, fg=INK, font=(F, 12, "bold")).pack(anchor="w", padx=14, pady=(10, 6))
     srow = tk.Frame(scr, bg=CARD); srow.pack(fill="x", padx=14, pady=(0, 12))
     smode = {"v": "normal"}; sbtns = {}
+    autov = tk.BooleanVar(value=bool(cfg.get("screen_auto", True)))  # écran imposé retiré tout seul au départ suivant
     def show(mode, title=""):
         if mode == "msg":
             from tkinter import simpledialog
             title = simpledialog.askstring(APP, "Message à afficher en grand sur l'écran géant :", parent=root) or ""
             if not title.strip(): return
-        ev = {"k": "screen", "mode": mode, "title": title, "ts": time.time()}
+        ev = {"k": "screen", "mode": mode, "title": title, "auto": bool(autov.get()), "ts": time.time()}
         try: core.q.put_nowait(ev)
         except Exception: pass
         try: core.screen.push(ev)
@@ -653,6 +654,9 @@ def gui(cfg, demo=False, close_after=0):
     def set_test():
         core.test = bool(tstv.get()); core.test_auto = False; core.log("🧪 Mode test activé : les essais du chrono ne vont PAS sur le site (écran géant local seulement)" if core.test else "Mode test désactivé : les temps vont de nouveau sur le site")
     trow = tk.Frame(scr, bg=CARD); trow.pack(fill="x", padx=14, pady=(0, 12))
+    def set_auto():
+        cfg["screen_auto"] = bool(autov.get()); save_cfg(cfg); core.log("Retour automatique au direct au départ suivant : " + ("oui" if autov.get() else "non"))
+    tk.Checkbutton(trow, text="↩ Revenir au direct tout seul au prochain départ", variable=autov, command=set_auto, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(0, 16))
     def test_sync():
         if core.test_auto and tstv.get(): tstv.set(False)
         root.after(1000, test_sync)
