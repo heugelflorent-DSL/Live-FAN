@@ -1443,7 +1443,12 @@ function evFuture(ev){const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return fal
 // séries d'une épreuve avec finales (ou séries lentes avant la série finale) : pas de médailles, elles se jouent plus tard
 function noMedal(ev){if(ev&&!ev.key&&ev.name){const n=norm(ev.name);ev=Object.values(EVENTS).find(e=>e.type==="event"&&!e.fin&&e.typ!==61&&norm(e.base||e.name)===n)||ev}if(!ev||!ev.key||!EVENTS[ev.key])return false;if(ev.fin||ev.typ===61)return false;return hasFinals(ev)||epGroup(ev).some(x=>x.typ===61)}
 function evPast(ev){const d=reuDate(ev.sess);if(!d||ev.ffnSec==null)return false;return Date.now()>d.getTime()+(ev.ffnSec+5400)*1000}
-function doneSet(noPool){
+/* page publique : schedule() et doneSet() étaient recalculés près d'une centaine de fois par affichage (lenteur en changeant de page sur téléphone).
+   Le résultat est gardé le temps d'un affichage (vidé dès la fin de la tâche en cours) ; pas de cache côté admin, où les données changent pendant le calcul. */
+const MEMO={};function memo(k,f){if(state.admin)return f();if(k in MEMO)return MEMO[k];if(!MEMO._q){MEMO._q=1;setTimeout(()=>{for(const x in MEMO)delete MEMO[x]},0)}return MEMO[k]=f()}
+function doneSet(noPool){return memo("d"+(noPool?1:0),()=>doneSet0(noPool))}
+function schedule(){return memo("s",schedule0)}
+function doneSet0(noPool){
   const done=new Set();if(state.phase==="eng")return done;
   for(const s of Object.keys(state.order)){const ks=state.order[s].filter(k=>EVENTS[k]&&EVENTS[k].type==="event");
     let later=false;for(let i=ks.length-1;i>=0;i--){const ev=EVENTS[ks[i]];if(sfEarly(ev)||evFuture(ev))continue;if(ev.doneAt||(ev.results.length&&evPast(ev))||(ev.results.length&&(later||(CSD&&Date.now()-CSD>4*864e5))))done.add(ks[i]);if(ev.results.some(w=>w.res!=null))later=true}
@@ -1640,7 +1645,7 @@ function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];
   try{localStorage.setItem("sd-th:"+(PICK?"_":EV),JSON.stringify({t,v:cust?pal.vars:null,m:cust?pal.vars["--a"]:THEME_COL[t]}))}catch(_){}const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
 /* programme pas encore publié (épreuves provisoires) : aucun horaire estimé sur le live public (l'admin garde ses estimations) */
-function schedule(){if(!state.admin&&Object.values(EVENTS).some(e=>e.type==="event"&&e.provisional))return{};return schedule0()}
+function schedule0(){if(!state.admin&&Object.values(EVENTS).some(e=>e.type==="event"&&e.provisional))return{};return schedule0()}
 let CSD=0;/* retard estimé de la réunion : prochaine épreuve pas encore nagée, heure recalculée en direct − heure prévue (Live FFN) */
 function delayTag(s){try{const done=doneSet(),sch=schedule(),o=(state.order[s]||[]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event");if(!o.length||o.every(k=>done.has(k))||!o.some(k=>done.has(k)||(POOL&&POOL.heat&&poolEvent(POOL.heat)&&poolEvent(POOL.heat).key===k)))return"";
   const k=o.find(x=>!done.has(x)&&EVENTS[x].ffnSec!=null&&sch[x]);if(!k)return"";const d=Math.round((sch[k].start-EVENTS[k].ffnSec)/60);
