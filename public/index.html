@@ -2734,7 +2734,7 @@ function provRes(){const out={};const src=Object.keys({...LH,...LIVE}).map(id=>[
     for(const r of ev.results){if(seen.has(norm(r.name))||!swum(r))continue;const h=hOf(r.name);(p.heats[h]=p.heats[h]||[]).push({name:r.name,club:r.club,year:r.year,relay:(r.members||[]).length?r.members.map(m=>({name:m.name,leg:m.leg})):undefined,time:r.dsq?null:r.res,timeTxt:r.dsq?(r.status||"DSQ"):fmt(r.res),splits:(r.splits||[]).map(x=>({d:x.dist,cum:x.cum,lap:x.lap}))})}
     if(!p.of)p.of=(ev.series||[]).length||null}
   /* séries terminées au chronométrage électronique (direct bassin) : résultats non officiels tout de suite, remplacés par le Live FFN dès sa publication */
-  if(state.live==="bassin"&&PHIST)for(const x of PHIST){if(x.sim||poolOther(x)||poolIsTest(x)||!poolInOrder(x)||!x.fin||!Object.keys(x.fin).length)continue;const ev=poolEvent(x);if(!ev||done.has(ev.key)||!x.heat)continue;
+  if(state.live==="bassin"&&PHIST)for(const x of PHIST){if(x.sim||poolOther(x)||poolIsTest(x)||!poolInOrder(x)||!x.fin||!Object.keys(x.fin).length)continue;const ev=poolEvent(x);if(!ev||(done.has(ev.key)&&(ev.results||[]).length)||!x.heat)continue; /* épreuve finie au bassin mais pas encore publiée sur le Live FFN : on garde les temps du chrono */
     const p=out[ev.key]=out[ev.key]||{id:ev.comp,title:ev.base+(ev.round?" "+ev.round:""),heats:{},of:(ev.series||[]).length||null};if(p.heats[x.heat]&&p.heats[x.heat].length)continue;
     const se=ev.series&&ev.series[x.heat-1];const seen=new Set(Object.values(p.heats).flat().map(w=>norm(w.name)));const rows=[];
     for(const n in x.fin){const w=poolWho({names:x.names||{}},se,n);if(!w||seen.has(norm(w.name)))continue;const t=x.fin[n];rows.push({name:w.name,club:w.club,year:w.year,relay:(w.members||[]).length?(()=>{const sp=poolSplits(x,n),k=relayLegs(ev.name,w.members.length).n,tot=totalDist(ev.name)||0,at=d=>{if(Math.abs(d-tot)<1e-6)return t;const y=sp.find(z=>Math.abs(z.d-d)<1e-6);return y?y.cum:null};return w.members.map((m,i)=>{const a=i?at(i*tot/k):0,b=at((i+1)*tot/k);return{name:m.name,leg:tot&&a!=null&&b!=null?Math.round((b-a)*100)/100:undefined}})})():undefined,time:t,timeTxt:fmt(t),splits:poolSplits(x,n),chrono:true})}
@@ -2850,8 +2850,8 @@ function cotKey(name){const n=norm(name);const sx=/MIXTE/.test(n)?"X":/DAMES/.te
 /* points = la plus haute cotation dont le temps de la table est atteint (table : temps croissants de 1500 à 2 points) */
 function cotPts(ev,t){if(!COT||t==null)return null;const k=cotKey(ev.name),a=k&&COT[k];if(!a)return null;const c=Math.round(t*100);let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m]>=c)hi=m;else lo=m+1}return lo<a.length?1500-lo:1}
 function loadPHist(force){if(state.live!=="bassin"||PHL)return;if(!force&&PHAT&&Date.now()-PHAT<20000)return;PHL=true;
-  fetch(evq("/api/pool/hist"),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{PHL=false;PHAT=Date.now();if(!j)return;const was=JSON.stringify(PHIST);PHIST=j.heats||[];if(JSON.stringify(PHIST)!==was&&(state.view==="rank"||state.view==="res"))render()}).catch(()=>{PHL=false;PHAT=Date.now()})}
-setInterval(()=>{if(state.view==="rank"&&!document.hidden)loadPHist()},20000);
+  fetch(evq("/api/pool/hist"),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{PHL=false;PHAT=Date.now();if(!j)return;const was=JSON.stringify(PHIST);PHIST=j.heats||[];if(JSON.stringify(PHIST)!==was&&(state.view==="rank"||state.view==="res"||state.view==="pod"))render()}).catch(()=>{PHL=false;PHAT=Date.now()})}
+setInterval(()=>{if((state.view==="rank"||state.view==="pod")&&!document.hidden)loadPHist()},20000);
 /* arrivées du chronométrage des épreuves pas encore officialisées sur le Live FFN, par épreuve, avec l'équipe de chaque nageur */
 function provRows(rule,done){const out={};if(state.live!=="bassin"||!PHIST||!COT)return out;
   for(const x of PHIST){if(poolOther(x)||poolIsTest(x)||!poolInOrder(x))continue;const ev=poolEvent(x);if(!ev||!rule.comps.includes(ev.comp)||done.has(ev.key)||hasFinals(ev))continue;const se=ev.series&&ev.series[x.heat-1];
@@ -2899,7 +2899,8 @@ function renderPod(){
   let html=rules.length>1?`<div class="subtabs">${rules.map(r=>`<button data-pr="${r.id}" aria-selected="${r.id===state.podRule}">${esc(r.name)}</button>`).join("")}</div>`:"";
   if(!rule){$("#pub-body").innerHTML=html+`<p class="empty">Aucun podium paramétré.</p>`;return}
   // regroupe les épreuves terminées du même nom sur les compétitions de la règle
-  const groups=[];const byName={};const PRv=provRes();for(const k of done)delete PRv[k];
+  if(state.live==="bassin")loadPHist();
+  const groups=[];const byName={};const PRv=provRes();for(const k of done)if(EVENTS[k]&&(EVENTS[k].results||[]).length)delete PRv[k];
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
     if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
