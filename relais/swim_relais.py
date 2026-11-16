@@ -206,7 +206,7 @@ class SplashDecoder:
     Chaque bloc reçu : « #SPLASH épreuve phase série longueurs » puis la réponse d'ARES à ASK RESULTS :
       LSTRESULT;épreuve; phase; série; longueur; couloir; côté; rang; temps;  ;
     On n'envoie au site que ce qui a changé (nouvelle série, nouveau toucher)."""
-    def __init__(self): self.key = None; self.seen = {}; self.laps = None
+    def __init__(self): self.key = None; self.seen = {}; self.laps = None; self.started = False
     @staticmethod
     def t(v):
         # temps ARES en millièmes de seconde. Au-delà d'une heure, c'est une heure du jour (pas un temps de course) : non converti.
@@ -221,7 +221,7 @@ class SplashDecoder:
             laps = int(hd[3]) if hd[3].isdigit() and int(hd[3]) > 0 else None
             if (ev, rd, ht) != self.key:
                 if self.key: out += self.close()
-                self.key, self.seen, self.laps = (ev, rd, ht), {}, laps
+                self.key, self.seen, self.laps, self.started = (ev, rd, ht), {}, laps, False
                 out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": laps, "lanes": None})
             for L in lines[1:]:
                 if not L.startswith("LSTRESULT;"): continue
@@ -233,6 +233,9 @@ class SplashDecoder:
                 kind = "finish" if self.laps and lap >= self.laps else "split"
                 e = {"k": kind, "lane": lane, "lap": lap, "t": self.t(raw), "rank": rank or None, "edited": False}
                 if e["t"] is None: e["tod"] = raw
+                elif not self.started:
+                    # Splash ne signale pas le départ : au premier toucher, départ recalculé (heure du toucher − temps) pour lancer le chrono
+                    self.started = True; out.append({"k": "start", "ts": int((ts - e["t"]) * 1000), "event": ev, "heat": ht + 1})
                 out.append(e)
         return out
     def close(self):
