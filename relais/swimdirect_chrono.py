@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.7.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.7.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -365,6 +365,7 @@ class Core:
         d = self.cfg["source"].partition(":")[2].strip() or "C:\\ARES\\SWIMM"
         self.log(f"✓ Lecture d'ARES Swimming par l'interface Splash ({d})")
         def status(s): self.st["quantum"] = s
+        import swim_relais as _sr; _sr.log = lambda *a: self.log("ARES · " + " ".join(map(str, a)))  # messages du lecteur ARES dans le journal envoyé au site
         try:
             for data, ts in splash_source(d, stop=lambda: self.stop or self.restart, status=status): self.feed(data, ts)
         except Exception as e:
@@ -829,6 +830,8 @@ AIDE = [
         ("h", "Omega ARES 21"),
         ("p", "Le plus simple : installer ce logiciel SUR LE PC ARES. Réglages : « Omega ARES 21 — sur le PC ARES, sans câble (Splash) », adresse splash:C:\\ARES\\SWIMM. Il interroge ARES Swimming toutes les 0,3 s : touches et passages en direct (~1 s), sans câble ni port COM."),
         ("p", "Si ARES Swimming est installé sur ce PC, tout se règle tout seul. La toute première fois, le logiciel demande de fermer ARES Swimming puis de le rouvrir : il active alors la liaison (copie de l'ancien réglage gardée : SWIMM.INI.avant-swimdirect)."),
+        ("p", "Départ : lu dans la fenêtre de course d'ARES (« [V] Start: … »), en lecture seule. Laisse la fenêtre de course ouverte. La série suivie est celle ouverte dans ARES."),
+        ("p", "Tout ce qui est lu d'ARES est noté dans le journal envoyé au site toutes les 15 s (admin du live, journaux bruts) : utile pour remonter un problème."),
         ("p", "Autre solution, avec câble : le vrai direct (chrono qui tourne, passages, touches) arrive en OSM6, uniquement par le port GP de l'IF-ARES. Il faut un adaptateur USB ↔ RS-422/485 : broche 3 → Rx+, broche 7 → Rx−."),
         ("p", "Ici, Réglages : système « Omega ARES 21 », connexion série, le port COM de l'adaptateur, 9600,7,E,1."),
         ("p", "La sortie DH d'ARES Swimming vers le PC ne marche qu'en bi-directionnel et ne donne les temps qu'après la série : pas de direct par ce chemin."),

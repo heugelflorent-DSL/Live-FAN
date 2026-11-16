@@ -1165,18 +1165,25 @@ body.tv{overflow:hidden}
               <ul><li>Le <b>PC du chronométrage</b>, sous Windows, avec Internet (Wi-Fi de la piscine, câble ou partage de connexion d'un téléphone).</li>
               <li>Le logiciel <b>Swim Direct · Chrono</b>, à télécharger avec le lien de ce module. Il n'a pas besoin d'être installé : on lance directement le fichier.</li>
               <li data-dsys="quantum">Sur le Quantum, une <b>sortie réseau « Sport In The Box »</b> (format tableau écran). Par défaut le logiciel la cherche sur le port <b>26700</b>.</li>
-              <li data-dsys="ares"><b>Omega ARES 21</b> : pas de sortie réseau. Les temps sortent par la <b>Data Handling (DH)</b> d'ARES Swimming, en série. Le plus simple : Swim Direct · Chrono sur le <b>PC ARES</b> lui-même, relié à la sortie DH par une paire de <b>ports série virtuels com0com</b> (aucun câble). Sinon : câble null-modem vers un autre PC (2ᵉ port série du PC ARES, 9600-8-N-1), ou convertisseur RS485 sur le port GP de l'IF-ARES.</li></ul>
+              <li data-dsys="ares"><b>Omega ARES 21</b> : Swim Direct · Chrono s'installe <b>sur le PC ARES</b> lui-même. Il lit ARES Swimming en direct par son interface <b>Splash</b> : <b>aucun câble, aucun port COM, aucun achat</b>, et rien n'est modifié sur le chronométrage.</li></ul>
 
               <div data-dsys="ares"><h4>Brancher l'ARES à Swim Direct</h4>
-          <p><b>Où on en est (test du 11 novembre 2026, Schiltigheim)</b> : le direct ARES n'est <b>pas encore opérationnel</b>. Rester en direct <b>Live FFN</b> en attendant.</p>
+          <p><b>Où on en est (16 novembre 2026)</b> : direct ARES <b>validé avec un simulateur</b> (départ, chrono qui tourne, touches, temps, série suivante). Reste à le confirmer sur une vraie compétition.</p>
+          <ol>
+            <li>Sur le <b>PC ARES</b>, lancer <b>Swim Direct · Chrono</b>. S'il trouve ARES Swimming, il se règle tout seul (« Omega ARES 21 — sur le PC ARES, sans câble (Splash) », adresse <code>splash:C:\ARES\SWIMM</code>).</li>
+            <li>La <b>toute première fois</b> : fermer ARES Swimming puis le rouvrir. Le logiciel active la liaison Splash dans <code>SWIMM.INI</code> (copie de l'ancien réglage : <code>SWIMM.INI.avant-swimdirect</code>).</li>
+            <li>Relier le logiciel au live (mot de passe organisateur), direct de l'événement sur « <b>Bassin</b> ».</li>
+          </ol>
           <ul>
-            <li><b>OSM6</b> (le vrai direct : chrono qui tourne, passages, touches — format que Swim Direct sait déjà lire) : ARES ne l'envoie que par le <b>port GP de l'IF-ARES</b> (déjà réglé « OSM6 avec test de présence », port libre). Il faut un adaptateur <b>USB ↔ RS-422/485</b> (~20 €, ex. Moxa UPort 1130, ou modèle FTDI) : broche 3 → Rx+, broche 7 → Rx−, puis 9600,7,E,1 dans Swim Direct.</li>
-            <li><b>Sortie DH vers le PC</b> (Configuration → DH → « DH sur un port série du PC ») : seulement en <b>Bi-directionnel</b>. Testé avec com0com (COM20 ↔ COM21, 9600,8,N,1) : ARES envoie des appels <code>55 AA …</code> toutes les ~47 s et attend une réponse ; d'après HY-TEK, ce mode ne donne les temps qu'<b>à la demande, après la série</b> (pas de direct). Protocole non documenté.</li>
-            <li><b>Piste la plus prometteuse, sans achat</b> : à Schiltigheim, un <b>boîtier noir</b> posé sur l'IF-ARES (entrée DB9, sortie USB, prise réseau) envoie déjà les données de l'ARES au <b>PC de l'écran géant</b> (port COM USB lu par le logiciel d'affichage). Idée : dupliquer ce port avec <b>hub4com</b> (gratuit, avec com0com) pour que Swim Direct lise les mêmes données, sans toucher à l'ARES. <b>À tester hors compétition.</b></li>
+            <li><b>Touches et passages</b> : demandés à ARES toutes les 0,3 s, à l'écran en moins d'une seconde.</li>
+            <li><b>Départ</b> : Splash ne le donne pas ; le logiciel le lit (lecture seule) dans la liste de la <b>fenêtre de course</b> d'ARES (« [V] Start: 14:59:19.84 »). Le chrono part environ ½ s après le vrai départ. <b>Laisser la fenêtre de course ouverte.</b></li>
+            <li><b>Série suivie</b> : celle ouverte dans ARES (titre de la fenêtre de course, ex. « 2 H 1 M 50 m FR »).</li>
+            <li><b>Noms</b> : Splash ne donne que couloirs et temps. Les noms viennent de la liste des engagés du Live FFN : les numéros d'épreuves et de séries d'ARES doivent correspondre au programme.</li>
+            <li><b>Charge du PC ARES</b> : très faible (lecture de petits fichiers et de l'affichage).</li>
           </ul>
-          <p><b>À relever la prochaine fois</b> : (1) sur quelle prise de l'IF-ARES arrive le câble DB9 du boîtier noir (SCB ou GP) ; (2) le nom du logiciel d'affichage et son port COM ; (3) la marque/modèle du boîtier noir ; (4) un journal brut pendant une course.</p>
-          <p class="msg">Ne jamais modifier la liaison <b>PC ↔ IF-ARES</b> (COM3 à Schiltigheim) ni le câble <b>SCB</b> du tableau pendant une compétition.</p>
-          <p><b>Rappel com0com</b> (paire de ports virtuels, si besoin) : <a href="https://sourceforge.net/projects/com0com/files/com0com/2.2.2.0/" target="_blank" rel="noopener">téléchargement</a> (<code>com0com-2.2.2.0-x64-fre-signed.zip</code>) ; dans « Setup for com0com », créer la paire et cocher « use Ports class ».</p></div>
+          <p><b>Solutions avec câble (non retenues, achat nécessaire)</b> : sortie <b>SCB</b> de l'IF-ARES (ligne du tableau, en écoute avec un Y + convertisseur USB ↔ RS-485/422 isolé, ~16 €, format à décoder) ; port <b>GP</b> en <b>OSM6</b> (adaptateur RS-422, broche 3 → Rx+, 7 → Rx−, 9600,7,E,1). La sortie <b>DH vers un port COM du PC</b> ne donne les temps qu'après la série : inutile pour le direct.</p>
+          <p class="msg">Ne jamais modifier la liaison <b>PC ↔ IF-ARES</b> ni le câble <b>SCB</b> du tableau pendant une compétition.</p>
+          <p><b>En cas de souci</b> : le logiciel envoie au site, toutes les 15 s, un journal de tout ce qu'il lit d'ARES (réponses Splash, départs, série suivie, erreurs). Le consulter dans l'admin (journaux bruts) pour comprendre et corriger.</p></div>
 
 <h4>Relier le logiciel à ce live</h4>
               <ol><li>Lancer Swim Direct · Chrono sur le PC du chronométrage. Au premier lancement, si Windows le demande, <b>autoriser l'accès au réseau privé</b>.</li>
