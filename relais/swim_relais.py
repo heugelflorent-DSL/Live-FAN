@@ -206,22 +206,41 @@ class SplashDecoder:
     Chaque bloc reçu : « #SPLASH épreuve phase série longueurs » puis la réponse d'ARES à ASK RESULTS :
       LSTRESULT;épreuve; phase; série; longueur; couloir; côté; rang; temps;  ;
     On n'envoie au site que ce qui a changé (nouvelle série, nouveau toucher)."""
-    def __init__(self): self.key = None; self.seen = {}; self.laps = None; self.started = False
+    def __init__(self): self.key = None; self.seen = {}; self.laps = None; self.started = False; self.start_tod = None
     @staticmethod
     def t(v):
         # temps ARES en millièmes de seconde. Au-delà d'une heure, c'est une heure du jour (pas un temps de course) : non converti.
         return round(v / 1000, 2) if 0 < v < 3_600_000 else None
+    def rt(self, v):
+        # heure du jour (simulateur, et peut-être vrai boîtier) : temps = toucher − départ lu dans ARES
+        if v >= 3_600_000 and self.start_tod is not None and 0 < v - self.start_tod < 3_600_000: return round((v - self.start_tod) / 1000, 2)
+        return self.t(v)
     def feed(self, data, ts):
         out = []
         for block in data.decode("latin-1", "replace").split("#SPLASH")[1:]:
             if block.startswith("-INFO"): continue
+            if block.startswith("-START"):
+                f = block[6:].split()
+                try: ev, rd, ht, st = int(f[0]), int(f[1]), int(f[2]), int(f[-1])
+                except (ValueError, IndexError): continue
+                laps = int(f[3]) if len(f) == 5 and f[3].isdigit() and int(f[3]) > 0 else None
+                if (ev, rd, ht) != self.key:
+                    if self.key: out += self.close()
+                    self.key, self.seen, self.laps = (ev, rd, ht), {}, laps
+                    out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": laps, "lanes": None})
+                self.start_tod = st
+                lt = time.localtime(ts); now_tod = ((lt.tm_hour * 60 + lt.tm_min) * 60 + lt.tm_sec) * 1000 + int((ts % 1) * 1000)
+                late = now_tod - st
+                if 0 <= late < 30_000:  # départ qui vient d'être donné (pas un ancien départ resté affiché)
+                    self.started = True; out.append({"k": "start", "ts": int(ts * 1000) - late, "event": ev, "heat": ht + 1})
+                continue
             lines = block.splitlines(); hd = (lines[0].split() + ["", "", "", ""])[:4]
             try: ev, rd, ht = int(hd[0]), int(hd[1]), int(hd[2])
             except ValueError: continue
             laps = int(hd[3]) if hd[3].isdigit() and int(hd[3]) > 0 else None
             if (ev, rd, ht) != self.key:
                 if self.key: out += self.close()
-                self.key, self.seen, self.laps, self.started = (ev, rd, ht), {}, laps, False
+                self.key, self.seen, self.laps, self.started, self.start_tod = (ev, rd, ht), {}, laps, False, None
                 out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": laps, "lanes": None})
             for L in lines[1:]:
                 if not L.startswith("LSTRESULT;"): continue
@@ -231,7 +250,7 @@ class SplashDecoder:
                 if not lane or self.seen.get((lane, lap)) == (raw, rank): continue
                 self.seen[(lane, lap)] = (raw, rank)
                 kind = "finish" if self.laps and lap >= self.laps else "split"
-                e = {"k": kind, "lane": lane, "lap": lap, "t": self.t(raw), "rank": rank or None, "edited": False}
+                e = {"k": kind, "lane": lane, "lap": lap, "t": self.rt(raw), "rank": rank or None, "edited": False}
                 if e["t"] is None: e["tod"] = raw
                 elif not self.started:
                     # Splash ne signale pas le départ : au premier toucher, départ recalculé (heure du toucher − temps) pour lancer le chrono
@@ -244,7 +263,7 @@ class SplashDecoder:
         last = {}
         for (lane, lap), (raw, rank) in self.seen.items():
             if lap >= last.get(lane, (0,))[0]: last[lane] = (lap, raw, rank)
-        out = [{"k": "finish", "lane": ln, "lap": lap, "t": self.t(raw), "rank": rank or None, "edited": False} for ln, (lap, raw, rank) in sorted(last.items())]
+        out = [{"k": "finish", "lane": ln, "lap": lap, "t": self.rt(raw), "rank": rank or None, "edited": False} for ln, (lap, raw, rank) in sorted(last.items())]
         return out + [{"k": "end", "event": self.key[0], "heat": self.key[2] + 1}]
 
 
@@ -320,6 +339,41 @@ def splash_enable(ares_dir):
     except OSError as e:
         log(f"✗ Impossible de modifier {ini} ({e}) : lance le logiciel en administrateur, ou enlève « zzz » à la main."); return False
 
+_ARES_PID = {}
+def ares_start():
+    """Heure du départ affichée par ARES dans la liste de la fenêtre de course (« [V]  Start: 14:59:19.84 »).
+    Lecture seule des listes Windows d'ARES Swimming (rien n'est envoyé à ARES ni au chronométrage). None si absent / hors Windows."""
+    if os.name != "nt": return None
+    import ctypes, ctypes.wintypes as wt
+    u = ctypes.windll.user32; found = []
+    P = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
+    def child(h, l):
+        cls = ctypes.create_unicode_buffer(64); u.GetClassNameW(h, cls, 64)
+        if cls.value == "ListBox":
+            n = u.SendMessageW(h, 0x18B, 0, 0)
+            for i in range(min(max(n, 0), 40)):
+                ln = u.SendMessageW(h, 0x18A, i, 0)
+                if ln <= 0 or ln > 400: continue
+                b = ctypes.create_unicode_buffer(ln + 2); u.SendMessageW(h, 0x189, i, b)
+                m = re.search(r"\[V\]\s*Start:\s*(\d{1,2}):(\d\d):(\d\d)[.,](\d{1,3})", b.value)
+                if m: found.append(m.groups())
+        return True
+    def top(h, l):
+        pid = wt.DWORD(); u.GetWindowThreadProcessId(h, ctypes.byref(pid))
+        if pid.value == l: u.EnumChildWindows(h, P(child), 0)
+        return True
+    try:
+        pid = _ARES_PID.get("pid")
+        if not pid or time.time() - _ARES_PID.get("at", 0) > 60:  # n° du processus ARES relu au plus une fois par minute (tasklist est lent)
+            import subprocess
+            out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq SWIMM.EXE", "/FO", "CSV", "/NH"], capture_output=True, text=True, creationflags=0x08000000).stdout
+            m = re.search(r'"SWIMM\.EXE","(\d+)"', out, re.I); pid = int(m.group(1)) if m else None; _ARES_PID.update(pid=pid, at=time.time())
+        if not pid: return None
+        u.EnumWindows(P(top), pid)
+    except Exception: return None
+    if not found: return None
+    hh, mm, ss, fr = found[-1]; return ((int(hh) * 60 + int(mm)) * 60 + int(ss)) * 1000 + int(fr.ljust(3, "0")[:3])
+
 def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, status=lambda s: None):
     """Interroge ARES Swimming en boucle par l'interface Splash et renvoie ses réponses (direct ~1 s, sans câble).
     Suit tout seul la série en cours : quand la série suivante reçoit des touchers, on passe dessus."""
@@ -353,9 +407,17 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         t = ask(e, r, h, timeout=2)
         if t is None: break
         if "LSTRESULT;" in t: idx = i
+    last_start = None
     while not stop():
         H = heats() or [(1, 0, 0, None)]
         idx = min(idx, len(H) - 1); e, r, h, nl = H[idx]
+        try: st = ares_start()
+        except Exception: st = None
+        if st and st != last_start:
+            if last_start is not None and last and last[:3] == (e, r, h) and "LSTRESULT;" in (last[3] or "") and idx + 1 < len(H):
+                idx += 1; e, r, h, nl = H[idx]; log(f"ARES : départ de l'épreuve {e}, série {h + 1}")
+            yield f"#SPLASH-START {e} {r} {h} {nl or ''} {st}\n".encode("latin-1"), time.time()
+        last_start = st if st else last_start
         txt = ask(e, r, h)
         if txt is None: status("ARES ne répond pas (ARES Swimming ouvert ? Splash activé ?)"); time.sleep(2); races = splash_races(data_dir); continue
         status(f"connecté (ARES Splash, épreuve {e} série {h + 1})")
