@@ -961,6 +961,7 @@ body.tv{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.recb::after,.recb .fw s{animation:none!important}.recb .fw{display:none}}
 .org-off{display:none!important}.orgperm{margin-top:10px}.orgperm summary{cursor:pointer;font-weight:700}#orgperm{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:8px}.op-g b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;opacity:.7;margin-bottom:4px}.op{display:flex;gap:8px;align-items:center;padding:3px 0;cursor:pointer}.op input{width:18px;height:18px}.op-give{grid-column:1/-1;border-top:1px dashed #0002;padding-top:8px}
 .pub-body{display:flex;align-items:center;justify-content:center;gap:clamp(16px,4vw,56px);flex-wrap:wrap;padding:8px 16px 4px}.pub-qr{display:flex;flex-direction:column;align-items:center;gap:6px}.pub-qr svg{width:clamp(160px,30vh,380px);height:auto;border-radius:12px;box-shadow:0 6px 24px #0b1e3f33}.pub-qr small{font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0b1e3f}.pub-l{list-style:none;margin:0;padding:0;display:grid;gap:clamp(8px,1.6vh,18px);text-align:left;font-weight:700;font-size:clamp(15px,3vh,32px);color:#0b1e3f}.pub-foot{display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vw,40px);flex-wrap:wrap;margin:6px 16px 14px}.pub-foot .pub-url{margin:0}.pub-mf{display:flex;align-items:center;justify-content:center;gap:10px;margin:0;font-weight:700;color:#5b7685;font-size:clamp(12px,1.8vh,20px)}.pub-mf img{height:clamp(34px,6vh,70px);width:auto}.pub-url{text-align:center;font-weight:800;font-size:clamp(15px,2.6vh,28px);color:#0b1e3f;margin:10px 16px 18px;word-break:break-all}
+.preview-band{margin:8px auto;max-width:900px;padding:8px 12px;border-radius:10px;background:#fff3cd;color:#7a5a00;font-weight:600;text-align:center}
 </style>
 <link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 </head>
@@ -1765,7 +1766,7 @@ async function api(path,opt={}){path=evq(path);
   if(!r.ok)throw Object.assign(new Error(j.error||("Erreur "+r.status)),{status:r.status});return j;
 }
 async function loadPublic(){
-  try{const j=await api("/api/state");if(!j.published){state.published=false;state.loaded=true;if(!state.admin)render();return}
+  try{const j=await api("/api/state");state.preview=!!j.preview;if(!j.published&&!j.preview){state.published=false;state.loaded=true;if(!state.admin)render();return}
     RAW=j;build(j.config,j.data);if(!state.admin)render();}
   catch(e){console.error(e);$("#pub-body").innerHTML=`<p class="empty">Impossible de charger les données. Nouvel essai dans quelques secondes.<br><small style="opacity:.6">${esc(String(e&&e.message||e)).slice(0,160)}</small></p>`}
 }
@@ -2019,8 +2020,9 @@ function renderHead(){{const al=$("#allev");if(al)al.hidden=PICK||!(Array.isArra
   $("#search").placeholder={rank:"Rechercher une équipe",home:"",live:"Rechercher un nageur ou un club",prog:"Rechercher un nageur ou un club",pod:"Rechercher un nageur ou un club",res:"Rechercher un nageur ou un club",part:"Rechercher un nageur ou un club",club:"Rechercher un club"}[state.view];
 }
 function renderPublic(){
-  renderHead();$("#pub-unpub").hidden=state.published;$("#navbar").hidden=!state.published;$(".legend").hidden=!state.published;
-  if(!state.published){$("#pub-body").innerHTML="";return}
+  const vis=state.published||state.preview;renderHead();$("#pub-unpub").hidden=vis;$("#navbar").hidden=!vis;$(".legend").hidden=!vis;
+  let pv=$("#pub-preview");if(!pv){pv=document.createElement("p");pv.id="pub-preview";pv.className="preview-band";pv.textContent="Aperçu privé : cette compétition est en brouillon, invisible du public.";$("#pub-body").before(pv)}pv.hidden=!(state.preview&&!state.published);
+  if(!vis){$("#pub-body").innerHTML="";return}
   ({live:renderLive,rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,part:renderPart,club:renderClub})[state.view]();
 }
 function nl(t){return esc(t).replace(/\n/g,"<br>")}

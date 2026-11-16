@@ -698,7 +698,7 @@ export default {
 
     if (p === "/api/state" && req.method === "GET") {
       const cache = caches.default; const key = ckey("/api/state");
-      const hit = await cache.match(key); if (hit) return hit;
+      const hit = CAN ? null : await cache.match(key); if (hit) return hit;
       // le fichier de données est renvoyé tel quel (sans le relire ni le réécrire : trop coûteux pour une grosse compétition)
       const [c0, raw] = await Promise.all([env.KV.get(kk("config", ev), "json"), env.KV.get(kk("data", ev))]);
       const config = { ...DEFAULT_CONFIG, ...(c0 || {}) };
@@ -706,6 +706,9 @@ export default {
       const res = config.published
         ? new Response(`{"published":true,"config":${JSON.stringify(publicConfig(config))},"data":${raw || '{"comps":{}}'},"now":${now}}`, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=15" } })
         : json({ published: false, now }, 200, { "cache-control": "public, max-age=15" });
+      /* aperçu privé : compétition « Brouillon » vue par l'administrateur ou l'organisateur (jamais mise en cache, invisible du public) */
+      if (CAN && !config.published) return new Response(`{"published":false,"preview":true,"config":${JSON.stringify(publicConfig(config))},"data":${raw || '{"comps":{}}'},"now":${now}}`, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "private, no-store" } });
+      if (CAN) return res;
       ctx.waitUntil(cache.put(key, res.clone()));
       return res;
     }
