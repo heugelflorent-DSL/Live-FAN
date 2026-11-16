@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.6.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.7.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -24,7 +24,7 @@ if sys.stdout is None:  # exe sans console : messages dans un fichier
     sys.stdout = sys.stderr = open(os.path.join(HOME, "chrono.log"), "a", encoding="utf-8", buffering=1)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from swim_relais import Decoder, describe, demo_source  # noqa: E402  (décodage commun avec le relais en ligne de commande)
+from swim_relais import Decoder, describe, demo_source, splash_source  # noqa: E402  (décodage commun avec le relais en ligne de commande)
 
 # ---------- réglages ----------
 CFG_PATH = os.path.join(HOME, "reglages.json")
@@ -230,6 +230,7 @@ class Core:
     def apply_sys(self, sysk):
         if sysk not in self.PRESET or self.cfg.get("sys") == sysk: return
         mode, ser = self.PRESET[sysk]; old = self.cfg.get("mode")
+        if sysk == "ares" and (self.cfg.get("source") or "").lower().startswith("splash"): mode, ser = "reseau", None  # ARES lu par Splash
         self.cfg["sys"] = sysk; self.cfg["mode"] = mode
         if ser: self.cfg["serial"] = ser
         save_cfg(self.cfg); self.log(f"Chronométrage choisi sur le site : {self.NAMES[sysk]}" + (" (port série : choisis le port COM dans Réglages)" if mode == "serie" and not self.cfg.get("port") else ""))
@@ -355,8 +356,19 @@ class Core:
             except Exception as e:
                 self.st["quantum"] = f"écoute impossible ({e})"; self.log(f"✗ Impossible d'écouter le port {port} ({e}) : pare-feu Windows ou port déjà pris ?"); time.sleep(5)
 
+    # Omega ARES 21 sur le PC ARES lui-même : interface « Splash » (fichiers), sans câble ni port COM
+    def splash_loop(self):
+        d = self.cfg["source"].partition(":")[2].strip() or "C:\\ARES\\SWIMM"
+        self.log(f"✓ Lecture d'ARES Swimming par l'interface Splash ({d})")
+        def status(s): self.st["quantum"] = s
+        try:
+            for data, ts in splash_source(d, stop=lambda: self.stop or self.restart, status=status): self.feed(data, ts)
+        except Exception as e:
+            self.st["quantum"] = f"ARES Splash : {e}"; self.log(f"✗ ARES Splash : {e}"); time.sleep(5)
+
     def net_loop(self):
         quick = 0
+        if self.cfg["source"].lower().startswith("splash"): return self.splash_loop()
         h0, _, p0 = self.cfg["source"].rpartition(":")
         if h0.lower() in ("udp", "ecoute") and p0.isdigit(): return self.listen_loop("udp" if h0.lower() == "udp" else "tcp", int(p0))
         while not self.stop and not self.restart:
@@ -565,6 +577,7 @@ def gui(cfg, demo=False, close_after=0):
     def settings():
         w = tk.Toplevel(root); w.title("Réglages"); w.grab_set(); w.resizable(False, False)
         SYS = [("Swiss Timing Quantum (sortie Sport In The Box)", "quantum", "reseau", ""),
+               ("Omega ARES 21 — sur le PC ARES, sans câble (Splash)", "ares", "reseau", ""),
                ("Omega ARES 21 (série OSM6 ou réseau)", "ares", None, "9600,7,E,1"),
                ("Stramatel (sortie série, décodage à venir)", "stramatel", "serie", "9600,8,N,1"),
                ("ALGE TimeManager / SwimTime (sortie « Vidéo »)", "alge", "serie", "19200,8,N,1"),
@@ -572,7 +585,8 @@ def gui(cfg, demo=False, close_after=0):
         tk.Label(w, text="Ton chronométrage électronique", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
         sysv = ttk.Combobox(w, width=48, state="readonly", values=[x[0] for x in SYS])
         cur = cfg.get("sys") or ("ares" if cfg.get("mode") == "serie" else "quantum")
-        sysv.current(next((i for i, x in enumerate(SYS) if x[1] == cur), 0)); sysv.grid(row=1, column=0, sticky="w", padx=10)
+        spl = (cfg.get("source") or "").lower().startswith("splash")
+        sysv.current(next((i for i, x in enumerate(SYS) if x[1] == cur and (cur != "ares" or x[0].endswith("(Splash)") == spl)), 0)); sysv.grid(row=1, column=0, sticky="w", padx=10)
         mode = tk.StringVar(value=cfg.get("mode", "reseau"))
         rb1 = ttk.Radiobutton(w, text="Réseau (adresse:port)", variable=mode, value="reseau"); rb1.grid(row=2, column=0, sticky="w", padx=10, pady=(8, 0))
         f1 = tk.Frame(w); f1.grid(row=3, column=0, sticky="w", padx=30)
@@ -592,9 +606,11 @@ def gui(cfg, demo=False, close_after=0):
             if m: mode.set(m)
             if ser: e3.delete(0, "end"); e3.insert(0, ser)
             if key == "quantum" and ":" not in e1.get(): e1.delete(0, "end"); e1.insert(0, "127.0.0.1:26700")
+            splash = name.endswith("(Splash)")
+            if splash and not e1.get().lower().startswith("splash"): e1.delete(0, "end"); e1.insert(0, "splash:C:\\ARES\\SWIMM")
             st_ = "disabled" if m else "normal"; rb1.config(state=st_); rb2.config(state=st_)
             hint.config(text={"quantum": "Active la sortie « Sport In The Box » dans Quantum (port 26700 par défaut).",
-                              "ares": "Série : sortie DH d'ARES Swimming en OSM6 (9600,7,E,1) ; sinon 9600,8,N,1.\nSur le PC ARES : paire de ports virtuels com0com (ex. COM8 ↔ COM9), ou câble null-modem.\nRéseau : IP_ARES:port, ou « ecoute:port » si l'ARES envoie vers ce PC,\nou « udp:port » s'il diffuse en UDP.",
+                              "ares": ("Ce logiciel tourne sur le PC ARES : il interroge ARES Swimming en direct\n(interface Splash), sans toucher au chronométrage. Une seule fois : ARES fermé,\nouvrir C:\\ARES\\SWIMM\\SWIMM.INI et enlever « zzz » devant les 2 lignes\nFileNameForSplashRd / FileNameForSplashWr, puis rouvrir ARES.") if splash else "Série : sortie DH d'ARES Swimming en OSM6 (9600,7,E,1) ; sinon 9600,8,N,1.\nSur le PC ARES : paire de ports virtuels com0com (ex. COM8 ↔ COM9), ou câble null-modem.\nRéseau : IP_ARES:port, ou « ecoute:port » si l'ARES envoie vers ce PC,\nou « udp:port » s'il diffuse en UDP.",
                               "alge": "Sortie « Vidéo » d'ALGE vers le port série (19200,8,N,1).",
                               "stramatel": "Le flux est enregistré dans le journal ; l'affichage en direct\narrivera dès qu'on aura analysé un vrai journal.",
                               "autre": "Choisis toi-même réseau ou série."}[key] + ("\nAucun port listé ? Branche l'adaptateur puis rouvre ces réglages." if m == "serie" and not ports else ""))
@@ -604,7 +620,7 @@ def gui(cfg, demo=False, close_after=0):
         tk.Label(w, text="À n'utiliser que si la vidéo ne peut pas partager la sortie :\nsi ce logiciel est fermé, la vidéo ne reçoit plus rien.", fg=GREY, justify="left").grid(row=9, column=0, sticky="w", padx=10)
         def ok():
             src = e1.get().strip(); fw = e2.get().strip(); port = cb.get().split(" — ")[0].strip(); ser = e3.get().strip().upper().replace(" ", "")
-            if mode.get() == "reseau" and (":" not in src or not src.rsplit(":", 1)[1].isdigit()): messagebox.showerror(APP, "Adresse invalide (ex. 127.0.0.1:26700)"); return
+            if mode.get() == "reseau" and not src.lower().startswith("splash") and (":" not in src or not src.rsplit(":", 1)[1].isdigit()): messagebox.showerror(APP, "Adresse invalide (ex. 127.0.0.1:26700)"); return
             if mode.get() == "serie" and not port: messagebox.showerror(APP, "Choisis le port série"); return
             if mode.get() == "serie" and len(ser.split(",")) != 4: messagebox.showerror(APP, "Réglage série invalide (ex. 9600,7,E,1)"); return
             if fw and not fw.isdigit(): messagebox.showerror(APP, "Port du passe-plat invalide"); return
@@ -807,7 +823,9 @@ AIDE = [
     ]),
     ("ARES", [
         ("h", "Omega ARES 21"),
-        ("p", "Le vrai direct (chrono qui tourne, passages, touches) arrive en OSM6, uniquement par le port GP de l'IF-ARES. Il faut un adaptateur USB ↔ RS-422/485 : broche 3 → Rx+, broche 7 → Rx−."),
+        ("p", "Le plus simple : installer ce logiciel SUR LE PC ARES. Réglages : « Omega ARES 21 — sur le PC ARES, sans câble (Splash) », adresse splash:C:\\ARES\\SWIMM. Il interroge ARES Swimming toutes les 0,3 s : touches et passages en direct (~1 s), sans câble ni port COM."),
+        ("p", "Une seule fois : ARES fermé, ouvrir C:\\ARES\\SWIMM\\SWIMM.INI avec le Bloc-notes et enlever « zzz » au début des deux lignes FileNameForSplashRd et FileNameForSplashWr, enregistrer, rouvrir ARES."),
+        ("p", "Autre solution, avec câble : le vrai direct (chrono qui tourne, passages, touches) arrive en OSM6, uniquement par le port GP de l'IF-ARES. Il faut un adaptateur USB ↔ RS-422/485 : broche 3 → Rx+, broche 7 → Rx−."),
         ("p", "Ici, Réglages : système « Omega ARES 21 », connexion série, le port COM de l'adaptateur, 9600,7,E,1."),
         ("p", "La sortie DH d'ARES Swimming vers le PC ne marche qu'en bi-directionnel et ne donne les temps qu'après la série : pas de direct par ce chemin."),
         ("h", "À ne jamais faire pendant une compétition"),

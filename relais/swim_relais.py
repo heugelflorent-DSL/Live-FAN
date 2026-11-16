@@ -66,6 +66,11 @@ class Decoder:
     def __init__(self): self.buf = b""; self.pt1 = None; self.ts1 = None
     def feed(self, data, ts):
         self.buf += data; out = []
+        # Omega ARES 21, interface « Splash » (réponses texte lues par splash_source) : blocs commençant par « #SPLASH »
+        if self.buf.startswith(b"#SPLASH") or getattr(self, "splash", None):
+            if not hasattr(self, "splash"): self.splash = SplashDecoder()
+            data, self.buf = self.buf, b""
+            return self.splash.feed(data, ts)
         # ALGE TimeManager (sortie « Vidéo », texte ASCII ligne par ligne) : jamais de SOH, lignes finies par CR
         if SOH not in self.buf and (getattr(self, "alge", None) or re.search(rb"(?:^|[\r\n])(?:R\d{6}|START|[IFCM]\d{5}|ID\d)", self.buf)) and (b"\r" in self.buf or b"\n" in self.buf):
             if not hasattr(self, "alge"): self.alge = AlgeDecoder()
@@ -195,6 +200,127 @@ class AlgeDecoder:
                 self.react.add(ln); return {"k": "react", "lane": ln, "t": tm}
             return {"k": "finish" if k == b"F" else "split", "lane": ln, "lap": lap, "t": tm, "rank": rk, "edited": False}
         return None
+
+class SplashDecoder:
+    """Omega ARES 21 via l'interface « Splash » d'ARES Swimming (fichiers splash_send.txt / splash_receive.txt).
+    Chaque bloc reçu : « #SPLASH épreuve phase série longueurs » puis la réponse d'ARES à ASK RESULTS :
+      LSTRESULT;épreuve; phase; série; longueur; couloir; côté; rang; temps;  ;
+    On n'envoie au site que ce qui a changé (nouvelle série, nouveau toucher)."""
+    def __init__(self): self.key = None; self.seen = {}; self.laps = None
+    @staticmethod
+    def t(v):
+        # temps ARES en millièmes de seconde. Au-delà d'une heure, c'est une heure du jour (pas un temps de course) : non converti.
+        return round(v / 1000, 2) if 0 < v < 3_600_000 else None
+    def feed(self, data, ts):
+        out = []
+        for block in data.decode("latin-1", "replace").split("#SPLASH")[1:]:
+            lines = block.splitlines(); hd = (lines[0].split() + ["", "", "", ""])[:4]
+            try: ev, rd, ht = int(hd[0]), int(hd[1]), int(hd[2])
+            except ValueError: continue
+            laps = int(hd[3]) if hd[3].isdigit() and int(hd[3]) > 0 else None
+            if (ev, rd, ht) != self.key:
+                if self.key: out += self.close()
+                self.key, self.seen, self.laps = (ev, rd, ht), {}, laps
+                out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": laps, "lanes": None})
+            for L in lines[1:]:
+                if not L.startswith("LSTRESULT;"): continue
+                f = [x.strip() for x in L.split(";")]
+                try: lap, lane, rank, raw = int(f[4]), int(f[5]), int(f[7] or 0), int(f[8] or 0)
+                except (ValueError, IndexError): continue
+                if not lane or self.seen.get((lane, lap)) == (raw, rank): continue
+                self.seen[(lane, lap)] = (raw, rank)
+                kind = "finish" if self.laps and lap >= self.laps else "split"
+                e = {"k": kind, "lane": lane, "lap": lap, "t": self.t(raw), "rank": rank or None, "edited": False}
+                if e["t"] is None: e["tod"] = raw
+                out.append(e)
+        return out
+    def close(self):
+        """Série terminée (ARES est passé à la suivante) : le dernier toucher de chaque couloir est l'arrivée."""
+        if self.laps: return [{"k": "end", "event": self.key[0], "heat": self.key[2] + 1}]
+        last = {}
+        for (lane, lap), (raw, rank) in self.seen.items():
+            if lap >= last.get(lane, (0,))[0]: last[lane] = (lap, raw, rank)
+        out = [{"k": "finish", "lane": ln, "lap": lap, "t": self.t(raw), "rank": rank or None, "edited": False} for ln, (lap, raw, rank) in sorted(last.items())]
+        return out + [{"k": "end", "event": self.key[0], "heat": self.key[2] + 1}]
+
+
+def splash_laps(data_dir):
+    """Nombre de longueurs par distance (LSTLONG.TXT, colonne dont le nom contient « lap ») : {idLen: longueurs}."""
+    out = {}
+    try:
+        rows = [[x.strip().strip('"') for x in L.split(";")] for L in open(os.path.join(data_dir, "LSTLONG.TXT"), encoding="latin-1") if L.strip()]
+        head = [h.lower() for h in rows[0]]; col = next((i for i, h in enumerate(head) if "lap" in h), None)
+        if col is not None:
+            for f in rows[1:]:
+                if f and f[0].isdigit() and len(f) > col and f[col].isdigit(): out[int(f[0])] = int(f[col])
+    except (OSError, IndexError): pass
+    return out
+
+def splash_races(data_dir):
+    """Liste des séries d'ARES (LSTRACE.TXT) : [(épreuve, phase, nb_séries, longueurs)] dans l'ordre du programme."""
+    out = []; laps = splash_laps(data_dir)
+    try:
+        for L in open(os.path.join(data_dir, "LSTRACE.TXT"), encoding="latin-1"):
+            f = [x.strip() for x in L.split(";")]
+            if len(f) > 2 and f[0].isdigit():
+                lid = int(f[3]) if len(f) > 3 and f[3].isdigit() else None
+                out.append((int(f[0]), int(f[1] or 0), int(f[2] or 1), laps.get(lid)))
+    except OSError: pass
+    return out
+
+def splash_ini(ares_dir):
+    """Lit SWIMM.INI : (Splash activé ?, dossier de la base ARES)."""
+    on, data = False, os.path.join(os.path.splitdrive(ares_dir)[0] + os.sep, "ARESDB", "DB1")
+    try:
+        for L in open(os.path.join(ares_dir, "SWIMM.INI"), encoding="latin-1"):
+            k, _, v = L.strip().partition("=")
+            if k == "FileNameForSplashRd": on = True
+            if k == "DataPath" and v: data = v
+    except OSError: pass
+    return on, data
+
+def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, status=lambda s: None):
+    """Interroge ARES Swimming en boucle par l'interface Splash et renvoie ses réponses (direct ~1 s, sans câble).
+    Suit tout seul la série en cours : quand la série suivante reçoit des touchers, on passe dessus."""
+    snd, rcv = os.path.join(ares_dir, "splash_send.txt"), os.path.join(ares_dir, "splash_receive.txt")
+    on, data_dir = splash_ini(ares_dir)
+    if not on: log(f"⚠ Interface Splash désactivée dans {ares_dir}\\SWIMM.INI : ferme ARES, enlève « zzz » devant les 2 lignes FileNameForSplash…, rouvre ARES.")
+    races = splash_races(data_dir); idx, ht = 0, 0
+    def heats():  # séries dans l'ordre : (épreuve, phase, série)
+        return [(e, r, h, nl) for e, r, n, nl in races for h in range(n)]
+    def ask(e, r, h, timeout=3):
+        try: os.remove(rcv)
+        except OSError: pass
+        with open(snd, "w", encoding="latin-1", newline="") as f: f.write(f"ASK RESULTS;EVENT={e};ROUND={r};HEAT={h}\r\n")
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            if not os.path.exists(snd):
+                try: txt = open(rcv, encoding="latin-1").read()
+                except OSError: txt = ""
+                if "SEND RESULTS; END" in txt or "NOT FOUND" in txt: return txt
+            time.sleep(0.05)
+        return None
+    n = 0
+    # au démarrage : se placer sur la dernière série qui a déjà des temps (logiciel lancé en pleine compétition)
+    for i, (e, r, h, _) in enumerate(heats()):
+        if stop(): return
+        t = ask(e, r, h, timeout=2)
+        if t is None: break
+        if "LSTRESULT;" in t: idx = i
+    while not stop():
+        H = heats() or [(1, 0, 0, None)]
+        idx = min(idx, len(H) - 1); e, r, h, nl = H[idx]
+        txt = ask(e, r, h)
+        if txt is None: status("ARES ne répond pas (ARES Swimming ouvert ? Splash activé ?)"); time.sleep(2); races = splash_races(data_dir); continue
+        status(f"connecté (ARES Splash, épreuve {e} série {h + 1})")
+        yield f"#SPLASH {e} {r} {h} {nl or ''}\n{txt}".encode("latin-1"), time.time()
+        n += 1
+        if n % 5 == 0 and idx + 1 < len(H):  # la série suivante a commencé ?
+            e2, r2, h2, _ = H[idx + 1]; t2 = ask(e2, r2, h2)
+            if t2 and "LSTRESULT;" in t2: idx += 1; log(f"ARES : passage à l'épreuve {e2}, série {h2 + 1}")
+        if n % 100 == 0: races = splash_races(data_dir) or races
+        time.sleep(period)
+
 
 class Sender(threading.Thread):
     """Envoie les événements au site, groupés, avec nouvelles tentatives si la connexion coupe."""
