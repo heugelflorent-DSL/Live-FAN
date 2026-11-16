@@ -226,8 +226,9 @@ class SplashDecoder:
                 laps = int(f[3]) if len(f) == 5 and f[3].isdigit() and int(f[3]) > 0 else None
                 if (ev, rd, ht) != self.key:
                     if self.key: out += self.close()
-                    self.key, self.seen, self.laps = (ev, rd, ht), {}, laps
+                    self.key, self.laps = (ev, rd, ht), laps
                     out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": laps, "lanes": None})
+                self.seen = {k: v for k, v in self.seen.items() if v[0] > st}  # nouveau départ : les touches d'avant ne comptent plus
                 self.start_tod = st
                 lt = time.localtime(ts); now_tod = ((lt.tm_hour * 60 + lt.tm_min) * 60 + lt.tm_sec) * 1000 + int((ts % 1) * 1000)
                 late = now_tod - st
@@ -248,6 +249,7 @@ class SplashDecoder:
                 try: lap, lane, rank, raw = int(f[4]), int(f[5]), int(f[7] or 0), int(f[8] or 0)
                 except (ValueError, IndexError): continue
                 if not lane or self.seen.get((lane, lap)) == (raw, rank): continue
+                if self.start_tod is not None and raw >= 3_600_000 and raw <= self.start_tod: continue  # toucher d'une course précédente
                 self.seen[(lane, lap)] = (raw, rank)
                 kind = "finish" if self.laps and lap >= self.laps else "split"
                 e = {"k": kind, "lane": lane, "lap": lap, "t": self.rt(raw), "rank": rank or None, "edited": False}
@@ -360,7 +362,13 @@ def ares_start():
         return True
     def top(h, l):
         pid = wt.DWORD(); u.GetWindowThreadProcessId(h, ctypes.byref(pid))
-        if pid.value == l: u.EnumChildWindows(h, P(child), 0)
+        if pid.value == l:
+            cls = ctypes.create_unicode_buffer(64); u.GetClassNameW(h, cls, 64)
+            if cls.value == "Event":  # fenêtre de course : titre « 2 H 1  M 50 m FR » = épreuve 2, série 1
+                t = ctypes.create_unicode_buffer(200); u.GetWindowTextW(h, t, 200)
+                m = re.match(r"\s*(\d+)\s*H\s*(\d+)", t.value)
+                if m: _ARES_PID["race"] = (int(m.group(1)), int(m.group(2)))
+            u.EnumChildWindows(h, P(child), 0)
         return True
     try:
         pid = _ARES_PID.get("pid")
@@ -413,9 +421,11 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         idx = min(idx, len(H) - 1); e, r, h, nl = H[idx]
         try: st = ares_start()
         except Exception: st = None
+        race = _ARES_PID.pop("race", None)  # série ouverte dans ARES (titre de la fenêtre de course)
+        if race:
+            j = next((i for i, x in enumerate(H) if x[0] == race[0] and x[2] == race[1] - 1), None)
+            if j is not None and j != idx: idx = j; e, r, h, nl = H[idx]; log(f"ARES : série ouverte = épreuve {e}, série {h + 1}")
         if st and st != last_start:
-            if last_start is not None and last and last[:3] == (e, r, h) and "LSTRESULT;" in (last[3] or "") and idx + 1 < len(H):
-                idx += 1; e, r, h, nl = H[idx]; log(f"ARES : départ de l'épreuve {e}, série {h + 1}")
             yield f"#SPLASH-START {e} {r} {h} {nl or ''} {st}\n".encode("latin-1"), time.time()
         last_start = st if st else last_start
         txt = ask(e, r, h)
