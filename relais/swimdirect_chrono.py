@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.7.7"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.7.8"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -518,7 +518,7 @@ def gui(cfg, demo=False, close_after=0):
             try: import ctypes; ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SwimDirect.Chrono")
             except Exception: pass
             root.iconbitmap(default=os.path.join(_b, "swimdirect.ico"))
-        root._ico = tk.PhotoImage(file=os.path.join(_b, "swimdirect_icon.png")); root.iconphoto(True, root._ico)
+        root._ico = [tk.PhotoImage(file=os.path.join(_b, f)) for f in ("swimdirect_icon.png", "swimdirect_icon32.png") if os.path.exists(os.path.join(_b, f))]; root.iconphoto(True, *root._ico)  # grande + petite : Windows prend la plus proche au lieu d'agrandir
     except Exception: pass
     NAVY, INK, BG, CARD, LINE = "#0b1e3f", "#13284d", "#eef3f8", "#ffffff", "#d6e1ec"
     BLUE, RED, GREY, GREEN, GOLD = "#06324f", "#d6202f", "#5b7685", "#16a34a", "#f2c94c"
