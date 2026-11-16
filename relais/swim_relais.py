@@ -349,14 +349,19 @@ def ares_start():
     import ctypes, ctypes.wintypes as wt
     u = ctypes.windll.user32; found = []
     P = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
+    def smt(h, msg, w, l):  # SendMessageTimeout : si ARES est occupé (> 100 ms) on abandonne, sans jamais le bloquer
+        r = ctypes.c_size_t(0)
+        ok = u.SendMessageTimeoutW(h, msg, w, l, 0x0002 | 0x0008, 100, ctypes.byref(r))  # SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT
+        return int(r.value) if ok else -1
     def child(h, l):
         cls = ctypes.create_unicode_buffer(64); u.GetClassNameW(h, cls, 64)
         if cls.value == "ListBox":
-            n = u.SendMessageW(h, 0x18B, 0, 0)
+            n = smt(h, 0x18B, 0, 0)
             for i in range(min(max(n, 0), 40)):
-                ln = u.SendMessageW(h, 0x18A, i, 0)
+                ln = smt(h, 0x18A, i, 0)
                 if ln <= 0 or ln > 400: continue
-                b = ctypes.create_unicode_buffer(ln + 2); u.SendMessageW(h, 0x189, i, b)
+                b = ctypes.create_unicode_buffer(ln + 2)
+                if smt(h, 0x189, i, b) < 0: continue
                 m = re.search(r"\[V\]\s*Start:\s*(\d{1,2}):(\d\d):(\d\d)[.,](\d{1,3})", b.value)
                 if m: found.append(m.groups())
         return True
@@ -410,12 +415,14 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
     n = 0; last, last_at = None, 0
     yield f"#SPLASH-INFO dossier={ares_dir} base={data_dir} séries={races}\n".encode("latin-1", "replace"), time.time()  # pour le journal
     # au démarrage : se placer sur la dernière série qui a déjà des temps (logiciel lancé en pleine compétition)
-    for i, (e, r, h, _) in enumerate(heats()):
+    try: ares_start()
+    except Exception: pass
+    for i, (e, r, h, _) in enumerate([] if "race" in _ARES_PID else heats()):  # fenêtre de course trouvée : pas besoin d'interroger chaque série
         if stop(): return
         t = ask(e, r, h, timeout=2)
         if t is None: break
         if "LSTRESULT;" in t: idx = i
-    last_start = None
+    last_start = None; active_at = time.time()
     while not stop():
         H = heats() or [(1, 0, 0, None)]
         idx = min(idx, len(H) - 1); e, r, h, nl = H[idx]
@@ -428,6 +435,9 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         if st and st != last_start:
             yield f"#SPLASH-START {e} {r} {h} {nl or ''} {st}\n".encode("latin-1"), time.time()
         last_start = st if st else last_start
+        if st and st != getattr(splash_source, "_st", None): splash_source._st, active_at = st, time.time()
+        calm = time.time() - active_at > 120
+        if calm and n % 3: n += 1; time.sleep(period); continue  # calme depuis 2 min : ARES interrogé 1 fois/s (le départ reste surveillé toutes les 0,3 s)
         txt = ask(e, r, h)
         if txt is None: status("ARES ne répond pas (ARES Swimming ouvert ? Splash activé ?)"); time.sleep(2); races = splash_races(data_dir); continue
         status(f"connecté (ARES Splash, épreuve {e} série {h + 1})")
@@ -440,6 +450,7 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
             e2, r2, h2, _ = H[idx + 1]; t2 = ask(e2, r2, h2)
             if t2 and "LSTRESULT;" in t2: idx += 1; log(f"ARES : passage à l'épreuve {e2}, série {h2 + 1}")
         if n % 100 == 0: races = splash_races(data_dir) or races
+        if (e, r, h, txt) != getattr(splash_source, "_prev", None): splash_source._prev, active_at = (e, r, h, txt), time.time()
         time.sleep(period)
 
 
