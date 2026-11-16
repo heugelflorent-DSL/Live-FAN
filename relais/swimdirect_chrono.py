@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.7.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.7.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -24,7 +24,7 @@ if sys.stdout is None:  # exe sans console : messages dans un fichier
     sys.stdout = sys.stderr = open(os.path.join(HOME, "chrono.log"), "a", encoding="utf-8", buffering=1)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from swim_relais import Decoder, describe, demo_source, splash_source  # noqa: E402  (décodage commun avec le relais en ligne de commande)
+from swim_relais import Decoder, describe, demo_source, splash_source, ares_find  # noqa: E402  (décodage commun avec le relais en ligne de commande)
 
 # ---------- réglages ----------
 CFG_PATH = os.path.join(HOME, "reglages.json")
@@ -34,6 +34,10 @@ def load_cfg():
     if not c.get("token"):
         c["token"] = "SD-" + "-".join("".join(random.SystemRandom().choice(ALPHA) for _ in range(4)) for _ in range(4))
     c.setdefault("source", "127.0.0.1:26700"); c.setdefault("mode", "reseau"); c.setdefault("port", ""); c.setdefault("serial", "9600,7,E,1"); c.setdefault("site", SITE); c.setdefault("forward", "")
+    # PC ARES : si ARES Swimming est installé ici et que rien d'autre n'a été réglé, on le lit tout seul (interface Splash, sans câble)
+    ad = ares_find()
+    if ad and not c.get("ares_auto") and (not c.get("sys") or (c.get("sys") == "ares" and not c.get("port"))):
+        c.update(sys="ares", mode="reseau", source="splash:" + ad, ares_auto=True)
     save_cfg(c); return c
 def save_cfg(c):
     with open(CFG_PATH, "w", encoding="utf-8") as f: json.dump(c, f, indent=1)
@@ -610,7 +614,7 @@ def gui(cfg, demo=False, close_after=0):
             if splash and not e1.get().lower().startswith("splash"): e1.delete(0, "end"); e1.insert(0, "splash:C:\\ARES\\SWIMM")
             st_ = "disabled" if m else "normal"; rb1.config(state=st_); rb2.config(state=st_)
             hint.config(text={"quantum": "Active la sortie « Sport In The Box » dans Quantum (port 26700 par défaut).",
-                              "ares": ("Ce logiciel tourne sur le PC ARES : il interroge ARES Swimming en direct\n(interface Splash), sans toucher au chronométrage. Une seule fois : ARES fermé,\nouvrir C:\\ARES\\SWIMM\\SWIMM.INI et enlever « zzz » devant les 2 lignes\nFileNameForSplashRd / FileNameForSplashWr, puis rouvrir ARES.") if splash else "Série : sortie DH d'ARES Swimming en OSM6 (9600,7,E,1) ; sinon 9600,8,N,1.\nSur le PC ARES : paire de ports virtuels com0com (ex. COM8 ↔ COM9), ou câble null-modem.\nRéseau : IP_ARES:port, ou « ecoute:port » si l'ARES envoie vers ce PC,\nou « udp:port » s'il diffuse en UDP.",
+                              "ares": ("Ce logiciel tourne sur le PC ARES : il interroge ARES Swimming en direct\n(interface Splash), sans toucher au chronométrage. Tout est automatique :\nla 1re fois, il suffit de fermer ARES Swimming puis de le rouvrir.") if splash else "Série : sortie DH d'ARES Swimming en OSM6 (9600,7,E,1) ; sinon 9600,8,N,1.\nSur le PC ARES : paire de ports virtuels com0com (ex. COM8 ↔ COM9), ou câble null-modem.\nRéseau : IP_ARES:port, ou « ecoute:port » si l'ARES envoie vers ce PC,\nou « udp:port » s'il diffuse en UDP.",
                               "alge": "Sortie « Vidéo » d'ALGE vers le port série (19200,8,N,1).",
                               "stramatel": "Le flux est enregistré dans le journal ; l'affichage en direct\narrivera dès qu'on aura analysé un vrai journal.",
                               "autre": "Choisis toi-même réseau ou série."}[key] + ("\nAucun port listé ? Branche l'adaptateur puis rouvre ces réglages." if m == "serie" and not ports else ""))
@@ -824,7 +828,7 @@ AIDE = [
     ("ARES", [
         ("h", "Omega ARES 21"),
         ("p", "Le plus simple : installer ce logiciel SUR LE PC ARES. Réglages : « Omega ARES 21 — sur le PC ARES, sans câble (Splash) », adresse splash:C:\\ARES\\SWIMM. Il interroge ARES Swimming toutes les 0,3 s : touches et passages en direct (~1 s), sans câble ni port COM."),
-        ("p", "Une seule fois : ARES fermé, ouvrir C:\\ARES\\SWIMM\\SWIMM.INI avec le Bloc-notes et enlever « zzz » au début des deux lignes FileNameForSplashRd et FileNameForSplashWr, enregistrer, rouvrir ARES."),
+        ("p", "Si ARES Swimming est installé sur ce PC, tout se règle tout seul. La toute première fois, le logiciel demande de fermer ARES Swimming puis de le rouvrir : il active alors la liaison (copie de l'ancien réglage gardée : SWIMM.INI.avant-swimdirect)."),
         ("p", "Autre solution, avec câble : le vrai direct (chrono qui tourne, passages, touches) arrive en OSM6, uniquement par le port GP de l'IF-ARES. Il faut un adaptateur USB ↔ RS-422/485 : broche 3 → Rx+, broche 7 → Rx−."),
         ("p", "Ici, Réglages : système « Omega ARES 21 », connexion série, le port COM de l'adaptateur, 9600,7,E,1."),
         ("p", "La sortie DH d'ARES Swimming vers le PC ne marche qu'en bi-directionnel et ne donne les temps qu'après la série : pas de direct par ce chemin."),

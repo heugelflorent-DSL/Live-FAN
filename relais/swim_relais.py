@@ -214,6 +214,7 @@ class SplashDecoder:
     def feed(self, data, ts):
         out = []
         for block in data.decode("latin-1", "replace").split("#SPLASH")[1:]:
+            if block.startswith("-INFO"): continue
             lines = block.splitlines(); hd = (lines[0].split() + ["", "", "", ""])[:4]
             try: ev, rd, ht = int(hd[0]), int(hd[1]), int(hd[2])
             except ValueError: continue
@@ -279,12 +280,53 @@ def splash_ini(ares_dir):
     except OSError: pass
     return on, data
 
+ARES_DIRS = ["C:\\ARES\\SWIMM", "D:\\ARES\\SWIMM", "C:\\Program Files (x86)\\ARES\\SWIMM", "C:\\Program Files\\ARES\\SWIMM"]
+
+def ares_find():
+    """Dossier d'ARES Swimming installé sur ce PC (None s'il n'y en a pas)."""
+    return next((d for d in ARES_DIRS if os.path.exists(os.path.join(d, "SWIMM.EXE"))), None)
+
+def ares_running():
+    """ARES Swimming est-il ouvert ? (Windows : liste des programmes)"""
+    if os.name != "nt": return False
+    try:
+        import subprocess
+        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq SWIMM.EXE", "/NH"], capture_output=True, text=True, timeout=10, creationflags=0x08000000).stdout
+        return "swimm.exe" in out.lower()
+    except Exception: return False
+
+def splash_enable(ares_dir):
+    """Active l'interface Splash dans SWIMM.INI (enlève « zzz » devant les 2 lignes), avec une copie de sauvegarde.
+    Renvoie True si c'est fait (ou déjà fait). Ne touche à rien tant qu'ARES est ouvert (il réécrit son .ini en quittant)."""
+    ini = os.path.join(ares_dir, "SWIMM.INI")
+    try: txt = open(ini, encoding="latin-1", newline="").read()
+    except OSError: return False
+    if re.search(r"(?m)^FileNameForSplashRd=", txt) and re.search(r"(?m)^FileNameForSplashWr=", txt): return True
+    if ares_running(): return False
+    try:
+        bak = ini + ".avant-swimdirect"
+        if not os.path.exists(bak): open(bak, "w", encoding="latin-1", newline="").write(txt)
+        new = re.sub(r"(?m)^zzz(FileNameForSplash(?:Rd|Wr)=)", r"\1", txt)
+        if "FileNameForSplashRd=" not in new or not re.search(r"(?m)^FileNameForSplashRd=", new):
+            nl = "\r\n" if "\r\n" in txt else "\n"
+            add = f"FileNameForSplashRd=\\\\.\\{ares_dir}\\splash_send.txt{nl}FileNameForSplashWr=\\\\.\\{ares_dir}\\splash_receive.txt{nl}"
+            new = re.sub(r"(?m)^(\[General\][^\n]*\n)", lambda m: m.group(1) + add, new, count=1) if "[General]" in new else new + nl + "[General]" + nl + add
+        open(ini, "w", encoding="latin-1", newline="").write(new)
+        log("✓ Liaison Swim Direct activée dans ARES Swimming (copie de l'ancien réglage : SWIMM.INI.avant-swimdirect)")
+        return True
+    except OSError as e:
+        log(f"✗ Impossible de modifier {ini} ({e}) : lance le logiciel en administrateur, ou enlève « zzz » à la main."); return False
+
 def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, status=lambda s: None):
     """Interroge ARES Swimming en boucle par l'interface Splash et renvoie ses réponses (direct ~1 s, sans câble).
     Suit tout seul la série en cours : quand la série suivante reçoit des touchers, on passe dessus."""
     snd, rcv = os.path.join(ares_dir, "splash_send.txt"), os.path.join(ares_dir, "splash_receive.txt")
+    told = False
+    while not stop() and not splash_enable(ares_dir):  # activation automatique de la liaison (une seule fois par PC)
+        status("ferme ARES Swimming une fois, puis rouvre-le")
+        if not told: log("⚠ Pour activer la liaison avec Swim Direct : ferme ARES Swimming une fois, puis rouvre-le (réglage fait automatiquement)."); told = True
+        time.sleep(3)
     on, data_dir = splash_ini(ares_dir)
-    if not on: log(f"⚠ Interface Splash désactivée dans {ares_dir}\\SWIMM.INI : ferme ARES, enlève « zzz » devant les 2 lignes FileNameForSplash…, rouvre ARES.")
     races = splash_races(data_dir); idx, ht = 0, 0
     def heats():  # séries dans l'ordre : (épreuve, phase, série)
         return [(e, r, h, nl) for e, r, n, nl in races for h in range(n)]
@@ -300,7 +342,8 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
                 if "SEND RESULTS; END" in txt or "NOT FOUND" in txt: return txt
             time.sleep(0.05)
         return None
-    n = 0
+    n = 0; last, last_at = None, 0
+    yield f"#SPLASH-INFO dossier={ares_dir} base={data_dir} séries={races}\n".encode("latin-1", "replace"), time.time()  # pour le journal
     # au démarrage : se placer sur la dernière série qui a déjà des temps (logiciel lancé en pleine compétition)
     for i, (e, r, h, _) in enumerate(heats()):
         if stop(): return
@@ -313,7 +356,10 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         txt = ask(e, r, h)
         if txt is None: status("ARES ne répond pas (ARES Swimming ouvert ? Splash activé ?)"); time.sleep(2); races = splash_races(data_dir); continue
         status(f"connecté (ARES Splash, épreuve {e} série {h + 1})")
-        yield f"#SPLASH {e} {r} {h} {nl or ''}\n{txt}".encode("latin-1"), time.time()
+        # journal de suivi : seulement les réponses qui changent (+ un signe de vie toutes les 30 s), pas 3 copies par seconde
+        if (e, r, h, txt) != last or time.time() - last_at > 30:
+            last, last_at = (e, r, h, txt), time.time()
+            yield f"#SPLASH {e} {r} {h} {nl or ''}\n{txt}".encode("latin-1"), time.time()
         n += 1
         if n % 5 == 0 and idx + 1 < len(H):  # la série suivante a commencé ?
             e2, r2, h2, _ = H[idx + 1]; t2 = ask(e2, r2, h2)
