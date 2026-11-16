@@ -15,7 +15,7 @@ Utilisation :
 
 Mot de passe : celui de l'admin du site, demandé au démarrage (ou variable SWIM_CLE).
 """
-import argparse, getpass, json, os, queue, re, sys, threading, time, urllib.request, urllib.error
+import argparse, getpass, json, os, queue, re, socket, sys, threading, time, urllib.request, urllib.error
 from datetime import datetime
 
 # Certificats HTTPS : ceux embarqués dans le logiciel (certifi) d'abord, puis ceux de Windows en secours.
@@ -372,7 +372,7 @@ def ares_start():
             if cls.value == "Event":  # fenêtre de course : titre « 2 H 1  M 50 m FR » = épreuve 2, série 1
                 t = ctypes.create_unicode_buffer(200); u.GetWindowTextW(h, t, 200)
                 m = re.match(r"\s*(\d+)\s*H\s*(\d+)", t.value)
-                if m: _ARES_PID["race"] = (int(m.group(1)), int(m.group(2)))
+                if m: _ARES_PID["race"] = (int(m.group(1)), int(m.group(2))); _ARES_PID["title"] = t.value
             u.EnumChildWindows(h, P(child), 0)
         return True
     try:
@@ -452,6 +452,76 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         if n % 100 == 0: races = splash_races(data_dir) or races
         if (e, r, h, txt) != getattr(splash_source, "_prev", None): splash_source._prev, active_at = (e, r, h, txt), time.time()
         time.sleep(period)
+
+
+class QuantumOut:
+    """Sortie réseau « comme un Quantum » (Sport In The Box, port 26700) à partir des événements Swim Direct (ex. ARES lu par Splash).
+    Format copié d'un enregistrement réel du Quantum (Interclubs U11, 15/11/2026) : SOH + JSON UTF-8 + EOT ;
+    TP chaque seconde, RT toutes les 0,1 s pendant la course, ST au départ, TK aux touches (Kind I/F, Type B), SL/HO en-têtes de série."""
+    STROKES = {"FR": "Nage Libre", "NL": "Nage Libre", "BK": "Dos", "DO": "Dos", "BR": "Brasse", "FLY": "Papillon", "BU": "Papillon", "PA": "Papillon", "IM": "4 Nages", "4N": "4 Nages", "ME": "4 Nages"}
+    def __init__(self, nlanes=8):
+        self.clients = []; self.lock = threading.Lock(); self.nl = nlanes
+        self.ev = self.heat = None; self.laps = None; self.start = None; self.running = False; self.res = {}; self.last = {}
+    @staticmethod
+    def fmt(t, dec=2):
+        if t is None: return None
+        m, sec = divmod(max(float(t), 0.0), 60)
+        return f"{int(m)}:{sec:0{3 + dec}.{dec}f}" if m >= 1 else f"{sec:.{dec}f}"
+    def send(self, msg):
+        data = b"\x01" + json.dumps(msg, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\x04"
+        with self.lock:
+            for c in list(self.clients):
+                try: c.sendall(data)
+                except OSError: self.clients.remove(c)
+    def header(self):
+        t = (_ARES_PID.get("title") or "").split(); dist = stroke = cat = ""
+        m = re.search(r"H\s*\d+\s+([MFWXmfwx])?\s*(\d+)\s*m\s*(\S+)?", _ARES_PID.get("title") or "")
+        if m: cat = {"M": "Messieurs", "F": "Dames", "W": "Dames", "X": "Mixte"}.get((m.group(1) or "").upper(), ""); dist = m.group(2) + " m"; stroke = self.STROKES.get((m.group(3) or "").upper(), m.group(3) or "")
+        return {"CompName": "", "Number": str(self.ev or ""), "Round": "Séries", "Date": time.strftime("%d/%m/%Y"), "Time": "00:00:01", "Dist": dist, "Stroke": stroke, "Cat": cat,
+                "ScbTitle": "", "Heats": None, "Laps": self.laps, "Swimmers": 1, "Records": []}
+    def lanes(self, final):
+        out = []
+        for ln in range(1, self.nl + 1):
+            r = self.res.get(ln)
+            out.append({"Ln": ln, "Rk": str(r[1]) if final and r and r[1] else None, "Name": None, "ScbName": None, "Nat": None, "Club": None, "Hcp": None, "Cat": None, "Born": None,
+                        "Time": self.fmt(r[0]) if final and r else None, "Stat": None, "Note": None, "Swimmers": None})
+        return out
+    def pool(self):
+        m = re.search(r"(\d+)\s*m", _ARES_PID.get("title") or "")
+        return int(m.group(1)) // self.laps if m and self.laps else None
+    def on(self, e):
+        k = e.get("k")
+        if k == "ready":
+            self.ev, self.heat, self.laps, self.running, self.res, self.last = e.get("event"), e.get("heat"), e.get("laps"), False, {}, {}
+            self.send({"Msg": "RT", "RT": "0.0"})
+            self.send({"Msg": "SL", "EvHeader": self.header(), "HeatHeader": {"Number": str(self.heat or ""), "Stat": "W"}, "Lanes": self.lanes(False)})
+            for ln in range(1, self.nl + 1): self.send({"Msg": "TK", "Ln": ln, "Rk": "0", "Time": None, "Kind": "S", "Type": None, "Dist": None, "Lap": 0, "LT": None, "Stat": ""})
+        elif k == "start":
+            self.start = (e.get("ts") or time.time() * 1000) / 1000; self.running = True; self.res, self.last = {}, {}
+            self.send({"Msg": "ST", "TS": time.strftime("%H:%M:%S", time.localtime(self.start)) + f".{int(self.start % 1 * 100):02d}", "Type": "S"})
+        elif k in ("split", "finish") and e.get("t") is not None:
+            ln, lap, t = e.get("lane"), e.get("lap") or 0, e.get("t"); pl = self.pool()
+            lt = t - self.last[ln] if ln in self.last else None; self.last[ln] = t
+            self.send({"Msg": "TK", "Ln": ln, "Rk": str(e.get("rank") or 0), "Time": self.fmt(t), "Kind": "F" if k == "finish" else "I", "Type": "B",
+                       "Dist": str(pl * lap) if pl and lap else None, "Lap": lap, "LT": self.fmt(lt) if lt is not None and lap > 1 else None, "Stat": None})
+            if k == "finish": self.res[ln] = (t, e.get("rank")); self.running = False
+        elif k == "end":
+            self.running = False
+            self.send({"Msg": "HO", "EvHeader": self.header(), "HeatHeader": {"Number": str(self.heat or ""), "Stat": "O"}, "Lanes": self.lanes(True)})
+            self.send({"Msg": "FS", "Fr": "0"})
+    def tick_loop(self, stop):
+        n = 0
+        while not stop():
+            if self.running and self.start: self.send({"Msg": "RT", "RT": self.fmt(time.time() - self.start, 1)})
+            if n % 10 == 0: self.send({"Msg": "TP", "Sport": "SWM", "Src": "PRY", "Vers": "1.0", "DayTime": time.strftime("%H:%M:%S")})
+            n += 1; time.sleep(0.1)
+    def serve(self, port, stop, log=print):
+        srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind(("0.0.0.0", port)); srv.listen(8)
+        threading.Thread(target=self.tick_loop, args=(stop,), daemon=True).start()
+        log(f"Sortie réseau « comme un Quantum » : port {port}")
+        while not stop():
+            c, a = srv.accept(); log(f"Sortie réseau : {a[0]} connecté")
+            with self.lock: self.clients.append(c)
 
 
 class Sender(threading.Thread):

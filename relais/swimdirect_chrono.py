@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.7.6"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.7.7"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -24,7 +24,7 @@ if sys.stdout is None:  # exe sans console : messages dans un fichier
     sys.stdout = sys.stderr = open(os.path.join(HOME, "chrono.log"), "a", encoding="utf-8", buffering=1)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from swim_relais import Decoder, describe, demo_source, splash_source, ares_find  # noqa: E402  (décodage commun avec le relais en ligne de commande)
+from swim_relais import Decoder, describe, demo_source, splash_source, ares_find, QuantumOut  # noqa: E402  (décodage commun avec le relais en ligne de commande)
 
 # ---------- réglages ----------
 CFG_PATH = os.path.join(HOME, "reglages.json")
@@ -190,7 +190,7 @@ class Core:
                 try: os.remove(fp)
                 except OSError: pass
         self.journal = open(os.path.join(jdir, datetime.now().strftime("journal-%Y%m%d-%H%M.jsonl")), "a", encoding="utf-8")
-        self.fw_clients = []; self.fw_lock = threading.Lock()
+        self.fw_clients = []; self.fw_lock = threading.Lock(); self.qout = None
         self.screen = LocalScreen(self)
 
     def log(self, *a):
@@ -314,6 +314,9 @@ class Core:
                 if not self.test or ev.get("k") == "ping":
                     try: self.q.put_nowait(ev)
                     except queue.Full: pass
+                if self.qout:
+                    try: self.qout.on(ev)
+                    except Exception as e: self.log(f"✗ Sortie réseau : {e}")
                 self.screen.push(ev)  # le signe de vie sert aussi à l'écran local (fin de série sans appui de poire)
 
     # lecture du chronométrage (sortie réseau Sport In The Box)
@@ -363,6 +366,15 @@ class Core:
     # Omega ARES 21 sur le PC ARES lui-même : interface « Splash » (fichiers), sans câble ni port COM
     def splash_loop(self):
         d = self.cfg["source"].partition(":")[2].strip() or "C:\\ARES\\SWIMM"
+        # sortie réseau « comme un Quantum » pour d'autres logiciels (affichage, TV…) : port 26700 par défaut, « 0 » pour la couper
+        qp = str(self.cfg.get("sortie_quantum", "26700")).strip()
+        if qp.isdigit() and int(qp) and not self.qout:
+            self.qout = QuantumOut()
+            def qserve():
+                try: self.qout.serve(int(qp), lambda: self.stop, self.log)
+                except OSError as e: self.log(f"✗ Sortie réseau port {qp} : {e}"); self.qout = None
+            threading.Thread(target=qserve, daemon=True).start()
+            threading.Thread(target=open_firewall, args=(int(qp), self.log), daemon=True).start()
         self.log(f"✓ Lecture d'ARES Swimming par l'interface Splash ({d})")
         def status(s): self.st["quantum"] = s
         import swim_relais as _sr; _sr.log = lambda *a: self.log("ARES · " + " ".join(map(str, a)))  # messages du lecteur ARES dans le journal envoyé au site
