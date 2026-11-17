@@ -729,7 +729,9 @@ body.pick{background:#e9f4f8;background-image:none}
 .sp-side{display:flex;align-items:center;gap:14px;flex:1;min-width:0}.sp-side.l{justify-content:flex-end}.sp-side.r{justify-content:flex-start}.sp-side:empty{display:none}.has-sp .sp-side:empty{display:flex}
 .sp-l{display:flex;align-items:center;justify-content:center;height:64px;padding:8px 12px;box-sizing:border-box;background:#fff;border-radius:10px;border:1px solid var(--line);flex:0 0 auto}
 .sp-l img{height:100%;width:auto;max-width:200px;object-fit:contain}.sp-l.nobg{background:none;border-color:transparent;padding:4px}a.sp-l:hover{border-color:var(--a)}a.sp-l:focus-visible{outline:3px solid var(--a);outline-offset:2px}
-@media (max-width:700px){.foot .sigw.has-sp{flex-wrap:wrap}.foot .sigw.has-sp .sig{order:-1;flex:0 0 100%;object-fit:contain}.sp-side{flex:0 0 100%;justify-content:center!important;flex-wrap:wrap;gap:10px}.sp-l{height:54px}.sp-l img{max-width:150px}}
+/* toutes les cases de partenaires à la même taille, logo centré dedans */
+.foot .sigw:not(.many) .sp-l{width:170px}.foot .sigw:not(.many) .sp-l img{width:100%;height:100%;max-width:none;object-fit:contain}
+@media (max-width:700px){.foot .sigw.has-sp{flex-wrap:wrap}.foot .sigw.has-sp .sig{order:-1;flex:0 0 100%;object-fit:contain}.sp-side{flex:0 0 100%;justify-content:center!important;flex-wrap:wrap;gap:10px}.sp-l{height:60px}.sp-l img{max-width:150px}.foot .sigw:not(.many) .sp-l{width:calc(50% - 5px);max-width:170px}}
 /* carrousel de partenaires (plus de 4 logos) : bande qui défile en continu, pause au survol ou au toucher */
 .foot .sigw.many{flex-wrap:wrap;width:100%;min-width:0;max-width:100%;align-self:stretch}.foot .sigw.many .sp-side.l{display:none}
 .foot .sigw.many .sp-side.r{flex:0 0 100%;width:100%;min-width:0;max-width:100%;display:block;overflow:hidden;contain:paint;margin:14px 0 10px;position:relative;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
