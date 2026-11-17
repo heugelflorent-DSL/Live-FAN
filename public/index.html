@@ -3425,20 +3425,22 @@ function render(){try{docSys()}catch(_){}if(DEEP)setTimeout(deepApply,0);setTime
 /* ---------- interactions ---------- */
 document.addEventListener("click",e=>{const g=e.target.closest&&e.target.closest("[data-goview]");if(!g)return;const b=document.querySelector('#subnav [data-view="'+g.dataset.goview+'"]');if(b)b.click()});
 $("#subnav").addEventListener("scroll",navEdge,{passive:true});addEventListener("resize",navEdge);
-$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.selFrom=null;state.admin=false;$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(["res","pod","home"].includes(state.view))loadLive()});
+$("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.selFrom=null;state.admin=false;adminHash(false);$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(["res","pod","home"].includes(state.view))loadLive()});
 $("#admin-btn").onclick=()=>openAdmin();
-async function openAdmin(){if(PICK){location.href="/e/main#admin";return}
+/* l'adresse garde #admin : un rechargement de la page reste dans l'admin */
+function adminHash(on){try{if(on&&location.hash!=="#admin")history.replaceState(null,"",location.pathname+location.search+"#admin");else if(!on&&location.hash==="#admin")history.replaceState(null,"",location.pathname+location.search)}catch(_){}}
+async function openAdmin(){if(PICK){location.href="/e/main#admin";return}adminHash(true);
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();loadEvents();window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
   state.login=true;$("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-login").hidden=false;$("#login-pw").focus()}
 function alertLogin(m){$("#login-msg").textContent=m;$("#login-msg").className="msg err"}
 $("#login-form").addEventListener("submit",async e=>{e.preventDefault();ADMIN_KEY=$("#login-pw").value;
   try{state.admin=true;state.login=false;await loadAdmin();loadEvents();try{sessionStorage.setItem("lf-key",ADMIN_KEY)}catch(_){};$("#login-pw").value=""}
   catch(err){state.admin=false;ADMIN_KEY=null;alertLogin(err.message)}});
-$("#login-cancel").onclick=()=>{state.admin=false;state.login=false;$("#navbar").hidden=false;render()};
+$("#login-cancel").onclick=()=>{state.admin=false;state.login=false;adminHash(false);$("#navbar").hidden=false;render()};
 $("#save-btn").onclick=()=>saveNow();
 $("#back-public2").onclick=()=>$("#back-public").click();
 window.addEventListener("beforeunload",e=>{if(state.admin&&JSON.stringify(toConfig())!==lastSaved){e.preventDefault();e.returnValue=""}});
-$("#back-public").onclick=async()=>{await saveNow();state.admin=false;await loadPublic();render()};
+$("#back-public").onclick=async()=>{await saveNow();state.admin=false;adminHash(false);await loadPublic();render()};
 $("#pub-body").addEventListener("click",e=>{
   const ru=e.target.closest("[data-reu]");if(ru){state.reu=ru.dataset.reu;renderPublic();window.scrollTo(0,0);return}
   const rs=e.target.closest("[data-rsex]");if(rs){state.rankSex=rs.dataset.rsex;state.open={};renderPublic();return}

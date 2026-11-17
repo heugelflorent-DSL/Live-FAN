@@ -1006,6 +1006,11 @@ export default {
       if (req.method === "GET") {
         const out = [];
         for (const x of [{ id: "main", name: "Événement principal" }, ...list]) { if (!ADM && x.id !== ev) continue; const c = await env.KV.get(kk("config", x.id), "json"); if (x.id === "main" && c && c.movedTo && !c.published && !(c.comps || []).length && ev !== "main") continue; out.push({ id: x.id, name: (c && c.name) || x.name || "", published: !!(c && c.published), comps: (c && c.comps) || [] }); }
+        /* ordre chronologique : date de la première compétition du live (lue dans le texte brut), sans date à la fin */
+        await Promise.all(out.map(async (o) => { try { const raw = (await env.KV.get(kk("data", o.id))) || ""; let best = null;
+          for (const m of raw.matchAll(/"meta":(\{[^{}]*\})/g)) { try { const dt = compDate(JSON.parse(m[1])); if (dt) { const t = Date.UTC(dt.y, dt.m - 1, dt.d); if (best == null || t < best) best = t; } } catch (e) {} }
+          o.date = best; } catch (e) { o.date = null; } }));
+        out.sort((a, z) => (a.date ?? Infinity) - (z.date ?? Infinity) || String(a.name).localeCompare(String(z.name), "fr"));
         return json(out);
       }
       if (!ADM) return adminOnly();
