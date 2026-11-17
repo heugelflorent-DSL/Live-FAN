@@ -965,6 +965,7 @@ body.tv{overflow:hidden}
 .pub-body{display:flex;align-items:center;justify-content:center;gap:clamp(16px,4vw,56px);flex-wrap:wrap;padding:8px 16px 4px}.pub-qr{display:flex;flex-direction:column;align-items:center;gap:6px}.pub-qr svg{width:clamp(160px,30vh,380px);height:auto;border-radius:12px;box-shadow:0 6px 24px #0b1e3f33}.pub-qr small{font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0b1e3f}.pub-l{list-style:none;margin:0;padding:0;display:grid;gap:clamp(8px,1.6vh,18px);text-align:left;font-weight:700;font-size:clamp(15px,3vh,32px);color:#0b1e3f}.pub-foot{display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vw,40px);flex-wrap:wrap;margin:6px 16px 14px}.pub-foot .pub-url{margin:0}.pub-mf{display:flex;align-items:center;justify-content:center;gap:10px;margin:0;font-weight:700;color:#5b7685;font-size:clamp(12px,1.8vh,20px)}.pub-mf img{height:clamp(34px,6vh,70px);width:auto}.pub-url{text-align:center;font-weight:800;font-size:clamp(15px,2.6vh,28px);color:#0b1e3f;margin:10px 16px 18px;word-break:break-all}
 .preview-band{margin:8px auto;max-width:900px;padding:8px 12px;border-radius:10px;background:#fff3cd;color:#7a5a00;font-weight:600;text-align:center}
 .pk-more{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:10px 16px;border-radius:12px;background:#ffffff1f;border:1px solid #ffffff40;color:#fff;font-weight:700;text-decoration:none;font-size:15px;line-height:1.3}.pk-more:hover{background:#fff;color:#06324f}
+body.tv #kill-site{display:none}#kill-site{position:fixed;inset:0;z-index:99999;background:linear-gradient(180deg,#0b5c8e,#06324f);color:#fff;display:grid;place-items:center;text-align:center;padding:24px}#kill-site img{width:120px;height:120px}#kill-site h1{margin:18px 0 8px;font-size:clamp(26px,6vw,44px);letter-spacing:-.03em}#kill-site p{margin:0;color:#cfe6f3;font-size:17px}.kill-scr{position:absolute;inset:0;background:linear-gradient(180deg,#0b5c8e,#06324f);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;color:#fff}.kill-scr img{width:min(30vh,30vw);height:auto}.kill-scr b{font-size:min(8vh,8vw);letter-spacing:-.04em}.kill-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.kill-c{border:1px solid #0002;border-radius:12px;padding:10px 14px}.kill-c h4{margin:0 0 6px}.kill-t{display:flex;gap:10px;align-items:center;padding:6px 0;font-weight:600;cursor:pointer}.kill-t input{width:20px;height:20px}.kill-t.on{color:#d6202f}
 </style>
 <link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 </head>
@@ -1036,6 +1037,10 @@ body.tv{overflow:hidden}
     </div>
 
     <div id="pilot"></div>
+      <details class="step admin-only" id="kill-step">
+        <summary><span class="n"></span>Interrupteurs d'urgence<span class="hint" id="kill-h"></span></summary>
+        <div class="step-body"><p class="msg">Coupe à distance une partie de Swim Direct en cas de souci, puis remets-la quand c'est réglé. Effet en moins de 30 s. « Tous les lives » prime sur le live.</p><div class="kill-g" id="kill-g"></div><p class="msg" id="kill-msg"></p></div>
+      </details>
     <h3 class="grp">Préparer la compétition</h3>
       <details class="step" open>
         <summary><span class="n"></span>Compétitions<span class="hint" id="h1"></span></summary>
@@ -1496,7 +1501,7 @@ function tvPick(){TVRANK=false;const h=POOL&&POOL.heat;if(!h){if(TVLAST&&Date.no
   /* la série suivante est partie : elle passe avant les résultats et le classement */
   if(TVLAST&&TVLAST.key!==key&&h.status!=="running"&&!h.start&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}
   return h}
-function tvScreenHtml(){
+function tvScreenHtml(){if(KILL.screen)return killScreen();
   {const ov=screenOv()||spBetween();if(ov)return`<div class="tvwait">${ov}</div>`}
   const pw=state.live==="bassin"?poolHtml():"";
   const h=tvPick();if(!h||/pwait/.test(pw)||!h.heat&&!h.event){const w=compWait()||(/pwait/.test(pw)?pw:"");return w?`<div class="tvwait">${w}</div>`:`<div class="tvwait"><div class="tvidle">${esc(state.title||"Swim Direct")}</div></div>`}
@@ -1777,6 +1782,11 @@ async function api(path,opt={}){path=evq(path);
   const r=await fetch(path,{...opt,headers});const j=await r.json().catch(()=>({error:"Réponse illisible du serveur."}));
   if(!r.ok)throw Object.assign(new Error(j.error||("Erreur "+r.status)),{status:r.status});return j;
 }
+/* interrupteurs d'urgence réglés à distance par l'administrateur : écran géant, direct du chrono, site public */
+let KILL={};
+async function loadKill(){try{const r=await fetch(evq("/api/kill"),{cache:"no-store"});if(!r.ok)return;const k=await r.json(),was=JSON.stringify(KILL);KILL=k&&typeof k==="object"?k:{};if(KILL.pool)POOL=null;killSite();if(JSON.stringify(KILL)!==was){try{render()}catch(_){}try{tvRender()}catch(_){}}}catch(_){}}
+function killSite(){let el=document.getElementById("kill-site");const on=!!KILL.site&&!state.admin&&location.hash!=="#admin"&&!document.body.classList.contains("tv");if(!on){if(el)el.remove();return}if(el)return;el=document.createElement("div");el.id="kill-site";el.innerHTML=`<div class="ks-in"><img src="/matetflo.png" alt="" width="120" height="120"><h1>Swim Direct revient très vite</h1><p>Le site est en pause quelques instants. Merci de votre patience !</p></div>`;document.body.appendChild(el)}
+function killScreen(){return`<div class="kill-scr"><img src="/matetflo.png" alt=""><b>Swim Direct</b></div>`}
 async function loadPublic(){
   try{const j=await api("/api/state");state.preview=!!j.preview;if(!j.published&&!j.preview){state.published=false;state.loaded=true;if(!state.admin)render();return}
     RAW=j;build(j.config,j.data);if(!state.admin)render();}
@@ -1910,7 +1920,14 @@ function orgPermRender(){const el=$("#orgperm");if(!el||ROLE!=="admin")return;co
   el.insertAdjacentHTML("beforeend",`<div class="op-g op-give"><b>En plus (réservé d'habitude à l'administrateur)</b>${ORG_GIVE.map(([k,,l])=>`<label class="op"><input type="checkbox" data-og="${k}"${ORGON.includes(k)?" checked":""}> ${esc(l)}</label>`).join("")}</div>`);
   const n=$("#orgperm-n");if(n)n.textContent=[ORGOFF.length?`${ORGOFF.length} retirée${ORGOFF.length>1?"s":""}`:"",ORGON.length?`${ORGON.length} en plus`:""].filter(Boolean).map(x=>"· "+x).join(" ")||"· réglages par défaut";
   el.querySelectorAll("[data-op],[data-og]").forEach(c=>c.onchange=async()=>{const off=[...el.querySelectorAll("[data-op]")].filter(x=>!x.checked).map(x=>x.dataset.op),on=[...el.querySelectorAll("[data-og]")].filter(x=>x.checked).map(x=>x.dataset.og),m=$("#orgperm-msg");try{const j=await api("/api/admin/orgoff",{method:"PUT",body:JSON.stringify({off,on})});ORGOFF=j.off||off;ORGON=j.on||on;if(m)m.textContent="✓ Enregistré · "+hhmm(new Date());orgPermRender()}catch(e){c.checked=!c.checked;if(m)m.textContent="Échec : "+e.message}})}
-async function orgStatus(){setTimeout(orgPermRender,0);const el=$("#org-st");if(!el)return;try{const j=await api("/api/admin/orgkey");el.innerHTML=j.set?`<span class="acc on">✓ Accès donné</span>`:`<span class="acc off">Pas d'accès</span>`;el.closest(".orgbox").classList.toggle("on",!!j.set)}catch(_){el.textContent=""}}
+const KILL_L=[["screen","🖥 Écran géant","affiche le logo Swim Direct à la place du direct et des animations"],["pool","⏱ Direct du chrono","le site ignore les temps du logiciel chrono (programme et Live FFN restent)"],["site","🌐 Site public","page « Swim Direct revient très vite » ; l'admin et l'écran géant restent"]];
+async function killAdmin(put){const g=$("#kill-g");if(!g||ROLE!=="admin")return;const m=$("#kill-msg");let j;try{j=await api("/api/admin/kill",put?{method:"PUT",body:JSON.stringify(put)}:{})}catch(e){if(m)m.textContent="Échec : "+e.message;return}
+  const col=(sc,t,v)=>`<div class="kill-c"><h4>${t}</h4>${KILL_L.map(([k,l,d])=>`<label class="kill-t${v[k]?" on":""}"><input type="checkbox" data-ks="${sc}" data-kk="${k}"${v[k]?"":" checked"}> <span>${l}<br><small style="font-weight:400;opacity:.75">${v[k]?"⛔ coupé — ":""}${d}</small></span></label>`).join("")}</div>`;
+  g.innerHTML=col("live","Ce live",j.live||{})+col("global","Tous les lives",j.global||{});
+  const n=Object.keys(j.live||{}).length+Object.keys(j.global||{}).length,h=$("#kill-h");if(h)h.textContent=n?` · ⛔ ${n} coupé${n>1?"s":""}`:" · tout fonctionne";
+  if(put&&m)m.textContent="✓ Enregistré · "+hhmm(new Date());
+  g.querySelectorAll("[data-ks]").forEach(c=>c.onchange=()=>{const sc=c.dataset.ks,v={scope:sc};g.querySelectorAll(`[data-ks="${sc}"]`).forEach(x=>{if(!x.checked)v[x.dataset.kk]=true});if(!c.checked&&!confirm(`Couper « ${KILL_L.find(x=>x[0]===c.dataset.kk)[1]} » pour ${sc==="global"?"TOUS les lives":"ce live"} ?`)){c.checked=true;return}killAdmin(v)})}
+async function orgStatus(){setTimeout(orgPermRender,0);setTimeout(killAdmin,0);const el=$("#org-st");if(!el)return;try{const j=await api("/api/admin/orgkey");el.innerHTML=j.set?`<span class="acc on">✓ Accès donné</span>`:`<span class="acc off">Pas d'accès</span>`;el.closest(".orgbox").classList.toggle("on",!!j.set)}catch(_){el.textContent=""}}
 function bindOrg(){const sv=$("#org-save"),dl=$("#org-del"),msg=$("#org-msg");if(!sv)return;
   sv.onclick=async()=>{const pw=$("#org-pw").value;if(pw.length<8){msg.textContent="8 caractères minimum.";return}try{await api("/api/admin/orgkey",{method:"PUT",body:JSON.stringify({pw})});$("#org-pw").value="";msg.textContent="Mot de passe organisateur enregistré. Transmets-le à l'organisateur : il se connecte avec, sur la page de ce live.";orgStatus()}catch(e){msg.textContent=e.message}};
   dl.onclick=async()=>{if(!confirm("Retirer l'accès organisateur de ce live ?"))return;try{await api("/api/admin/orgkey",{method:"PUT",body:JSON.stringify({pw:""})});msg.textContent="Accès organisateur retiré.";orgStatus()}catch(e){msg.textContent=e.message}}}
@@ -2162,7 +2179,7 @@ function renderRank(){
 function teamDetail(c,rule,sex){return`<div class="inner"><div class="heat"><h4>Composition</h4><div class="compo">${Object.values(SWIMMERS).filter(x=>x.team===c.club&&rule.comps.includes(x.comp)&&(!sex||x.sex===sex)).sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<span>${nameCell(x)} <small>${x.year}</small></span>`).join("")}</div></div><div class="heat"><h4>Points par épreuve</h4><div class="tbl"><table class="ppe"><thead><tr><th>Épreuve</th><th>Nageur</th><th>Temps</th><th>Pts</th></tr></thead><tbody>${c.items.map(x=>`<tr><td>${evA(x.ev.key,x.ev.name)}</td><td>${nameCell(x.w)}</td><td class="num">${fmt(x.w.res)}</td><td class="num"><b>${x.p}</b>${x.prov?`<small class="provtag" title="Temps du chronométrage, en attente du Live FFN">prov.</small>`:""}</td></tr>`).join("")}</tbody></table></div></div></div>`}
 /* ---------- Direct « Bassin » (Quantum → relais → site, temps réel) ---------- */
 let POOLDONE="",poolSwap=null,POOL=null,poolWs=null,poolOff=0,poolOffN=0,poolRtt=1e9,poolSynced=false,poolShown=0,poolRetry=1000,poolTimer=null;
-function poolState(m){const o=m.now-Date.now();/* série qui vient de se terminer au chrono : historique relu tout de suite → résultats et classement provisoires à jour sans attendre */{const h=m.heat,sg=h?[h.event,h.heat,h.start].join("|"):"";if(h&&h.start&&(h.status==="done"||poolAllIn(h))&&POOLDONE!==sg){POOLDONE=sg;setTimeout(()=>{loadPHist(true);setTimeout(()=>{if(state.view==="rank"||state.view==="res")render()},1500)},800)}}if(!poolSynced)poolOff=poolOffN++?Math.max(poolOff,o):o;const sig=h=>h?[h.event,h.heat,h.start,h.status].join("|"):"";const ch=sig(POOL&&POOL.heat)!==sig(m.heat);POOL=m;poolRetry=1000;if(!state.admin&&(state.view==="live"||ch))render()}
+function poolState(m){const o=m.now-Date.now();/* série qui vient de se terminer au chrono : historique relu tout de suite → résultats et classement provisoires à jour sans attendre */{const h=m.heat,sg=h?[h.event,h.heat,h.start].join("|"):"";if(h&&h.start&&(h.status==="done"||poolAllIn(h))&&POOLDONE!==sg){POOLDONE=sg;setTimeout(()=>{loadPHist(true);setTimeout(()=>{if(state.view==="rank"||state.view==="res")render()},1500)},800)}}if(!poolSynced)poolOff=poolOffN++?Math.max(poolOff,o):o;const sig=h=>h?[h.event,h.heat,h.start,h.status].join("|"):"";const ch=sig(POOL&&POOL.heat)!==sig(m.heat);POOL=KILL.pool?null:m;poolRetry=1000;if(!state.admin&&(state.view==="live"||ch))render()}
 /* écran géant local : la page est servie par le logiciel du chrono sur le réseau de la piscine ; les temps arrivent de lui directement (sans passer par Internet) et sont appliqués ici avec la même logique que le serveur */
 let LCORE=null,LS=null;
 async function localConnect(){if(poolWs)return;poolWs={readyState:0,send(){},close(){}};try{LCORE=LCORE||await import("/poolcore.js")}catch(_){poolWs=null;setTimeout(poolConnect,3000);return}
@@ -2179,7 +2196,7 @@ function poolConnect(){if(window.SD_LOCAL)return localConnect();if(poolWs||state
 function poolSync(){if(poolWs&&poolWs.readyState===1)poolWs.send("t:"+Date.now())}
 setInterval(()=>{if(poolWs&&poolWs.readyState===1){poolWs.send("ping");poolRtt+=20;poolSync()}},25000);
 // filet de sécurité : si la connexion temps réel est coupée (téléphone en veille, réseau mobile), on relit l'état toutes les 5 s
-setInterval(async()=>{if(state.live!=="bassin"||state.view!=="live"||document.hidden||(poolWs&&poolWs.readyState===1))return;try{const r=await fetch(evq("/api/pool/state"));if(!r.ok)return;const m=await r.json();if(!poolSynced)poolOff=m.now-Date.now();POOL=m;if(!state.admin)render()}catch(_){}},5000);
+setInterval(async()=>{if(state.live!=="bassin"||state.view!=="live"||document.hidden||(poolWs&&poolWs.readyState===1))return;try{const r=await fetch(evq("/api/pool/state"));if(!r.ok)return;const m=await r.json();if(!poolSynced)poolOff=m.now-Date.now();POOL=KILL.pool?null:m;if(!state.admin)render()}catch(_){}},5000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&state.live==="bassin"){try{poolWs&&poolWs.close()}catch(_){}poolWs=null;poolConnect()}});
 // quelle épreuve du programme est dans l'eau ? Avec deux compétitions liées (un seul Quantum), le numéro seul peut être ambigu :
 // on départage par le nom de l'épreuve (distance, nage, sexe), le nom de la compétition envoyé par le Quantum et l'horaire
@@ -3157,7 +3174,7 @@ function shrink(file,W=96,H=96,max=40000,q=.85){return new Promise((ok,ko)=>{con
 /* ---------- poste de pilotage : sections rangées par moment (Préparer · Jour J · Après · Réglages), état en un coup d'œil, liste « prêt ? » ---------- */
 /* admin rangée par thème : un thème = une page courte ; « Tableau de bord » = le poste de pilotage */
 const MOMENTS=[["pilot","Tableau de bord"],["comp","Compétition"],["prog","Programme"],["res","Résultats"],["chrono","Chrono et écran"],["look","Apparence"],["suivi","Suivi"]];
-const MOM_OF=t=>/^(Comp[ée]titions|Mode du direct|Actualisation)/i.test(t)?"comp":/^(Programme et horaires|Finales|Impressions)/i.test(t)?"prog":/^(Classements|Records perso|Qualifications)/i.test(t)?"res":/^(Chronom[ée]trage|Simulateur)/i.test(t)?"chrono":/^(Couleurs|Informations de l|Logos|Partenaires)/i.test(t)?"look":/^(Journal|Audience)/i.test(t)?"suivi":"comp";
+const MOM_OF=t=>/^Interrupteurs/i.test(t)?"pilot":/^(Comp[ée]titions|Mode du direct|Actualisation)/i.test(t)?"comp":/^(Programme et horaires|Finales|Impressions)/i.test(t)?"prog":/^(Classements|Records perso|Qualifications)/i.test(t)?"res":/^(Chronom[ée]trage|Simulateur)/i.test(t)?"chrono":/^(Couleurs|Informations de l|Logos|Partenaires)/i.test(t)?"look":/^(Journal|Audience)/i.test(t)?"suivi":"comp";
 let MOM=(()=>{try{const m=localStorage.getItem("sd-theme");return MOMENTS.some(([k])=>k===m)?m:"pilot"}catch(_){return"pilot"}})(),PILOT={},MQ="";
 function stepTitle(d){const sm=d.querySelector(":scope>summary");if(!sm)return"";const c=sm.cloneNode(true);c.querySelectorAll(".n,.hint,small").forEach(x=>x.remove());return c.textContent.trim()}
 function momApply(){const box=document.querySelector("#admin")||document;document.querySelectorAll("details.step").forEach(d=>{if(!d.dataset.mom)d.dataset.mom=MOM_OF(stepTitle(d));d.classList.toggle("org-off",ROLE==="org"&&ORGOFF.includes(stepTitle(d))); /* fonctionnalité retirée à l'organisateur par l'administrateur */d.classList.toggle("mom-off",MQ?!stepTitle(d).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().includes(MQ):d.dataset.mom!==MOM);if(MQ&&!d.classList.contains("mom-off"))d.open=true}); /* classe à part : ne pas toucher au hidden posé par d'autres réglages (ex. pas de finales) */
@@ -3629,7 +3646,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.no
 // onglet ouvert gardé dans l'adresse (#res, #prog…) : un rafraîchissement reste sur le même onglet
 {const h=location.hash.slice(1),[v0,arg]=h.split("/");if(["live","prog","res","pod","part","rank"].includes(v0)){state.view=v0;if(arg)DEEP={v:v0,arg:decodeURIComponent(arg)}}}
 bindSpons();bindOrg();bindPair();loadSpons();loadQuals();if(PICK)pickBoot();else{
-loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(["live","res","pod","home"].includes(state.view))loadLive()};
+loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadKill();setInterval(()=>{if(!document.hidden)loadKill()},15000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(["live","res","pod","home"].includes(state.view))loadLive()};
 // toutes les 60 s, seulement quand la page est visible ; mise à jour immédiate au retour sur la page
 setInterval(()=>{if(!state.admin&&!document.hidden)pubRefresh()},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!state.admin&&Date.now()-PUBAT>20e3)pubRefresh()});}

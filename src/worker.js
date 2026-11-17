@@ -645,6 +645,14 @@ async function rescrape(env, scope, what, ev = "main") {
 }
 
 import { pushNotify, evSig, compClose } from "./push.js";
+/* interrupteurs d'urgence (administrateur du site) : général « kill:* » + par live « kill:<live> » ; le général coupe partout */
+const KILLS = ["screen", "pool", "site"]; const KILLC = new Map();
+async function killOf(env, ev) {
+  const k = ev || "main", c = KILLC.get(k); if (c && Date.now() - c.at < 5000) return c.v;
+  const [g, l] = await Promise.all([env.KV.get("kill:*", "json"), env.KV.get("kill:" + k, "json")]);
+  const v = {}; for (const x of KILLS) if ((g && g[x]) || (l && l[x])) v[x] = true;
+  KILLC.set(k, { at: Date.now(), v }); return v;
+}
 export default {
   async fetch(req, env, ctx) {
     env = euEnv(env); // données et relais en Europe
@@ -696,6 +704,18 @@ export default {
       return edge(json(out, 200, { "cache-control": "public, max-age=60" }));
     }
 
+    if (p === "/api/kill") return json(await killOf(env, ev), 200, { "cache-control": "public, max-age=5" });
+    if (p === "/api/admin/kill") {
+      if (!ADM) return adminOnly();
+      if (req.method === "PUT") {
+        const b = await req.json().catch(() => ({})); const k = b.scope === "global" ? "kill:*" : "kill:" + ev;
+        const v = {}; for (const x of KILLS) if (b[x]) v[x] = true;
+        if (Object.keys(v).length) await env.KV.put(k, JSON.stringify(v)); else await env.KV.delete(k);
+        KILLC.clear();
+      }
+      const [g, l] = await Promise.all([env.KV.get("kill:*", "json"), env.KV.get("kill:" + ev, "json")]);
+      return json({ global: g || {}, live: l || {} });
+    }
     if (p === "/api/state" && req.method === "GET") {
       const cache = caches.default; const key = ckey("/api/state");
       const hit = CAN ? null : await cache.match(key); if (hit) return hit;
@@ -740,6 +760,7 @@ export default {
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
       const ver = encodeURIComponent((req.headers.get("x-chrono-version") || "").slice(0, 20));
+      if (p === "/api/relay/event" && req.method === "POST" && (await killOf(env, pr.ev)).pool) return json({ ok: true, paused: true, applied: 0 }); // direct du chrono coupé à distance
       if (p === "/api/relay/event" && req.method === "POST") return room.fetch(new Request("https://pool/event?ver=" + ver + "&ev=" + encodeURIComponent(pr.ev), { method: "POST", body: await req.text() }));
       if (p === "/api/relay/log" && req.method === "POST") return room.fetch(new Request("https://pool/log?ver=" + ver + "&day=" + (url.searchParams.get("day") || ""), { method: "POST", body: await req.arrayBuffer() }));
       return json({ error: "Inconnu" }, 404);
@@ -758,6 +779,7 @@ export default {
       if (p === "/api/pool/event") {
         if (!relayAuthed(req, env) && !ORG && !RELAYEV) return json({ error: "Mot de passe incorrect." }, 401);
         if (url.searchParams.get("sim") && !can("sim")) return adminOnly(); // simulateur : réservé à l'administrateur du site
+        if ((await killOf(env, rid)).pool) return json({ ok: true, paused: true, applied: 0 });
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
       }
       if (config.live !== "bassin" && !CAN) return json({ error: "Direct bassin non activé." }, 404);
