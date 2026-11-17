@@ -1882,13 +1882,15 @@ function renderSpons(){const ALL=[...(PICK?[]:SPONS.ev),...SPONS.all];const CO=A
   /* pas de chargement différé (le carrousel ferait apparaître des cases vides) ; logo déjà recadré : repris tel quel */
   const logo=x=>{const t=TRIMC[x.img];const im=t?`<img src="${t}" alt="${esc(x.name||"Partenaire")}" data-trim="1">`:`<img src="${x.img}" alt="${esc(x.name||"Partenaire")}" class="sp-wait">`;const cls="sp-l"+(x.bg==="none"?" nobg":"");return x.url?`<a class="${cls}" href="${esc(x.url)}" target="_blank" rel="noopener sponsored" title="${esc(x.name||"")}">${im}</a>`:`<span class="${cls}" title="${esc(x.name||"")}">${im}</span>`};
   /* jusqu'à 4 partenaires : alternance gauche / droite autour du logo ; au-delà : carrousel sous le logo */
-  const many=L.length>4;document.querySelector(".foot .sigw").classList.toggle("many",many);
+  /* sur téléphone : carrousel dès 2 partenaires ; sinon au-delà de 4 */
+  const many=L.length>4||(L.length>1&&matchMedia("(max-width:700px)").matches);document.querySelector(".foot .sigw").classList.toggle("many",many);
   /* carrousel : la liste est mise deux fois à la suite pour un défilement sans fin ; vitesse selon le nombre de logos */
-  if(many){l.innerHTML="";const one=L.map(logo).join("");r.innerHTML=`<div class="sp-track" style="--sp-dur:${Math.max(20,L.length*3.5)}s">${one}<span class="sp-dup" aria-hidden="true">${one.replace(/<a /g,'<a tabindex="-1" ')}</span></div>`}else{const left=[],right=[];L.forEach((x,i)=>(i%2?right:left).push(x));l.innerHTML=left.reverse().map(logo).join("");r.innerHTML=right.map(logo).join("")}
+  if(many){l.innerHTML="";const rep=Math.max(1,Math.ceil(6/L.length)),one=Array(rep).fill(L.map(logo).join("")).join("");r.innerHTML=`<div class="sp-track" style="--sp-dur:${Math.max(20,L.length*rep*3.5)}s">${one}<span class="sp-dup" aria-hidden="true">${one.replace(/<a /g,'<a tabindex="-1" ')}</span></div>`}else{const left=[],right=[];L.forEach((x,i)=>(i%2?right:left).push(x));l.innerHTML=left.reverse().map(logo).join("");r.innerHTML=right.map(logo).join("")}
   const cx=$("#co-x");if(cx)cx.innerHTML=CO.map(x=>`<span class="co-times" aria-hidden="true">×</span>${logo(x).replace('class="sp-l','class="sp-l co')}`).join("");
   const cap=$("#co-cap");if(cap){cap.hidden=!CO.length;cap.textContent=CO.length?"Mat & Flo × "+CO.map(x=>x.name||"partenaire").join(" × "):""}
   document.querySelectorAll(".foot .sp-l img").forEach(trimLogo);
   document.querySelector(".foot .sigw").classList.toggle("has-sp",ALL.length>0)}
+{let w0=null;addEventListener("resize",()=>{const m=matchMedia("(max-width:700px)").matches;if(w0!==null&&m!==w0)try{renderSpons()}catch(_){}w0=m})}
 async function saveSpons(scope){const msg=$("#sp-msg");try{await api("/api/admin/sponsors",{method:"PUT",body:JSON.stringify({scope,list:SPONS[scope]})});if(msg)msg.textContent="Enregistré ✓";renderSpons()}catch(e){if(msg)msg.textContent=e.message}}
 let spT={};
 function renderSponsAdmin(){for(const scope of ["ev","all"]){const el=$("#sp-"+scope);if(!el)continue;const L=SPONS[scope];
