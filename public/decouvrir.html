@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Découvrir Swim Direct</title>
+<meta name="description" content="Swim Direct : le direct, les résultats et l'écran géant de vos compétitions de natation, branchés sur le chronométrage électronique.">
+<meta name="theme-color" content="#06324f"><link rel="icon" href="/favicon.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap">
+<style>
+:root{--navy:#06324f;--ink:#0b1e3f;--sea:#0b5c8e;--red:#d6202f;--blue:#1d4ed8;--bg:#eef4f8;--card:#fff;--muted:#4f6577;--line:#d6e3ec;--gold:#f2c94c}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Outfit,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.rope{height:10px;background:repeating-linear-gradient(90deg,var(--red) 0 14px,#fff 14px 28px,var(--red) 28px 42px,var(--blue) 42px 56px)}
+.hero{background:linear-gradient(180deg,var(--sea),var(--navy));color:#fff}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+.hero .wrap{padding-top:22px;padding-bottom:52px}
+.back{display:inline-flex;align-items:center;gap:6px;color:#cfe6f3;text-decoration:none;font-weight:600;font-size:15px;padding:6px 12px;border-radius:99px;background:#ffffff1a}
+.back:hover{background:#ffffff2e;color:#fff}
+.hero h1{margin:34px 0 0;font-size:clamp(40px,9vw,84px);font-weight:800;letter-spacing:-.045em;line-height:.95}
+.hero .lead{margin:16px 0 0;max-width:36em;font-size:clamp(17px,2.4vw,21px);color:#cfe6f3}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 0;padding:0;list-style:none}
+.chips li{background:#ffffff1f;border:1px solid #ffffff33;border-radius:99px;padding:6px 14px;font-weight:600;font-size:14px}
+section{padding:46px 0 0}
+.kick{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin:0}
+h2{margin:6px 0 6px;font-size:clamp(26px,4.4vw,38px);font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.sub{margin:0 0 20px;color:var(--muted);max-width:40em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px}
+.card .ic{font-size:26px;line-height:1}
+.card h3{margin:10px 0 4px;font-size:18px;font-weight:700;letter-spacing:-.01em}
+.card p{margin:0;color:var(--muted);font-size:15px}
+.chrono{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.ch{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:grid;gap:4px}
+.ch b{font-size:18px}.ch span{color:var(--muted);font-size:14.5px}
+.tag{justify-self:start;font-size:12px;font-weight:700;border-radius:99px;padding:2px 10px;background:#e7f6ec;color:#166534}
+.tag.t{background:#fff4d6;color:#8a5a00}
+.band{margin-top:14px;background:var(--navy);color:#fff;border-radius:16px;padding:18px 20px;display:flex;gap:14px;align-items:flex-start}
+.band .ic{font-size:26px;line-height:1.2}.band p{margin:2px 0 0;color:#cfe6f3;font-size:15px}.band b{font-size:17px}
+.steps{counter-reset:s;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;padding:0;margin:0;list-style:none}
+.steps li{counter-increment:s;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px 16px 58px;position:relative}
+.steps li::before{content:counter(s);position:absolute;left:16px;top:14px;width:30px;height:30px;border-radius:50%;background:var(--red);color:#fff;font-weight:800;display:grid;place-items:center}
+.steps b{display:block;font-size:17px}.steps span{color:var(--muted);font-size:15px}
+.cta{margin:52px 0 0;background:linear-gradient(135deg,var(--sea),var(--navy));color:#fff;border-radius:22px;padding:30px 24px;text-align:center}
+.cta h2{color:#fff;margin:0}.cta p{color:#cfe6f3;margin:8px auto 18px;max-width:34em}
+.btn{display:inline-block;background:#fff;color:var(--navy);font-weight:800;text-decoration:none;border-radius:12px;padding:12px 22px}
+.btn:hover{background:var(--gold)}
+footer{text-align:center;padding:40px 16px 48px;color:var(--muted);font-size:14px}
+footer img{width:96px;height:96px;display:block;margin:0 auto 12px}
+@media (max-width:520px){.hero .wrap{padding-bottom:40px}section{padding-top:36px}.card,.ch{padding:16px}}
+</style></head><body>
+<header class="hero"><div class="rope"></div><div class="wrap">
+<a class="back" href="/">‹ Les compétitions</a>
+<h1>Swim Direct</h1>
+<p class="lead">Le direct de vos compétitions de natation : les temps couloir par couloir sur les téléphones, les résultats tout de suite et un écran géant animé, branchés sur votre chronométrage électronique.</p>
+<ul class="chips"><li>⏱ Temps en direct</li><li>🏅 Résultats et podiums</li><li>🖥 Écran géant</li><li>📱 Rien à installer pour le public</li></ul>
+</div><div class="rope"></div></header>
+<main class="wrap">
+
+<section><p class="kick">Pour le public</p><h2>Toute la compétition dans la poche</h2>
+<p class="sub">Parents, nageurs et entraîneurs suivent tout depuis leur téléphone, sur une simple page web. Pas d'application à télécharger : un QR code ou un lien suffit.</p>
+<div class="grid">
+<div class="card"><div class="ic">⏱</div><h3>Le direct couloir par couloir</h3><p>Le chrono qui tourne, les temps de passage à chaque longueur, puis le temps final et la place à l'arrivée.</p></div>
+<div class="card"><div class="ic">🏅</div><h3>Résultats et podiums immédiats</h3><p>Classements et podiums calculés dès la fin de la série avec les temps du chronométrage, puis remplacés par les résultats officiels du Live FFN dès leur publication.</p></div>
+<div class="card"><div class="ic">📅</div><h3>Programme et horaires</h3><p>Réunions, épreuves, séries et lignes d'eau, avec l'heure de passage estimée de chaque série.</p></div>
+<div class="card"><div class="ic">★</div><h3>Mes nageurs</h3><p>On suit ses nageurs ou son club : leur journée, leurs séries, leurs temps, avec une notification sur le téléphone dès que leurs résultats sont publiés.</p></div>
+<div class="card"><div class="ic">⭐</div><h3>Records personnels</h3><p>Le meilleur temps de chaque engagé est connu à l'avance : un record battu est signalé tout de suite.</p></div>
+<div class="card"><div class="ic">🎯</div><h3>Qualifications</h3><p>Les temps comparés aux grilles de qualification : on voit d'un coup d'œil qui décroche son ticket.</p></div>
+<div class="card"><div class="ic">🏆</div><h3>Classements des clubs</h3><p>Classements par équipes et interclubs mis à jour au fil des courses.</p></div>
+<div class="card"><div class="ic">🔎</div><h3>Recherche nageurs et clubs</h3><p>Un nom, un club : toutes ses épreuves, ses temps et ses places en un instant.</p></div>
+<div class="card"><div class="ic">🌍</div><h3>Français et anglais</h3><p>Le site s'affiche en français ou en anglais, et s'ajoute à l'écran d'accueil comme une application.</p></div>
+</div></section>
+
+<section><p class="kick">Dans la piscine</p><h2>Un écran géant qui fait le spectacle</h2>
+<p class="sub">Un ordinateur branché sur l'écran ou le vidéoprojecteur de la piscine suffit. L'affichage s'adapte tout seul au format de l'écran.</p>
+<div class="grid">
+<div class="card"><div class="ic">🖥</div><h3>Le direct en grand</h3><p>Noms, clubs, couloirs, chrono et classement à l'arrivée, lisibles de loin, en 16/9 comme en 4/3.</p></div>
+<div class="card"><div class="ic">🎬</div><h3>Animations Mat et Flo</h3><p>Compte à rebours avec le programme, cérémonie protocolaire, pause, évacuation du bassin, message libre : chaque moment a son écran animé.</p></div>
+<div class="card"><div class="ic">🤝</div><h3>Vos partenaires à l'honneur</h3><p>Les logos des partenaires passent entre les séries, avec une transition en vague. Ils apparaissent aussi en bas du site.</p></div>
+<div class="card"><div class="ic">📱</div><h3>« Suivez la compétition »</h3><p>Un écran avec QR code invite régulièrement le public à suivre le direct sur son téléphone.</p></div>
+<div class="card"><div class="ic">🎛</div><h3>Une régie à part</h3><p>Une personne pilote l'écran géant depuis un autre ordinateur, sans gêner l'opérateur du chronométrage.</p></div>
+<div class="card"><div class="ic">📡</div><h3>Même sans Internet</h3><p>L'écran géant et la régie fonctionnent sur le réseau local de la piscine. Le site se remet à jour dès qu'Internet revient.</p></div>
+</div></section>
+
+<section><p class="kick">Chronométrage</p><h2>Branché sur votre matériel</h2>
+<p class="sub">Le logiciel <b>Swim Direct · Chrono</b> s'installe sur un PC Windows de la table de chronométrage. Il lit les temps sans rien modifier au chronométrage officiel.</p>
+<div class="chrono">
+<div class="ch"><span class="tag">Utilisé en compétition</span><b>Omega Quantum</b><span>Lecture des temps par le réseau.</span></div>
+<div class="ch"><span class="tag t">En cours de validation</span><b>Omega ARES</b><span>Lecture par l'interface prévue par ARES pour les logiciels de résultats.</span></div>
+<div class="ch"><b>ALGE</b><span>Lecture des temps de l'installation de chronométrage.</span></div>
+<div class="ch"><b>Stramatel</b><span>Lecture des temps de l'installation de chronométrage.</span></div>
+<div class="ch"><b>Semi-automatique</b><span>Même avec seulement des poires d'arrivée, la série se termine toute seule.</span></div>
+</div>
+<div class="band"><div class="ic">🛟</div><div><b>Pensé pour le bord du bassin</b><p>Mise à jour automatique, mode test pour les essais avant la compétition (coupé tout seul au premier départ), journal envoyé au site pour comprendre le moindre incident, faux départs gérés.</p></div></div>
+<div class="band"><div class="ic">🌐</div><div><b>Sans chronométrage électronique ?</b><p>Swim Direct affiche aussi le programme et les résultats publiés sur le Live FFN, série par série.</p></div></div>
+</section>
+
+<section><p class="kick">Pour l'organisateur</p><h2>Simple à préparer, simple à piloter</h2>
+<p class="sub">Une administration rangée par thème, avec une recherche pour trouver n'importe quel réglage.</p>
+<div class="grid">
+<div class="card"><div class="ic">🗂</div><h3>Plusieurs compétitions, un seul direct</h3><p>Deux compétitions dans la même piscine ? Elles partagent le même direct et le même écran géant.</p></div>
+<div class="card"><div class="ic">🔑</div><h3>Accès pour l'organisateur</h3><p>Chaque club organisateur a son propre accès, avec seulement les fonctionnalités qu'on lui ouvre.</p></div>
+<div class="card"><div class="ic">🖨</div><h3>Impressions pour les officiels</h3><p>Un planning clair à imprimer, avec ou sans le détail des séries.</p></div>
+<div class="card"><div class="ic">🎨</div><h3>Aux couleurs du club</h3><p>Couleurs, logo du club organisateur et logos des partenaires de la compétition.</p></div>
+<div class="card"><div class="ic">🔔</div><h3>Notifications</h3><p>Le public reçoit sur son téléphone les résultats des épreuves qu'il suit et le classement final. Les changements d'horaire s'affichent sur le site.</p></div>
+<div class="card"><div class="ic">📊</div><h3>Audience</h3><p>Le nombre de personnes qui ont suivi la compétition, jour par jour.</p></div>
+</div></section>
+
+<section><p class="kick">Mise en place</p><h2>Le jour de la compétition</h2>
+<ol class="steps">
+<li><b>On crée le live</b><span>Programme, séries et engagés sont repris du Live FFN.</span></li>
+<li><b>On lance le logiciel chrono</b><span>Sur le PC du chronométrage, relié au réseau de la piscine.</span></li>
+<li><b>On branche l'écran géant</b><span>Un navigateur en plein écran sur l'ordinateur de l'écran.</span></li>
+<li><b>Le public scanne le QR code</b><span>Et suit tout en direct depuis les tribunes.</span></li>
+</ol></section>
+
+<div class="cta"><h2>Envie de Swim Direct pour votre compétition ?</h2><p>Swim Direct est imaginé et développé par Mat et Flo, au bord des bassins alsaciens.</p><a class="btn" href="/">Voir les compétitions</a></div>
+</main>
+<footer><img src="/matetflo.png" alt="Mat et Flo" width="96" height="96">Swim Direct · Flo &amp; Mat · données issues du Live FFN. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo 2026</footer>
+</body></html>
