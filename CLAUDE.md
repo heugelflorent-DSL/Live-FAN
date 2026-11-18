@@ -22,7 +22,7 @@ Site : https://swim-direct.swim-direct.workers.dev (Cloudflare Worker `swim-dire
 - `src/eu.js` : `env.KV` est en réalité une base D1 qui ne stocke **que du texte** (~2 Mo par ligne) → binaire en base64 découpé, jamais décodé côté serveur (limite CPU de l'offre gratuite).
 - `src/pool.js` + `src/poolcore.js` : direct bassin (Durable Object). `poolcore.applyEvent` est partagé avec l'écran local.
 - `src/ffn.js` (pages Live FFN), `src/extranat.js` (records Extranat : `findIuf` puis `fetchMpp`, avec passages).
-- `relais/swimdirect_chrono.py` : logiciel « Swim Direct · Chrono » (exe Windows). `VERSION` à augmenter à chaque changement. Lit Quantum (réseau 26700), ARES (série OSM6 ou réseau : `ip:port`, `ecoute:port`, `udp:port`), ALGE, Stramatel ; journal brut envoyé au site toutes les 15 s ; mise à jour automatique ; serveur d'écran local sur le port 8765 (proxy du site + cache disque, pare-feu ouvert automatiquement). Décodeurs dans `relais/swim_relais.py`.
+- `relais/swimdirect_chrono.py` : logiciel « Swim Direct · Chrono » (exe Windows). `VERSION` à augmenter à chaque changement. Lit Quantum (réseau 26700), ARES (série OSM6 ou réseau : `ip:port`, `ecoute:port`, `udp:port`), ALGE, Stramatel ; journal brut envoyé au site toutes les 15 s ; mise à jour automatique ; serveur d'écran local sur le port 8765 (proxy du site + cache disque, pare-feu ouvert automatiquement). Console de régie `/regie` (`relais/regie.html`, commandes `POST /local/cmd` → fenêtre Tk) : pour le PC de l'écran géant en écran étendu, marche sans Internet ; mode d'emploi dans l'aide de l'exe (onglet Écran géant). Décodeurs dans `relais/swim_relais.py`.
 - Tests : `test/*.mjs`. Pour tester l'interface Tk en local : `python3.12` + `xvfb-run`.
 
 ## Pièges connus

@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.7.8"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.7.9"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -864,8 +864,15 @@ AIDE = [
         ("p", "1. Le PC de l'écran doit être sur le même réseau que ce PC (même box, câble ou Wi-Fi)."),
         ("p", "2. Sur le PC de l'écran, ouvre dans Chrome ou Edge l'adresse affichée dans « Écran géant local » (par exemple http://192.168.1.4:8765). Bouton « Copier » pour la recopier."),
         ("p", "3. Touche F11 pour le plein écran (Fn + F11 sur certains portables)."),
+        ("h", "Écran étendu + console de régie"),
+        ("p", "Le plus pratique quand un PC est réservé à l'écran géant : l'écran géant affiche le direct, et l'écran du PC sert de console pour le piloter. Fonctionne même sans Internet."),
+        ("p", "1. Sur le PC de l'écran géant : touche Windows + P, choisis « Étendre ». L'écran géant devient un 2e écran."),
+        ("p", "2. Sur l'écran du PC, ouvre dans Chrome l'adresse affichée dans « Écran géant local », suivie de /regie (par exemple http://192.168.1.4:8765/regie). Prends l'adresse du câble plutôt que celle du Wi-Fi."),
+        ("p", "3. Dans la console, clique « 🖥 Ouvrir l'affichage sur l'écran géant » : une fenêtre s'ouvre sur l'écran géant. Si elle s'ouvre du mauvais côté, glisse-la sur l'écran géant."),
+        ("p", "4. Clique dans cette fenêtre puis touche F11 : plein écran. Reviens ensuite sur la console (souris sur l'écran du PC)."),
+        ("p", "5. Pilote depuis la console : aperçu de l'écran géant ; boutons Direct, Compte à rebours, Cérémonie, Pause, Partenaires, Suivre en direct, Évacuation, Message ; format Auto / 16/9 / 4/3 ; cases « logo d'un partenaire entre les séries », « pub Swim Direct automatique », « revenir au direct tout seul au prochain départ »."),
+        ("p", "La console et les boutons de ce logiciel sont synchronisés : on peut piloter depuis l'un ou l'autre."),
         ("h", "Plein écran automatique (mode kiosque)"),
-        ("p", "Régie depuis le PC de l'écran (même sans Internet) : ouvre l'adresse suivie de /regie (par exemple http://192.168.1.4:8765/regie). Tu y as l'aperçu de l'écran géant et tous les boutons (direct, cérémonie, pause, partenaires, format). Avec Windows en mode « Étendre » (Windows + P), le bouton « Ouvrir l'affichage sur l'écran géant » place l'affichage sur le 2e écran."),
         ("p", "Crée un raccourci sur le bureau du PC de l'écran avec pour cible :\n\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --kiosk \"http://ADRESSE:8765/\"\nAlt + F4 pour en sortir."),
         ("h", "Si l'écran n'affiche rien"),
         ("p", "• Page « Aucun live choisi » : relie d'abord la clé dans l'admin (onglet Démarrer).\n• Page injoignable : essaie l'autre adresse de la liste (câble plutôt que Wi-Fi). Le pare-feu est ouvert automatiquement par le logiciel.\n• Tu es sorti de l'écran géant : bouton « 📺 Écran géant » en bas à droite."),
