@@ -2441,7 +2441,7 @@ let SPS={key:null,shown:true,i:0,n:0,newAt:0},SPN=0;
 /* dernière pub Swim Direct vue (mémorisée : survit au rechargement de l'écran) : au moins une toutes les 6 min entre deux séries */
 let PUBL=0;function pubLast(){let v=0;try{v=+localStorage.getItem("sd_pub_last")||0}catch(_){}return Math.max(v,PUBL)}function pubMark(){PUBL=Date.now();try{localStorage.setItem("sd_pub_last",String(PUBL))}catch(_){}}
 function pubOn(){return!!POOL&&POOL.pubAuto!==false}
-function spBetween(){if(!POOL)return"";/* Pause / compte à rebours / évacuation automatiques (fin de réunion) : ils passent avant les partenaires */try{const w=poolWindow();if(w&&(w.wait||w.closed))return""}catch(_){}const L=POOL.spons?spList():[],pub=pubOn();if(!L.length&&!pub)return"";const h=POOL.heat,now=Date.now()+(poolOff||0);
+function spBetween(){if(!POOL)return"";/* Pause / compte à rebours / évacuation automatiques (fin de réunion) : ils passent avant les partenaires */try{const w=poolWindow();if(w&&(w.wait||w.closed)){/* pendant la Pause et le compte à rebours : la pub Swim Direct 12 s toutes les 90 s */if(w.wait&&pubOn()&&/pw-cd|mf-tag">Pause/.test(w.html||"")&&(Date.now()+(poolOff||0))%90000>=78000)return pubHtml();return""}}catch(_){}const L=POOL.spons?spList():[],pub=pubOn();if(!L.length&&!pub)return"";const h=POOL.heat,now=Date.now()+(poolOff||0);
   /* un écran sur trois effectivement affiché (SPN compte les écrans vus, pas les séries : des séries rapides ne le décalent plus) : Swim Direct (sinon le partenaire suivant) ; sans partenaires : Swim Direct un passage sur trois seulement */
   const pick=()=>pub&&SPS.pub?pubHtml():L.length?spHtml([L[SPS.i%L.length]],"Avec le soutien de"):"";
   const key=h?[h.comp,h.event,h.heat,h.start].join("|"):"";
