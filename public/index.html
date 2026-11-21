@@ -2434,11 +2434,11 @@ let SPS={key:null,shown:true,i:0,n:0,newAt:0},SPN=0;
 /* pub Swim Direct automatique : activée sauf si le chrono l'a coupée */
 function pubOn(){return!!POOL&&POOL.pubAuto!==false}
 function spBetween(){if(!POOL)return"";const L=POOL.spons?spList():[],pub=pubOn();if(!L.length&&!pub)return"";const h=POOL.heat,now=Date.now()+(poolOff||0);
-  /* un passage sur trois : Swim Direct (sinon le partenaire suivant) ; sans partenaires : Swim Direct un passage sur trois seulement */
+  /* un écran sur trois effectivement affiché (SPN compte les écrans vus, pas les séries : des séries rapides ne le décalent plus) : Swim Direct (sinon le partenaire suivant) ; sans partenaires : Swim Direct un passage sur trois seulement */
   const pick=()=>pub&&SPS.n%3===2?pubHtml():L.length?spHtml([L[SPS.i%L.length]],"Avec le soutien de"):"";
   const key=h?[h.comp,h.event,h.heat,h.start].join("|"):"";
-  if(h&&h.status==="done"&&h.doneAt){if(SPS.key!==key){const n=SPN++;SPS={key,shown:false,n,i:pub?n-Math.floor((n+1)/3):n,newAt:0}}if(now-h.doneAt>=15000){SPS.shown=true;if(TVLAST)TVLAST.anim=1;return pick()}return""}
-  if(SPS.key&&SPS.key!==key&&!SPS.shown){if(!SPS.newAt)SPS.newAt=Date.now();if(Date.now()-SPS.newAt<4000){if(TVLAST)TVLAST.anim=1;return pick()}SPS.shown=true}
+  if(h&&h.status==="done"&&h.doneAt){if(SPS.key!==key){const n=SPN;SPS={key,shown:false,n,i:pub?n-Math.floor((n+1)/3):n,newAt:0}}if(now-h.doneAt>=15000){if(!SPS.shown)SPN++;SPS.shown=true;if(TVLAST)TVLAST.anim=1;return pick()}return""}
+  if(SPS.key&&SPS.key!==key&&!SPS.shown){if(!SPS.newAt)SPS.newAt=Date.now();if(Date.now()-SPS.newAt<(pub&&SPS.n%3===2?7000:4000)){if(TVLAST)TVLAST.anim=1;return pick()}SPS.shown=true;SPN++}
   return""}
 function screenOv(){const sc=POOL&&POOL.screen,age=sc?Date.now()+(poolOff||0)-sc.at:0;if(!sc||!sc.mode||age>4*3600e3)return""; /* compétition terminée : la dernière cérémonie s'efface au bout de 20 min */ if(age>20*60e3){const st=evStatus();if(st&&st.k==="done")return""}
   const now=parisSec(Date.now()+poolOff),rs=Object.keys(state.order||{}).sort((a,b)=>a-b).map(r=>({r,st:state.starts[r]?toMin(String(state.starts[r]).replace("h",":"))*60:null})).filter(x=>x.st!=null);
