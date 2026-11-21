@@ -133,6 +133,9 @@ class LocalScreen:
                     if not me.live_path():  # pas de live choisi : sinon « / » se redirige vers lui-même (ERR_TOO_MANY_REDIRECTS)
                         return self.out(200, "text/html; charset=utf-8", "<meta charset=utf-8><body style='font:20px system-ui;padding:40px'><h1>Swim Direct · écran local</h1><p>Aucun live choisi dans le logiciel <b>Swim Direct · Chrono</b> sur ce PC.</p><p>Colle l'adresse du live (…/e/nom-du-live) dans le logiciel, puis recharge cette page.</p>".encode())
                     self.send_response(302); self.send_header("location", me.live_path() + "?ecran=local#tv"); self.send_header("content-length", "0"); self.end_headers(); return
+                if path.split("?")[0] in ("/speaker", "/speaker/"):  # écran speaker, marche aussi sans Internet (cache local + direct du chrono)
+                    if not me.live_path(): return self.out(200, "text/html; charset=utf-8", "<meta charset=utf-8><body style='font:20px system-ui;padding:40px'><h1>Swim Direct · speaker</h1><p>Aucun live choisi dans le logiciel <b>Swim Direct · Chrono</b> sur ce PC.</p>".encode())
+                    self.send_response(302); self.send_header("location", me.live_path() + "?ecran=local&v=spk#speaker"); self.send_header("content-length", "0"); self.end_headers(); return
                 if path.startswith("/local/events"): return self.events()
                 if path.split("?")[0] in ("/regie", "/regie/"): return self.out(200, "text/html; charset=utf-8", REGIE_HTML.encode())
                 if path.startswith("/local/state"): return self.out(200, "application/json", json.dumps(me.state, ensure_ascii=False).encode())
@@ -171,7 +174,7 @@ class LocalScreen:
             srv = http.server.ThreadingHTTPServer(("0.0.0.0", self.port), H); srv.daemon_threads = True; self.ok = True
             self.ips = all_ips(); self.ip = self.ips[0]
             self.core.log(f"🖥 Écran géant local : sur le PC de l'écran, ouvrir " + "  ou  ".join(f"http://{a}:{self.port}" for a in self.ips) + f"  (ou http://{socket.gethostname()}:{self.port})")
-            self.core.log("🎙 Écran speaker (résultats, records perso, qualifs, podiums ; le speaker navigue seul) : " + "  ou  ".join(f"http://{a}:{self.port}/#speaker" for a in self.ips) + "  — ou sur Internet : adresse du live suivie de #speaker")
+            self.core.log("🎙 Écran speaker (résultats, records perso, qualifs, podiums ; le speaker navigue seul) : " + "  ou  ".join(f"http://{a}:{self.port}/speaker" for a in self.ips) + "  (marche même sans Internet) — ou sur Internet : adresse du live suivie de #speaker")
             self.core.log("🎛 Régie de l'écran géant (sur n'importe quel PC du réseau, même sans Internet) : " + "  ou  ".join(f"http://{a}:{self.port}/regie" for a in self.ips))
             if len(self.ips) > 1: self.core.log("   Plusieurs réseaux sur ce PC (câble, Wi-Fi…) : prends l'adresse du réseau où est branché l'écran.")
             threading.Thread(target=open_firewall, args=(self.port, self.core.log), daemon=True).start()
@@ -689,7 +692,7 @@ def gui(cfg, demo=False, close_after=0):
         urls = [f"http://{a}:{core.screen.port}" for a in ips] + ([f"http://{socket.gethostname()}:{core.screen.port}"] if ips else [])
         tvbig.config(text=urls[0] if urls and core.screen.ok else "")
         tvo.config(text=("Autres adresses : " + " · ".join(u.replace("http://", "") for u in urls[1:])) if len(urls) > 1 else "")
-        spk.config(text=("🎙 Écran speaker : " + urls[0] + "/#speaker") if urls and core.screen.ok else "")
+        spk.config(text=("🎙 Écran speaker (même sans Internet) : " + urls[0] + "/speaker") if urls and core.screen.ok else "")
 
     # ---- ce qu'affiche l'écran géant (et le direct du site) : choisi ici, « Normal » rend la main au direct
     scr = tk.Frame(root, bg=CARD, highlightbackground=LINE, highlightthickness=1); scr.pack(fill="x", padx=16, pady=(0, 12))
@@ -923,7 +926,7 @@ AIDE = [
         ("p", "La console et les boutons de ce logiciel sont synchronisés : on peut piloter depuis l'un ou l'autre."),
         ("h", "Écran speaker"),
         ("p", "Un écran pour le speaker, sans animation : composition de chaque série avec temps d'engagement, record perso, temps final, passages et qualifications ; résultats de l'épreuve avec les qualifiés en finale ; podiums pour les cérémonies (marqués « Non officiel » tant que les résultats officiels ne sont pas publiés)."),
-        ("p", "1. Sur le PC ou la tablette du speaker (même réseau que ce PC), ouvre dans Chrome l'adresse affichée dans « Écran speaker » (par exemple http://192.168.1.4:8765/#speaker). Clique dessus dans ce logiciel pour l'ouvrir ici."),
+        ("p", "1. Sur le PC ou la tablette du speaker (même réseau que ce PC), ouvre dans Chrome l'adresse affichée dans « Écran speaker » (par exemple http://192.168.1.4:8765/speaker). Clique dessus dans ce logiciel pour l'ouvrir ici. Cette adresse locale marche même si Internet tombe : le programme déjà chargé reste en mémoire et les temps arrivent directement du chronométrage (Quantum, ARES…)."),
         ("p", "2. Avec Internet, il peut aussi ouvrir l'adresse du live suivie de #speaker (par exemple https://swim-direct.swim-direct.workers.dev/e/nom-du-live#speaker), ou le bouton « Ouvrir l'écran speaker » de l'admin."),
         ("p", "3. Le speaker passe lui-même d'une série à l'autre (liste à gauche, boutons ou flèches du clavier). Un bandeau jaune l'avertit quand une nouvelle série part ; « Y aller » l'y emmène. La case « Suivre le direct » le fait suivre automatiquement."),
         ("h", "Plein écran automatique (mode kiosque)"),
