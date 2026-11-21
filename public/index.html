@@ -1527,7 +1527,7 @@ function tvPick(){TVRANK=false;const h=POOL&&POOL.heat;if(!h){if(TVLAST&&Date.no
 function tvScreenHtml(){if(KILL.screen)return killScreen();
   {const ov=screenOv()||spBetween();if(ov)return`<div class="tvwait">${ov}</div>`}
   const pw=state.live==="bassin"?poolHtml():"";
-  const h=tvPick();if(!h||/pwait/.test(pw)||!h.heat&&!h.event){const w=compWait()||(/pwait/.test(pw)?pw:"");return w?`<div class="tvwait">${w}</div>`:`<div class="tvwait"><div class="tvidle">${esc(state.title||"Swim Direct")}</div></div>`}
+  const h=tvFinFix(tvPick());if(!h||/pwait/.test(pw)||!h.heat&&!h.event){const w=compWait()||(/pwait/.test(pw)?pw:"");return w?`<div class="tvwait">${w}</div>`:`<div class="tvwait"><div class="tvidle">${esc(state.title||"Swim Direct")}</div></div>`}
   const ev=poolEvent(h),se=ev&&ev.series&&ev.series[(h.heat||1)-1],len=poolLen(),run=h.status==="running"&&!poolAllIn(h),ready=h.status==="ready"||!h.start,relay=ev?!!ev.relay:/^\d+ ?x/i.test(h.title||"");
   const fins=Object.entries(h.lanes||{}).filter(([,L])=>L.fin&&L.fin.t!=null).sort((a,b)=>a[1].fin.t-b[1].fin.t),rk={};fins.forEach(([n,L],i)=>rk[n]=L.fin.rank||i+1);
   const best=fins.length?fins[0][0]:null;
@@ -1561,6 +1561,8 @@ function tvScreenHtml(){if(KILL.screen)return killScreen();
   const title=ev?ev.name:String(h.title||"").replace(/\s+Séries$/i,"");
   return`<div class="tvhead"><div class="tvev"><h1>${esc(title)}</h1><p><span class="tvtag">${ready?"AU DÉPART · ":ranked?"CLASSEMENT · ":""}SÉRIE ${h.heat||"?"}${ev&&ev.series&&ev.series.length?" / "+ev.series.length:""}${(()=>{if(!run)return"";let dm=0;for(const L of Object.values(h.lanes||{})){const ks=Object.keys(L.laps||{}).map(Number);if(!ks.length||L.fin)continue;const k=Math.max(...ks);dm=Math.max(dm,L.laps[k].dist||k*len)}return dm?" · "+dm+" m":""})()}</span>${esc(state.title||"")}</p></div><div class="tvclk" id="tvclk">${ready?"0.0":""}</div><div class="tvsig"><img src="/matetflo.png" alt=""><span>Mat-et-Flo</span></div></div><div class="tvrows${ready?" start":""}${ranked?" ranked":""}">${ready?`<div class="tvsub">Liste de départ</div>`:""}${rows}</div>`}
 /* format de l'écran géant choisi dans le logiciel du chrono (16/9 ou 4/3) : l'affichage est mis en page dans une zone de ce format, centrée, bandes noires autour */
+/* arrivée détectée même si le chrono n'envoie « fin » qu'à la fin de la série : un dernier passage à la distance de l'épreuve = nageur arrivé (badges, rang et temps tout de suite) */
+function tvFinFix(h){try{if(!h||!h.lanes||h.status==="ready")return h;const t=String(h.title||""),r=t.match(/(\d+)\s*x\s*(\d+)/i),D=r?r[1]*r[2]:+(t.match(/\d+/)||[0])[0];if(!D)return h;const len=poolLen();let L2=null;for(const [n,L] of Object.entries(h.lanes)){if(!L||L.fin)continue;const ks=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),k=ks[ks.length-1];if(k==null)continue;const x=L.laps[k];if(!x||x.t==null)continue;if((x.dist||k*len)>=D){L2=L2||{...h.lanes};L2[n]={...L,fin:{t:x.t,rank:x.rank||null}}}}return L2?{...h,lanes:L2}:h}catch(_){return h}}
 function tvFit(){const el=document.getElementById("tvscreen");if(!el)return;el.classList.toggle("tvbig",!!(POOL&&POOL.tvbig));const f=POOL&&POOL.tvfmt,r=f==="43"?4/3:f==="169"?16/9:0;
   if(!r){el.style.removeProperty("--vw");el.style.removeProperty("--vh");el.style.width=el.style.height=el.style.left=el.style.top=el.style.right=el.style.bottom="";document.body.classList.remove("tvfit");return}
   const W=innerWidth,H=innerHeight;let w=W,h=W/r;if(h>H){h=H;w=H*r}
