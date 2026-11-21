@@ -2283,6 +2283,8 @@ function poolEvent0(h){if(!h)return null;if(h.key&&EVENTS[h.key])return EVENTS[h
 function poolLen(){const c=state.comps[0];const m=(c&&c.bassin||"").match(/(\d+)/);return m?+m[1]:25}
 function poolAllIn(h){const ns=Object.keys(h.names||{});const ls=ns.length?ns:Object.keys(h.lanes||{});return ls.length>0&&ls.every(n=>(h.lanes[n]||{}).fin)}
 function poolLost(){const h=POOL&&POOL.heat;return!!(h&&h.status==="running"&&!poolAllIn(h)&&POOL.relayAt&&Date.now()+poolOff-POOL.relayAt>30000)}
+/* page Direct : les partenaires / la pub entre deux séries apparaissent et disparaissent à l'heure, sans attendre un événement du chrono */
+let SPVIS=-1;setInterval(()=>{try{if(document.hidden||state.admin||state.view!=="live"||state.live!=="bassin"||document.body.classList.contains("tv"))return;const v=spBetween()?1:0;if(v!==SPVIS){SPVIS=v;render()}}catch(_){}},1000);
 let PLOST=false;setInterval(()=>{const l=poolLost();if(l!==PLOST){PLOST=l;if(state.view==="live"&&!state.admin)render()}},5000);
 // simulateur : page d'admin quittée ou actualisée pendant une simulation → la série est arrêtée proprement (sinon le chrono tournerait sans fin)
 addEventListener("pagehide",()=>{if(!SIM.length)return;try{const hd={"content-type":"application/json"};if(ADMIN_KEY)hd["x-admin-key"]=ADMIN_KEY;fetch(evq("/api/pool/event?sim=1"),{method:"POST",keepalive:true,headers:hd,body:JSON.stringify([{k:"end",sent:Date.now()}])})}catch(e){}});
@@ -2439,7 +2441,7 @@ let SPS={key:null,shown:true,i:0,n:0,newAt:0},SPN=0;
 /* dernière pub Swim Direct vue (mémorisée : survit au rechargement de l'écran) : au moins une toutes les 6 min entre deux séries */
 let PUBL=0;function pubLast(){let v=0;try{v=+localStorage.getItem("sd_pub_last")||0}catch(_){}return Math.max(v,PUBL)}function pubMark(){PUBL=Date.now();try{localStorage.setItem("sd_pub_last",String(PUBL))}catch(_){}}
 function pubOn(){return!!POOL&&POOL.pubAuto!==false}
-function spBetween(){if(!POOL)return"";const L=POOL.spons?spList():[],pub=pubOn();if(!L.length&&!pub)return"";const h=POOL.heat,now=Date.now()+(poolOff||0);
+function spBetween(){if(!POOL)return"";/* Pause / compte à rebours / évacuation automatiques (fin de réunion) : ils passent avant les partenaires */try{const w=poolWindow();if(w&&(w.wait||w.closed))return""}catch(_){}const L=POOL.spons?spList():[],pub=pubOn();if(!L.length&&!pub)return"";const h=POOL.heat,now=Date.now()+(poolOff||0);
   /* un écran sur trois effectivement affiché (SPN compte les écrans vus, pas les séries : des séries rapides ne le décalent plus) : Swim Direct (sinon le partenaire suivant) ; sans partenaires : Swim Direct un passage sur trois seulement */
   const pick=()=>pub&&SPS.pub?pubHtml():L.length?spHtml([L[SPS.i%L.length]],"Avec le soutien de"):"";
   const key=h?[h.comp,h.event,h.heat,h.start].join("|"):"";
@@ -2447,7 +2449,7 @@ function spBetween(){if(!POOL)return"";const L=POOL.spons?spList():[],pub=pubOn(
   if(SPS.key&&SPS.key!==key&&!SPS.shown){if(!SPS.newAt)SPS.newAt=Date.now();if(Date.now()-SPS.newAt<(pub&&SPS.pub?7000:4000)){if(TVLAST)TVLAST.anim=1;return pick()}SPS.shown=true;SPN++;if(SPS.pub)pubMark()}
   return""}
 function pauseHtml(t,sub){return`<div class="session"><div class="card lv-card mf-card pwait"><div class="mf-head"><span class="mf-tag">Pause</span><h2 class="mf-title">${esc(t||"Pause")}</h2><p class="mf-sub">${esc(sub)}</p></div><div class="mf-scene mf-evac" aria-hidden="true"><div class="mf-deck"></div><div class="mf-blocks">${mfBlock("")}${mfBlock("")}</div><div class="mf-water">${mfWaves()}</div></div></div></div>`}
-function screenOv(){const sc=POOL&&POOL.screen,age=sc?Date.now()+(poolOff||0)-sc.at:0;if(!sc||!sc.mode||age>4*3600e3)return""; /* compétition terminée : la dernière cérémonie s'efface au bout de 20 min */ if(age>20*60e3){const st=evStatus();if(st&&st.k==="done")return""}
+function screenOv(){const sc=POOL&&POOL.screen,age=sc?Date.now()+(poolOff||0)-sc.at:0;if(!sc||!sc.mode||age>4*3600e3)return"";/* la Pause posée automatiquement par le logiciel ne doit pas masquer Pause (avant l'ouverture des portes) / timer / évacuation calculés par le site : seul un écran imposé à la main est prioritaire */if(sc.auto&&sc.mode==="pause"){try{const w=poolWindow();if(w&&w.wait)return""}catch(_){}} /* compétition terminée : la dernière cérémonie s'efface au bout de 20 min */ if(age>20*60e3){const st=evStatus();if(st&&st.k==="done")return""}
   const now=parisSec(Date.now()+poolOff),rs=Object.keys(state.order||{}).sort((a,b)=>a-b).map(r=>({r,st:state.starts[r]?toMin(String(state.starts[r]).replace("h",":"))*60:null})).filter(x=>x.st!=null);
   const nx=rs.find(x=>x.st>now)||rs[rs.length-1]||{r:"1",st:now+600};
   if(sc.mode==="pub")return pubHtml();
@@ -2468,7 +2470,7 @@ function pubHtml(){const u=pubUrl(),short=u.replace(/^https?:\/\//,"").replace(/
   return`<div class="session"><div class="card lv-card mf-card pwait pub-card"><div class="mf-head"><span class="mf-tag">Swim Direct</span><h2 class="mf-title">Suivez la compétition en direct</h2><p class="mf-sub">sur votre téléphone</p></div>
   <div class="pub-body">${qr?`<div class="pub-qr">${qr}<small>Scannez-moi</small></div>`:""}<ul class="pub-l"><li>⏱ Les temps en direct, couloir par couloir</li><li>🏅 Résultats, classements et podiums</li><li>⭐ Records perso battus</li><li>📅 Programme et horaires</li></ul></div>
   <div class="pub-foot"><p class="pub-url">${esc(short)}</p><div class="pub-mf"><span>Une création</span><img src="/matetflo.png" alt="Mat et Flo"></div></div></div></div>`}
-function poolHtml(){const ov=screenOv();if(ov)return ov;const b=poolHtml1();if(!b||/pwait/.test(b))return b;const pc=poolPauseCard();return pc?pc+b:b}
+function poolHtml(){const ov=screenOv()||spBetween();if(ov)return ov;/* partenaires / pub entre deux séries : aussi sur la page Direct, comme sur l'écran géant */const b=poolHtml1();if(!b||/pwait/.test(b))return b;const pc=poolPauseCard();return pc?pc+b:b}
 function poolHtml1(){
   /* ouverture/fermeture du direct bassin autour des réunions : écran d'attente avec minuteur 15 min avant la 1re course, fermeture 15 min après la dernière épreuve */
   {const w=poolWindow();if(w&&w.wait)return w.html;if(w&&w.closed)return""}
