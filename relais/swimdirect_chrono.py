@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.7.9"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.8.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -146,7 +146,7 @@ class LocalScreen:
                 if not self.path.startswith("/local/cmd"): return self.out(404, "text/plain", b"introuvable")
                 try:
                     n = int(self.headers.get("content-length") or 0); c = json.loads(self.rfile.read(min(n, 4000)) or b"{}")
-                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub"): raise ValueError("commande inconnue")
+                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub", "big", "rev"): raise ValueError("commande inconnue")
                     me.cmds.put(c); return self.out(200, "application/json", b'{"ok":true}')
                 except Exception as e: return self.out(400, "application/json", json.dumps({"ok": False, "err": str(e)}).encode())
             def out(self, code, ctype, body):
@@ -718,6 +718,20 @@ def gui(cfg, demo=False, close_after=0):
         if save: cfg["pub_auto"] = bool(pubv.get()); save_cfg(cfg); core.log("Pub Swim Direct automatique : " + ("activée" if pubv.get() else "désactivée"))
     tk.Checkbutton(frow, text="📱 Pub Swim Direct automatique", variable=pubv, command=set_pub, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
     root.after(3400, lambda: set_pub(save=False))
+    # écran à gros pixels (ex. pitch 5 mm) : chronos géants ; sens des couloirs affichés (1→8 ou 8→1, selon la position des nageurs dans le bassin)
+    orow = tk.Frame(scr, bg=CARD); orow.pack(fill="x", padx=14, pady=(0, 12))
+    bigv = tk.BooleanVar(value=bool(cfg.get("tv_big", False))); revv = tk.BooleanVar(value=bool(cfg.get("tv_rev", False)))
+    def set_opt(save=True):
+        ev = {"k": "tvopt", "big": bool(bigv.get()), "rev": bool(revv.get()), "ts": time.time()}
+        try: core.q.put_nowait(ev)
+        except Exception: pass
+        try: core.screen.push(ev)
+        except Exception: pass
+        core.screen.state["big"] = bool(bigv.get()); core.screen.state["rev"] = bool(revv.get())
+        if save: cfg["tv_big"] = bool(bigv.get()); cfg["tv_rev"] = bool(revv.get()); save_cfg(cfg); core.log("Écran géant : chronos géants " + ("activés" if bigv.get() else "désactivés") + " · couloirs " + ("de 8 à 1" if revv.get() else "de 1 à 8"))
+    tk.Checkbutton(orow, text="🔍 Gros chronos (écran à gros pixels)", variable=bigv, command=set_opt, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left")
+    tk.Checkbutton(orow, text="↕ Couloirs de 8 à 1 (au lieu de 1 à 8)", variable=revv, command=set_opt, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
+    root.after(3600, lambda: set_opt(save=False))
     # mode test (jamais gardé au redémarrage, pour ne pas l'oublier activé)
     tstv = tk.BooleanVar(value=False)
     def set_test():
@@ -740,6 +754,8 @@ def gui(cfg, demo=False, close_after=0):
                 elif a == "spons": spv.set(bool(c.get("on"))); set_spons()
                 elif a == "auto": autov.set(bool(c.get("on"))); set_auto()
                 elif a == "pub": pubv.set(bool(c.get("on"))); set_pub()
+                elif a == "big": bigv.set(bool(c.get("on"))); set_opt()
+                elif a == "rev": revv.set(bool(c.get("on"))); set_opt()
         except queue.Empty: pass
         except Exception as e: core.log(f"✗ Régie : {e}")
         core.screen.state["auto"] = bool(autov.get())
