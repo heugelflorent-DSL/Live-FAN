@@ -211,7 +211,8 @@ class Core:
     def hello_loop(self):
         while not self.stop:
             try:
-                j = self.call("/api/relay/hello")
+                self.hn = getattr(self, "hn", 0) + 1
+                j = self.call("/api/relay/hello" + ("" if self.hn % 6 == 1 else "?lite=1"))
                 was = self.st["linked"]
                 self.st.update(linked=bool(j.get("linked")), name=j.get("name", ""), url=j.get("url", ""), bassin=j.get("bassin"), err="")
                 self.apply_sys(j.get("sys"))
