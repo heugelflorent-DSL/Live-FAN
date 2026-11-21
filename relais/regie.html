@@ -35,6 +35,7 @@ label.ck{display:flex;gap:8px;align-items:center;margin-top:12px;font-weight:600
 <label class="ck"><input type="checkbox" id="pub"> 📱 Pub Swim Direct automatique (entre les séries et pendant les pauses)</label>
 <label class="ck"><input type="checkbox" id="big"> 🔍 Gros chronos (écran à gros pixels)</label>
 <label class="ck"><input type="checkbox" id="rev"> ↕ Couloirs de 8 à 1 (au lieu de 1 à 8)</label>
+<label class="ck"><input type="checkbox" id="light"> ☀ Thème clair (fond clair)</label>
 <p class="hint">Fonctionne sur le réseau local, même sans Internet : les commandes passent par le logiciel Swim Direct · Chrono.</p>
 </section>
 </main>
@@ -43,13 +44,13 @@ const M=[["normal","▶ Direct"],["count","⏱ Compte à rebours"],["cer","🏅 
 const $=s=>document.querySelector(s);let S={};
 M.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;b.dataset.k=k;b.onclick=()=>{if(k==="msg"){const t=prompt("Message à afficher en grand :");if(!t||!t.trim())return;cmd({act:"screen",mode:k,title:t.trim()})}else cmd({act:"screen",mode:k})};$("#modes").append(b)});
 F.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;b.dataset.f=k;b.onclick=()=>cmd({act:"fmt",f:k});$("#fmts").append(b)});
-$("#auto").onchange=e=>cmd({act:"auto",on:e.target.checked});$("#spons").onchange=e=>cmd({act:"spons",on:e.target.checked});$("#pub").onchange=e=>cmd({act:"pub",on:e.target.checked});$("#big").onchange=e=>cmd({act:"big",on:e.target.checked});$("#rev").onchange=e=>cmd({act:"rev",on:e.target.checked});
+$("#auto").onchange=e=>cmd({act:"auto",on:e.target.checked});$("#spons").onchange=e=>cmd({act:"spons",on:e.target.checked});$("#pub").onchange=e=>cmd({act:"pub",on:e.target.checked});$("#big").onchange=e=>cmd({act:"big",on:e.target.checked});$("#rev").onchange=e=>cmd({act:"rev",on:e.target.checked});$("#light").onchange=e=>cmd({act:"light",on:e.target.checked});
 async function cmd(c){try{const r=await fetch("/local/cmd",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(c)});if(!r.ok)throw 0;setTimeout(poll,500)}catch(e){st(false)}}
 function st(ok){const s=$("#st");s.className=ok?"ok":"ko";s.textContent=ok?"✓ relié au logiciel chrono":"✗ logiciel chrono injoignable"}
 async function poll(){try{const r=await fetch("/local/state",{cache:"no-store"});S=await r.json();st(true);
   document.querySelectorAll("#modes button").forEach(b=>b.classList.toggle("on",b.dataset.k===(S.mode||"normal")));
   document.querySelectorAll("#fmts button").forEach(b=>b.classList.toggle("on",b.dataset.f===(S.fmt||"")));
-  if(document.activeElement!==$("#auto"))$("#auto").checked=!!S.auto;if(document.activeElement!==$("#spons"))$("#spons").checked=!!S.spons;if(document.activeElement!==$("#pub"))$("#pub").checked=S.pub!==false;if(document.activeElement!==$("#big"))$("#big").checked=!!S.big;if(document.activeElement!==$("#rev"))$("#rev").checked=!!S.rev}catch(e){st(false)}}
+  if(document.activeElement!==$("#auto"))$("#auto").checked=!!S.auto;if(document.activeElement!==$("#spons"))$("#spons").checked=!!S.spons;if(document.activeElement!==$("#pub"))$("#pub").checked=S.pub!==false;if(document.activeElement!==$("#big"))$("#big").checked=!!S.big;if(document.activeElement!==$("#rev"))$("#rev").checked=!!S.rev;if(document.activeElement!==$("#light"))$("#light").checked=!!S.light}catch(e){st(false)}}
 setInterval(poll,2000);poll();
 function fit(){const w=$("#pv").clientWidth;$("#fr").style.transform="scale("+(w/1920)+")"}addEventListener("resize",fit);fit();
 $("#open").onclick=async()=>{let f="width=1280,height=720";try{if(window.getScreenDetails){const d=await getScreenDetails(),o=d.screens.find(x=>x!==d.currentScreen)||d.currentScreen;f=`left=${o.availLeft},top=${o.availTop},width=${o.availWidth},height=${o.availHeight}`}}catch(e){}

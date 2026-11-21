@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.8.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.8.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -146,7 +146,7 @@ class LocalScreen:
                 if not self.path.startswith("/local/cmd"): return self.out(404, "text/plain", b"introuvable")
                 try:
                     n = int(self.headers.get("content-length") or 0); c = json.loads(self.rfile.read(min(n, 4000)) or b"{}")
-                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub", "big", "rev"): raise ValueError("commande inconnue")
+                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub", "big", "rev", "light"): raise ValueError("commande inconnue")
                     me.cmds.put(c); return self.out(200, "application/json", b'{"ok":true}')
                 except Exception as e: return self.out(400, "application/json", json.dumps({"ok": False, "err": str(e)}).encode())
             def out(self, code, ctype, body):
@@ -394,7 +394,7 @@ class Core:
         first = getattr(self, "opts_rev", None) is None
         self.opts_rev = rev
         done = []
-        for k, act in (("big", "big"), ("rev", "rev"), ("spons", "spons"), ("pub", "pub"), ("auto", "auto")):
+        for k, act in (("big", "big"), ("rev", "rev"), ("light", "light"), ("spons", "spons"), ("pub", "pub"), ("auto", "auto")):
             if isinstance(opts.get(k), bool):
                 self.screen.cmds.put({"act": act, "on": opts[k]}); done.append(f"{k}={'oui' if opts[k] else 'non'}")
         if opts.get("fmt") in ("", "169", "43") and "fmt" in opts:
@@ -747,17 +747,18 @@ def gui(cfg, demo=False, close_after=0):
     root.after(3400, lambda: set_pub(save=False))
     # écran à gros pixels (ex. pitch 5 mm) : chronos géants ; sens des couloirs affichés (1→8 ou 8→1, selon la position des nageurs dans le bassin)
     orow = tk.Frame(scr, bg=CARD); orow.pack(fill="x", padx=14, pady=(0, 12))
-    bigv = tk.BooleanVar(value=bool(cfg.get("tv_big", False))); revv = tk.BooleanVar(value=bool(cfg.get("tv_rev", False)))
+    bigv = tk.BooleanVar(value=bool(cfg.get("tv_big", False))); revv = tk.BooleanVar(value=bool(cfg.get("tv_rev", False))); lightv = tk.BooleanVar(value=bool(cfg.get("tv_light", False)))
     def set_opt(save=True):
-        ev = {"k": "tvopt", "big": bool(bigv.get()), "rev": bool(revv.get()), "ts": time.time()}
+        ev = {"k": "tvopt", "big": bool(bigv.get()), "rev": bool(revv.get()), "light": bool(lightv.get()), "ts": time.time()}
         try: core.q.put_nowait(ev)
         except Exception: pass
         try: core.screen.push(ev)
         except Exception: pass
-        core.screen.state["big"] = bool(bigv.get()); core.screen.state["rev"] = bool(revv.get())
-        if save: cfg["tv_big"] = bool(bigv.get()); cfg["tv_rev"] = bool(revv.get()); save_cfg(cfg); core.log("Écran géant : chronos géants " + ("activés" if bigv.get() else "désactivés") + " · couloirs " + ("de 8 à 1" if revv.get() else "de 1 à 8"))
+        core.screen.state["big"] = bool(bigv.get()); core.screen.state["rev"] = bool(revv.get()); core.screen.state["light"] = bool(lightv.get())
+        if save: cfg["tv_big"] = bool(bigv.get()); cfg["tv_rev"] = bool(revv.get()); cfg["tv_light"] = bool(lightv.get()); save_cfg(cfg); core.log("Écran géant : chronos géants " + ("activés" if bigv.get() else "désactivés") + " · couloirs " + ("de 8 à 1" if revv.get() else "de 1 à 8") + " · fond " + ("clair" if lightv.get() else "sombre"))
     tk.Checkbutton(orow, text="🔍 Gros chronos (écran à gros pixels)", variable=bigv, command=set_opt, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left")
     tk.Checkbutton(orow, text="↕ Couloirs de 8 à 1 (au lieu de 1 à 8)", variable=revv, command=set_opt, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
+    tk.Checkbutton(orow, text="☀ Thème clair (fond clair)", variable=lightv, command=set_opt, bg=CARD, fg=INK, activebackground=CARD, selectcolor="white", font=(F, 10, "bold"), cursor="hand2").pack(side="left", padx=(16, 0))
     root.after(3600, lambda: set_opt(save=False))
     # mode test (jamais gardé au redémarrage, pour ne pas l'oublier activé)
     tstv = tk.BooleanVar(value=False)
@@ -783,6 +784,7 @@ def gui(cfg, demo=False, close_after=0):
                 elif a == "pub": pubv.set(bool(c.get("on"))); set_pub()
                 elif a == "big": bigv.set(bool(c.get("on"))); set_opt()
                 elif a == "rev": revv.set(bool(c.get("on"))); set_opt()
+                elif a == "light": lightv.set(bool(c.get("on"))); set_opt()
         except queue.Empty: pass
         except Exception as e: core.log(f"✗ Régie : {e}")
         core.screen.state["auto"] = bool(autov.get())
