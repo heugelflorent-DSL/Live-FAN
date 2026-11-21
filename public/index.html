@@ -2393,7 +2393,7 @@ function poolWindow(){if(!state.order)return null;const now=parisSec(Date.now()+
   const endAt=x=>{if(cur&&cur.key===x.l&&h.doneAt)return parisSec(h.doneAt);const e=sch[x.l];return e&&e.end!=null?e.end:null};
   /* entre deux réunions : écran d'attente dès 15 min après la fin de la précédente, jusqu'au 1er départ de la suivante */
   const lastS=[...ses].reverse().find(x=>done.has(x.f)||!!(cur&&state.order[x.r].includes(cur.key))),lastE=lastS&&ended(lastS)?lastS:null,lastEnd=lastE?endAt(lastE):null,gapOpen=lastE&&lastEnd!=null&&now-lastEnd>900?lastEnd+900:null;
-  for(const x of ses){const evq=(state.evac||{})[x.r],evq0=evq?toMin(String(evq).replace("h",":"))*60:Infinity;const from=Math.min(gapOpen!=null&&+x.r>+lastE.r?gapOpen:x.st-900,evq0);if(now>=from&&x.st>now-60&&!done.has(x.f)&&!(cur&&cur.key===x.f&&h.start)){
+  for(const x of ses){const evq=(state.evac||{})[x.r],evq0=evq?toMin(String(evq).replace("h",":"))*60:Infinity;const from=Math.min(gapOpen!=null&&+x.r>+lastE.r?gapOpen:x.st-900,evq0);if(now>=from&&x.st>now-60&&!done.has(x.f)&&!(cur&&cur.key===x.f&&h.start)&&!(cur&&state.order[x.r].includes(cur.key)&&(h.start||+h.heat>1))){/* réunion déjà commencée (course en avance sur l'horaire, ou entre deux séries) : ni évacuation ni attente */
       /* évacuation du bassin (heure saisie dans Programme et horaires) jusqu'au 1er départ : écran animé, l'eau baisse jusqu'au départ */
       const ev0=(state.evac||{})[x.r],evS=ev0?toMin(String(ev0).replace("h",":"))*60:null;
       if(evS!=null&&now>=evS&&now<x.st){const pr=Math.max(0,Math.min(1,(now-evS)/Math.max(60,x.st-evS)));return{wait:true,html:evacHtml(x,pr)}}const span=Math.max(900,x.st-from);const nm=EVENTS[x.f].name;
