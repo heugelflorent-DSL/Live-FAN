@@ -1568,7 +1568,7 @@ function tvScreenHtml(){if(KILL.screen)return killScreen();
   const pw=state.live==="bassin"?poolHtml():"";
   const h=tvFinFix(tvPick());if(!h||/pwait/.test(pw)||!h.heat&&!h.event){const w=compWait()||(/pwait/.test(pw)?pw:"");return w?`<div class="tvwait">${w}</div>`:`<div class="tvwait"><div class="tvidle">${esc(state.title||"Swim Direct")}</div></div>`}
   const ev=poolEvent(h),se=ev&&ev.series&&ev.series[(h.heat||1)-1],len=poolLen(),run=h.status==="running"&&!poolAllIn(h),ready=h.status==="ready"||!h.start,relay=ev?!!ev.relay:/^\d+ ?x/i.test(h.title||"");
-  const fins=Object.entries(h.lanes||{}).filter(([,L])=>L.fin&&L.fin.t!=null).sort((a,b)=>a[1].fin.t-b[1].fin.t),rk={};fins.forEach(([n,L],i)=>rk[n]=L.fin.rank||i+1);
+  const fins=Object.entries(h.lanes||{}).filter(([,L])=>L.fin&&L.fin.t!=null).sort((a,b)=>a[1].fin.t-b[1].fin.t),rk={};fins.forEach(([n,L],i)=>rk[n]=i&&L.fin.t===fins[i-1][1].fin.t?rk[fins[i-1][0]]:i+1);
   const best=fins.length?fins[0][0]:null;
   /* positions pendant la course : au dernier passage commun (plus loin = devant ; même distance = plus rapide), écart avec le 1er à cette distance */
   const len0=poolLen(),pos=Object.entries(h.lanes||{}).map(([n,L])=>{if(L.fin)return null;const ks=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),k=ks[ks.length-1];if(k==null)return null;const x=L.laps[k];if(!x||x.t==null)return null;return{n,d:x.dist||k*len0,t:x.t}}).filter(Boolean).sort((a,b)=>b.d-a.d||a.t-b.t);

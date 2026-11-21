@@ -51,7 +51,7 @@ export function applyEvent(s, ev, t) {
         /* temps impossible : plus long que le temps écoulé depuis le départ (+10 s de marge), ex. appui parasite sur la plaque → ignoré, le vrai temps arrive ensuite */
         { const h0 = s.heat; if (h0 && h0.start && ev.t > (t - h0.start) / 1000 + 10) break; }
         l.laps[ev.lap] = { t: ev.t, rank: ev.rank || (old && old.rank) || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = Math.max(l.last || 0, ev.lap);
-        if (ev.k === "finish") { l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null }; s.heat.finAt = t; } break; }
+        if (ev.k === "finish") { l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null }; s.heat.finAt = t; { const fs = Object.values(s.heat.lanes).filter(x => x.fin && x.fin.t != null).sort((x, y) => x.fin.t - y.fin.t); fs.forEach((x, i) => { x.fin.rank = i && x.fin.t === fs[i - 1].fin.t ? fs[i - 1].fin.rank : i + 1; }); } } break; }
       case "end": if (s.heat) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } break;
       case "heat": { // noms et résultats envoyés par le Quantum (série chargée, puis officielle)
         const fresh = ev.stat !== "O" && ev.stat !== "F"; // liste de départ (W) : série (re)mise au départ
