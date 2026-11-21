@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.8.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.8.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -171,6 +171,7 @@ class LocalScreen:
             srv = http.server.ThreadingHTTPServer(("0.0.0.0", self.port), H); srv.daemon_threads = True; self.ok = True
             self.ips = all_ips(); self.ip = self.ips[0]
             self.core.log(f"🖥 Écran géant local : sur le PC de l'écran, ouvrir " + "  ou  ".join(f"http://{a}:{self.port}" for a in self.ips) + f"  (ou http://{socket.gethostname()}:{self.port})")
+            self.core.log("🎙 Écran speaker (résultats, records perso, qualifs, podiums ; le speaker navigue seul) : " + "  ou  ".join(f"http://{a}:{self.port}/#speaker" for a in self.ips) + "  — ou sur Internet : adresse du live suivie de #speaker")
             self.core.log("🎛 Régie de l'écran géant (sur n'importe quel PC du réseau, même sans Internet) : " + "  ou  ".join(f"http://{a}:{self.port}/regie" for a in self.ips))
             if len(self.ips) > 1: self.core.log("   Plusieurs réseaux sur ce PC (câble, Wi-Fi…) : prends l'adresse du réseau où est branché l'écran.")
             threading.Thread(target=open_firewall, args=(self.port, self.core.log), daemon=True).start()
@@ -681,11 +682,14 @@ def gui(cfg, demo=False, close_after=0):
     bcp = btn(tvb, "Copier", cp_main, "primary"); bcp.pack(side="left", fill="x", expand=True)
     btn(tvb, "Ouvrir ici", lambda: tvbig.cget("text") and webbrowser.open(tvbig.cget("text") + "/")).pack(side="left", fill="x", expand=True, padx=(6, 0))
     tvo = tk.Label(cTv.body, text="", bg=CARD, fg=GREY, font=(F, 8), anchor="w", justify="left", wraplength=200); tvo.pack(fill="x", pady=(6, 0))
+    spk = tk.Label(cTv.body, text="", bg=CARD, fg=INK, font=(F, 9, "bold"), anchor="w", justify="left", wraplength=220, cursor="hand2"); spk.pack(fill="x", pady=(6, 0))
+    spk.bind("<Button-1>", lambda e: spk.cget("text") and webbrowser.open(spk.cget("text").split(" : ", 1)[1]))
     def tv_rows():
         ips = core.screen.ips or ([core.screen.ip] if core.screen.ip else [])
         urls = [f"http://{a}:{core.screen.port}" for a in ips] + ([f"http://{socket.gethostname()}:{core.screen.port}"] if ips else [])
         tvbig.config(text=urls[0] if urls and core.screen.ok else "")
         tvo.config(text=("Autres adresses : " + " · ".join(u.replace("http://", "") for u in urls[1:])) if len(urls) > 1 else "")
+        spk.config(text=("🎙 Écran speaker : " + urls[0] + "/#speaker") if urls and core.screen.ok else "")
 
     # ---- ce qu'affiche l'écran géant (et le direct du site) : choisi ici, « Normal » rend la main au direct
     scr = tk.Frame(root, bg=CARD, highlightbackground=LINE, highlightthickness=1); scr.pack(fill="x", padx=16, pady=(0, 12))
@@ -917,6 +921,11 @@ AIDE = [
         ("p", "4. Clique dans cette fenêtre puis touche F11 : plein écran. Reviens ensuite sur la console (souris sur l'écran du PC)."),
         ("p", "5. Pilote depuis la console : aperçu de l'écran géant ; boutons Direct, Compte à rebours, Cérémonie, Pause, Partenaires, Suivre en direct, Évacuation, Message ; format Auto / 16/9 / 4/3 ; cases « logo d'un partenaire entre les séries », « pub Swim Direct automatique », « revenir au direct tout seul au prochain départ »."),
         ("p", "La console et les boutons de ce logiciel sont synchronisés : on peut piloter depuis l'un ou l'autre."),
+        ("h", "Écran speaker"),
+        ("p", "Un écran pour le speaker, sans animation : composition de chaque série avec temps d'engagement, record perso, temps final, passages et qualifications ; résultats de l'épreuve avec les qualifiés en finale ; podiums pour les cérémonies (marqués « Non officiel » tant que les résultats officiels ne sont pas publiés)."),
+        ("p", "1. Sur le PC ou la tablette du speaker (même réseau que ce PC), ouvre dans Chrome l'adresse affichée dans « Écran speaker » (par exemple http://192.168.1.4:8765/#speaker). Clique dessus dans ce logiciel pour l'ouvrir ici."),
+        ("p", "2. Avec Internet, il peut aussi ouvrir l'adresse du live suivie de #speaker (par exemple https://swim-direct.swim-direct.workers.dev/e/nom-du-live#speaker), ou le bouton « Ouvrir l'écran speaker » de l'admin."),
+        ("p", "3. Le speaker passe lui-même d'une série à l'autre (liste à gauche, boutons ou flèches du clavier). Un bandeau jaune l'avertit quand une nouvelle série part ; « Y aller » l'y emmène. La case « Suivre le direct » le fait suivre automatiquement."),
         ("h", "Plein écran automatique (mode kiosque)"),
         ("p", "Crée un raccourci sur le bureau du PC de l'écran avec pour cible :\n\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --kiosk \"http://ADRESSE:8765/\"\nAlt + F4 pour en sortir."),
         ("h", "Si l'écran n'affiche rien"),
