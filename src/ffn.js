@@ -108,7 +108,7 @@ export function parseProgramme(html) {
     const lis = p.match(/<li[\s\S]*?<\/li>/g) || [];
     for (const li of lis) {
       const cls = (li.match(/^<li class="([^"]*)"/) || [])[1] || "";
-      if (cls.includes("debutEpreuve")) { const d = text(li).match(/portes\s*:\s*(\d{1,2}h\d{2})/i); if (d) r.doors = d[1]; continue; }
+      if (cls.includes("debutEpreuve")) { const t0 = text(li), d = t0.match(/portes\s*:\s*(\d{1,2}h\d{2})/i); if (d) r.doors = d[1]; const ev = t0.match(/[ée]vacuation[^0-9]{0,40}(\d{1,2}h\d{2})/i); if (ev) r.evac = ev[1]; continue; }
       if (cls.includes("EventNonSportif")) { const t = one(li); if (!/^fin de la r[ée]union$/i.test(t)) r.items.push({ kind: "note", text: t }); continue; }
       const on = li.match(/cat_id='\+(\d+)\+'&epr_id='\+'(\d+)'\+'&typ_id='\+(\d+)\+'&num_epreuve='\+(\d+)/);
       const time = (li.match(/<span class="time">([^<]*)<\/span>/) || [])[1] || null;

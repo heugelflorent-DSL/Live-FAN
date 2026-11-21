@@ -34,6 +34,10 @@ h2{margin:6px 0 6px;font-size:clamp(26px,4.4vw,38px);font-weight:800;letter-spac
 .ch b{font-size:18px}.ch span{color:var(--muted);font-size:14.5px}
 .tag{justify-self:start;font-size:12px;font-weight:700;border-radius:99px;padding:2px 10px;background:#e7f6ec;color:#166534}
 .tag.t{background:#fff4d6;color:#8a5a00}
+.tag.n{background:#eef1f4;color:#5b7685}
+.pre{margin:14px 0 0;color:var(--muted);font-size:14.5px}.pre b{color:var(--ink)}
+.offer{margin:52px 0 0;border:2px solid var(--gold);background:var(--card);border-radius:18px;padding:20px 22px;text-align:center}.offer b{font-size:19px}.offer p{margin:6px 0 0;color:var(--muted);font-size:15px}
+.cta .btn2{display:block;margin:14px auto 0;color:#cfe6f3;font-size:14px}
 .band{margin-top:14px;background:var(--navy);color:#fff;border-radius:16px;padding:18px 20px;display:flex;gap:14px;align-items:flex-start}
 .band .ic{font-size:26px;line-height:1.2}.band p{margin:2px 0 0;color:#cfe6f3;font-size:15px}.band b{font-size:17px}
 .steps{counter-reset:s;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;padding:0;margin:0;list-style:none}
@@ -75,7 +79,7 @@ footer img{width:96px;height:96px;display:block;margin:0 auto 12px}
 <div class="grid">
 <div class="card"><div class="ic">🖥</div><h3>Le direct en grand</h3><p>Noms, clubs, couloirs, chrono et classement à l'arrivée, lisibles de loin, en 16/9 comme en 4/3.</p></div>
 <div class="card"><div class="ic">🎬</div><h3>Animations Mat et Flo</h3><p>Compte à rebours avec le programme, cérémonie protocolaire, pause, évacuation du bassin, message libre : chaque moment a son écran animé.</p></div>
-<div class="card"><div class="ic">🤝</div><h3>Vos partenaires à l'honneur</h3><p>Les logos des partenaires passent entre les séries, avec une transition en vague. Ils apparaissent aussi en bas du site.</p></div>
+<div class="card"><div class="ic">🤝</div><h3>Vos partenaires à l'honneur</h3><p>Les logos des partenaires passent entre les séries, avec une transition en vague. Ils apparaissent aussi en bas du site. De quoi valoriser vos sponsors et rentabiliser la compétition.</p></div>
 <div class="card"><div class="ic">📱</div><h3>« Suivez la compétition »</h3><p>Un écran avec QR code invite régulièrement le public à suivre le direct sur son téléphone.</p></div>
 <div class="card"><div class="ic">🎛</div><h3>Une régie à part</h3><p>Une personne pilote l'écran géant depuis un autre ordinateur, sans gêner l'opérateur du chronométrage.</p></div>
 <div class="card"><div class="ic">📡</div><h3>Même sans Internet</h3><p>L'écran géant et la régie fonctionnent sur le réseau local de la piscine. Le site se remet à jour dès qu'Internet revient.</p></div>
@@ -85,13 +89,14 @@ footer img{width:96px;height:96px;display:block;margin:0 auto 12px}
 <p class="sub">Le logiciel <b>Swim Direct · Chrono</b> s'installe sur un PC Windows de la table de chronométrage. Il lit les temps sans rien modifier au chronométrage officiel.</p>
 <div class="chrono">
 <div class="ch"><span class="tag">Utilisé en compétition</span><b>Omega Quantum</b><span>Lecture des temps par le réseau.</span></div>
-<div class="ch"><span class="tag t">Bientôt disponible</span><b>Omega ARES</b><span>Liaison prête et validée en essai : derniers réglages avant sa première compétition.</span></div>
-<div class="ch"><b>ALGE</b><span>Lecture des temps de l'installation de chronométrage.</span></div>
-<div class="ch"><b>Stramatel</b><span>Lecture des temps de l'installation de chronométrage.</span></div>
+<div class="ch"><span class="tag t">En test</span><b>Omega ARES</b><span>Liaison validée en essai, en test lors de notre prochaine compétition.</span></div>
+<div class="ch"><span class="tag n">Pas encore développé</span><b>ALGE</b><span>Pas encore pris en charge. Contactez-nous si votre club est équipé.</span></div>
+<div class="ch"><span class="tag n">Pas encore développé</span><b>Stramatel</b><span>Pas encore pris en charge. Contactez-nous si votre club est équipé.</span></div>
 <div class="ch"><b>Semi-automatique</b><span>Même avec seulement des poires d'arrivée, la série se termine toute seule.</span></div>
 </div>
+<p class="pre"><b>Prérequis :</b> un PC Windows à la table de chronométrage, le réseau local de la piscine et un chronométrage compatible.</p>
 <div class="band"><div class="ic">🛟</div><div><b>Pensé pour le bord du bassin</b><p>Mise à jour automatique, mode test pour les essais avant la compétition (coupé tout seul au premier départ), journal envoyé au site pour comprendre le moindre incident, faux départs gérés.</p></div></div>
-<div class="band"><div class="ic">🌐</div><div><b>Sans chronométrage électronique ?</b><p>Swim Direct affiche aussi le programme et les résultats publiés sur le Live FFN, série par série.</p></div></div>
+<div class="band"><div class="ic">🌐</div><div><b>Sans chronométrage électronique ?</b><p>Sans chronométrage branché, Swim Direct affiche gratuitement le programme et les résultats publiés sur le Live FFN, série par série.</p></div></div>
 </section>
 
 <section><p class="kick">Pour l'organisateur</p><h2>Simple à préparer, simple à piloter</h2>
@@ -113,7 +118,9 @@ footer img{width:96px;height:96px;display:block;margin:0 auto 12px}
 <li><b>Le public scanne le QR code</b><span>Et suit tout en direct depuis les tribunes.</span></li>
 </ol></section>
 
-<div class="cta"><h2>Envie de Swim Direct pour votre compétition ?</h2><p>Swim Direct est imaginé et développé par Mat et Flo, au bord des bassins alsaciens.</p><a class="btn" href="/">Voir les compétitions</a></div>
+<div class="offer"><b>Offert aux organisateurs cette saison</b><p>Valeur 40 € la demi-journée. Tarifs dès la saison prochaine, sur demande.</p></div>
+
+<div class="cta"><h2>Envie de Swim Direct pour votre compétition ?</h2><p>Swim Direct est imaginé et développé par Mat et Flo, au bord des bassins alsaciens.</p><a class="btn" href="mailto:CONTACT-A-REMPLACER?subject=Demande%20Swim%20Direct">Demander Swim Direct</a><a class="btn2" href="/">Voir les compétitions</a></div>
 </main>
-<footer><img src="/matetflo.png" alt="Mat et Flo" width="96" height="96">Swim Direct · Flo &amp; Mat · données issues du Live FFN. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo 2026</footer>
+<footer><img src="/matetflo.png" alt="Mat et Flo" width="96" height="96">Swim Direct · Mat et Flo · données issues du Live FFN. Seuls les résultats publiés sur ffnatation.fr font foi.<br>© Mat-et-Flo 2026</footer>
 </body></html>

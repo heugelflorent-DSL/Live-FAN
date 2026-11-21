@@ -73,6 +73,7 @@ export function applyEvent(s, ev, t) {
       case "screen": s.screen = ev.mode && ev.mode !== "normal" ? { mode: String(ev.mode).slice(0, 20), at: t, title: String(ev.title || "").slice(0, 120), auto: !!ev.auto } : null; break;
       case "pubauto": s.pubAuto = !!ev.on; break; /* pub « suivez sur Swim Direct » automatique (entre séries, pendant les pauses) */
       case "spons": s.spons = !!ev.on; break; /* logo d'un partenaire entre deux séries (choix fait dans le logiciel du chrono) */
+      case "tvopt": s.tvbig = !!ev.big; s.tvrev = !!ev.rev; break; /* écran géant : mode grand pitch, sens des couloirs 8→1 */
       case "tvfmt": s.tvfmt = ev.fmt === "43" || ev.fmt === "169" ? ev.fmt : null; break;
       case "ping": break;
       default: return false;

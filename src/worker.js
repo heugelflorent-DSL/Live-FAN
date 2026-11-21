@@ -178,7 +178,8 @@ export function plan(cfg, data, now, live, LI = {}) {
   const tasks = [];
   for (const id of cfg.comps) {
     const c = data.comps[id];
-    if (!c || !c.progAt || now - c.progAt > progEvery(c, now) || progDue(c, now)) tasks.push({ t: "prog", c: id });
+    // programme importé à la main (fichier FFNex) : on ne le relit pas sur le Live FFN (évite les 403) ; une synchro manuelle « programme » reprend la main
+    if (c?.progSrc !== "ffnex" && (!c || !c.progAt || now - c.progAt > progEvery(c, now) || progDue(c, now))) tasks.push({ t: "prog", c: id });
     if (!c) continue;
     for (const r of c.reunions || []) {
       const evs = r.items.filter((i) => i.kind === "event").map((i) => ({ ...i, key: i.key || String(i.epr) }));
@@ -201,7 +202,7 @@ export function plan(cfg, data, now, live, LI = {}) {
         const fresh = fin && !pub && !e.soon && !beforeDay(c, r, now) && (!st.heatsAt || (e.nPart && now - st.heatsAt > 30 * 60e3)); // nombre de participants affiché = liste publiée
         const due = fresh || (!st.heatsAt && !fin) || (fin && !pub ? finDue(c, r, now, st.heatsAt) : !started && (pub ? reuDue(c, r, now, st.heatsAt) || (beforeDay(c, r, now) && now - st.heatsAt > 24 * 3600e3) : waitDue));
         const catchUp = pub && !st.results?.rows?.length && (evStartAt(c, e) || Infinity) > now - 5 * 60e3 && reuFinalMissing(c, r, now, st.heatsAt);
-        if (due || catchUp) tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
+        if ((due || catchUp) && st.heatsSrc !== "ffnex") tasks.push({ t: "heats", c: id, epr: e.epr, key: e.key });
       }
       if (!live) continue;
       // épreuves en cours : la première non terminée de la réunion et la suivante
@@ -274,7 +275,7 @@ async function runTask(task, data, now) {
     const p = parseProgramme(await get(urls.programme(task.c), { delay: 1500 }));
     if (!p.reunions.length) throw new Error(`Programme vide pour la compétition ${task.c}`);
     if (JSON.stringify([p.meta, p.reunions]) !== JSON.stringify([c.meta, c.reunions])) data.dirty = true;
-    c.meta = p.meta; c.reunions = p.reunions; c.progAt = now;
+    c.meta = p.meta; c.reunions = p.reunions; c.progAt = now; delete c.progSrc;
     if (p.reunions.some((r) => (r.items || []).some((i) => i.provisional))) {
       try {
         const e = parseEntries(await get(urls.entries(task.c), { delay: 1500 }));
@@ -329,7 +330,7 @@ async function runTask(task, data, now) {
     const hs = parseHeats(await get(urls.heats(task.c, ev), { delay: 1500 })).map((h) => ({ n: h.n, of: h.of, time: h.time, lanes: h.lanes.map(packLane) }));
     if (!hs.some((h) => h.lanes.length) && (st.heats || []).some((h) => h.lanes?.length)) { st.heatsAt = now; return; } // liste vide renvoyée : on garde celle déjà lue
     if (JSON.stringify(hs) !== JSON.stringify(st.heats || null)) { st.heats = hs; data.dirty = true; }
-    st.heatsAt = now; return;
+    delete st.heatsSrc; st.heatsAt = now; return;
   }
   if (task.t === "res") {
     const evs = eventsOf(c).filter((e) => e.epr === task.epr);
@@ -865,6 +866,7 @@ export default {
         for (const r of b.roster) { const k = String(r.iuf || r.name + "|" + r.year); if (!seen.has(k)) { seen.add(k); c.roster.push(r); n.roster++; } else if (r.iuf && at[k] != null) c.roster[at[k]] = { ...c.roster[at[k]], ...r }; } if (n.roster) c.rosterAt = now; }
       // journal gardé à part (pas dans les données publiques du live, qui grossiraient à chaque import) : tout l'historique
       { const LG = (await env.KV.get(kk("ffxlog", ev), "json")) || {}; LG[b.c] = [{ at: now, lines: log }, ...(LG[b.c] || c.ffxLog || [])]; delete c.ffxLog; await env.KV.put(kk("ffxlog", ev), JSON.stringify(LG)); }
+      data.lastOk = now; c.ffxAt = now; // le site affiche « Mis à jour à … » : l'import compte comme une mise à jour
       data.dirty = true; await saveData(env, data, before, ev);
       return json({ ok: true, ...n, clubs: Object.keys(alias).length, log });
     }
