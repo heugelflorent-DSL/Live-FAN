@@ -503,10 +503,12 @@ input[type="checkbox"]{accent-color:var(--red);width:18px;height:18px}
 .rule{display:grid;gap:10px;padding:12px;border-radius:12px;background:var(--card-in);border:1px solid var(--line)}
 .checks{display:flex;flex-wrap:wrap;gap:8px}
 .chk{display:flex;align-items:center;gap:6px}
+.qrow{display:grid!important;grid-template-columns:minmax(0,1fr);gap:6px;padding:8px 0;border-bottom:1px solid var(--line,#e5e0e0)}.qrow:last-child{border-bottom:0}.qrow .chk:nth-child(2){padding-left:26px;font-size:.92em;color:var(--grey,#5b7685)!important}.qrow .chk input{flex:0 0 18px;color-scheme:light}
 
 /* pied de page */
 .foot{margin-top:36px;padding-top:12px;border-top:1px solid rgba(var(--a-rgb),.2);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;font-size:12px;color:var(--wine)}
 .foot p{margin:0;max-width:60ch}
+.sl-f{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:8px 0}.sl-f label{display:grid;gap:2px;font-size:12px;color:var(--muted,#5b7685);flex:1 1 140px}.sl-f select{font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line,#d6e1ec);background:#fff;color:#13284d}.sl-r b{white-space:nowrap;margin-left:8px}.sl-b h5{margin:12px 0 4px}.sl-r .linkb{background:none;border:0;padding:0;font:inherit;font-weight:700;color:inherit;text-align:left;cursor:pointer;text-decoration:underline dotted}
 .favtip{margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#fff7dc;border:1px solid #f2d98b;color:#5c4400;font-size:13.5px;line-height:1.4}.favtip span{font-size:17px;color:#d99a00}
 .adminlink{border:1px solid rgba(var(--a-rgb),.3);background:none;color:var(--wine);border-radius:8px;padding:3px 10px;font-size:11px}
 .clubrow{grid-template-columns:minmax(0,1fr) auto}
@@ -1444,7 +1446,8 @@ function build(cfg,data){normYears(data,0);try{clubUnify(data.comps)}catch(_){}l
     state.starts[n]=sv&&(lock||!ffnH||(cfg.startsFfn||{})[n]===ffnH)?sv:(ffnH||sv||"10:00");
   }
   for(const [k,l] of Object.entries(state.lines))EVENTS[k]={key:k,type:"pause",name:l.name||"",min:l.min??0,ffn:!!l.ffn,man:!!l.man};
-  state.progLock=!!cfg.progLock;state.order=order;state.progLogo=cfg.progLogo||"";state.ntPer50=+cfg.ntPer50||75;state.doorsMan={...(cfg.doorsMan||{})};state.evac={...(cfg.evac||{})};state.evacFfn=Object.fromEntries(Object.entries(byReu).filter(([n,r])=>r.evac).map(([n,r])=>[n,r.evac]));Object.assign(state.evac,state.evacFfn);state.doorsFfn=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||""]));state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||state.doorsMan[n]||""])); // ouverture des portes : Live FFN, sinon celle saisie dans l'adminstate.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
+  state.progLock=!!cfg.progLock;state.order=order;state.progLogo=cfg.progLogo||"";state.ntPer50=+cfg.ntPer50||75;state.doorsMan={...(cfg.doorsMan||{})};state.evac={...(cfg.evac||{})};state.evacFfn=Object.fromEntries(Object.entries(byReu).filter(([n,r])=>r.evac).map(([n,r])=>[n,r.evac]));Object.assign(state.evac,state.evacFfn);state.doorsFfn=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||""]));state.doors=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.doors||state.doorsMan[n]||""])); /* ouverture des portes : Live FFN, sinon celle saisie dans l'admin */
+  state.reuDay=Object.fromEntries(Object.entries(byReu).map(([n,r])=>[n,r.day||""]));
   mergeInitials();
   if(!state.name&&state.comps[0]&&state.comps[0].date)state.name=(state.comps[0].city?state.comps[0].city.charAt(0)+state.comps[0].city.slice(1).toLowerCase()+" · ":"")+state.comps[0].date;
   state.loaded=true;
@@ -2144,6 +2147,7 @@ document.addEventListener("click",async e=>{const t=e.target;if(!t.closest||!t.c
   if(t.id==="q-del"){if(!confirm("Supprimer la grille « "+q.name+" » ?"))return;QUALS=QUALS.filter(x=>x!==q);QSEL=null;await qSave();renderQuals();return}
   if(t.id==="q-save"){await qSave();return}});
 async function qSave(){const m=$("#q-msg");try{await api("/api/admin/quals",{method:"PUT",body:JSON.stringify(QUALS)});if(m)m.textContent="Grilles enregistrées ✓"}catch(err){if(m)m.textContent=err.message}}
+document.addEventListener("toggle",e=>{if(e.target&&e.target.dataset&&e.target.dataset.slopen)state.open.slist=e.target.open});
 document.addEventListener("toggle",e=>{if(e.target&&e.target.dataset&&e.target.dataset.stopen)state.open.stats=e.target.open},true);
 document.addEventListener("change",e=>{if(e.target&&e.target.id==="ev-masters"){state.masters=e.target.checked;/* grilles qui suivent directement : les grilles maîtres cochées d'office */const L=qualsForLive().map(q=>q.id);if(state.masters&&!(state.qualFor||[]).some(id=>L.includes(id)))state.qualFor=[...(state.qualFor||[]),...L];/* podiums : règlement maîtres (par catégorie C0…C14, dames et messieurs séparés comme toujours) */if(state.masters){const R=state.podRules.filter(r=>r.type!=="team");if(!R.length)state.podRules.push({id:"r"+Date.now(),name:"Podiums maîtres",type:"race",perEvent:0,comps:state.comps.map(c=>c.id),mode:"age",cats:MASTERS_CATS.map(c=>({...c})),groups:"",places:3});else for(const r of R){r.mode="age";r.cats=MASTERS_CATS.map(c=>({...c}))}}render();scheduleSave();renderQuals();return}});
 document.addEventListener("change",e=>{const t=e.target;if(!t.closest||!t.closest("#qual-body"))return;const q=QUALS.find(x=>x.id===QSEL);
@@ -3065,6 +3069,23 @@ function statsCard(ps){if(!ps.length)return"";const sx={F:0,M:0};const catOf=p=>
    <div><h5>Par âge</h5>${(()=>{const Y={};const ref=refYearDefault();for(const p of ps){const y=parseInt(p.sw.year);if(!y)continue;const a=Math.min(18,ref-y);Y[a]=(Y[a]||0)+1}return Object.keys(Y).map(Number).sort((a,b)=>a-b).map(a=>`<div class="st-r"><span>${a>=18?"U18 et +":"U"+a} <small class="sub">· ${a>=18?(ref-18)+" et avant":ref-a}</small></span><b>${Y[a]}</b></div>`).join("")||"<p class='msg'>—</p>"})()}</div>
    <div><h5>Performances</h5><div class="st-r"><span>Épreuves comparées au RP</span><b>${g.n}</b></div><div class="st-r"><span>Records perso battus</span><b>${g.rp}${g.n?` (${Math.round(g.rp/g.n*100)} %)`:""}</b></div><div class="st-r"><span>Nouvelles épreuves</span><b>${g.nNew||0}</b></div></div>
    <div><h5>Qualifiés par championnat</h5>${Object.keys(Q).length?Object.keys(Q).map(n=>`<div class="st-r"><span>${esc(n)}</span><b>${Q[n]}</b></div>`).join(""):"<p class='msg'>Aucun qualifié pour l'instant.</p>"}</div></div></details>`}
+/* liste de départ filtrable (catégorie, année de naissance, sexe, épreuve), sous les statistiques de « Nageurs & clubs » */
+state.slf=state.slf||{cat:"",year:"",sex:"",ev:""};
+function slistCard(ps){if(!ps.length)return"";const F=state.slf,L=state.masters?MASTERS_CATS:FFN_CATS,ref=refYearDefault();
+  const catOf=y=>{y=parseInt(y);if(!y)return"";const a=ref-y,c=L.find(c=>a>=(+c.min||0)&&a<=(c.max===""||c.max==null?999:+c.max));return c?c.name:""};
+  const sexOf=(p,ev)=>p.sw.sex||(/Dames/.test(ev.name)?"F":/Messieurs/.test(ev.name)?"M":"");
+  const years=[...new Set(ps.map(p=>parseInt(p.sw.year)).filter(Boolean))].sort((a,b)=>b-a),keys=allKeys().filter(k=>EVENTS[k]&&EVENTS[k].type==="event"&&!EVENTS[k].relay&&(EVENTS[k].entries||[]).length);
+  const opt=(v,t,c)=>`<option value="${esc(v)}"${c===v?" selected":""}>${esc(t)}</option>`;
+  const sel=(f,lab,o)=>`<label>${lab}<select data-slf="${f}">${o}</select></label>`;
+  const any=F.cat||F.year||F.sex||F.ev;let n=0,body="";
+  if(any){for(const k of keys){if(F.ev&&F.ev!==k)continue;const ev=EVENTS[k];const rows=[];
+      for(const p of ps)for(const it of p.items){if(it.ev!==ev||it.leg)continue;const w=it.w;if(F.cat&&catOf(p.sw.year)!==F.cat)continue;if(F.year&&String(p.sw.year)!==F.year)continue;if(F.sex&&sexOf(p,ev)!==F.sex)continue;rows.push({p,w})}
+      if(!rows.length)continue;rows.sort((a,b)=>(a.w.heat||99)-(b.w.heat||99)||(a.w.lane||99)-(b.w.lane||99)||a.p.sw.name.localeCompare(b.p.sw.name));
+      body+=`<h5>${evA(k,ev.name)} <small class="sub">· ${plural(rows.length,"nageur")}</small></h5>`;
+      for(const r of rows){if(++n>400)break;body+=`<div class="st-r sl-r"><span><button class="linkb" data-swimmer="${esc(r.p.sw.iuf)}">${esc(r.p.sw.name)}</button> <small class="sub">${r.p.sw.year||""} · ${esc(r.p.sw.club||"")}</small></span><b>${r.w.heat?"S"+r.w.heat+(r.w.lane?" · L"+r.w.lane:""):""}${r.w.time&&r.w.time<3599?" · "+fmt(r.w.time):""}</b></div>`}
+      if(n>400){body+=`<p class="msg">Liste raccourcie : affine avec un filtre.</p>`;break}}
+    if(!body)body="<p class='msg'>Personne ne correspond à ces filtres.</p>"}
+  return`<details class="stats-card sl-card"${state.open.slist?" open":""} data-slopen="1"><summary><b>📋 Liste de départ</b> <span class="sub">filtrer par catégorie, année ou épreuve</span></summary><div class="sl-f">${sel("cat","Catégorie",opt("","Toutes",F.cat)+L.map(c=>opt(c.name,c.name,F.cat)).join(""))}${sel("year","Année de naissance",opt("","Toutes",F.year)+years.map(y=>opt(String(y),y+" ("+(ref-y)+" ans)",F.year)).join(""))}${sel("sex","Sexe",opt("","Tous",F.sex)+opt("F","Dames",F.sex)+opt("M","Messieurs",F.sex))}${sel("ev","Épreuve",opt("","Toutes",F.ev)+keys.map(k=>opt(k,EVENTS[k].name,F.ev)).join(""))}${any?`<button class="btn small ghost" data-slclear="1">Effacer</button>`:""}</div>${any?`<div class="sl-b">${body}</div>`:`<p class="msg">Choisis une catégorie, une année de naissance ou une épreuve pour voir qui nage quoi.</p>`}</details>`}
 function renderPart(){
   const q=getQ(),fc=$("#filter-comp").value,P=participants();const clubs={};
   for(const p of Object.values(P)){if(fc&&p.sw.comp!==fc)continue;(clubs[p.sw.club]=clubs[p.sw.club]||{name:p.sw.club,sw:[],eng:0});clubs[p.sw.club].sw.push(p);clubs[p.sw.club].eng+=p.items.length}
@@ -3076,7 +3097,7 @@ function renderPart(){
     return{...c,shown:sw,open:!!q||state.open["c"+c.name]};
   }).filter(c=>c.shown.length);
   const nSw=list.reduce((a,c)=>a+c.shown.length,0);
-  if(!q)html+=statsCard(Object.values(clubs).flatMap(c=>c.sw));
+  if(!q)html+=statsCard(Object.values(clubs).flatMap(c=>c.sw));if(!q)html+=slistCard(Object.values(clubs).flatMap(c=>c.sw));
   html+=`<div class="session">${secTitle(q?"Recherche":"Clubs",plural(list.length,"club")+" · "+plural(nSw,"nageur"))}<div class="list">
    ${list.map(c=>`<div class="lane"><button class="row clubrow" data-open="c${esc(c.name)}" aria-expanded="${c.open}"><span class="ev"><b>${logo(c.name)}${esc(c.name)}</b><span class="sub">${plural(c.sw.length,"nageur")}${(()=>{const n=new Set(c.sw.map(p=>teamOf(p.sw)).filter(Boolean)).size;return n>1?" · "+n+" équipes":""})()}${c.eng?" · "+plural(c.eng,"engagement"):""}</span>${(()=>{const g=progClub(c.sw);return g.all?`<span class="pg-line">${g.n?`<span class="pct ${pctCls(g.avg)}">${pctTxt(g.avg)}</span><span class="pg-rp">${g.rp} RP</span>`:""}${g.nNew?`<span class="pg-new">${g.nNew} nouv.</span>`:""}<span class="pg-n">${plural(g.all,"épreuve")} nagée${g.all>1?"s":""}</span></span>`:""})()}</span><span class="chev" aria-hidden="true">▼</span></button>
      ${c.open?`<div class="inner">${qualLine(c.sw)}${(()=>{const g=progClub(c.sw);return g.all?progKpis(g)+`<p class="msg pg-note">Progression et RP : seulement les épreuves déjà nagées avant la compétition (écart avec le record perso d'avant). Nouvelle épreuve = première fois sur cette course. Forfaits et disqualifications ne comptent pas.</p>`:""})()}${clubEliteLine(c.name)}<div style="padding:4px 4px 0"><button class="btn small" data-recap="c:${esc(c.name)}">Récap du club</button></div><div style="padding:6px 4px">${favBtn("c",clubKey(c.name),c.name)}</div><div class="list">${isFavClub(c.name)?`<p class="msg" style="margin:0 4px 6px">Tout le club est suivi. Pour ne suivre que quelques nageurs, retire le club puis coche les ☆ des nageurs.</p>`:`<p class="msg" style="margin:0 4px 6px">Ou ne suis que certains nageurs : touche leur ☆.</p>`}${c.shown.map(p=>{const on=isFavSw(p.sw.iuf);return`<div class="prow-w"><button class="prow inprow${isFav(p.sw)?" fav":""}" data-swimmer="${p.sw.iuf}"><b>${isFav(p.sw)?'<span class="favstar">★</span>':""}${esc(p.sw.name)}</b><span class="sub">${p.sw.year}${teamChip(p.sw)}${state.comps.length>1?" "+compBadge(p.sw.comp):""}</span><span class="num">${(()=>{const g=progOf(p);return g.n?`${g.rp?`<span class="pg-rpb">${g.rp} RP</span> `:""}<span class="pct ${pctCls(g.avg)}">${pctTxt(g.avg)}</span>`:plural(p.items.length,"course")+" ›"})()}</span></button><button class="swfav${on?" on":""}" data-fav="s" data-favkey="${esc(p.sw.iuf)}" data-favname="${esc(p.sw.name)}" aria-pressed="${on}" aria-label="${on?"Ne plus suivre":"Suivre"} ${esc(p.sw.name)}">${on?"★":"☆"}</button></div>`}).join("")}</div></div>`:""}</div>`).join("")||`<p class="empty">Aucun nageur ni club ne correspond.</p>`}</div></div>`;
@@ -3448,7 +3469,7 @@ $("#save-btn").onclick=()=>saveNow();
 $("#back-public2").onclick=()=>$("#back-public").click();
 window.addEventListener("beforeunload",e=>{if(state.admin&&JSON.stringify(toConfig())!==lastSaved){e.preventDefault();e.returnValue=""}});
 $("#back-public").onclick=async()=>{await saveNow();state.admin=false;adminHash(false);await loadPublic();render()};
-$("#pub-body").addEventListener("click",e=>{
+$("#pub-body").addEventListener("click",e=>{if(e.target.closest("[data-slclear]")){state.slf={cat:"",year:"",sex:"",ev:""};state.open.slist=true;renderPublic();return}
   const ru=e.target.closest("[data-reu]");if(ru){state.reu=ru.dataset.reu;renderPublic();window.scrollTo(0,0);return}
   const rs=e.target.closest("[data-rsex]");if(rs){state.rankSex=rs.dataset.rsex;state.open={};renderPublic();return}
   const rr=e.target.closest("[data-rr]");if(rr){state.rankRule=rr.dataset.rr;renderPublic();return}
@@ -3477,7 +3498,7 @@ $("#pub-body").addEventListener("click",e=>{
     state.open[k]=on;renderPublic();navSave();if(on){const el=document.querySelector(`[data-open="${CSS.escape(k)}"]`);if(el){const r=el.getBoundingClientRect(),nav=($("#navbar")||{}).offsetHeight||0;if(r.top<nav||r.top>innerHeight*.6)window.scrollTo({top:scrollY+r.top-nav-12,behavior:"smooth"})}}}
 });
 $("#search").oninput=renderPublic;
-$("#pub-body").addEventListener("change",e=>{if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
+$("#pub-body").addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.slf){state.slf[e.target.dataset.slf]=e.target.value;state.open.slist=true;renderPublic();return}if(e.target.id==="pod-ev"){state.podEv=e.target.value;renderPublic();window.scrollTo(0,0)}});$("#filter-comp").onchange=renderPublic;
 $("#ev-name").oninput=e=>{state.name=e.target.value;scheduleSave()};
 $("#ev-theme").onchange=e=>{state.theme=e.target.value;if(state.theme==="custom"&&!state.color)state.color=$("#ev-color").value;applyTheme();scheduleSave()};
 function colorClash(hex){const[h,s,l]=rgb2hsl(hx2rgb(hex));if(s>.35&&l>.15&&h>=28&&h<=65)return"Teinte trop proche de l'or et du bronze des podiums et de l'orange des alertes : choisis-en une autre.";if(s>.45&&l>.15&&h>=95&&h<=150)return"";return""}
