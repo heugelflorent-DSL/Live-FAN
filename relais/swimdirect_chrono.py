@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.8.0"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.8.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -215,6 +215,7 @@ class Core:
                 was = self.st["linked"]
                 self.st.update(linked=bool(j.get("linked")), name=j.get("name", ""), url=j.get("url", ""), bassin=j.get("bassin"), err="")
                 self.apply_sys(j.get("sys"))
+                if self.st["linked"]: self.apply_opts(j.get("opts"), j.get("optsRev"))
                 # mode test oublié : il se coupe tout seul 2 minutes avant le premier départ prévu de la réunion
                 st0 = j.get("start")
                 if self.test and st0 and j.get("now") and j["now"] >= st0 - 120000:
@@ -226,7 +227,7 @@ class Core:
                 if not self.st["err"]: self.log(f"✗ Site injoignable : {e}")
                 self.st["err"] = f"site injoignable ({e})"
             self.check_update()
-            time.sleep(5 if not self.st["linked"] else 60)
+            time.sleep(5 if not self.st["linked"] else 10)
 
     # type de chronométrage choisi sur la page admin du live : on règle le mode tout seul
     PRESET = {"quantum": ("reseau", None), "ares": ("serie", "9600,7,E,1"), "stramatel": ("serie", "9600,8,N,1"), "alge": ("serie", "19200,8,N,1")}
@@ -314,7 +315,7 @@ class Core:
                 if not self.test or ev.get("k") == "ping":
                     try: self.q.put_nowait(ev)
                     except queue.Full: pass
-                if self.qout:
+                if self.qout and getattr(self, "qout_on", True):
                     try: self.qout.on(ev)
                     except Exception as e: self.log(f"✗ Sortie réseau : {e}")
                 self.screen.push(ev)  # le signe de vie sert aussi à l'écran local (fin de série sans appui de poire)
@@ -367,6 +368,16 @@ class Core:
     def splash_loop(self):
         d = self.cfg["source"].partition(":")[2].strip() or "C:\\ARES\\SWIMM"
         # sortie réseau « comme un Quantum » pour d'autres logiciels (affichage, TV…) : port 26700 par défaut, « 0 » pour la couper
+        self.start_qout()
+        self.log(f"✓ Lecture d'ARES Swimming par l'interface Splash ({d})")
+        def status(s): self.st["quantum"] = s
+        import swim_relais as _sr; _sr.log = lambda *a: self.log("ARES · " + " ".join(map(str, a)))  # messages du lecteur ARES dans le journal envoyé au site
+        try:
+            for data, ts in splash_source(d, stop=lambda: self.stop or self.restart, status=status): self.feed(data, ts)
+        except Exception as e:
+            self.st["quantum"] = f"ARES Splash : {e}"; self.log(f"✗ ARES Splash : {e}"); time.sleep(5)
+
+    def start_qout(self):
         qp = str(self.cfg.get("sortie_quantum", "26700")).strip()
         if qp.isdigit() and int(qp) and not self.qout:
             self.qout = QuantumOut()
@@ -375,13 +386,28 @@ class Core:
                 except OSError as e: self.log(f"✗ Sortie réseau port {qp} : {e}"); self.qout = None
             threading.Thread(target=qserve, daemon=True).start()
             threading.Thread(target=open_firewall, args=(int(qp), self.log), daemon=True).start()
-        self.log(f"✓ Lecture d'ARES Swimming par l'interface Splash ({d})")
-        def status(s): self.st["quantum"] = s
-        import swim_relais as _sr; _sr.log = lambda *a: self.log("ARES · " + " ".join(map(str, a)))  # messages du lecteur ARES dans le journal envoyé au site
-        try:
-            for data, ts in splash_source(d, stop=lambda: self.stop or self.restart, status=status): self.feed(data, ts)
-        except Exception as e:
-            self.st["quantum"] = f"ARES Splash : {e}"; self.log(f"✗ ARES Splash : {e}"); time.sleep(5)
+
+    # options pilotées à distance depuis l'admin du site (liste fermée : affichage de l'écran géant et sortie réseau) ; appliquées une seule fois à chaque modification
+    def apply_opts(self, opts, rev):
+        if not isinstance(opts, dict) or not rev or rev == getattr(self, "opts_rev", None): return
+        first = getattr(self, "opts_rev", None) is None
+        self.opts_rev = rev
+        done = []
+        for k, act in (("big", "big"), ("rev", "rev"), ("spons", "spons"), ("pub", "pub"), ("auto", "auto")):
+            if isinstance(opts.get(k), bool):
+                self.screen.cmds.put({"act": act, "on": opts[k]}); done.append(f"{k}={'oui' if opts[k] else 'non'}")
+        if opts.get("fmt") in ("", "169", "43") and "fmt" in opts:
+            self.screen.cmds.put({"act": "fmt", "f": opts["fmt"]}); done.append("format=" + (opts["fmt"] or "auto"))
+        sc = opts.get("screen")
+        if isinstance(sc, dict) and not first and sc.get("mode") in ("normal", "count", "evac", "cer", "pause", "spons", "pub", "msg"):  # jamais rejoué au démarrage du logiciel
+            self.screen.cmds.put({"act": "screen", "mode": sc["mode"], "title": str(sc.get("title") or "")[:120]}); done.append("écran=" + sc["mode"])
+        if isinstance(opts.get("qout"), bool):
+            if opts["qout"]:
+                if str(self.cfg.get("sortie_quantum", "26700")).strip() in ("", "0"): self.cfg["sortie_quantum"] = "26700"
+                self.qout_on = True; self.start_qout()
+            else: self.qout_on = False
+            done.append("sortie réseau=" + ("oui" if opts["qout"] else "non"))
+        if done: self.log("🎛 Réglages reçus du site : " + ", ".join(done))
 
     def net_loop(self):
         quick = 0

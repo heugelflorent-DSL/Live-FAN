@@ -599,7 +599,12 @@ async function tooManyFails(req, ok) {
   if (!ok) await caches.default.put(key, new Response(String(n + 1), { headers: { "cache-control": "max-age=900" } }));
   return false;
 }
-function publicConfig(cfg) { const { scrape, ...rest } = cfg; return rest; }
+function publicConfig(cfg) { const { scrape, exeOpts, exeOptsRev, ...rest } = cfg; return rest; }
+// options du logiciel chrono pilotées à distance par l'administrateur (liste fermée : affichage de l'écran géant et sortie réseau, jamais la liaison avec le chronométrage)
+const EXE_BOOL = ["big", "rev", "spons", "pub", "auto", "qout"];
+function exeOpts(o) { const out = {}; if (!o || typeof o !== "object") return out; for (const k of EXE_BOOL) if (typeof o[k] === "boolean") out[k] = o[k]; if (typeof o.fmt === "string" && ["", "43", "169"].includes(o.fmt)) out.fmt = o.fmt;
+  const sc = o.screen; if (sc && typeof sc === "object" && ["normal", "count", "evac", "cer", "pause", "spons", "pub", "msg"].includes(sc.mode)) out.screen = { mode: sc.mode, title: String(sc.title || "").slice(0, 120), n: +sc.n || 0 }; // écran affiché (cérémonie, évacuation…) : « n » change à chaque envoi
+  return out; }
 
 async function rescrape(env, scope, what, ev = "main") {
   const { config, data } = await load(env, ev);
@@ -756,7 +761,7 @@ export default {
         let start = null; try { const d = (await env.KV.get(kk("data", pr.ev), "json")) || {}; for (const id of c.comps || []) { const cc = d.comps && d.comps[id]; if (!cc) continue; const dt0 = compDate(cc.meta);
             for (const r of cc.reunions || []) { const dt = compDate({ date: r.day }) || dt0; if (!dt) continue; const evs = (r.items || []).filter((i) => i.kind === "event" && i.time); const f0 = hToMin(evs[0]?.time); if (f0 == null) continue;
               const at = parisEpoch(dt.y, dt.m, dt.d) + f0 * 60e3, end = parisEpoch(dt.y, dt.m, dt.d) + ((hToMin(evs[evs.length - 1]?.time) ?? f0) + 120) * 60e3; if (end > Date.now() && (start == null || at < start)) start = at; } } } catch (e) {}
-        return json({ linked: true, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || c.chronoSys || "quantum", now: Date.now(), start });
+        return json({ linked: true, opts: exeOpts(c.exeOpts), optsRev: c.exeOptsRev || 0, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || c.chronoSys || "quantum", now: Date.now(), start });
       }
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
@@ -1137,6 +1142,8 @@ export default {
       const cfg = { ...DEFAULT_CONFIG, ...body };
       const prev = await env.KV.get(kk("config", ev), "json");
       if (!ADM) cfg.scrape = (prev && prev.scrape) || DEFAULT_CONFIG.scrape; // fréquence de lecture du Live FFN : réglée par l'administrateur
+      { const a = ADM ? exeOpts(cfg.exeOpts) : exeOpts(prev && prev.exeOpts), b = exeOpts(prev && prev.exeOpts); // options du logiciel chrono : administrateur seulement ; la révision change à chaque modification
+        cfg.exeOpts = a; cfg.exeOptsRev = JSON.stringify(a) === JSON.stringify(b) ? (prev && prev.exeOptsRev) || 0 : Date.now(); }
       await env.KV.put(kk("config", ev), JSON.stringify(cfg));
       // réglages modifiés : un live marqué terminé est de nouveau suivi (la tâche vérifiera s'il l'est toujours)
       { const h = (await env.KV.get("hot", "json")) || {}; if (h[ev] && h[ev].f) { delete h[ev]; await env.KV.put("hot", JSON.stringify(h)); } }
