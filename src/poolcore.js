@@ -61,6 +61,13 @@ export function applyEvent(s, ev, t) {
         if (same) { s.heat.event = ev.event; if (ev.heat != null) { s.heat.heat = ev.heat; s.heat.heatGuess = false; } }
         // départ rappelé : liste de départ (SL) renvoyée pour la série en cours, aucune arrivée, plus de 3 s après le départ → chrono figé jusqu'au nouveau départ
         if (same && ev.msg === "SL" && s.heat.status === "running" && s.heat.start && t - s.heat.start > 3000 && !Object.values(s.heat.lanes).some((l) => l.fin)) { s.heat.status = "ready"; s.heat.start = null; s.heat.lanes = {}; s.heat.recall = true; }
+        /* résultats officiels d'une AUTRE série (validation tardive d'une série déjà nagée) pendant qu'une série est en cours ou chargée au départ : on les range dans l'historique sans toucher à la série en cours
+           (sinon le chrono qui tourne se retrouvait rattaché à l'ancienne série, qui « repartait » sur l'écran géant et sur le Direct) */
+        if (!same && (ev.stat === "O" || ev.stat === "F") && s.heat && (s.heat.status === "running" || s.heat.status === "ready")) {
+          const o = { event: ev.event, heat: ev.heat, status: "done", start: null, at: t, doneAt: t, official: true, sim: !!ev.sim, key: ev.key || null, comp: ev.comp || "", extra: isExtra(s, ev.comp || ""), title: ev.title || "", heats: ev.heats || null, laps: ev.laps || null, names: {}, lanes: {} };
+          for (const l of ev.lanes || []) { if (l.name) o.names[l.lane] = { name: l.name, club: l.club, born: l.born }; if (l.time) o.lanes[l.lane] = { laps: {}, fin: { t: l.time, rank: l.rank } }; }
+          archive(s, o); break;
+        }
         if (!same) { if (s.heat && s.heat.start) (archive(s, s.heat), s.prev = s.heat); s.heat = { event: ev.event, heat: ev.heat, status: "ready", start: null, lanes: {}, at: t }; }
         if (ev.comp && !ev.sim && !s.mainComp) s.mainComp = String(ev.comp).trim();
         const h = s.heat; h.sim = !!ev.sim; h.key = ev.key || null; h.comp = ev.comp || h.comp || ""; h.extra = isExtra(s, h.comp); h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
