@@ -3,7 +3,8 @@
 export const empty = () => ({ heat: null, prev: null, hist: {}, updatedAt: 0, relayAt: 0 });
 /* autre compétition ouverte dans le Quantum : rangée à part (jamais mélangée avec les séries de la compétition principale) */
 /* même compétition sur plusieurs réunions : le Quantum préfixe « R1 », « R2 »… → comparé sans ce préfixe */
-export const compKey = (c) => String(c || "").trim().replace(/^(?:R|Réunion\s*)\d+\s*[-:·]?\s*/i, "").toLowerCase();
+/* + noms de fichiers du Quantum d'une même compétition écrits différemment (« Guebwiller_21112026_R1 » puis « Guebwiller_21_11_2026 ») : comparés sans ponctuation ni suffixe de réunion « R1 » */
+export const compKey = (c) => String(c || "").trim().replace(/^(?:R|Réunion\s*)\d+\s*[-:·]?\s*/i, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s_\-·:]+r\d+$/, "").replace(/[^a-z0-9]+/g, "");
 export function isExtra(s, comp) { comp = String(comp || "").trim(); return !!(comp && s.mainComp && compKey(comp) !== compKey(s.mainComp)); } /* le site décide si elle compte (2 compétitions sur le live) ou non (rattrapage) */
 // séries terminées gardées pour l'affichage des « séries précédentes » de l'épreuve en cours
 export const archive = (s, h) => {
