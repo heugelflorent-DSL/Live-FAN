@@ -2477,6 +2477,8 @@ function poolPauseCard(){let h=POOL&&POOL.heat;/* série suivante déjà chargé
 /* écran imposé depuis le logiciel du chrono (bouton dans Swim Direct · Chrono) : prioritaire sur le direct, 4 h au plus */
 /* logos des partenaires sur l'écran géant : bouton « Partenaires » de l'exe (tous, à tour de rôle) ou entre deux séries (un seul, chacun son tour) */
 /* Mat-et-Flo est toujours l'un des partenaires de l'écran géant (fixe, non modifiable depuis l'admin) */
+/* écran géant : la liste des partenaires est rechargée toute seule (vide → toutes les 30 s, sinon toutes les 10 min) ; sans ça, un chargement raté au démarrage laissait Mat-et-Flo seul jusqu'au prochain rechargement de la page */
+let SPLT=0;setInterval(()=>{try{if(!document.body.classList.contains("tv")||document.hidden)return;const n=(SPONS.ev||[]).length+(SPONS.all||[]).length,gap=n?600e3:30e3;if(Date.now()-SPLT<gap)return;SPLT=Date.now();loadSpons()}catch(_){}},10e3);
 function spList(){const seen=new Set();return[{img:"/matetflo.png",name:"Mat-et-Flo"},...[...(SPONS.ev||[]),...(SPONS.all||[])].filter(x=>x&&x.img&&!/mat-?et-?flo/i.test(x.name||"")&&!/matetflo/i.test(x.img)&&!seen.has(x.img)&&seen.add(x.img))]}
 function spHtml(L,tag){const n=L.length,D=6,p=100/n,k=`spc${n}`;
   const kf=n>1?`<style>@keyframes ${k}{0%{opacity:0;transform:scale(.55) rotate(-4deg)}${(p*.12).toFixed(2)}%{opacity:1;transform:scale(1.06) rotate(1deg)}${(p*.2).toFixed(2)}%{transform:scale(1) rotate(0)}${(p*.86).toFixed(2)}%{opacity:1;transform:scale(1)}${(p*.98).toFixed(2)}%,100%{opacity:0;transform:scale(.9)}}</style>`:"";
