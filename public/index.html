@@ -971,7 +971,8 @@ body.tv #tvscreen.tvlight{background:#fff;color:#000}
 .sp5-c{font-size:11px;color:var(--muted);font-family:var(--mono);white-space:nowrap;min-width:96px;text-align:right}.sp5-c b{color:var(--ink);font-weight:700}
 .sp5-d{font-family:var(--mono);font-size:12px;font-weight:800;text-align:right;padding:1px 6px;border-radius:6px;min-width:46px;line-height:1.3}
 .sp5-d small{display:none}
-@media(max-width:520px){.sp5-r{grid-template-columns:46px 1fr auto;gap:5px;padding:3px 4px}.sp5-l{font-size:10.5px}.sp5-m{gap:4px}.sp5-t{font-size:13px;min-width:0}.sp5-c{font-size:10px;min-width:0}.sp5-d{min-width:40px;font-size:11px;padding:1px 4px}.sp5-hd{margin:0 4px 2px}}
+.sp5-coarse{margin:0 0 6px;padding-bottom:4px;border-bottom:2px solid var(--line)}.sp5-coarse .sp5-r{grid-template-columns:76px 1fr auto}.sp5-coarse .sp5-l{font-size:11px}.sp5-coarse .sp5-t{font-size:14px}
+@media(max-width:520px){.sp5-r{grid-template-columns:46px 1fr auto;gap:5px;padding:3px 4px}.sp5-l{font-size:10.5px}.sp5-m{gap:4px}.sp5-t{font-size:13px;min-width:0}.sp5-c{font-size:10px;min-width:0}.sp5-d{min-width:40px;font-size:11px;padding:1px 4px}.sp5-hd{margin:0 4px 2px}.sp5-coarse .sp5-r{grid-template-columns:68px 1fr auto}}
 .sp5-d.fa{color:#1f9d55;background:rgba(31,157,85,.14)}.sp5-d.sl{color:#e05252;background:rgba(224,82,82,.14)}.sp5-d.eq{color:var(--muted);background:rgba(127,127,127,.12)}
 
 .sp4-h{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:2px}
@@ -2819,7 +2820,7 @@ let PSYNC=0,ALBOOT=false;function alertTick(){if(state.admin||!state.loaded||!st
     if(v.live&&!p.live&&!v.done)Q.push(["▶ C'est parti : "+nm,"L'épreuve commence"+cm,k]);
     if(v.done&&!p.done)Q.push(["✓ Résultats : "+nm,"Les résultats sont publiés"+cm,k]);
     /* nouvel horaire : seulement pour l'épreuve qui arrive (dans l'heure) et un vrai décalage (10 min ou plus) */
-    if(!v.done&&!v.live&&v.t!=null&&p.t!=null&&Math.abs(v.t-p.t)>=10&&v.t-nowMin<=60)Q.push(["⏱ Nouvel horaire : "+nm,"Prévue vers "+hm(v.t*60)+" (au lieu de "+hm(p.t*60)+")"+cm,k])}
+    if(!v.done&&!v.live&&v.t!=null&&p.t!=null&&Math.abs(v.t-p.t)>=10&&v.t-nowMin<=60&&v.t-nowMin>=-15&&EVENTS[k]&&sessToday(Object.keys(state.order).find(r=>state.order[r].includes(k))))Q.push(["⏱ Nouvel horaire : "+nm,"Prévue vers "+hm(v.t*60)+" (au lieu de "+hm(p.t*60)+")"+cm,k])}
   if(Q.length>2)alertShow("🔔 "+Q.length+" nouveautés sur tes épreuves suivies",Q.slice(0,3).map(x=>x[0].replace(/^\S+\s/,"")).join(" · ")+(Q.length>3?"…":""),null);else for(const q of Q)alertShow(...q);
   const fin=!!(st&&st.k==="done");if(!first&&fin&&!prev.fin&&(Object.keys(FOLLOW).length||favCount()))alertShow("🏁 Classement final","La compétition est terminée : classements et podiums définitifs.",null);
   ALS={ev:now,fin,at:Date.now()};try{localStorage.setItem("sd-als:"+EV,JSON.stringify(ALS))}catch(_){}}
