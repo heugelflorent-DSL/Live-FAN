@@ -890,7 +890,8 @@ body.tv{overflow:hidden}
 #tvscreen .tvp{width:calc(7.6*var(--vh,1vh));height:calc(7.6*var(--vh,1vh));border-radius:50%;display:grid;place-items:center;font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;font-size:calc(5*var(--vh,1vh));font-weight:800}
 /* mode « grand pitch » (écran à gros pixels, ex. 5 mm) : chrono énorme et contrasté, on retire tout ce qui est petit (écart au RP, tronçon, club) */
 #tvscreen.tvbig .tvr{grid-template-columns:calc(7*var(--vh,1vh)) calc(8*var(--vh,1vh)) 1fr 0 calc(42*var(--vh,1vh)) calc(9.5*var(--vh,1vh))!important}
-#tvscreen.tvbig .tvm>*,#tvscreen.tvbig .tvw span,#tvscreen.tvbig .tvq,#tvscreen.tvbig .tvt.split small{display:none!important}
+#tvscreen.tvbig .tvm>*,#tvscreen.tvbig .tvw>span:not(.tvq),#tvscreen.tvbig .tvt.split small{display:none!important}
+#tvscreen.tvbig .tvq{display:block!important;font-size:calc(3.3*var(--vh,1vh));font-weight:900;color:#7dffa8;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#tvscreen.tvbig .tvq.tvbq{background:none!important;padding:0!important;border-radius:0!important;box-shadow:none!important;color:#ffd23f}
 #tvscreen.tvbig .tvt{font-size:calc(8.4*var(--vh,1vh));font-weight:900;color:#fff;letter-spacing:.02em}#tvscreen.tvbig .tvt.fin{color:#7dffa8}#tvscreen.tvbig .tvt.tveng{font-size:calc(6.4*var(--vh,1vh));color:#fff}
 #tvscreen.tvbig .tvrows:has(.tvr:nth-child(9)) .tvt{font-size:calc(6.8*var(--vh,1vh))}
 #tvscreen.tvbig .tvw b{font-weight:900}#tvscreen.tvbig .tvn{color:#ffd23f;font-weight:900}
@@ -1535,10 +1536,10 @@ function tvScreenHtml(){if(KILL.screen)return killScreen();
     const who=(w?`<b${!relay&&nm.first?` data-full="${esc(nm.last+" "+nm.first)}" data-l="${esc(nm.last)}" data-f="${esc(nm.last+" "+nm.first.split(/([ -])/).map(x=>/^[ -]$/.test(x)?x:x?x[0]+".":"").join(""))}"`:""}>${relay?esc(w.club||w.name):esc(nm.last)+" "+esc(nm.first)}</b>${RMv?rlh:`<span>${relay?"":esc(w.club||"")}</span>`}`:`<b class="tvempty">—</b><span></span>`);const whoL=`<div class="tvlg">${lg?`<img src="${lg}" alt="">`:""}</div><div class="tvw">${who}</div>`;
     if(ready){const eng=w&&w.time;return`<div class="tvr"><div class="tvn">${n}</div>${whoL}<div class="tvm"></div><div class="tvt tveng">${eng?fmt(eng):""}</div><div class="tvp"></div></div>`}
     const laps=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),lk=laps[laps.length-1],last=lk!=null?L.laps[lk]:null;
-    let mid="",tm="",pl="",qline="";
+    let mid="",tm="",pl="",qline="",rpb=0;
     if(L.fin&&L.fin.t!=null){tm=`<div class="tvt fin">${fmt(L.fin.t)}</div>`;pl=`<div class="tvp p${rk[n]<=3?rk[n]:""}">${rk[n]}</div>`;
-      const B=!relay&&w&&ev?bestOf(w,ev):null;if(B&&B.t!=null){const d=L.fin.t-B.t;mid=d<-.005?`<span class="tvrp">RECORD PERSO</span><small>−${gapTxt(-d)} vs RP</small>`:`<em>${d>.005?"+":""}${Math.abs(d)<.005?"=":gapTxt(Math.abs(d))}</em><small>vs RP</small>`}
-      {const ql=w&&ev?qualOf(w,ev,L.fin.t):[],rc=w&&ev?recOf(w,ev,L.fin.t):[];if(ql.length)qline=`<span class="tvq">✓ QUALIFIÉ · ${esc(ql.join(" · "))}</span>`;if(rc.length)qline=`<span class="tvq tvrec">🏆 ${esc(rc.join(" · "))}</span>`}
+      const B=!relay&&w&&ev?bestOf(w,ev):null;if(B&&B.t!=null){const d=L.fin.t-B.t;if(d<-.005)rpb=-d;mid=d<-.005?`<span class="tvrp">RECORD PERSO</span><small>−${gapTxt(-d)} vs RP</small>`:`<em>${d>.005?"+":""}${Math.abs(d)<.005?"=":gapTxt(Math.abs(d))}</em><small>vs RP</small>`}
+      {const ql=w&&ev?qualOf(w,ev,L.fin.t):[],rc=w&&ev?recOf(w,ev,L.fin.t):[];if(POOL&&POOL.tvbig){/* gros pixels : une seule ligne courte sous le nom */const pt=[];if(rpb)pt.push("★ RECORD PERSO −"+gapTxt(rpb));if(rc.length)pt.push("🏆 "+rc.join(" · "));if(ql.length)pt.push("✓ QUALIFIÉ "+ql.join(" · "));if(pt.length)qline=`<span class="tvq tvbq">${esc(pt.join("  "))}</span>`}else{if(ql.length)qline=`<span class="tvq">✓ QUALIFIÉ · ${esc(ql.join(" · "))}</span>`;if(rc.length)qline=`<span class="tvq tvrec">🏆 ${esc(rc.join(" · "))}</span>`}}
       /* dernier lap à l'arrivée (ex. 2e 50 m d'un 100 m), coloré comme pendant la course */
       {const ls=laps.filter(k=>L.laps[k]&&L.laps[k].t!=null&&L.laps[k].t<L.fin.t-.005);if(ls.length){const k1=ls[ls.length-1],x1=L.laps[k1],d1=x1.dist||k1*len,dist=(t=>{const r=t.match(/(\d+)\s*x\s*(\d+)/i);return r?r[1]*r[2]:+(t.match(/\d+/)||[0])[0]})(String(ev&&ev.name||h.title||"")),seg=L.fin.t-x1.t,cl=dist>d1?dist-d1:null;
         let lc="";if(cl){const x0=ls.length>1?L.laps[ls[ls.length-2]]:null,d0=x0?(x0.dist||ls[ls.length-2]*len):0,ps=x1.t-(x0?x0.t:0),pl=d1-d0;if(pl>0){const A=Math.round(seg*100),Bq=Math.round(ps*cl/pl*100);lc=A<Bq?" up":A>Bq?" down":" eq"}}
