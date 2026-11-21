@@ -3891,22 +3891,52 @@ async function recapPdf(R,D,lgSrc,msg){await loadJsPdf();const lg=lgSrc?await im
   y+=9;
   const kp=D.kp;const bw=(W-2*M-(kp.length-1)*3)/kp.length;kp.forEach(([v,l],i)=>{const x=M+i*(bw+3);doc.setFillColor(245,243,246);doc.roundedRect(x,y,bw,17,2.5,2.5,"F");doc.setTextColor(...rgb);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text(T(v),x+bw/2,y+8,{align:"center"});doc.setTextColor(110);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(T(l==="podiums"?"podiums (or/arg/br)":l),x+bw/2,y+13.5,{align:"center"})});
   y+=23;
-  const cols=D.hasCat?[M,M+62,M+82,M+96,M+132,M+152]:[M,M+78,M+102,M+116,M+140];const iR=D.hasCat?4:3,iP=D.hasCat?5:4;const foot=()=>{doc.setFontSize(8);doc.setTextColor(140);doc.setFont("helvetica","normal");doc.text(T("Résultats issus du Live FFN · seuls les résultats publiés sur ffnatation.fr font foi · Swim Direct · © Mat-et-Flo"),W/2,290,{align:"center"})};
-  const need=h=>{if(y+h>282){foot();doc.addPage();y=M}};
-  for(const b of D.blocks){need(20);
-    if(R.kind==="c"||D.blocks.length>1){doc.setFont("helvetica","bold");doc.setFontSize(11.5);doc.setTextColor(30);doc.text(T(b.p.sw.name),M,y+4);const nw=doc.getTextWidth(T(b.p.sw.name));doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(120);doc.text(T(" "+(b.p.sw.year||"")+(R.kind==="c"?"":" · "+b.p.sw.club)),M+nw+1,y+4);y+=10}
+  const cols=D.hasCat?[M,M+62,M+82,M+96,M+132,M+152]:[M,M+78,M+102,M+116,M+140];const iR=D.hasCat?4:3,iP=D.hasCat?5:4;
+  const foot=()=>{doc.setFontSize(8);doc.setTextColor(140);doc.setFont("helvetica","normal");doc.text(T("Résultats issus du Live FFN · seuls les résultats publiés sur ffnatation.fr font foi · Swim Direct · © Mat-et-Flo"),W/2,290,{align:"center"})};
+  const runHdr=()=>{doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(140);doc.text(T((D.c0.name||"")+" · "+D.head),M,9);doc.setDrawColor(...rgb);doc.setLineWidth(.4);doc.line(M,11,W-M,11);doc.setLineWidth(.2);y=17};
+  const need=h=>{if(y+h>282){foot();doc.addPage();runHdr()}};
+  const MC=[[212,160,23],[160,160,170],[176,110,60]];
+  const med=(n,cx,cy)=>{doc.setFillColor(...MC[Math.min(2,n-1)]);doc.circle(cx,cy,2.4,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(8);doc.text(String(n),cx,cy+1.1,{align:"center"})};
+  const sec=t=>{need(16);doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(...rgb);doc.text(T(t),M,y+4);doc.setDrawColor(...rgb);doc.setLineWidth(.5);doc.line(M,y+6.5,W-M,y+6.5);doc.setLineWidth(.2);y+=12};
+  const nice=n=>String(n||"");
+  const allRows=D.blocks.flatMap(b=>b.rows);
+  /* synthèse en tête : podiums puis plus belles progressions (club ou plusieurs nageurs) */
+  if(D.blocks.length>1){
+    const pods=[];for(const o of allRows){if(o.cm&&o.cm.length)o.cm.forEach(m=>pods.push({pl:m.place,cat:m.cat,o}));else if(o.pod&&!o.catRule)pods.push({pl:o.pod,cat:"",o})}
+    pods.sort((a,b)=>a.pl-b.pl||a.o.who.localeCompare(b.o.who));
+    if(pods.length){sec("Podiums"+(D.hasCat?" par catégorie":""));const mx=16;
+      for(const q of pods.slice(0,mx)){need(7);med(q.pl,M+3,y-1.2);doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.setTextColor(30);doc.text(T(nice(q.o.who)),M+9,y,{maxWidth:52});
+        doc.setFont("helvetica","normal");doc.setTextColor(90);doc.text(T(q.o.evS+(q.cat?" · "+q.cat:"")),M+64,y,{maxWidth:84});doc.setFont("helvetica","bold");doc.setTextColor(30);doc.text(T(q.o.t),W-M,y,{align:"right"});y+=6}
+      if(pods.length>mx){doc.setFont("helvetica","italic");doc.setFontSize(8.5);doc.setTextColor(120);doc.text(T("+ "+(pods.length-mx)+" autres podiums, détail ci-dessous"),M+9,y);y+=6}
+      y+=4}
+    const best=allRows.filter(o=>o.rp&&o.pct!=null).sort((a,b)=>b.pct-a.pct).slice(0,6);
+    if(best.length){sec("Les plus belles progressions");
+      for(const o of best){need(7);doc.setFont("helvetica","bold");doc.setFontSize(9.5);doc.setTextColor(30);doc.text(T(nice(o.who)),M,y,{maxWidth:52});
+        doc.setFont("helvetica","normal");doc.setTextColor(90);doc.text(T(o.ev),M+56,y,{maxWidth:60});doc.setTextColor(120);doc.text(T((o.ref?o.ref+"  >  ":"")+o.t),M+120,y);
+        doc.setFont("helvetica","bold");doc.setTextColor(30,122,62);doc.text(T(pctS(o.pct)),W-M,y,{align:"right"});y+=6}
+      y+=4}
+    foot();doc.addPage();runHdr();sec("Détail par nageur")}
+  for(const b of D.blocks){const multi=R.kind==="c"||D.blocks.length>1;const nRp=b.rows.filter(o=>o.rp).length,nPod=b.rows.reduce((a,o)=>a+((o.cm&&o.cm.length)?o.cm.filter(m=>m.place<=3).length:(o.pod&&!o.catRule?1:0)),0);
+    need(Math.min(190,(multi?10:0)+5.5+b.rows.length*6.2+4));
+    if(multi){doc.setFont("helvetica","bold");doc.setFontSize(11.5);doc.setTextColor(30);doc.text(T(b.p.sw.name),M,y+4);const nw=doc.getTextWidth(T(b.p.sw.name));doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(120);doc.text(T(" "+(b.p.sw.year||"")+(R.kind==="c"?"":" · "+b.p.sw.club)),M+nw+1,y+4);
+      let rx=W-M;doc.setFontSize(8.5);if(nPod){const t=nPod+(nPod>1?" podiums":" podium");doc.setFont("helvetica","bold");doc.setTextColor(176,120,20);doc.text(T(t),rx,y+4,{align:"right"});rx-=doc.getTextWidth(T(t))+4}
+      if(nRp){const t=nRp+" RP";doc.setFont("helvetica","bold");doc.setTextColor(91,63,214);doc.text(T(t),rx,y+4,{align:"right"})}
+      y+=10}
     doc.setFontSize(8);doc.setTextColor(130);doc.setFont("helvetica","normal");(D.hasCat?["Épreuve","Temps","Place","Podium","Ancien RP","Progression"]:["Épreuve","Temps","Place","Ancien RP","Progression"]).forEach((h,i)=>doc.text(T(h),cols[i],y));doc.setDrawColor(225);doc.line(M,y+1.5,W-M,y+1.5);y+=5.5;
-    for(const o of b.rows){need(7);doc.setFontSize(9.5);doc.setTextColor(30);doc.setFont("helvetica","normal");doc.text(T(o.ev),cols[0],y,{maxWidth:D.hasCat?60:76});
+    let zi=0;
+    for(const o of b.rows){need(7);if(zi++%2){doc.setFillColor(248,247,250);doc.rect(M,y-4.3,W-2*M,6.2,"F")}
+      doc.setFontSize(9.5);doc.setTextColor(30);doc.setFont("helvetica","normal");doc.text(T(o.ev),cols[0],y,{maxWidth:D.hasCat?60:76});
       doc.setFont("helvetica","bold");doc.text(T(o.t),cols[1],y);doc.setFont("helvetica","normal");
       if(D.hasCat){doc.text(T(o.pl?o.pl+"e":""),cols[2],y);
-        (o.cm||[]).slice(0,1).forEach(m=>{doc.setFillColor(...[[212,160,23],[160,160,170],[176,110,60]][Math.min(2,m.place-1)]);doc.circle(cols[3]+2,y-1.2,2.4,"F");doc.setTextColor(255);doc.setFont("helvetica","bold");doc.setFontSize(8);doc.text(String(m.place),cols[3]+2,y-0.1,{align:"center"});doc.setFont("helvetica","normal");doc.setTextColor(60);doc.setFontSize(8);doc.text(T(m.cat),cols[3]+6,y-0.1,{maxWidth:30});doc.setTextColor(30);doc.setFontSize(9.5)})}
-      else if(o.pod){doc.setFillColor(...[[212,160,23],[160,160,170],[176,110,60]][o.pod-1]);doc.circle(cols[2]+2,y-1.2,2.4,"F");doc.setTextColor(255);doc.setFontSize(8);doc.text(String(o.pod),cols[2]+2,y-0.1,{align:"center"});doc.setTextColor(30);doc.setFontSize(9.5)}else doc.text(T(o.pl?o.pl+"e":""),cols[2],y);
-      doc.setTextColor(110);doc.text(T(o.ref),cols[iR],y);
+        (o.cm||[]).slice(0,1).forEach(m=>{med(m.place,cols[3]+2,y-1.2);doc.setFont("helvetica","normal");doc.setTextColor(60);doc.setFontSize(8);doc.text(T(m.cat),cols[3]+6,y-0.1,{maxWidth:30});doc.setTextColor(30);doc.setFontSize(9.5)})}
+      else if(o.pod){med(o.pod,cols[2]+2,y-1.2);doc.setTextColor(30);doc.setFontSize(9.5);doc.setFont("helvetica","normal")}else doc.text(T(o.pl?o.pl+"e":""),cols[2],y);
+      doc.setTextColor(110);doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.text(T(o.ref),cols[iR],y);
       let x=cols[iP];if(o.pct!=null){doc.setTextColor(...(o.pct>0.05?[30,122,62]:o.pct<-0.05?[179,38,30]:[110,110,110]));doc.text(T(pctS(o.pct)),x,y);x+=19}
       const tag=(s,c)=>{doc.setFont("helvetica","bold");doc.setFontSize(7.5);const w=doc.getTextWidth(s)+4;doc.setFillColor(...c);doc.roundedRect(x,y-3.3,w,4.4,2,2,"F");doc.setTextColor(255);doc.text(s,x+2,y-0.2);x+=w+2;doc.setFont("helvetica","normal");doc.setFontSize(9.5)};
       if(o.rp)tag("RP",[91,63,214]);if(o.nw)tag("Nouvelle",[31,111,209]);y+=6.2}
-    y+=4}
-  foot();await recapShare(doc.output("blob"),D.file+".pdf","application/pdf",msg,D.head)}
+    y+=5}
+  {const n=doc.getNumberOfPages();foot();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(140);doc.setFont("helvetica","normal");doc.text(T("Page "+i+" / "+n),W-M,290,{align:"right"})}}
+  await recapShare(doc.output("blob"),D.file+".pdf","application/pdf",msg,D.head)}
 // image 1080×1350 (format portrait Instagram / Facebook)
 async function recapImg(R,D,lgSrc,msg){const W=1080,H=1350;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d");const F="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";
   const col=D.hex;g.fillStyle="#fff";g.fillRect(0,0,W,H);
