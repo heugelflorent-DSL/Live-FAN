@@ -3702,7 +3702,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden){if(Date.no
 // onglet ouvert gardé dans l'adresse (#res, #prog…) : un rafraîchissement reste sur le même onglet
 {const h=location.hash.slice(1),[v0,arg]=h.split("/");if(["live","prog","res","pod","part","rank"].includes(v0)){state.view=v0;if(arg)DEEP={v:v0,arg:decodeURIComponent(arg)}}}
 bindSpons();bindOrg();bindPair();loadSpons();loadQuals();if(PICK)pickBoot();else{
-loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadKill();setInterval(()=>{if(!document.hidden)loadKill()},15000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(["live","res","pod","home"].includes(state.view))loadLive()};
+loadLogos();loadMpp();setInterval(()=>{if(!document.hidden)loadMpp()},10*60000);loadKill();setInterval(()=>{if(!document.hidden)loadKill()},30000);loadPubEvents();loadPublic().then(()=>{scTick();loadLive();poolConnect()});let PUBAT=Date.now();const pubRefresh=()=>{PUBAT=Date.now();loadPublic().then(scTick);if(["live","res","pod","home"].includes(state.view))loadLive()};
 // toutes les 60 s, seulement quand la page est visible ; mise à jour immédiate au retour sur la page
 setInterval(()=>{if(!state.admin&&!document.hidden)pubRefresh()},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!state.admin&&Date.now()-PUBAT>20e3)pubRefresh()});}
