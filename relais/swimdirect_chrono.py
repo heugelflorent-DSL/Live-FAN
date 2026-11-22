@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.8.3"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.8.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -97,6 +97,12 @@ class LocalScreen:
         for q in cl:
             try: q.put_nowait(msg)
             except queue.Full: pass
+    def broadcast(self, obj):
+        with self.lock: cl = list(self.clients)
+        msg = ("data: " + json.dumps(obj) + "\n\n").encode()
+        for q in cl:
+            try: q.put_nowait(msg)
+            except queue.Full: pass
     def live_path(self):
         u = self.core.st.get("url") or ""
         i = u.find("/e/")
@@ -150,6 +156,7 @@ class LocalScreen:
                 try:
                     n = int(self.headers.get("content-length") or 0); c = json.loads(self.rfile.read(min(n, 4000)) or b"{}")
                     if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub", "big", "rev", "light"): raise ValueError("commande inconnue")
+                    if c.get("act") == "reload": me.broadcast({"reload": 1}); return self.out(200, "application/json", b'{"ok":true}')  # recharge les pages d'écran ouvertes (ordre envoyé par la régie)
                     me.cmds.put(c); return self.out(200, "application/json", b'{"ok":true}')
                 except Exception as e: return self.out(400, "application/json", json.dumps({"ok": False, "err": str(e)}).encode())
             def out(self, code, ctype, body):
