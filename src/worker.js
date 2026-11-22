@@ -137,6 +137,8 @@ function progEvery(c, now) {
   // dès la première réunion du jour commencée, jusqu'à ce qu'elles le soient (les qualifiés sont alors confirmés)
   const today = (c.reunions || []).filter((r) => { const d = compDate({ date: r.day }); if (!d) return false; const t = parisEpoch(d.y, d.m, d.d); return now >= t && now < t + 864e5; });
   if (today.some((r) => r.items.some((i) => i.soon))) { const st = Math.min(...today.map((r) => { const d = compDate({ date: r.day }); const m = hToMin(r.items.find((i) => i.kind === "event" && i.time)?.time); return m == null ? Infinity : parisEpoch(d.y, d.m, d.d) + m * 60e3; })); if (now >= st) return 30 * 60e3; }
+  // réunion en cours (ou sur le point de commencer) : les organisateurs modifient les horaires en cours de route → une lecture du programme toutes les 20 min
+  if (liveOpen(c, now)) return 20 * 60e3;
   return Infinity;                     // jours de compétition : voir progDue (environ 3 lectures par réunion)
 }
 // Jours de compétition : pour chaque réunion, environ 3 lectures du programme entre l'ouverture des portes
