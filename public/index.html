@@ -2531,7 +2531,7 @@ function pubQr(){const u=pubUrl();if(PUBQR.u===u&&PUBQR.svg)return PUBQR.svg;if(
 function pubHtml(){const u=pubUrl(),short=u.replace(/^https?:\/\//,"").replace(/\/.*$/,""),qr=pubQr();
   /* écran géant : fond sombre, très gros caractères gras (lisibles sur matrice LED), peu de mots */
   return`<div class="session"><div class="card lv-card mf-card pwait pub-card pub2"><div class="p2-top"><span class="p2-tag">Swim Direct</span><h2 class="p2-t">SUIVEZ LA COMPÉTITION<br><em>EN DIRECT</em></h2><p class="p2-s">sur votre téléphone</p></div>
-  <div class="p2-mid">${qr?`<div class="p2-qr">${qr}<b>SCANNEZ-MOI</b></div>`:""}<ul class="p2-l"><li><i>⏱</i>Les temps en direct</li><li><i>🏅</i>Résultats et podiums</li><li><i>⭐</i>Records perso battus</li><li><i>📅</i>Programme et horaires</li></ul></div>
+  <div class="p2-mid">${qr?`<div class="p2-qr">${qr}<b>SCANNEZ-MOI</b></div>`:""}<ul class="p2-l"><li><i>⏱</i>Les temps en direct</li><li><i>🏅</i>Résultats et podiums</li><li><i>⭐</i>Records perso battus</li><li><i>✅</i>Qualifications</li><li><i>📅</i>Programme et horaires</li></ul></div>
   <div class="p2-foot"><span class="p2-url">${esc(short)}</span><span class="p2-mf"><small>Une création</small><img src="/matetflo.png" alt="Mat et Flo"></span></div></div></div>`}
 function poolHtml(){const ov=screenOv()||spBetween();if(ov)return ov;/* partenaires / pub entre deux séries : aussi sur la page Direct, comme sur l'écran géant */const b=poolHtml1();if(!b||/pwait/.test(b))return b;const pc=poolPauseCard();return pc?pc+b:b}
 function poolHtml1(){
