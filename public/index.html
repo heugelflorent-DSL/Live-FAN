@@ -1565,12 +1565,14 @@ function tvNoStart(h){if(!h||!h.start||h.status!=="running"||h.recall)return fal
 function tvLanes(h,se){const ks=new Set([...Object.keys(h.names||{}),...Object.keys(h.lanes||{})].map(Number));(se&&se.swimmers||[]).forEach(w=>w.lane&&ks.add(+w.lane));const mx=Math.max(poolLaneCount(),...ks);const L=Array.from({length:mx},(_,i)=>i+1).filter(n=>ks.has(n)||mx<=10);return POOL&&POOL.tvrev?L.reverse():L}
 /* résultats gardés 20 s dans l'ordre des couloirs après l'arrivée du dernier nageur, puis 10 s classés de 1 à 8 (glissement animé),
    même si l'opérateur charge déjà la série suivante ; sans nouvelle série chargée, le classement reste affiché */
-let TVLAST=null,TVRANK=false;const TVHOLD=30000,TVSORT=20000;
+let TVLAST=null,TVRANK=false;const TVHOLD=30000,TVSORT=20000,TVNEXTMS=8000;let TVNEXT=null;
+/* série suivante chargée : on laisse encore 8 s de résultats, puis la liste de départ (noms en grand) jusqu'au départ */
+function tvNextAge(key){if(!TVNEXT||TVNEXT.key!==key)TVNEXT={key,at:Date.now()};return Date.now()-TVNEXT.at}
 function tvPick(){TVRANK=false;const h=POOL&&POOL.heat;if(!h){if(TVLAST&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}return null}
   const key=[h.event,h.heat,h.start].join("|"),fin=h.start&&(h.status==="done"||poolAllIn(h));
   if(fin){if(!TVLAST||TVLAST.key!==key)TVLAST={key,at:Date.now(),h:JSON.parse(JSON.stringify(h))};else TVLAST.h=JSON.parse(JSON.stringify(h));TVRANK=Date.now()-TVLAST.at>=TVSORT;return h}
   /* la série suivante est partie : elle passe avant les résultats et le classement */
-  if(TVLAST&&TVLAST.key!==key&&!TVLAST.anim/* l'animation (partenaire, pub) est passée : on enchaîne sur la série suivante, pas sur les résultats de la précédente */&&h.status!=="running"&&!h.start&&Date.now()-TVLAST.at<TVHOLD){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}
+  if(TVLAST&&TVLAST.key!==key&&!TVLAST.anim/* l'animation (partenaire, pub) est passée : on enchaîne sur la série suivante, pas sur les résultats de la précédente */&&h.status!=="running"&&!h.start&&Date.now()-TVLAST.at<TVHOLD&&tvNextAge(key)<TVNEXTMS){TVRANK=Date.now()-TVLAST.at>=TVSORT;return TVLAST.h}
   return h}
 function tvScreenHtml(){if(KILL.screen)return killScreen();
   {const ov=screenOv()||spBetween();if(ov)return`<div class="tvwait">${ov}</div>`}
