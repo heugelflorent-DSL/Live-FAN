@@ -808,7 +808,7 @@ export default {
         if (!code || req.method === "POST") { code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); await env.KV.put("spkcode:" + rid, code); }
         return json({ code });
       }
-      if (config.live !== "bassin" && !CAN) return json({ error: "Direct bassin non activé." }, 404);
+      if (config.live !== "bassin" && !CAN && !(p === "/api/pool/ws" && url.searchParams.get("tv"))) return json({ error: "Direct bassin non activé." }, 404); // l'écran géant écoute toujours (fiches du speaker)
       if (p === "/api/pool/ws") return room.fetch(new Request("https://pool/ws", req));
       if (p === "/api/pool/state") return room.fetch(new Request("https://pool/state"));
       if (p === "/api/pool/hist") return room.fetch(new Request("https://pool/hist"));
