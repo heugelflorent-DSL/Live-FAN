@@ -3462,7 +3462,7 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
     const ids=r.querySelector("RELAY")?[...r.querySelectorAll("RELAYPOSITION")].map(p=>A(p,"swimmerid")):[A(r.querySelector("SOLO")||r,"swimmerid")];
     for(const id of ids){const w=sw[id];if(!w||tseen[id])continue;tseen[id]=1;(teams[club]=teams[club]||[]).push({team:t,name:w.name,year:String(w.year||"")})}});
   const reunions=[],events={};
-  M.querySelectorAll("SESSION").forEach(S=>{const R={n:+A(S,"number"),day:dayOf(A(S,"datetime")),doors:"",items:[]};
+  M.querySelectorAll("SESSION").forEach(S=>{const R={n:+A(S,"number"),day:dayOf(A(S,"datetime")),doors:hh(A(S,"datetime")),items:[]};/* heure de la réunion dans extraNat = ouverture des portes (13h30 pour un 1er départ à 15h00) : sans elle, pas d'écran « Pause » entre deux réunions */
     S.querySelectorAll("EVENT").forEach(E=>{if(A(E,"type")!=="RACE"){R.items.push({kind:"note",text:A(E,"name")});return}
       const epr=+A(E,"raceid"),typ=+A(E,"roundid"),key=String(epr)+(typ&&typ!==60?"-"+typ:""),name=ffxEvName(epr),rows=res[A(E,"raceid")+"|"+A(E,"roundid")]||[];
       const byH={};rows.forEach(r=>{const h=+A(r,"heat")||1;(byH[h]=byH[h]||[]).push(r)});const hs=Object.keys(byH).map(Number).sort((a,b)=>a-b);
