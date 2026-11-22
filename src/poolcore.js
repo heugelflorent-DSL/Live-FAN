@@ -80,7 +80,7 @@ export function applyEvent(s, ev, t) {
       }
       case "clear": for (const k of Object.keys(s)) delete s[k]; Object.assign(s, empty()); break;
       /* écran choisi depuis le logiciel du chrono : évacuation, cérémonie, compte à rebours, pause… ; « normal » rend la main au direct */
-      case "screen": s.screen = ev.mode && ev.mode !== "normal" ? { mode: String(ev.mode).slice(0, 20), at: t, title: String(ev.title || "").slice(0, 120), auto: !!ev.auto } : null; break;
+      case "screen": s.screen = ev.mode && ev.mode !== "normal" ? { mode: String(ev.mode).slice(0, 20), at: t, title: String(ev.title || "").slice(0, 120), auto: !!ev.auto, card: ev.mode === "fiche" ? cardOf(ev.card) : undefined } : null; break;
       case "pubauto": s.pubAuto = !!ev.on; break; /* pub « suivez sur Swim Direct » automatique (entre séries, pendant les pauses) */
       case "spons": s.spons = !!ev.on; break; /* logo d'un partenaire entre deux séries (choix fait dans le logiciel du chrono) */
       case "tvopt": s.tvbig = !!ev.big; s.tvrev = !!ev.rev; s.tvlight = !!ev.light; break; /* écran géant : mode grand pitch, sens des couloirs 8→1 */
@@ -98,4 +98,11 @@ export function applyEvent(s, ev, t) {
     } }
     s.updatedAt = t; s.relayAt = t;
     return true;
+}
+
+/* fiche nageur demandée par le speaker (écran géant) : uniquement du texte court */
+function cardOf(c) {
+  if (!c || typeof c !== "object") return null;
+  const t = (x, n) => String(x == null ? "" : x).slice(0, n);
+  return { ev: t(c.ev, 80), head: t(c.head, 60), name: t(c.name, 80), club: t(c.club, 80), year: t(c.year, 8), lane: t(c.lane, 3), lines: Array.isArray(c.lines) ? c.lines.slice(0, 5).map((x) => t(x, 90)) : [] };
 }

@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.8.7"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.8.8"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -155,7 +155,7 @@ class LocalScreen:
                 if not self.path.startswith("/local/cmd"): return self.out(404, "text/plain", b"introuvable")
                 try:
                     n = int(self.headers.get("content-length") or 0); c = json.loads(self.rfile.read(min(n, 4000)) or b"{}")
-                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub", "big", "rev", "light"): raise ValueError("commande inconnue")
+                    if not isinstance(c, dict) or c.get("act") not in ("screen", "fmt", "spons", "auto", "pub", "big", "rev", "light", "fiche"): raise ValueError("commande inconnue")
                     if c.get("act") == "reload": me.broadcast({"reload": 1}); return self.out(200, "application/json", b'{"ok":true}')  # recharge les pages d'écran ouvertes (ordre envoyé par la régie)
                     me.cmds.put(c); return self.out(200, "application/json", b'{"ok":true}')
                 except Exception as e: return self.out(400, "application/json", json.dumps({"ok": False, "err": str(e)}).encode())
@@ -228,6 +228,12 @@ class Core:
                 self.st.update(linked=bool(j.get("linked")), name=j.get("name", ""), url=j.get("url", ""), bassin=j.get("bassin"), err="")
                 self.apply_sys(j.get("sys"))
                 if self.st["linked"]: self.apply_opts(j.get("opts"), j.get("optsRev"))
+                # fiche envoyée par l'écran speaker du site : reprise sur l'écran local
+                spk = j.get("spk") if self.st["linked"] else None
+                if isinstance(spk, dict) and spk.get("at") != getattr(self, "spk_at", None):
+                    if getattr(self, "spk_at", "x") != "x": self.screen.cmds.put({"act": "fiche", "ev": spk.get("ev") or {}, "site": True})
+                    self.spk_at = spk.get("at"); self.spk_last = time.time()
+                elif getattr(self, "spk_at", "x") == "x": self.spk_at = None
                 # mode test oublié : il se coupe tout seul 2 minutes avant le premier départ prévu de la réunion
                 st0 = j.get("start")
                 if self.test and st0 and j.get("now") and j["now"] >= st0 - 120000:
@@ -239,7 +245,7 @@ class Core:
                 if not self.st["err"]: self.log(f"✗ Site injoignable : {e}")
                 self.st["err"] = f"site injoignable ({e})"
             self.check_update()
-            time.sleep(5 if not self.st["linked"] else 10)
+            time.sleep(5 if not self.st["linked"] else (3 if time.time() - getattr(self, "spk_last", 0) < 900 else 10))  # plus réactif quand le speaker pilote l'écran
 
     # type de chronométrage choisi sur la page admin du live : on règle le mode tout seul
     PRESET = {"quantum": ("reseau", None), "ares": ("serie", "9600,7,E,1"), "stramatel": ("serie", "9600,8,N,1"), "alge": ("serie", "19200,8,N,1")}
@@ -794,6 +800,18 @@ def gui(cfg, demo=False, close_after=0):
                         t = str(c.get("title") or "").strip()[:120]
                         if t: show_t("msg", t)
                     else: show(c["mode"])
+                elif a == "fiche":  # écran speaker : fiche d'un nageur, ou retour au direct
+                    e = c.get("ev") if isinstance(c.get("ev"), dict) else {}
+                    md = e.get("mode") if e.get("mode") in ("fiche", "normal") else None
+                    if md:
+                        ev = {"k": "screen", "mode": md, "title": "", "auto": True, "card": e.get("card") if md == "fiche" else None, "ts": time.time()}
+                        try: core.screen.push(ev)
+                        except Exception: pass
+                        if not c.get("site"):
+                            try: core.q.put_nowait(ev)
+                            except Exception: pass
+                        core.screen.state.update(mode=md, title=""); smode["v"] = md
+                        core.log("Écran géant (speaker) : " + ("fiche de " + str((e.get("card") or {}).get("name") or "?") if md == "fiche" else "retour au direct"))
                 elif a == "fmt" and c.get("f") in fbtns: set_fmt(c["f"])
                 elif a == "spons": spv.set(bool(c.get("on"))); set_spons()
                 elif a == "auto": autov.set(bool(c.get("on"))); set_auto()

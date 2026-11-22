@@ -764,7 +764,7 @@ export default {
           for (const id of c.comps || []) { const cc = d.comps && d.comps[id]; if (!cc) continue; const dt0 = compDate(cc.meta);
             for (const r of cc.reunions || []) { const dt = compDate({ date: r.day }) || dt0; if (!dt) continue; const evs = (r.items || []).filter((i) => i.kind === "event" && i.time); const f0 = hToMin(evs[0]?.time); if (f0 == null) continue;
               const at = parisEpoch(dt.y, dt.m, dt.d) + f0 * 60e3, end = parisEpoch(dt.y, dt.m, dt.d) + ((hToMin(evs[evs.length - 1]?.time) ?? f0) + 120) * 60e3; if (end > Date.now() && (start == null || at < start)) start = at; } } } catch (e) {}
-        return json({ linked: true, opts: exeOpts(c.exeOpts), optsRev: c.exeOptsRev || 0, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || c.chronoSys || "quantum", now: Date.now(), start });
+        const spk = await env.KV.get("spkscr:" + pr.ev, "json"); return json({ linked: true, spk: spk && Date.now() - spk.at < 30 * 60e3 ? spk : null, opts: exeOpts(c.exeOpts), optsRev: c.exeOptsRev || 0, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || c.chronoSys || "quantum", now: Date.now(), start });
       }
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
@@ -786,10 +786,27 @@ export default {
       const { config } = await load(env, rid);
       const room = env.POOL.get(env.POOL.idFromName(rid === "main" ? "bassin" : "bassin:" + rid));
       if (p === "/api/pool/event") {
+        const SC = req.headers.get("x-spk-code") || "";
+        if (SC && !CAN && !RELAYEV) {
+          const code = await env.KV.get("spkcode:" + rid);
+          if (!code || SC !== code) { await tooManyFails(req, false); return json({ error: "Code speaker incorrect." }, 401); }
+          let evs; try { evs = JSON.parse(await req.text()); } catch (_) { evs = null; }
+          if (!Array.isArray(evs) || !evs.length || evs.length > 3 || !evs.every((x) => x && x.k === "screen" && (x.mode === "fiche" || x.mode === "normal"))) return json({ error: "Le speaker peut seulement afficher une fiche ou rendre le direct." }, 403);
+          if ((await killOf(env, rid)).pool) return json({ ok: true, paused: true, applied: 0 });
+          await env.KV.put("spkscr:" + rid, JSON.stringify({ at: Date.now(), ev: evs[evs.length - 1] })); // repris par le logiciel chrono pour son écran local
+          return room.fetch(new Request("https://pool/event", { method: "POST", body: JSON.stringify(evs) }));
+        }
         if (!relayAuthed(req, env) && !ORG && !RELAYEV) return json({ error: "Mot de passe incorrect." }, 401);
         if (url.searchParams.get("sim") && !can("sim")) return adminOnly(); // simulateur : réservé à l'administrateur du site
         if ((await killOf(env, rid)).pool) return json({ ok: true, paused: true, applied: 0 });
         return room.fetch(new Request("https://pool/event", { method: "POST", body: await req.text() }));
+      }
+      /* code speaker de ce live : affiché dans l'admin (créé à la demande, « nouveau » le change) */
+      if (p === "/api/pool/spkcode") {
+        if (!CAN) return json({ error: "Réservé à l'organisateur." }, 401);
+        let code = await env.KV.get("spkcode:" + rid);
+        if (!code || req.method === "POST") { code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); await env.KV.put("spkcode:" + rid, code); }
+        return json({ code });
       }
       if (config.live !== "bassin" && !CAN) return json({ error: "Direct bassin non activé." }, 404);
       if (p === "/api/pool/ws") return room.fetch(new Request("https://pool/ws", req));
