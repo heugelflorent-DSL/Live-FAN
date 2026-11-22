@@ -112,6 +112,8 @@ class Decoder:
             Decoder.rt_at = ts; return {"k": "clock", "ts": int(ts * 1000), "rt": rt}
         if m == "TK":
             ln = j.get("Ln") or 0
+            if ln and j.get("Kind") == "R" and j.get("Time"):  # temps de réaction (plot, ou plaque en dos)
+                t = to_sec(j.get("Time")); return {"k": "react", "lane": ln, "t": t} if t is not None and 0 < t < 5 else None
             if not ln or j.get("Kind") not in ("I", "F") or not j.get("Time"): return None  # remise à zéro / couloir vide
             t = to_sec(j.get("Time")); rk = int(j.get("Rk") or 0) or None; lap = j.get("Lap") or 0
             dist = int(re.sub(r"\D", "", str(j.get("Dist") or "")) or 0) or None  # « 150* » = passage corrigé
