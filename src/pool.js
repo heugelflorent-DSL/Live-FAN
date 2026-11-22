@@ -128,6 +128,9 @@ export class PoolRoom {
       const b0 = snap();
       let n = 0; for (const ev of list.slice(0, 50)) if (ev && typeof ev === "object" && this.apply(ev)) n++;
       if (n) { await this.ctx.storage.put("s", this.s); this.broadcast(); }
+      /* temps de course du Quantum (toutes les 2 s) : relayé tel quel aux écrans, sans écriture, pour que le chrono affiché suive celui du Quantum */
+      { const c = list.filter((e) => e && e.k === "clock" && e.rt > 0).pop(), h = this.s.heat;
+        if (c && h && h.status === "running" && !h.recall) { const msg = JSON.stringify({ type: "rt", rt: c.rt, e: h.event, h: h.heat, start: h.start }); for (const ws of this.ctx.getWebSockets()) { try { ws.send(msg); } catch {} } } }
       /* notifications push des épreuves suivies : départ de la 1re série, résultats à la fin de la dernière série (titre du Quantum → signature de l'épreuve) */
       const live = url.searchParams.get("ev"), b1 = snap();
       if (live && b1 && !b1.sim && b1.t) {
