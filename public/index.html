@@ -2293,11 +2293,11 @@ function poolState(m){const o=m.now-Date.now();/* série qui vient de se termine
 /* écran géant local : la page est servie par le logiciel du chrono sur le réseau de la piscine ; les temps arrivent de lui directement (sans passer par Internet) et sont appliqués ici avec la même logique que le serveur */
 let LCORE=null,LS=null;
 /* écran local : l'horloge du PC peut être en avance ou en retard (évacuation, timers, départs calculés à l'heure) ; on se cale sur l'heure du serveur Swim Direct quand Internet est là, sinon sur le PC */
-let poolOffSrv=0;function localSrvSync(){const t0=Date.now();fetch(evq("/api/pool/state")+(evq("/api/pool/state").includes("?")?"&":"?")+"_="+t0,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(m=>{const t1=Date.now();if(!m||!m.now||t1-t0>3000)return;poolOff=m.now-(t0+t1)/2;poolOffSrv=t1}).catch(()=>{})}
+let poolOffSrv=0;function localSrvSync(){const t0=Date.now();fetch(evq("/api/pool/state")+(evq("/api/pool/state").includes("?")?"&":"?")+"_="+t0,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(m=>{const t1=Date.now();if(!m||!m.now||t1-t0>3000)return;if(Date.now()-poolOffSrv>180e3){poolOff=m.now-(t0+t1)/2;poolOffSrv=t1}}).catch(()=>{})}
 async function localConnect(){if(poolWs)return;localSrvSync();setInterval(localSrvSync,60000);poolWs={readyState:0,send(){},close(){}};try{LCORE=LCORE||await import("/poolcore.js")}catch(_){poolWs=null;setTimeout(poolConnect,3000);return}
   const es=new EventSource("/local/events");poolWs={readyState:1,send(){},close(){es.close()}};
   const pub=()=>{const{hist,...rest}=LS;const ev=LS.heat&&LS.heat.event,h={};for(const k in hist||{})if(ev!=null&&hist[k].event===ev)h[k]=hist[k];poolState(JSON.parse(JSON.stringify({type:"state",now:Date.now()+poolOff,...rest,hist:h})))};
-  es.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}if(m.now&&Date.now()-poolOffSrv>180e3){poolOff=m.now-Date.now();poolSynced=true}
+  es.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}if(m.now){poolOff=m.now-Date.now();poolSynced=true;poolOffSrv=Date.now()}/* écran local : les départs sont datés par l'horloge du PC du logiciel chrono → c'est elle qui sert de référence (sinon le chrono de l'écran avance ou retarde de l'écart avec le site) */
     if(m.hello){LS=LCORE.empty();for(const x of m.back||[])LCORE.applyEvent(LS,{...x.ev,sent:x.t},x.t);pub()}else if(m.ev&&LS){if(LCORE.applyEvent(LS,{...m.ev,sent:m.t},m.t))pub()}};}
 function poolConnect(){if(window.SD_LOCAL)return localConnect();if(poolWs||state.live!=="bassin"||!liveToday())return;
   try{poolWs=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+evq("/api/pool/ws"))}catch(_){return}
