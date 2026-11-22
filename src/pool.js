@@ -4,6 +4,7 @@ import { get as ffnGet } from "./ffn.js";
 // les spectateurs reçoivent l'état complet par WebSocket. Le chrono tourne sur chaque téléphone à partir de l'heure de départ.
 
 import { empty, applyEvent, isExtra } from "./poolcore.js";
+const POOLCORE_VER = "2026-11-22-podium"; // version du moteur (vérifier qu'un déploiement a bien redémarré la salle)
 import { pushNotify, evSig, compClose } from "./push.js";
 import { euEnv } from "./eu.js";
 
@@ -17,7 +18,7 @@ export class PoolRoom {
   snapshot() {
     const { hist, ...rest } = this.s; const ev = this.s.heat && this.s.heat.event;
     const h = {}; for (const k in hist || {}) if (ev != null && hist[k].event === ev) h[k] = hist[k];
-    return JSON.stringify({ type: "state", now: Date.now(), ...rest, hist: h });
+    return JSON.stringify({ type: "state", now: Date.now(), core: POOLCORE_VER, ...rest, hist: h });
   }
   broadcast() { const msg = this.snapshot(); for (const ws of this.ctx.getWebSockets()) { try { ws.send(msg); } catch {} } }
 
