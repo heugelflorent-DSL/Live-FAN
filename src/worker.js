@@ -350,7 +350,7 @@ async function runTask(task, data, now) {
       const n = res.rows.length;
       if (n !== st.nRows) st.changedAt = now;
       if (JSON.stringify(res) !== JSON.stringify(st.results || null)) { st.results = res; data.dirty = true; }
-      st.resultsAt = now; st.nRows = n;
+      delete st.resultsSrc; st.resultsAt = now; st.nRows = n;
       if (task.key === ev.key && task.heat && st.resHeat !== task.heat) { st.resHeat = task.heat; data.dirty = true; }
       if (task.key === ev.key && task.final) { st.resFinalAt = now; data.dirty = true; }
       const exp = expected({ ...ev, heats: st.heats });
@@ -865,6 +865,15 @@ export default {
       for (const [k, e] of Object.entries(b.events || {})) {
         const cur = (c.events[k] = c.events[k] || {});
         if (e.heats && e.heats.length) { cur.heats = e.heats; cur.heatsAt = 1; cur.heatsSrc = "ffnex"; n.heats++; }
+        // résultats : jamais à la place de résultats Live FFN plus complets ; le Live FFN reprend la main dès qu'il relit
+        const R = e.results;
+        if (R && Array.isArray(R.rows) && R.rows.length && (cur.resultsSrc === "ffnex" || !cur.results?.rows?.length || R.rows.length > cur.results.rows.length)) {
+          const res = { title: String(R.title || ""), when: String(R.when || ""), rows: R.rows };
+          for (const r of res.rows) { if (r.club && alias[r.club]) r.club = alias[r.club]; if (r.team) for (const [lg, sh] of Object.entries(alias)) if (r.team.startsWith(lg)) r.team = sh + r.team.slice(lg.length); }
+          if (JSON.stringify(res) !== JSON.stringify(cur.results || null)) { cur.results = res; cur.changedAt = now; n.res = (n.res || 0) + 1; }
+          cur.resultsSrc = "ffnex"; cur.nRows = res.rows.length;
+          if (R.complete && !cur.doneAt) cur.doneAt = now;
+        }
       }
       // Interclubs : composition des équipes (remplace celle d'un import précédent, jamais celle lue sur le Live FFN)
       if (b.teams && typeof b.teams === "object") { for (const [lg, sh] of Object.entries(alias)) if (b.teams[lg]) { b.teams[sh] = b.teams[lg]; delete b.teams[lg]; }

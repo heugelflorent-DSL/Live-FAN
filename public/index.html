@@ -3468,7 +3468,19 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
           const club=clubs[A(r,"clubid")]||"",nt=Math.max(rows.filter(x=>A(x,"clubid")===A(r,"clubid")).length,tmax[A(r,"clubid")]||1);return{lane:+A(r,"lane"),name:ms[0]?ms[0].name:club,year:ms[0]?ms[0].year:"",club,team:nt>1?(club+" "+(A(r,"team")||"")).trim():club,...(entry?{entry}:{}),members:ms}}
         const w=sw[solo?A(solo,"swimmerid"):""]||{};return{lane:+A(r,"lane"),name:w.name||"",year:String(w.year||""),club:w.club||clubs[A(r,"clubid")]||"",iuf:w.iuf,...(entry?{entry}:{})}}).sort((a,b)=>a.lane-b.lane)}));
       R.items.push({kind:"event",epr,cat:+A(E,"agegroupid")||0,typ,num:R.items.filter(x=>x.kind==="event").length,time:hh(A(E,"datetime")),name,round:typ===60?"Séries":"",alias:"",category:"",fin:"",key,nSeries:hs.length,nPart:rows.length});
-      if(heats.length)events[key]={heats}});
+      if(heats.length)events[key]={heats};
+      // résultats (secours quand le Live FFN est en 403) : seules les lignes nagées (temps) ou avec un statut (DSQ, forfait…)
+      const ST={1:"DSQ",2:"ABD",3:"Forf. nd",4:"Forf. dec",5:"Forf. dec"},done=rows.filter(r=>ffxTime(A(r,"swimtime"))||+A(r,"disqualificationid"));
+      if(done.length){const rel=!!done[0].querySelector("RELAY"),cnt={};
+        const out=done.map(r=>{const t=ffxTime(A(r,"swimtime")),dq=+A(r,"disqualificationid"),sp=[];[...r.querySelectorAll(":scope > SPLITS > SPLIT")].forEach(s=>{const v=ffxTime(A(s,"swimtime"));if(v)sp.push(+A(s,"distance"),v)});
+          const o={place:t&&!dq&&+A(r,"place")||undefined,time:dq?undefined:t||undefined,status:dq?(ST[dq]||"DSQ"):undefined,points:+A(r,"points")||undefined,sp:sp.length?sp:undefined};
+          if(rel){const club=clubs[A(r,"clubid")]||"";cnt[club]=(cnt[club]||0)+1;const ms=[...r.querySelectorAll("RELAYPOSITION")].sort((a,b)=>A(a,"number")-A(b,"number")).map(p=>sw[A(p,"swimmerid")]).filter(Boolean);
+            Object.assign(o,{name:ms[0]?ms[0].name:club,club,relay:ms.map(w=>({name:w.name,iuf:+w.iuf||undefined,year:String(w.year||"")}))})}
+          else{const w=sw[A(r.querySelector("SOLO")||r,"swimmerid")]||{};Object.assign(o,{name:w.name||"",iuf:+w.iuf||undefined,year:String(w.year||""),club:w.club||clubs[A(r,"clubid")]||""})}
+          return JSON.parse(JSON.stringify(o))});
+        if(rel)out.forEach(o=>o.team=cnt[o.club]>1?o.club+" "+(out.filter(x=>x.club===o.club).indexOf(o)+1):o.club);
+        out.sort((a,b)=>(a.place||1e9)-(b.place||1e9)||(a.time||1e9)-(b.time||1e9));
+        (events[key]=events[key]||{}).results={title:name,when:hh(A(E,"datetime")),rows:out,complete:done.length===rows.length}}});
     reunions.push(R)});
   return{c:A(M,"id"),meta,reunions,events,teams,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
 /* fiches de course : même format que les fiches extraNat (4 par page A4), une par nageur ou relais et par série, avec la compétition bien visible.
@@ -3567,7 +3579,7 @@ function ffxLogRender(){const el=$("#ffx-log");if(!el)return;const F=(RAW&&RAW.f
   el.innerHTML=H.join("")}
 document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-file")return;const f=e.target.files[0],m=$("#ffx-msg");if(!f)return;m.textContent="Lecture du fichier…";
   try{const P=ffxParse(await ffxRead(f));m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
-    const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme mis à jour · ":""}${j.heats} épreuve(s) avec séries · ${j.roster} nageur(s) ajouté(s) aux engagés. Détail des changements ci-dessous.`;if(RAW){RAW.ffxLog=RAW.ffxLog||{};RAW.ffxLog[P.c]=[{at:Date.now(),lines:j.log||[]},...(RAW.ffxLog[P.c]||[])]}ffxLogRender();try{refresh&&refresh()}catch(_){}}
+    const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme mis à jour · ":""}${j.heats} épreuve(s) avec séries · ${j.res?j.res+" épreuve(s) avec résultats · ":""}${j.roster} nageur(s) ajouté(s) aux engagés. Détail des changements ci-dessous.`;if(RAW){RAW.ffxLog=RAW.ffxLog||{};RAW.ffxLog[P.c]=[{at:Date.now(),lines:j.log||[]},...(RAW.ffxLog[P.c]||[])]}ffxLogRender();try{refresh&&refresh()}catch(_){}}
   catch(err){m.textContent="Import impossible : "+err.message}e.target.value=""});
 function render(){try{docSys()}catch(_){}if(DEEP)setTimeout(deepApply,0);setTimeout(()=>{try{alertTick()}catch(_){}},0);if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history[RV&&RV!==state.view&&!POPPING?"pushState":"replaceState"](null,"",location.pathname+location.search+want)}catch(_){}RV=state.view}
   if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");/* écran du mot de passe ouvert : les rafraîchissements du direct ne doivent pas le refermer */
