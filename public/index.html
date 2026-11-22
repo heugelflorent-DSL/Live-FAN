@@ -1555,6 +1555,10 @@ function poolIn(key){const h=state.live==="bassin"&&POOL&&POOL.heat;if(!h||!h.st
 /* ===== écran géant (16:9 ou 4:3, lisible à 20-30 m) : couloirs pendant la course, liste de départ entre les courses, attente pendant les pauses ===== */
 /* nombre de couloirs du bassin : réglage de l'admin, sinon le plus grand couloir vu dans les listes de départ du live (6, 8, 10…) */
 function poolLaneCount(){if(+state.lanesN>0)return +state.lanesN;let m=0;for(const e of Object.values(EVENTS||{}))for(const se of e.series||[])for(const w of se.swimmers||[])if(+w.lane>m)m=+w.lane;return m>=4&&m<=10?m:8}
+/* ligne sans aucun toucher alors que la course est bien lancée : le nageur n'est pas parti → DNS dans sa ligne pendant la course.
+   seuil : 1er passage le plus rapide de la série + 50 % + 5 s (personne n'est aussi loin derrière au 1er mur) */
+function tvNoStart(h){if(!h||!h.start||h.status!=="running"||h.recall)return false;let f=Infinity;for(const L of Object.values(h.lanes||{})){const ks=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),x=ks.length?L.laps[ks[0]]:null;if(x&&x.t!=null&&x.t<f)f=x.t}
+  if(!isFinite(f))return false;return (Date.now()+(poolOff||0)-h.start)/1000>f*1.5+5}
 function tvLanes(h,se){const ks=new Set([...Object.keys(h.names||{}),...Object.keys(h.lanes||{})].map(Number));(se&&se.swimmers||[]).forEach(w=>w.lane&&ks.add(+w.lane));const mx=Math.max(poolLaneCount(),...ks);const L=Array.from({length:mx},(_,i)=>i+1).filter(n=>ks.has(n)||mx<=10);return POOL&&POOL.tvrev?L.reverse():L}
 /* résultats gardés 20 s dans l'ordre des couloirs après l'arrivée du dernier nageur, puis 10 s classés de 1 à 8 (glissement animé),
    même si l'opérateur charge déjà la série suivante ; sans nouvelle série chargée, le classement reste affiché */
@@ -1582,7 +1586,7 @@ function tvScreenHtml(){if(KILL.screen)return killScreen();
       /* seulement le relayeur dans l'eau (le 1er avant le départ, rien après l'arrivée) : les 4 noms ne tiennent pas sur la ligne */
       const ix=Lr.fin?-1:(on>=0?on:0);if(ix>=0){const m=RMv[ix],z=splitName(m.name);rlh=`<span class="tvrl"><i class="on">${ix+1}/${RMv.length} · ${esc(z.last)}${z.first?" "+esc(z.first):""}</i></span>`}}
     const who=(w?`<b${!relay&&nm.first?` data-full="${esc(nm.last+" "+nm.first)}" data-l="${esc(nm.last)}" data-f="${esc(nm.last+" "+nm.first.split(/([ -])/).map(x=>/^[ -]$/.test(x)?x:x?x[0]+".":"").join(""))}"`:""}>${relay?esc(w.club||w.name):esc(nm.last)+" "+esc(nm.first)}</b>${RMv?rlh:`<span>${relay?"":esc(w.club||"")}</span>`}`:`<b class="tvempty">—</b><span></span>`);const whoL=`<div class="tvlg">${lg?`<img src="${lg}" alt="">`:""}</div><div class="tvw">${who}</div>`;
-    if(ready){const eng=w&&w.time;return`<div class="tvr"><div class="tvn">${n}</div>${whoL}<div class="tvm"></div><div class="tvt tveng">${eng?fmt(eng):""}</div><div class="tvp"></div></div>`}
+    if(ready){const eng=w&&w.time;return`<div class="tvr"><div class="tvn">${n}</div>${whoL}<div class="tvm"></div><div class="tvt tveng">${eng?fmt(eng):w?"NT":""}</div><div class="tvp"></div></div>`}
     const laps=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b),lk=laps[laps.length-1],last=lk!=null?L.laps[lk]:null;
     let mid="",tm="",pl="",qline="",rpb=0,bigRp="",bigEarly=false;
     if(L.fin&&L.fin.t!=null){tm=`<div class="tvt fin">${fmt(L.fin.t)}</div>`;pl=`<div class="tvp p${rk[n]<=3?rk[n]:""}">${rk[n]}</div>`;
@@ -1597,7 +1601,7 @@ function tvScreenHtml(){if(KILL.screen)return killScreen();
       let lc="";if(j>0){const tA=j>1?L.laps[laps[j-2]]:null,pA=L.laps[laps[j-1]],dA=j>1?(tA.dist||laps[j-2]*len):0,ps=pA&&pA.t!=null?pA.t-(j>1?(tA&&tA.t!=null?tA.t:NaN):0):NaN,pl0=pd-dA,cl=d-pd;
         if(isFinite(ps)&&pl0>0&&cl>0){const a=Math.round(seg*100),b=Math.round(ps*cl/pl0*100);lc=a<b?" up":a>b?" down":" eq"}}
       mid=`<div class="tvdl">${j>0?`<span class="tvlap${lc}"><small>${d-pd} m</small>${fmt(seg)}</span>`:""}<span class="tvdist">${d} m</span></div>`;tm=`<div class="tvt split">${fmt(last.t)}</div>`;if(POOL&&POOL.tvbig){if(j>0)bigRp=`<span class="tvbrp tvsg${lc}">${fmt(seg)}</span>`}pl=`<div class="tvp live${rkLive[n]<=3?" p"+rkLive[n]:""}">${rkLive[n]||""}</div>`}
-    else{tm=`<div class="tvt"></div>`;pl=`<div class="tvp"></div>`}
+    else{/* série finie, nageur au départ sans aucun temps : forfait → DNS */tm=`<div class="tvt">${w&&(h.status==="done"||tvNoStart(h))?"DNS":""}</div>`;pl=`<div class="tvp"></div>`}
     return`<div class="tvr${best===String(n)?" lead":""}${L.fin?"":rkLive[n]===1?" lead":""}${ranked?" rkd":""}${qline?" hasq":""}" data-ln="${n}"><div class="tvn">${n}</div>${qline?whoL.replace(/<\/div>$/,qline+"</div>"):whoL}<div class="tvm">${bigRp||mid}</div>${tm}${pl}</div>`}).join("");
   const title=ev?ev.name:String(h.title||"").replace(/\s+Séries$/i,"");
   return`<div class="tvhead"><div class="tvev"><h1>${esc(title)}</h1><p><span class="tvtag">${ready?"AU DÉPART · ":ranked?"CLASSEMENT · ":""}SÉRIE ${h.heat||"?"}${ev&&ev.series&&ev.series.length?" / "+ev.series.length:""}${(()=>{if(!run)return"";let dm=0;for(const L of Object.values(h.lanes||{})){const ks=Object.keys(L.laps||{}).map(Number);if(!ks.length||L.fin)continue;const k=Math.max(...ks);dm=Math.max(dm,L.laps[k].dist||k*len)}return dm?" · "+dm+" m":""})()}</span>${esc(state.title||"")}</p></div><div class="tvclk" id="tvclk">${ready?"0.0":""}</div><div class="tvsig"><img src="/matetflo.png" alt=""><span>Mat-et-Flo</span></div></div><div class="tvrows${ready?" start":""}${ranked?" ranked":""}">${ready?`<div class="tvsub">Liste de départ</div>`:""}${rows}</div>`}
