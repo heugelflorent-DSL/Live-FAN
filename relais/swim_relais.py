@@ -118,7 +118,7 @@ class Decoder:
             t = to_sec(j.get("Time")); rk = int(j.get("Rk") or 0) or None; lap = j.get("Lap") or 0
             dist = int(re.sub(r"\D", "", str(j.get("Dist") or "")) or 0) or None  # « 150* » = passage corrigé
             kind = "finish" if j.get("Kind") == "F" else "split"
-            return {"k": kind, "lane": ln, "lap": lap, "dist": dist, "t": t, "rank": rk, "edited": j.get("Type") not in (None, "T")}
+            return {"k": kind, "lane": ln, "lap": lap, "dist": dist, "t": t, "rank": rk, "edited": j.get("Type") not in (None, "T"), "corr": "*" in str(j.get("Dist") or "") or j.get("Type") not in (None, "T", "1", "2", "3", 1, 2, 3)}
         if m in ("HO", "HS", "SL", "HR"):
             e = j.get("EvHeader") or {}; h = j.get("HeatHeader") or {}
             lanes = [{"lane": x.get("Ln"), "name": x.get("Name") or "", "club": x.get("Club") or "", "born": x.get("Born") or "",
