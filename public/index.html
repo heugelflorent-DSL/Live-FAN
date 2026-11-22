@@ -1734,7 +1734,7 @@ function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(
   try{localStorage.setItem("sd-th:"+(PICK?"_":EV),JSON.stringify({t,v:cust?pal.vars:null,m:cust?pal.vars["--a"]:THEME_COL[t]}))}catch(_){}const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
 /* programme pas encore publié (épreuves provisoires) : aucun horaire estimé sur le live public (l'admin garde ses estimations) */
 function scheduleP(){if(!state.admin&&Object.values(EVENTS).some(e=>e.type==="event"&&e.provisional))return{};return schedule0()}
-let CSD=0;/* retard estimé de la réunion : prochaine épreuve pas encore nagée, heure recalculée en direct − heure prévue (Live FFN) */
+let OFFK=null,OFFV=0,anchS=null;let CSD=0;/* retard estimé de la réunion : prochaine épreuve pas encore nagée, heure recalculée en direct − heure prévue (Live FFN) */
 function delayTag(s){try{const done=doneSet(),sch=schedule(),o=(state.order[s]||[]).filter(k=>EVENTS[k]&&EVENTS[k].type==="event");if(!o.length||o.every(k=>done.has(k))||!o.some(k=>done.has(k)||(POOL&&POOL.heat&&poolEvent(POOL.heat)&&poolEvent(POOL.heat).key===k)))return"";
   /* deux compétitions mêlées : les heures du Live FFN de chaque compétition ne tiennent pas compte de l'autre → référence = notre programme prévu */
   const two=state.comps.length>1,pl=two?schedulePlan():null,ref=x=>two?(pl[x]&&pl[x].start):EVENTS[x].ffnSec;
@@ -1759,11 +1759,13 @@ function schedule0(){
       if(ev.type==="pause"){out[key]={start:t};t+=ev.min*60;continue}
       if(state.timing==="manual"&&!delayed&&!doneNow.has(key)){t+=(state.delay[s]||0)*60;delayed=true}
       // direct bassin : la série en cours dans l'eau donne l'heure réelle, tout le programme suivant se recale dessus
-      if(pa&&pa.key===key){const before=ev.series.slice(0,pa.heat-1).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=pa.sec-before;anchored=true}
+      if(pa&&pa.key===key){const before=ev.series.slice(0,pa.heat-1).reduce((a,x)=>a+x.slowest+state.heatGap,0);t=pa.sec-before;anchored=true;anchS=s;/* écart réel avec le Live FFN : calculé au 1er départ de l'épreuve puis gardé (les heures ne bougent plus à chaque série) */if(ev.ffnSec!=null){if(OFFK!==key||pa.heat===1){OFFK=key;OFFV=t-ev.ffnSec}else t=ev.ffnSec+OFFV}}
       // finales : horaires fixes (cérémonies, podiums) → jamais avant l'heure annoncée par le Live FFN
       if((ev.fin||ev.typ===61)&&ev.ffnSec!=null&&!(pa&&pa.key===key))t=Math.max(t,ev.ffnSec);
       // avant le début de la réunion : aucune épreuve n'est annoncée avant l'heure du Live FFN
       else if(ev.ffnSec!=null&&!anchored&&!state.order[s].some(x=>doneNow.has(x))&&!(pa&&pa.key===key)&&ev.ffnSec-t<3*3600)t=state.timing==='manual'&&(state.delay[s]||0)>0?Math.max(t,ev.ffnSec):ev.ffnSec;/* avant le début : les heures annoncées par le Live FFN telles quelles (et non cumulées avec nos durées) */
+      /* épreuves suivantes de la même réunion : heures du Live FFN + l'avance/retard réel (fixe jusqu'au départ de la prochaine épreuve) */
+      if(anchored&&pa&&anchS===s&&pa.key!==key&&OFFK===pa.key&&ev.ffnSec!=null&&!doneNow.has(key)&&!(ev.fin||ev.typ===61))t=Math.max(ev.ffnSec+OFFV,parisSec(Date.now()+poolOff));
       /* jour de la réunion, épreuve pas encore nagée, aucun repère du chrono : jamais estimée dans le passé (sinon « dans les temps » alors qu'on attend) */
       if(!anchored&&!doneNow.has(key)&&nowS!=null&&t<nowS&&state.order[s].some(x=>doneNow.has(x)||true)&&sessToday(s))t=nowS;
       /* direct « Live FFN » : horaires du Live FFN tels quels, pas de retard estimé (il dépendrait de la lecture des pages) */
