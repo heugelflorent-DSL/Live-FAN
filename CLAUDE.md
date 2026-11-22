@@ -4,7 +4,7 @@ Projet de Florent (et Mat), signé « © Mat-et-Flo ». Résultats et direct de 
 Site : https://swim-direct.swim-direct.workers.dev (Cloudflare Worker `swim-direct`). Travailler **en français**.
 
 ## Règles de travail (impératives)
-- **Jamais de push sans un « go » explicite de Florent** (« go », « push », « push tout », « tu peux déployer »). Regrouper les changements. Si un hook signale des commits non poussés : expliquer qu'on attend le go, ne pas pousser.
+- **Push : gros changements = attendre un « go » explicite de Florent** (« go », « push », « push tout », « tu peux déployer ») ; nouvelle fonctionnalité, refonte, changement visible ou risqué = gros. **Simples corrections (bug, coquille, petit ajustement sans risque) : push direct sans demander**, après les vérifications habituelles, et le dire ensuite. En cas de doute, c'est un gros changement. Regrouper les changements. Si un hook signale des commits non poussés après un gros changement : expliquer qu'on attend le go, ne pas pousser.
 - **Simulation visuelle avant toute nouvelle fonctionnalité** (Playwright, capture d'écran vérifiée) : plusieurs bugs n'ont été vus que comme ça.
 - **Écran géant : toute modification doit marcher dans TOUTES les configurations** — normal, grand pitch (`tvbig`), clair (`tvlight`), couloirs inversés (`tvrev`), formats 4:3 / 16:9 (`tvfmt`), plusieurs tailles d'écran, en ligne et écran local de l'exe, et pendant les transitions (vague, partenaires). Les règles `#tvscreen.tvbig …` passent souvent par-dessus les nouvelles : vérifier avec `python3 test/tv-configs.py` (captures de chaque config × phase au départ / en course / arrivée) avant de demander le go.
 - Ne jamais écrire « autorisé par la FFN ». Ne pas parler des Interclubs XXL à la FFN.
