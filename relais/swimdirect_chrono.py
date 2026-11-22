@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.8.4"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.8.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -411,6 +411,8 @@ class Core:
         if opts.get("fmt") in ("", "169", "43") and "fmt" in opts:
             self.screen.cmds.put({"act": "fmt", "f": opts["fmt"]}); done.append("format=" + (opts["fmt"] or "auto"))
         sc = opts.get("screen")
+        if isinstance(sc, dict) and not first and sc.get("mode") == "reload":  # recharge les pages d'écran ouvertes (bouton de l'admin)
+            self.screen.broadcast({"reload": 1}); done.append("recharger l'écran")
         if isinstance(sc, dict) and not first and sc.get("mode") in ("normal", "count", "evac", "cer", "pause", "spons", "pub", "msg"):  # jamais rejoué au démarrage du logiciel
             self.screen.cmds.put({"act": "screen", "mode": sc["mode"], "title": str(sc.get("title") or "")[:120]}); done.append("écran=" + sc["mode"])
         if isinstance(opts.get("qout"), bool):

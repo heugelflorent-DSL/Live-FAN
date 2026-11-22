@@ -605,7 +605,7 @@ function publicConfig(cfg) { const { scrape, exeOpts, exeOptsRev, ...rest } = cf
 // options du logiciel chrono pilotées à distance par l'administrateur (liste fermée : affichage de l'écran géant et sortie réseau, jamais la liaison avec le chronométrage)
 const EXE_BOOL = ["big", "rev", "light", "spons", "pub", "auto", "qout"];
 function exeOpts(o) { const out = {}; if (!o || typeof o !== "object") return out; for (const k of EXE_BOOL) if (typeof o[k] === "boolean") out[k] = o[k]; if (typeof o.fmt === "string" && ["", "43", "169"].includes(o.fmt)) out.fmt = o.fmt;
-  const sc = o.screen; if (sc && typeof sc === "object" && ["normal", "count", "evac", "cer", "pause", "spons", "pub", "msg"].includes(sc.mode)) out.screen = { mode: sc.mode, title: String(sc.title || "").slice(0, 120), n: +sc.n || 0 }; // écran affiché (cérémonie, évacuation…) : « n » change à chaque envoi
+  const sc = o.screen; if (sc && typeof sc === "object" && ["normal", "count", "evac", "cer", "pause", "spons", "pub", "msg", "reload"].includes(sc.mode)) out.screen = { mode: sc.mode, title: String(sc.title || "").slice(0, 120), n: +sc.n || 0 }; // écran affiché (cérémonie, évacuation…) : « n » change à chaque envoi
   return out; }
 
 async function rescrape(env, scope, what, ev = "main") {
