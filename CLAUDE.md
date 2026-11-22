@@ -6,6 +6,7 @@ Site : https://swim-direct.swim-direct.workers.dev (Cloudflare Worker `swim-dire
 ## Règles de travail (impératives)
 - **Jamais de push sans un « go » explicite de Florent** (« go », « push », « push tout », « tu peux déployer »). Regrouper les changements. Si un hook signale des commits non poussés : expliquer qu'on attend le go, ne pas pousser.
 - **Simulation visuelle avant toute nouvelle fonctionnalité** (Playwright, capture d'écran vérifiée) : plusieurs bugs n'ont été vus que comme ça.
+- **Écran géant : toute modification doit marcher dans TOUTES les configurations** — normal, grand pitch (`tvbig`), clair (`tvlight`), couloirs inversés (`tvrev`), formats 4:3 / 16:9 (`tvfmt`), plusieurs tailles d'écran, en ligne et écran local de l'exe, et pendant les transitions (vague, partenaires). Les règles `#tvscreen.tvbig …` passent souvent par-dessus les nouvelles : vérifier avec `python3 test/tv-configs.py` (captures de chaque config × phase au départ / en course / arrivée) avant de demander le go.
 - Ne jamais écrire « autorisé par la FFN ». Ne pas parler des Interclubs XXL à la FFN.
 - **Lire le Live FFN le moins possible** (il bloque en 403). Pas de resynchronisation des Interclubs demandée.
 - Les mots de passe et secrets : Florent les tape lui-même, ne jamais les manipuler.
