@@ -860,7 +860,12 @@ export default {
       const c = (data.comps[b.c] = data.comps[b.c] || {}); const now = Date.now(); const n = { prog: 0, heats: 0, roster: 0 };
       const log = ffxDiff(c, b, alias);
       if (b.meta && !c.meta) c.meta = b.meta;
-      if (Array.isArray(b.reunions) && b.reunions.length) { c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
+      if (Array.isArray(b.reunions) && b.reunions.length) {
+        // horaires déjà paramétrés : l'import ne les change jamais (heure de chaque épreuve, ouverture des portes, jour)
+        if (Array.isArray(c.reunions) && c.reunions.length) { const oldT = {}, oldR = {};
+          for (const R of c.reunions) { oldR[R.n] = R; for (const it of R.items || []) if (it.kind === "event" && it.key && it.time) oldT[it.key] = it.time; }
+          for (const R of b.reunions) { const o = oldR[R.n]; if (o) { if (o.doors) R.doors = o.doors; if (o.day) R.day = o.day; } for (const it of R.items || []) if (it.kind === "event" && oldT[it.key]) it.time = oldT[it.key]; } }
+        c.reunions = b.reunions; c.progAt = 1; c.progSrc = "ffnex"; n.prog = b.reunions.length; }
       c.events = c.events || {};
       for (const [k, e] of Object.entries(b.events || {})) {
         const cur = (c.events[k] = c.events[k] || {});
