@@ -48,10 +48,12 @@ export function applyEvent(s, ev, t) {
       case "react": { const l = lane(ev.lane); if (l) l.rt = ev.t; break; }
       /* plaque (Type T) prioritaire sur les boutons de secours (« poires », Type 1-3) : un temps de poire ne remplace jamais celui de la plaque, quel que soit l'ordre d'arrivée */
       case "split": case "finish": { const l = lane(ev.lane); if (!l) break; const old = l.laps[ev.lap]; if (old && !old.edited && ev.edited) break;
+        /* arrivée : le temps plaque reste affiché ; une poire ne sert que si la plaque n'a rien donné (ou s'il n'y a que des poires) */
+        if (ev.k === "finish" && l.fin && l.fin.pad && ev.edited) break;
         /* temps impossible : plus long que le temps écoulé depuis le départ (+10 s de marge), ex. appui parasite sur la plaque → ignoré, le vrai temps arrive ensuite */
         { const h0 = s.heat; if (h0 && h0.start && ev.t > (t - h0.start) / 1000 + 10) break; }
         l.laps[ev.lap] = { t: ev.t, rank: ev.rank || (old && old.rank) || null, dist: ev.dist || null, edited: !!ev.edited }; l.last = Math.max(l.last || 0, ev.lap);
-        if (ev.k === "finish") { l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null }; s.heat.finAt = t; { const fs = Object.values(s.heat.lanes).filter(x => x.fin && x.fin.t != null).sort((x, y) => x.fin.t - y.fin.t); fs.forEach((x, i) => { x.fin.rank = i && x.fin.t === fs[i - 1].fin.t ? fs[i - 1].fin.rank : i + 1; }); } } break; }
+        if (ev.k === "finish") { l.fin = { t: ev.t, rank: ev.rank || (l.fin && l.fin.rank) || null, pad: !ev.edited }; s.heat.finAt = t; { const fs = Object.values(s.heat.lanes).filter(x => x.fin && x.fin.t != null).sort((x, y) => x.fin.t - y.fin.t); fs.forEach((x, i) => { x.fin.rank = i && x.fin.t === fs[i - 1].fin.t ? fs[i - 1].fin.rank : i + 1; }); } } break; }
       case "end": if (s.heat) { s.heat.status = "done"; s.heat.doneAt = s.heat.doneAt || t; } break;
       case "heat": { // noms et résultats envoyés par le Quantum (série chargée, puis officielle)
         const fresh = ev.stat !== "O" && ev.stat !== "F"; // liste de départ (W) : série (re)mise au départ
@@ -72,7 +74,7 @@ export function applyEvent(s, ev, t) {
         if (ev.comp && !ev.sim && !s.mainComp) s.mainComp = String(ev.comp).trim();
         const h = s.heat; h.sim = !!ev.sim; h.key = ev.key || null; h.comp = ev.comp || h.comp || ""; h.extra = isExtra(s, h.comp); h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
         h.names = {}; for (const l of ev.lanes || []) if (l.name) h.names[l.lane] = { name: l.name, club: l.club, born: l.born, ...(Array.isArray(l.sw) && l.sw.length ? { sw: l.sw.slice(0, 12).map((x) => String(x).slice(0, 60)) } : {}) };
-        if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; h.doneAt = h.doneAt || t; h.official = true; for (const l of ev.lanes || []) if (l.time) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); L.fin = { t: l.time, rank: l.rank }; } }
+        if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; h.doneAt = h.doneAt || t; h.official = true; for (const l of ev.lanes || []) if (l.time) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); if (L.fin && L.fin.pad) { L.fin.rank = l.rank || L.fin.rank; continue; } L.fin = { t: l.time, rank: l.rank }; } }
         if (h.official) archive(s, h);
         break;
       }

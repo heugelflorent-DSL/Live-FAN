@@ -1,0 +1,18 @@
+import { applyEvent, empty } from "../src/poolcore.js";
+const s = empty(), T0 = Date.now(); let ok = true;
+const go = (ev, dt = 0) => applyEvent(s, ev, T0 + dt);
+const chk = (m, c) => { console.log((c ? "ok  " : "ERR ") + m); ok = ok && c; };
+go({ k: "start", ts: T0, event: 1, heat: 1 });
+go({ k: "finish", lane: 3, lap: 2, t: 30.12, edited: false }, 31000);
+go({ k: "finish", lane: 3, lap: 2, t: 30.31, edited: true }, 31500);
+chk("plaque puis poire (même longueur) : plaque", s.heat.lanes[3].fin.t === 30.12);
+go({ k: "finish", lane: 3, lap: 3, t: 30.40, edited: true }, 31600);
+chk("plaque puis poire (autre longueur) : plaque", s.heat.lanes[3].fin.t === 30.12);
+go({ k: "finish", lane: 4, lap: 2, t: 31.5, edited: true }, 32000);
+chk("poire seule : poire", s.heat.lanes[4].fin.t === 31.5);
+go({ k: "finish", lane: 4, lap: 2, t: 31.33, edited: false }, 32500);
+chk("poire puis plaque : plaque", s.heat.lanes[4].fin.t === 31.33);
+go({ k: "heat", stat: "O", lanes: [{ lane: 3, time: 30.31, rank: 1 }, { lane: 5, time: 33.1, rank: 3 }] }, 40000);
+chk("résultat officiel : plaque gardée", s.heat.lanes[3].fin.t === 30.12);
+chk("résultat officiel sans plaque : officiel", s.heat.lanes[5].fin.t === 33.1);
+process.exit(ok ? 0 : 1);
