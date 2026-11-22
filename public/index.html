@@ -4086,7 +4086,7 @@ initLang();
 /* ===== écran speaker (#speaker) : sans animation, le speaker navigue seul de série en série ; alerte quand une nouvelle série part ===== */
 let SPK=null;
 function spkOn(){return document.body.classList.contains("spk")}
-function spkOpen(){state.view="live";document.body.classList.add("spk");if(!SPK)SPK={tab:"heat",sel:null,seen:null,alert:null,follow:false};spkRender();if(!SPK.iv)SPK.iv=setInterval(()=>{if(spkOn())spkRender()},1000);try{loadLive();poolConnect()}catch(_){}}
+function spkOpen(){state.view="live";document.body.classList.add("spk");if(!SPK){SPK={tab:"heat",sel:null,seen:null,alert:null,follow:false};try{SPK.navOff=localStorage.getItem("sd-spk-nav")==="0"}catch(_){}}spkRender();if(!SPK.iv)SPK.iv=setInterval(()=>{if(spkOn())spkRender()},1000);try{loadLive();poolConnect()}catch(_){}}
 /* liste plate de toutes les séries dans l'ordre du programme */
 function spkHeats(){const out=[],sch=schedule();for(const k of allKeys()){const ev=EVENTS[k];if(!ev)continue;const st=(sch[k]||{}).start||0;let acc=st;(ev.series||[]).forEach((se,i)=>{out.push({k,n:se.n||i+1,t:acc});acc+=(se.slowest||0)+(state.heatGap||0)})}return out}
 /* série en cours (ou dernière partie) d'après le direct */
@@ -4140,7 +4140,7 @@ function spkRender(){if(!spkOn())return;let el=document.getElementById("spk");if
   const al=SPK.alert?`<div class="spk-al">🔔 Série partie : <b>${esc((EVENTS[SPK.alert.k]||{}).name||"")} · série ${SPK.alert.n}</b> <button data-sa="go">Y aller</button><button data-sa="x">OK</button></div>`:"";
   const tvb=spkTvBar(ev,s);
   const head=ev?`<h1>${esc(ev.name)}</h1><p>${ev.fin||ev.typ===61?esc(ev.roundLabel||"Finale"):`Série ${s.n} / ${ev.series.length}`} · ${hm((H[i]||{}).t)}${L&&L.k===s.k&&L.n===s.n?` · <b class="spk-live">● EN COURS</b>`:""}</p>`:"";
-  const html=`<aside class="spk-nav">${nav}</aside><main><div class="spk-top">${al}${tvb}<div class="spk-bar"><button data-sm="-1">◀ Série précédente</button><button data-sm="live"${L?"":" disabled"}>● Série en cours</button><button data-sm="1">Série suivante ▶</button><label><input type="checkbox" data-sf ${SPK.follow?"checked":""}> Suivre le direct</label><button data-sx>✕</button></div><div class="spk-tabs">${[["heat","Série"],["res","Résultats & finales"],["pod","Podiums"]].map(([k,t])=>`<button data-st="${k}" aria-pressed="${SPK.tab===k}">${t}</button>`).join("")}</div>${head}</div><div class="spk-body">${body}</div></main>`;
+  const html=`<aside class="spk-nav"${SPK.navOff?" hidden":""}>${nav}</aside><main><div class="spk-top">${al}${tvb}<div class="spk-bar"><button data-snav title="Afficher / masquer la liste des séries">☰</button><button data-sm="-1">◀ Série précédente</button><button data-sm="live"${L?"":" disabled"}>● Série en cours</button><button data-sm="1">Série suivante ▶</button><label><input type="checkbox" data-sf ${SPK.follow?"checked":""}> Suivre le direct</label><button data-sx>✕</button></div><div class="spk-tabs">${[["heat","Série"],["res","Résultats & finales"],["pod","Podiums"]].map(([k,t])=>`<button data-st="${k}" aria-pressed="${SPK.tab===k}">${t}</button>`).join("")}</div>${head}</div><div class="spk-body">${body}</div></main>`;
   if(el._h===html)return;el._h=html;const mb=el.querySelector(".spk-body"),y=mb?mb.scrollTop:0,ny=el.querySelector(".spk-nav"),y2=ny?ny.scrollTop:0,same=el._s===(s&&s.k+"|"+s.n+"|"+SPK.tab);el.innerHTML=html;
   if(same){el.querySelector(".spk-body").scrollTop=y;el.querySelector(".spk-nav").scrollTop=y2}else{const b=el.querySelector(".spk-nav .sel");b&&b.scrollIntoView({block:"center"})}el._s=s&&s.k+"|"+s.n+"|"+SPK.tab;spkFit()}
 /* les 8 couloirs tiennent toujours sur la page : le tableau est réduit à la hauteur disponible */
@@ -4175,6 +4175,7 @@ function spkClick(e){const t=e.target.closest("button,input");if(!t)return;const
   else if(t.dataset.st)SPK.tab=t.dataset.st;
   else if(t.dataset.sa){if(t.dataset.sa==="go"&&SPK.alert)SPK.sel={k:SPK.alert.k,n:SPK.alert.n};SPK.alert=null}
   else if(t.dataset.sf!=null)SPK.follow=t.checked;
+  else if(t.dataset.snav!=null){SPK.navOff=!SPK.navOff;try{localStorage.setItem("sd-spk-nav",SPK.navOff?"0":"1")}catch(_){}spkRender();setTimeout(spkFit,50);return}
   else if(t.dataset.fiche!=null){const e=SPK.sel&&EVENTS[SPK.sel.k];if(e)spkFiche(e,SPK.sel.n,+t.dataset.fiche);return}
   else if(t.dataset.tvnext!=null){spkFicheNext();return}
   else if(t.dataset.tvlive!=null){spkSend({k:"screen",mode:"normal",ts:Date.now()});return}
@@ -4208,6 +4209,7 @@ body.spk{overflow:hidden}body.spk>*:not(#spk){visibility:hidden}
 #spk .spr td{border-top:0;padding-top:0;font-size:13px;color:#4b5a78}#spk .spr td{white-space:normal}#spk .spr .sps{display:flex;flex-wrap:wrap;gap:2px 14px}#spk .spr span{white-space:nowrap}
 #spk .spk-rp{color:#16a34a}#spk .spk-q{display:inline-block;margin:0 4px 3px 0;padding:2px 8px;border-radius:99px;background:#dcfce7;color:#166534;font:700 12px system-ui}#spk .spk-q.f{background:#13285a;color:#fff}
 #spk .spk-rk{background:#fff;border-radius:12px;padding:10px 10px 10px 40px}#spk .spk-rk li{padding:3px 0}
+#spk .spk-nav[hidden]{display:none}#spk [data-snav]{font-size:18px!important}
 #spk .spk-tv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px;padding:6px 10px;border-radius:10px;background:#eef2f8;font:500 14px system-ui;color:#13285a}#spk .spk-tv.on{background:#13285a;color:#fff}#spk .spk-tv small{color:#6b7891}#spk .spk-tv button{font:700 14px system-ui;padding:6px 12px;border-radius:8px;border:1px solid #c9d4e8;background:#fff;color:#13285a;cursor:pointer}#spk .spk-tv button.lv{background:#dc2626;border-color:#dc2626;color:#fff}#spk .spk-tv .cd{margin-left:auto;padding:4px 8px}#spk .spk-tvm{font-weight:700}
 #spk .spk-tvb{border:1px solid #c9d4e8;background:#f3f7fd;border-radius:7px;padding:1px 5px;margin-right:6px;font-size:.8em;cursor:pointer;vertical-align:middle}#spk tr.ontv td{background:#fff7d6}#spk tr.ontv .spk-tvb{background:#f5c542;border-color:#f5c542}
 #spk .spk-off{display:inline-block;margin:0 0 12px;padding:6px 12px;border-radius:10px;background:#fff3c4;color:#7a4a05;font:700 15px system-ui}#spk .spk-off.ok{background:#dcfce7;color:#166534}#spk .spk-pod{background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:12px}#spk .spk-pod h3{margin:0 0 6px}
