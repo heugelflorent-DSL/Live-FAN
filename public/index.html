@@ -2563,7 +2563,7 @@ function tvResHtml(re,at){const RL=spkRankList(re),L=RL.list;if(!L.length)return
 let TVAR=null;function tvAutoRes(){try{if(!POOL||POOL.autoRes===false||state.tvAutoRes===false||state.live!=="bassin")return"";const h=POOL.heat;
   /* la dernière série d'une épreuve vient de finir : on retient l'épreuve (la série suivante peut se charger pendant l'affichage) */
   if(h&&h.status==="done"&&h.doneAt){const ev=poolEvent(h);if(ev&&(ev.series||[]).length&&+h.heat>=ev.series.length){const key=ev.key+"|"+h.doneAt;if(!TVAR||TVAR.key!==key)TVAR={key,k:ev.key,t0:h.doneAt+10000}}}
-  if(!TVAR)return"";if(h&&h.status==="running"&&!poolAllIn(h)){TVAR=null;return""}/* une course part : direct */
+  if(!TVAR)return"";if(h&&h.status==="running"&&!poolAllIn(h)){TVAR=null;return""}if(!PHAT||Date.now()-PHAT>5000)loadPHist(true);/* une course part : direct */
   const now=Date.now()+(poolOff||0);if(now<TVAR.t0)return"";const ev=EVENTS[TVAR.k];const out=ev?tvResHtml(ev,TVAR.t0):"";if(!out&&now>TVAR.t0+5000)TVAR=null;return out}catch(_){return""}}
 function cardShow(c){const x=(c&&c.lines||[]).find(l=>/^§r\|/.test(l));return x?x.split("|")[1].split(",").map(Number).filter(Boolean):null}
 function cardPod(c){if(!c)return null;if(Array.isArray(c.pod)&&c.pod.length)return c.pod;const L=(c.lines||[]).filter(x=>/^§\d\|/.test(x)).map(x=>{const[,n,cl,t]=x.split("|");return{name:n||"",club:cl||"",t:t||""}});return L.length?L:null}
@@ -3113,7 +3113,11 @@ function cotKey(name){const n=norm(name);const sx=/MIXTE/.test(n)?"X":/DAMES/.te
   const m=n.match(/^(\d+) ?X ?(\d+)/);if(m)return sx+"|"+m[1]+"x"+m[2]+" "+st;const d=n.match(/^(\d+)/);return d?sx+"|"+d[1]+" "+st:null}
 /* points = la plus haute cotation dont le temps de la table est atteint (table : temps croissants de 1500 à 2 points) */
 function cotPts(ev,t){if(!COT||t==null)return null;const k=cotKey(ev.name),a=k&&COT[k];if(!a)return null;const c=Math.round(t*100);let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m]>=c)hi=m;else lo=m+1}return lo<a.length?1500-lo:1}
-function loadPHist(force){if(state.live!=="bassin"||PHL)return;if(!force&&PHAT&&Date.now()-PHAT<20000)return;PHL=true;
+/* historique du bassin au même format que /api/pool/hist, calculé sur place (écran local du logiciel chrono : marche sans Internet) */
+function histOf(S){const out=[];if(!S)return out;const all={...(S.hist||{})},h=S.heat;if(h&&h.event!=null&&h.heat&&Object.values(h.lanes||{}).some(L=>L.fin))all["cur"]=h;
+  for(const x of Object.values(all)){if(x.sim)continue;const fin={},laps={},rt={};for(const n in x.lanes||{}){const L=x.lanes[n];if(L.fin&&L.fin.t!=null)fin[n]=L.fin.t;const ks=Object.keys(L.laps||{}).map(Number).sort((a,b)=>a-b);if(ks.length)laps[n]=ks.map(k=>[k,L.laps[k].t,L.laps[k].dist||null]);if(L.rt>0)rt[n]=L.rt}
+    out.push({extra:!!x.extra,event:x.event,heat:x.heat,key:x.key||null,title:x.title||"",comp:x.comp||"",names:x.names||{},fin,laps,rt,start:x.start||null,doneAt:x.doneAt||null})}return out}
+function loadPHist(force){if(window.SD_LOCAL&&typeof LS!=="undefined"&&LS){const was=JSON.stringify(PHIST);PHIST=histOf(LS);PHAT=Date.now();return}if(state.live!=="bassin"||PHL)return;if(!force&&PHAT&&Date.now()-PHAT<20000)return;PHL=true;
   fetch(evq("/api/pool/hist"),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{PHL=false;PHAT=Date.now();if(!j)return;const was=JSON.stringify(PHIST);PHIST=j.heats||[];if(JSON.stringify(PHIST)!==was&&(state.view==="rank"||state.view==="res"||state.view==="pod"))render()}).catch(()=>{PHL=false;PHAT=Date.now()})}
 setInterval(()=>{if((state.view==="rank"||state.view==="pod")&&!document.hidden)loadPHist()},20000);
 /* arrivées du chronométrage des épreuves pas encore officialisées sur le Live FFN, par épreuve, avec l'équipe de chaque nageur */
@@ -4168,7 +4172,7 @@ function spkPodHtml(ev,vis){let ok=(hasFinals(ev)?mergedRanking(ev):(ev.results|
     return badge+G.map((g,gi)=>{const t=g.list.slice(0,3),blk=k=>{const w=t[k];if(!w)return`<div class="pv pv${k+1} pv0"></div>`;const nm=splitName(relay?(w.club||w.name):w.name);return`<div class="pv pv${k+1}"><div class="pv-who"><b>${esc(nm.last)}</b><span>${esc(nm.first||"")}</span><small>${esc(relay?"":w.club||"")}</small><em>${fmt(w.res)}</em></div><button type="button" class="spk-tvb pv-tv${SPK.podR&&SPK.podR.key===ev.name+"|"+g.name&&SPK.podR.set.has(k+1)&&spkTvSc()?" on":""}" data-podsw="${gi}:${k}" title="Afficher le podium avec seulement ce nageur sur l'écran géant">📺</button><div class="pv-step">${k+1}</div></div>`};
       return`<div class="spk-podv"><div class="pv-h"><h3>${esc(g.name)}</h3><button type="button" class="spk-tvb" data-podtv="${gi}" title="Afficher ce podium sur l'écran géant">📺 Écran géant</button></div><div class="pv-row">${blk(1)}${blk(0)}${blk(2)}</div></div>`}).join("")}
   return badge+groups.filter(g=>g.list.length).map(g=>`<div class="spk-pod"><h3>${esc(g.name)}</h3>${g.list.slice(0,3).map((w,i)=>`<div class="p${i+1}"><span>${i+1}</span><b>${esc(relay?(w.club||w.name):w.name)}</b><small>${relay?"":(w.year||"")+" · "}${esc(relay?"":w.club||"")}</small><em class="mono">${fmt(w.res)}</em></div>`).join("")}</div>`).join("")}
-function spkRender(){if(!spkOn())return;let el=document.getElementById("spk");if(!el){el=document.createElement("div");el.id="spk";document.body.appendChild(el);el.addEventListener("click",spkClick)}
+function spkRender(){if(!spkOn())return;try{if(state.live==="bassin"&&(!PHAT||Date.now()-PHAT>5000))loadPHist(true)}catch(_){}let el=document.getElementById("spk");if(!el){el=document.createElement("div");el.id="spk";document.body.appendChild(el);el.addEventListener("click",spkClick)}
   const H=spkHeats(),L=spkLive();
   /* nouvelle série partie : alerte seulement, le speaker reste où il est (sauf mode « suivre ») */
   if(L){if(SPK.seen&&SPK.seen!==L.id){SPK.alert=L;if(SPK.follow){SPK.sel={k:L.k,n:L.n};SPK.alert=null}}SPK.seen=L.id}
