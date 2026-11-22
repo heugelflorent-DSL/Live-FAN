@@ -1665,7 +1665,7 @@ function tvWave(el,kind){el._anim=1;const R=el.getBoundingClientRect(),W=R.width
   const sw=Math.min(W*.3,560);
   o.innerHTML=`<div class="tvw-in" style="width:${ww}px">${wave}${surfer("glasses","s1",b+W*.0,H*.3,sw)}${surfer("crown","s2",b+W*.14,H*.56,sw*.8)}</div>`;
   /* la vague balaie l'écran : devant elle l'ancien, derrière elle (après la ligne d'écume) l'écran suivant, déjà en place */
-  const OLD=document.createElement("div");OLD.className="tvold";OLD.id="tvscreen";/* même id le temps de la vague : garde les styles de l'écran géant (getElementById renvoie toujours le vrai, placé avant) */Object.assign(OLD.style,{left:R.left+"px",top:R.top+"px",width:W+"px",height:H+"px",zIndex:"9998",right:"auto",bottom:"auto"});el.style.zIndex="9999";
+  const OLD=document.createElement("div");OLD.className=(el.className+" tvold").trim();OLD.id="tvscreen";/* mêmes classes (grand pitch, clair…) et mêmes variables de taille que l'écran : sinon l'ancien écran passait en mise en page normale derrière la vague */for(const q of el.style)if(q.startsWith("--"))OLD.style.setProperty(q,el.style.getPropertyValue(q));/* même id le temps de la vague : garde les styles de l'écran géant (getElementById renvoie toujours le vrai, placé avant) */Object.assign(OLD.style,{left:R.left+"px",top:R.top+"px",width:W+"px",height:H+"px",zIndex:"9998",right:"auto",bottom:"auto"});el.style.zIndex="9999";
   while(el.firstChild)OLD.appendChild(el.firstChild);el.after(OLD);
   el._anim=2;el._kind=kind;el._html=el._nz=null;try{tvRender()}catch(_){}el._anim=1;
   document.body.appendChild(o);const inn=o.firstChild,D=3000,E="cubic-bezier(.25,.6,.75,.4)";
