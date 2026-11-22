@@ -880,7 +880,7 @@ body.tv{overflow:hidden}
 #tvscreen .tvrows{flex:1;display:flex;flex-direction:column;gap:calc(.8*var(--vh,1vh));padding:calc(1.2*var(--vh,1vh)) calc(2.5*var(--vw,1vw));min-height:0}
 #tvscreen .tvsub{font-size:calc(3.4*var(--vh,1vh));font-weight:800;color:#ffd23f;text-transform:uppercase;letter-spacing:calc(.1*var(--vh,1vh))}
 #tvscreen .tvr{flex:1 1 0;overflow:hidden;display:grid;grid-template-columns:calc(7*var(--vh,1vh)) 1fr minmax(0,auto) calc(17*var(--vw,1vw)) calc(9.5*var(--vh,1vh));align-items:center;gap:calc(2*var(--vw,1vw));background:#13203a;border-radius:calc(1.4*var(--vh,1vh));padding:0 calc(1.5*var(--vw,1vw));min-height:0}
-#tvscreen .tvr.lead{background:#1d3157;box-shadow:inset calc(.8*var(--vh,1vh)) 0 0 #ffd23f}
+#tvscreen .tvr.lead{background:#1d3157;position:relative}#tvscreen .tvr.lead::before{content:"";position:absolute;left:0;top:18%;bottom:18%;width:calc(.8*var(--vh,1vh));background:#ffd23f;border-radius:0 calc(.5*var(--vh,1vh)) calc(.5*var(--vh,1vh)) 0}#tvscreen.tvlight .tvr.lead::before{display:none}
 #tvscreen .tvn{font-family:ui-monospace,"DejaVu Sans Mono",Consolas,monospace;font-size:calc(6*var(--vh,1vh));font-weight:800;color:#8fa6cc;text-align:center}
 #tvscreen .tvw{min-width:0}#tvscreen .tvw b{display:block;font-size:calc(4.9*var(--vh,1vh));font-weight:800;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tvscreen .tvw span.tvrl{font-size:calc(2.3*var(--vh,1vh));white-space:normal;line-height:1.2;max-height:2.8em}.tvw .tvrl i{font-style:normal;white-space:nowrap}.tvw .tvrl i.on{color:#fff;font-weight:800;text-decoration:underline;text-underline-offset:.4vh}
