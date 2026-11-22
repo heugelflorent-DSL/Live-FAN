@@ -4151,8 +4151,8 @@ async function spkSend(ev){SPK.msg="Envoi…";spkRender();try{
   spkRender();setTimeout(()=>{SPK.msg="";spkRender()},4000)}
 /* fiche : couloir, nom, club, année ; d'où il vient (série + temps de qualification), record perso */
 function spkCard(ev,n,w){const relay=/^\d+ ?x/i.test(ev.name),base=(ev.name||"").split(" · ")[0],lines=[],fin=ev.fin||ev.typ===61;
-  if(fin&&!relay){for(const k of allKeys()){const e=EVENTS[k];if(!e||e===ev||e.fin||e.typ===61||(e.name||"").split(" · ")[0]!==base)continue;(e.series||[]).forEach((z,i)=>{if(z.swimmers.some(x=>norm(x.name)===norm(w.name))){const r=(e.results||[]).find(x=>norm(x.name)===norm(w.name));lines.push(`Série ${z.n||i+1}${r&&r.res!=null?` · ${fmt(r.res)}${r.rank?` (${r.rank}${r.rank===1?"er":"e"})`:""}`:""}`)}})}}
-  if(!lines.length&&w.time)lines.push(`Temps d'engagement ${fmt(w.time)}`);
+  if(fin&&!relay){for(const k of allKeys()){const e=EVENTS[k];if(!e||e===ev||e.fin||e.typ===61||(e.name||"").split(" · ")[0]!==base)continue;(e.series||[]).forEach((z,i)=>{if(z.swimmers.some(x=>norm(x.name)===norm(w.name))){const r=(e.results||[]).find(x=>norm(x.name)===norm(w.name));lines.push(r&&r.res!=null?`Qualifié en ${fmt(r.res)} · série ${z.n||i+1}${r.rank?` · ${r.rank}${r.rank===1?"er":"e"} des séries`:""}`:`Série ${z.n||i+1}`)}})}}
+  if(!lines.length&&fin&&w.time)lines.push(`Qualifié en ${fmt(w.time)}`);
   const B=relay?null:bestOf(w,ev);if(B&&B.t!=null)lines.push(`Record personnel ${fmt(B.t)}`);
   const lab=fin?(/finale/i.test(ev.name)?(ev.name.split(" · ").slice(1).join(" · ")||"Finale"):(ev.roundLabel||"Finale")):`Série ${n}`;
   return{ev:base,head:`${lab} · Couloir ${w.lane}`,name:relay?(w.club||w.name):w.name,club:relay?"":(w.club||""),year:relay?"":String(w.year||""),lane:String(w.lane),lines}}
