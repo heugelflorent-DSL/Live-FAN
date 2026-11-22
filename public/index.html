@@ -3981,7 +3981,7 @@ async function recapPdf(R,D,lgSrc,msg){await loadJsPdf();const lg=lgSrc?await im
   y+=9;
   const kp=D.kp;const bw=(W-2*M-(kp.length-1)*3)/kp.length;kp.forEach(([v,l],i)=>{const x=M+i*(bw+3);doc.setFillColor(245,243,246);doc.roundedRect(x,y,bw,17,2.5,2.5,"F");doc.setTextColor(...rgb);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text(T(v),x+bw/2,y+8,{align:"center"});doc.setTextColor(110);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(T(l==="podiums"?"podiums (or/arg/br)":l),x+bw/2,y+13.5,{align:"center"})});
   y+=23;
-  const cols=D.hasCat?[M,M+62,M+82,M+96,M+132,M+152]:[M,M+78,M+102,M+116,M+140];const iR=D.hasCat?4:3,iP=D.hasCat?5:4;
+  const cols=D.hasCat?[M,M+60,M+78,M+90,M+124,M+143]:[M,M+78,M+102,M+116,M+140];const iR=D.hasCat?4:3,iP=D.hasCat?5:4;
   const foot=()=>{doc.setFontSize(8);doc.setTextColor(140);doc.setFont("helvetica","normal");doc.text(T("Résultats issus du Live FFN · seuls les résultats publiés sur ffnatation.fr font foi · Swim Direct · © Mat-et-Flo"),W/2,290,{align:"center"})};
   const runHdr=()=>{doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(140);doc.text(T((D.c0.name||"")+" · "+D.head),M,9);doc.setDrawColor(...rgb);doc.setLineWidth(.4);doc.line(M,11,W-M,11);doc.setLineWidth(.2);y=17};
   const need=h=>{if(y+h>282){foot();doc.addPage();runHdr()}};
@@ -4008,9 +4008,9 @@ async function recapPdf(R,D,lgSrc,msg){await loadJsPdf();const lg=lgSrc?await im
         doc.setFont("helvetica","normal");doc.setTextColor(90);doc.text(T(o.ev),M+56,y,{maxWidth:60});doc.setTextColor(120);doc.text(T((o.ref?o.ref+"  >  ":"")+o.t),M+120,y);
         doc.setFont("helvetica","bold");doc.setTextColor(30,122,62);doc.text(T(pctS(o.pct)),W-M,y,{align:"right"});y+=6}
       y+=4}
-    foot();doc.addPage();runHdr();sec("Détail par nageur")}
+    y+=2;sec("Détail par nageur")}
   for(const b of D.blocks){const multi=R.kind==="c"||D.blocks.length>1;const nRp=b.rows.filter(o=>o.rp).length,nPod=b.rows.reduce((a,o)=>a+((o.cm&&o.cm.length)?o.cm.filter(m=>m.place<=3).length:(o.pod&&!o.catRule?1:0)),0);
-    need(Math.min(190,(multi?10:0)+5.5+b.rows.length*6.2+4));
+    need(Math.min(190,(multi?10:0)+(b.quals.length?5:0)+5.5+Math.min(b.rows.length,3)*6.2+4));
     if(multi){doc.setFont("helvetica","bold");doc.setFontSize(11.5);doc.setTextColor(30);doc.text(T(b.p.sw.name),M,y+4);const nw=doc.getTextWidth(T(b.p.sw.name));doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(120);doc.text(T(" "+(b.p.sw.year||"")+(R.kind==="c"?"":" · "+b.p.sw.club)),M+nw+1,y+4);
       let rx=W-M;doc.setFontSize(8.5);if(nPod){const t=nPod+(nPod>1?" podiums":" podium");doc.setFont("helvetica","bold");doc.setTextColor(176,120,20);doc.text(T(t),rx,y+4,{align:"right"});rx-=doc.getTextWidth(T(t))+4}
       if(nRp){const t=nRp+" RP";doc.setFont("helvetica","bold");doc.setTextColor(91,63,214);doc.text(T(t),rx,y+4,{align:"right"})}
@@ -4025,8 +4025,8 @@ async function recapPdf(R,D,lgSrc,msg){await loadJsPdf();const lg=lgSrc?await im
         (o.cm||[]).slice(0,1).forEach(m=>{med(m.place,cols[3]+2,y-1.2);doc.setFont("helvetica","normal");doc.setTextColor(60);doc.setFontSize(8);doc.text(T(m.cat),cols[3]+6,y-0.1,{maxWidth:30});doc.setTextColor(30);doc.setFontSize(9.5)})}
       else if(o.pod){med(o.pod,cols[2]+2,y-1.2);doc.setTextColor(30);doc.setFontSize(9.5);doc.setFont("helvetica","normal")}else doc.text(T(o.pl?o.pl+"e":""),cols[2],y);
       doc.setTextColor(110);doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.text(T(o.ref),cols[iR],y);
-      let x=cols[iP];if(o.pct!=null){doc.setTextColor(...(o.pct>0.05?[30,122,62]:o.pct<-0.05?[179,38,30]:[110,110,110]));doc.text(T(pctS(o.pct)),x,y);x+=19}
-      const tag=(s,c)=>{doc.setFont("helvetica","bold");doc.setFontSize(7.5);const w=doc.getTextWidth(s)+4;doc.setFillColor(...c);doc.roundedRect(x,y-3.3,w,4.4,2,2,"F");doc.setTextColor(255);doc.text(s,x+2,y-0.2);x+=w+2;doc.setFont("helvetica","normal");doc.setFontSize(9.5)};
+      let x=cols[iP];if(o.pct!=null){doc.setTextColor(...(o.pct>0.05?[30,122,62]:o.pct<-0.05?[179,38,30]:[110,110,110]));doc.text(T(pctS(o.pct)),x,y);x+=15}
+      const tag=(s,c)=>{doc.setFont("helvetica","bold");doc.setFontSize(7);const w=doc.getTextWidth(s)+3.4;if(x+w>W-M+1){doc.setFont("helvetica","normal");doc.setFontSize(9.5);return}doc.setFillColor(...c);doc.roundedRect(x,y-3.3,w,4.4,2,2,"F");doc.setTextColor(255);doc.text(s,x+1.7,y-0.2);x+=w+1.5;doc.setFont("helvetica","normal");doc.setFontSize(9.5)};
       if(o.rp)tag("RP",[91,63,214]);if(o.nw)tag("Nouvelle",[31,111,209]);for(const n of (o.q||[]).slice(0,2))tag(n.length>12?n.slice(0,11)+".":n,[30,122,62]);y+=6.2}
     y+=5}
   {const n=doc.getNumberOfPages();foot();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(140);doc.setFont("helvetica","normal");doc.text(T("Page "+i+" / "+n),W-M,290,{align:"right"})}}
