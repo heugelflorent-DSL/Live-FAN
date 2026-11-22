@@ -104,5 +104,5 @@ export function applyEvent(s, ev, t) {
 function cardOf(c) {
   if (!c || typeof c !== "object") return null;
   const t = (x, n) => String(x == null ? "" : x).slice(0, n);
-  return { ev: t(c.ev, 80), head: t(c.head, 60), name: t(c.name, 80), club: t(c.club, 80), year: t(c.year, 8), lane: t(c.lane, 3), lines: Array.isArray(c.lines) ? c.lines.slice(0, 5).map((x) => t(x, 90)) : [] };
+  return { ev: t(c.ev, 80), head: t(c.head, 60), name: t(c.name, 80), club: t(c.club, 80), year: t(c.year, 8), lane: t(c.lane, 3), lines: Array.isArray(c.lines) ? c.lines.slice(0, 5).map((x) => t(x, 90)) : [], pod: Array.isArray(c.pod) ? c.pod.slice(0, 3).map((x) => ({ name: t(x && x.name, 80), club: t(x && x.club, 80), year: t(x && x.year, 8), t: t(x && x.t, 16) })) : undefined };
 }
