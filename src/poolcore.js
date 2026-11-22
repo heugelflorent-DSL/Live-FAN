@@ -67,14 +67,15 @@ export function applyEvent(s, ev, t) {
            (sinon le chrono qui tourne se retrouvait rattaché à l'ancienne série, qui « repartait » sur l'écran géant et sur le Direct) */
         if (!same && (ev.stat === "O" || ev.stat === "F") && s.heat && (s.heat.status === "running" || s.heat.status === "ready")) {
           const o = { event: ev.event, heat: ev.heat, status: "done", start: null, at: t, doneAt: t, official: true, sim: !!ev.sim, key: ev.key || null, comp: ev.comp || "", extra: isExtra(s, ev.comp || ""), title: ev.title || "", heats: ev.heats || null, laps: ev.laps || null, names: {}, lanes: {} };
-          for (const l of ev.lanes || []) { if (l.name) o.names[l.lane] = { name: l.name, club: l.club, born: l.born }; if (l.time) o.lanes[l.lane] = { laps: {}, fin: { t: l.time, rank: l.rank } }; }
+          for (const l of ev.lanes || []) { if (l.name) o.names[l.lane] = { name: l.name, club: l.club, born: l.born }; if (stOf(l.stat)) o.lanes[l.lane] = { laps: {}, fin: { t: null, st: stOf(l.stat), rank: null } }; else if (l.time) o.lanes[l.lane] = { laps: {}, fin: { t: l.time, rank: l.rank } }; }
           archive(s, o); break;
         }
         if (!same) { if (s.heat && s.heat.start) (archive(s, s.heat), s.prev = s.heat); s.heat = { event: ev.event, heat: ev.heat, status: "ready", start: null, lanes: {}, at: t }; }
         if (ev.comp && !ev.sim && !s.mainComp) s.mainComp = String(ev.comp).trim();
         const h = s.heat; h.sim = !!ev.sim; h.key = ev.key || null; h.comp = ev.comp || h.comp || ""; h.extra = isExtra(s, h.comp); h.title = ev.title || h.title; h.heats = ev.heats || h.heats; h.laps = ev.laps || h.laps;
         h.names = {}; for (const l of ev.lanes || []) if (l.name) h.names[l.lane] = { name: l.name, club: l.club, born: l.born, ...(Array.isArray(l.sw) && l.sw.length ? { sw: l.sw.slice(0, 12).map((x) => String(x).slice(0, 60)) } : {}) };
-        if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; h.doneAt = h.doneAt || t; h.official = true; for (const l of ev.lanes || []) if (l.time) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); /* résultat officiel : on garde la plaque si l'officiel n'est qu'un temps de poire ; un temps différent = correction du juge → affiché */ if (L.fin && L.fin.pad && (Math.abs(l.time - L.fin.t) < .005 || (L.poires || []).some((x) => Math.abs(x - l.time) < .005))) { L.fin.rank = l.rank || L.fin.rank; continue; } L.fin = { t: l.time, rank: l.rank }; } }
+        if (ev.stat === "O" || ev.stat === "F") { h.status = "done"; h.doneAt = h.doneAt || t; h.official = true; for (const l of ev.lanes || []) { const ST = stOf(l.stat); if (ST) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); L.fin = { t: null, st: ST, rank: null }; continue; } } /* disqualification / forfait saisis dans le Quantum */
+        if (ev.stat === "O" || ev.stat === "F") for (const l of ev.lanes || []) if (l.time && !stOf(l.stat)) { const L = (h.lanes[l.lane] = h.lanes[l.lane] || { laps: {} }); /* résultat officiel : on garde la plaque si l'officiel n'est qu'un temps de poire ; un temps différent = correction du juge → affiché */ if (L.fin && L.fin.pad && (Math.abs(l.time - L.fin.t) < .005 || (L.poires || []).some((x) => Math.abs(x - l.time) < .005))) { L.fin.rank = l.rank || L.fin.rank; continue; } L.fin = { t: l.time, rank: l.rank }; } }
         if (h.official) archive(s, h);
         break;
       }
@@ -106,3 +107,5 @@ function cardOf(c) {
   const t = (x, n) => String(x == null ? "" : x).slice(0, n);
   return { ev: t(c.ev, 80), head: t(c.head, 60), name: t(c.name, 80), club: t(c.club, 80), year: t(c.year, 8), lane: t(c.lane, 3), lines: Array.isArray(c.lines) ? c.lines.slice(0, 5).map((x) => t(x, 90)) : [], pod: Array.isArray(c.pod) ? c.pod.slice(0, 3).map((x) => ({ name: t(x && x.name, 80), club: t(x && x.club, 80), year: t(x && x.year, 8), t: t(x && x.t, 16) })) : undefined };
 }
+/* statut d'un couloir dans un résultat du Quantum (« DSQ », « DNS », « DNF »…) */
+function stOf(x) { const v = String(x || "").trim().toUpperCase(); return /^(DSQ|DQ|DNS|DNF|ABD|DIS)$/.test(v) ? (v === "DQ" || v === "DIS" ? "DSQ" : v) : ""; }

@@ -601,9 +601,9 @@ async function tooManyFails(req, ok) {
   if (!ok) await caches.default.put(key, new Response(String(n + 1), { headers: { "cache-control": "max-age=900" } }));
   return false;
 }
-function publicConfig(cfg) { const { scrape, exeOpts, exeOptsRev, ...rest } = cfg; return rest; }
+function publicConfig(cfg) { const { scrape, exeOpts, exeOptsRev, ...rest } = cfg; return { ...rest, tvAutoRes: !(exeOpts && exeOpts.autores === false) }; }
 // options du logiciel chrono pilotées à distance par l'administrateur (liste fermée : affichage de l'écran géant et sortie réseau, jamais la liaison avec le chronométrage)
-const EXE_BOOL = ["big", "rev", "light", "spons", "pub", "auto", "qout"];
+const EXE_BOOL = ["big", "rev", "light", "spons", "pub", "auto", "qout", "autores"];
 function exeOpts(o) { const out = {}; if (!o || typeof o !== "object") return out; for (const k of EXE_BOOL) if (typeof o[k] === "boolean") out[k] = o[k]; if (typeof o.fmt === "string" && ["", "43", "169"].includes(o.fmt)) out.fmt = o.fmt;
   const sc = o.screen; if (sc && typeof sc === "object" && ["normal", "count", "evac", "cer", "pause", "spons", "pub", "msg", "reload"].includes(sc.mode)) out.screen = { mode: sc.mode, title: String(sc.title || "").slice(0, 120), n: +sc.n || 0 }; // écran affiché (cérémonie, évacuation…) : « n » change à chaque envoi
   return out; }
