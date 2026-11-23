@@ -208,7 +208,7 @@ class SplashDecoder:
     Chaque bloc reçu : « #SPLASH épreuve phase série longueurs » puis la réponse d'ARES à ASK RESULTS :
       LSTRESULT;épreuve; phase; série; longueur; couloir; côté; rang; temps;  ;
     On n'envoie au site que ce qui a changé (nouvelle série, nouveau toucher)."""
-    def __init__(self): self.key = None; self.seen = {}; self.laps = None; self.started = False; self.start_tod = None
+    def __init__(self): self.key = None; self.seen = {}; self.touch = {}; self.laps = None; self.started = False; self.start_tod = None
     @staticmethod
     def t(v):
         # temps ARES en millièmes de seconde. Au-delà d'une heure, c'est une heure du jour (pas un temps de course) : non converti.
@@ -232,7 +232,7 @@ class SplashDecoder:
                 except (ValueError, IndexError): continue
                 if (ev, rd, ht) != self.key:
                     if self.key: out += self.close()
-                    self.key, self.seen, self.started, self.start_tod = (ev, rd, ht), {}, False, None
+                    self.key, self.seen, self.started, self.start_tod, self.touch = (ev, rd, ht), {}, False, None, {}
                     out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.l50(self.laps), "lanes": None})
                 out.append({"k": "heat", "msg": "SL", "event": ev, "heat": ht + 1, "heats": None, "laps": self.l50(self.laps), "title": info.get("title") or "", "comp": "", "stat": "W",
                             "lanes": [{"lane": x["lane"], "name": x.get("name", ""), "club": x.get("club", ""), "born": x.get("born", ""), "time": None, "rank": None, "stat": None, "sw": None} for x in info.get("lanes") or []]})
@@ -246,7 +246,7 @@ class SplashDecoder:
                     if self.key: out += self.close()
                     self.key, self.laps = (ev, rd, ht), laps
                     out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.l50(laps), "lanes": None})
-                self.seen = {k: v for k, v in self.seen.items() if v[0] > st}  # nouveau départ : les touches d'avant ne comptent plus
+                self.touch = {k: [x for x in T if x > st] for k, T in self.touch.items()}; self.seen = {k: v for k, v in self.seen.items() if v[0] > st}  # nouveau départ : les touches d'avant ne comptent plus
                 self.start_tod = st
                 lt = time.localtime(ts); now_tod = ((lt.tm_hour * 60 + lt.tm_min) * 60 + lt.tm_sec) * 1000 + int((ts % 1) * 1000)
                 late = now_tod - st
@@ -259,23 +259,25 @@ class SplashDecoder:
             laps = int(hd[3]) if hd[3].isdigit() and int(hd[3]) > 0 else None
             if (ev, rd, ht) != self.key:
                 if self.key: out += self.close()
-                self.key, self.seen, self.laps, self.started, self.start_tod = (ev, rd, ht), {}, laps, False, None
+                self.key, self.seen, self.laps, self.started, self.start_tod, self.touch = (ev, rd, ht), {}, laps, False, None, {}
                 out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.l50(laps), "lanes": None})
             for L in lines[1:]:
                 if not L.startswith("LSTRESULT;"): continue
                 f = [x.strip() for x in L.split(";")]
-                try: lap, lane, rank, raw = int(f[4]), int(f[5]), int(f[7] or 0), int(f[8] or 0)
+                try: lane, rank, raw = int(f[5]), int(f[7] or 0), int(f[8] or 0); flag = f[6].upper()
                 except (ValueError, IndexError): continue
-                if not lane: continue
-                if SPLASH_PLATES == "one":  # plaques d'un seul côté : ARES numérote-t-il 1, 2, 3… (touches) ou 2, 4, 6… (longueurs) ? décidé à la 1re touche de la série
-                    if getattr(self, "odd", None) is None or getattr(self, "odd_key", None) != self.key: self.odd, self.odd_key = lap % 2 == 1, self.key
-                    if self.odd: lap *= 2  # numéro de touche → numéro de longueur
-                if self.seen.get((lane, lap)) == (raw, rank): continue
+                if not lane or not raw: continue
                 if self.start_tod is not None and raw >= 3_600_000 and raw <= self.start_tod: continue  # toucher d'une course précédente
-                self.seen[(lane, lap)] = (raw, rank)
-                kind = "finish" if self.laps and lap >= self.laps else "split"
-                dist = lap * SPLASH_POOL
+                # ARES ne donne que le DERNIER temps de chaque couloir (le champ « longueur » reste fixe) : chaque nouveau temps = une touche de plus
+                T = self.touch.setdefault(lane, [])  # (clés ("d", distance) : temps de passage de tous les couloirs à cette distance)
+                if raw in T: continue  # même touche (seul le rang a changé)
+                T.append(raw); n = len(T)
+                length = n * 2 if SPLASH_PLATES == "one" else n  # plaques d'un seul côté : une touche toutes les 2 longueurs
+                self.seen[(lane, length)] = (raw, rank)
+                kind = "finish" if flag in ("A", "F") or (self.laps and length >= self.laps) else "split"
+                dist = length * SPLASH_POOL
                 if kind == "split" and dist % 50: continue  # bassin de 25 m : passages affichés tous les 50 m (comme le Quantum), pas à chaque longueur
+                D = self.touch.setdefault(("d", dist), []); D.append(raw); rank = sorted(D).index(raw) + 1  # rang à cette distance (celui d'ARES = ordre de son tableau du moment)
                 e = {"k": kind, "lane": lane, "lap": max(1, dist // 50), "dist": dist, "t": self.rt(raw), "rank": rank or None, "edited": False}
                 if e["t"] is None: e["tod"] = raw
                 elif not self.started:
@@ -523,22 +525,25 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         txt = ask(e, r, h)
         if txt is None: status("ARES ne répond pas (ARES Swimming ouvert ? Splash activé ?)"); time.sleep(2); races = splash_races(data_dir); continue
         status(f"connecté (ARES Splash, épreuve {e} série {h + 1})")
+        switched = False
         while pend:  # ARES annonce lui-même le départ (et d'autres états)
             k, k_at = pend.pop(0)
             if k == last_status: continue
             last_status = k; log(f"ARES : état {k[3]} (épreuve {k[0]}, série {int(k[2]) + 1})")
-            if k[3] == "START":
+            if k[3] in ("START", "READY"):  # READY = série chargée dans ARES ; START = départ
                 e, r, h = int(k[0]), int(k[1]), int(k[2]); nl = next((x[3] for x in H if x[:3] == (e, r, h)), nl)
                 j = next((i for i, x in enumerate(H) if x[:3] == (e, r, h)), None)
                 if j is not None: idx, forced = j, None
                 else: forced = (e, r, h)
                 if (e, r, h) != sent_heat:
-                    sent_heat = (e, r, h); info = {"title": titles.get((e, r), ""), "lanes": starts.get((e, r, h), [])}
+                    sent_heat = (e, r, h); switched = True; info = {"title": titles.get((e, r), ""), "lanes": starts.get((e, r, h), [])}
                     yield f"#SPLASH-HEAT {e} {r} {h} {nl or ''}\n{json.dumps(info, ensure_ascii=False)}\n".encode("utf-8"), time.time()
+                if k[3] != "START": continue
                 lt = time.localtime(k_at); tod = ((lt.tm_hour * 60 + lt.tm_min) * 60 + lt.tm_sec) * 1000 + int(k_at % 1 * 1000) - int(period * 500)
                 if not last_start or abs(tod - last_start) > 3000:  # pas déjà vu dans la fenêtre de course
                     last_start = tod; splash_source._st, active_at = tod, time.time()
                     yield f"#SPLASH-START {e} {r} {h} {nl or ''} {tod}\n".encode("latin-1"), time.time()
+        if switched: n += 1; time.sleep(period); continue  # réponse lue pour l'ancienne série : on attend la suivante
         # journal de suivi : seulement les réponses qui changent (+ un signe de vie toutes les 30 s), pas 3 copies par seconde
         if (e, r, h, txt) != last or time.time() - last_at > 30:
             last, last_at = (e, r, h, txt), time.time()
