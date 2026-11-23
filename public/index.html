@@ -1395,6 +1395,17 @@ body.tv #kill-site{display:none}#kill-site{position:fixed;inset:0;z-index:99999;
 /* ---------- données (lues sur /api/state, alimentées par le Live FFN) ---------- */
 function fmt(sec){if(sec==null)return"—";const m=Math.floor(sec/60),s=sec%60;return m?m+":"+s.toFixed(2).padStart(5,"0"):s.toFixed(2)}
 function engT(t){return t?fmt(t):"NT"} // sans temps d'engagement : No Time
+/* vitrine /e/demo : compétition fictive « Ta future compétition » servie par des fichiers statiques (aucune écriture, aucun serveur) */
+const DEMO=/^\/e\/demo(\/|$)/.test(location.pathname);
+if(DEMO){const _f=window.fetch.bind(window),J=(o,c=200)=>Promise.resolve(new Response(JSON.stringify(o),{status:c,headers:{"content-type":"application/json"}}));
+  window.fetch=(u,o)=>{const s=typeof u==="string"?u:(u&&u.url)||"";if(!/\/api\//.test(s))return _f(u,o);const p=s.replace(/^[^]*?\/api\//,"").split("?")[0];
+    if(p==="state")return _f("/demo/state.json").then(r=>r.json()).then(d=>new Response(JSON.stringify({...d,now:Date.now()}),{headers:{"content-type":"application/json"}}));
+    if(p==="mpp")return _f("/demo/mpp.json");
+    if(p==="quals"||p==="sponsors"||p==="logos")return _f(u,o);
+    if(p==="events")return J([]);
+    if(p==="pool/event"&&o&&o.method==="POST"){let l=[];try{l=JSON.parse(o.body)}catch(_){}demoFeed(l);return J({ok:true,applied:l.length})}
+    if(p==="live"||p==="liveheats")return J({});
+    return J({})}}
 const state={view:"home",open:{},sp:{},sel:null,admin:false,rankSex:"F",podRule:null,rankRule:null,
   name:"",published:false,heatGap:40,eventGap:40,comps:[],order:{},lines:{},starts:{},timing:"elec",delay:{},phase:"start",
   scrape:{every:2,onlyLive:true},doors:{},infos:[],podRules:[],lastOk:null,error:null,queue:0,loaded:false};
@@ -1929,7 +1940,7 @@ async function loadPublic(){
   catch(e){console.error(e);$("#pub-body").innerHTML=`<p class="empty">Impossible de charger les données. Nouvel essai dans quelques secondes.<br><small style="opacity:.6">${esc(String(e&&e.message||e)).slice(0,160)}</small></p>`}
 }
 let EVLIST=[],PUBEV=[];
-async function loadPubEvents(){try{const r=await fetch("/api/events");if(r.ok){const j=await r.json();PUBEV=Array.isArray(j)?j:[];if(!state.admin&&state.view==="home")render()}}catch(_){}}
+async function loadPubEvents(){try{const r=await fetch("/api/events");if(r.ok){const j=await r.json();PUBEV=Array.isArray(j)?j:[];if(!DEMO&&!PUBEV.some(e=>e.id==="demo"))PUBEV.push({id:"demo",name:"🎬 Démo : Ta future compétition",main:false,theme:"alsace",color:"",org:"Pour découvrir Swim Direct",live:"off",opens:null,comps:[{name:"Compétition fictive : essaie tous les réglages",city:"VILLE-SUR-BASSIN",pool:"25 m",date:"Démonstration"}]});if(!state.admin&&state.view==="home")render()}}catch(_){}}
 function othersHtml(){const o=(Array.isArray(PUBEV)?PUBEV:[]).filter(e=>e.id!==EV);if(!o.length)return"";return`<div class="session">${secTitle("Autres compétitions suivies","")}<div class="others">${o.map(e=>`<a href="/e/${e.id}">${esc(e.name||"Compétition")} ›</a>`).join("")}</div></div>`}
 function evUrl(id){return location.origin+"/e/"+id}
 async function loadEvents(){if(ROLE==="org"){EVLIST=[];const u=evUrl(EV);const el=$("#ev-link");if(el)el.innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`;return}try{EVLIST=await api("/api/admin/events");if(!Array.isArray(EVLIST))EVLIST=[]}catch(_){EVLIST=[]}const sel=$("#ev-switch");if(!sel)return;
@@ -2102,7 +2113,7 @@ function pickStatus(e){let s=null,en=null;for(const c of e.comps||[]){const d=pi
   const n=Math.round((s-t)/864e5);return{k:"soon",lab:n===1?"Demain":"Dans "+n+" jours",ord:1,t:s.getTime()}}
 async function pickBoot(){document.body.classList.add("pick");state.theme="ffn";state.org="";applyTheme();document.title="Swim Direct";
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content="#06324f";$("#navbar").hidden=true;
-  const body=$("#pub-body");const hero=`<section class="pk-hero"><div class="pk-rope"></div><div class="pk-in"><h1>Swim Direct</h1><p>Programme, séries et résultats des compétitions de natation, en direct du bord du bassin.</p><a class="pk-more" href="/decouvrir">Découvrir Swim Direct : fonctionnalités, écran géant, chronométrage <span aria-hidden="true">→</span></a></div><div class="pk-rope"></div></section>`;
+  const body=$("#pub-body");const hero=`<section class="pk-hero"><div class="pk-rope"></div><div class="pk-in"><h1>Swim Direct</h1><p>Programme, séries et résultats des compétitions de natation, en direct du bord du bassin.</p><a class="pk-more" href="/decouvrir">Découvrir Swim Direct : fonctionnalités, écran géant, chronométrage <span aria-hidden="true">→</span></a> <a class="pk-more" href="/e/demo">🎬 Essayer la démo : ta future compétition <span aria-hidden="true">→</span></a></div><div class="pk-rope"></div></section>`;
   body.innerHTML=hero+`<p class="pk-wait">Chargement des compétitions…</p>`;
   let ev=[];try{const r=await fetch("/api/events");if(r.ok)ev=await r.json()}catch(_){}
   if(!Array.isArray(ev)||!ev.length){body.innerHTML=hero+`<p class="pk-wait">Aucune compétition en ligne pour le moment. Revenez le jour du meeting.</p>`;return}
@@ -2359,7 +2370,7 @@ async function localConnect(){if(poolWs)return;localSrvSync();setInterval(localS
   const pub=()=>{const{hist,...rest}=LS;const ev=LS.heat&&LS.heat.event,h={};for(const k in hist||{})if(ev!=null&&hist[k].event===ev)h[k]=hist[k];poolState(JSON.parse(JSON.stringify({type:"state",now:Date.now()+poolOff,...rest,hist:h})))};
   es.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}LOCALAT=Date.now();if(m.reload){location.reload();return}if(m.now){poolOff=m.now-Date.now();poolSynced=true;poolOffSrv=Date.now()}/* écran local : les départs sont datés par l'horloge du PC du logiciel chrono → c'est elle qui sert de référence (sinon le chrono de l'écran avance ou retarde de l'écart avec le site) */
     if(m.hello){LS=LCORE.empty();for(const x of m.back||[])LCORE.applyEvent(LS,{...x.ev,sent:x.t},x.t);pub()}else if(m.ev&&LS){if(LCORE.applyEvent(LS,{...m.ev,sent:m.t},m.t))pub()}};}
-function poolConnect(){if(window.SD_LOCAL)return localConnect();const tv=document.body.classList.contains("tv")||location.hash==="#tv";/* l'écran géant écoute toujours (fiches du speaker, même en Live FFN ou hors jour de compétition) */if(poolWs||!tv&&(state.live!=="bassin"||!liveToday()))return;
+function poolConnect(){if(DEMO)return demoConnect();if(window.SD_LOCAL)return localConnect();const tv=document.body.classList.contains("tv")||location.hash==="#tv";/* l'écran géant écoute toujours (fiches du speaker, même en Live FFN ou hors jour de compétition) */if(poolWs||!tv&&(state.live!=="bassin"||!liveToday()))return;
   try{poolWs=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+evq("/api/pool/ws")+(document.body.classList.contains("tv")||location.hash==="#tv"?(evq("/x").includes("?")?"&":"?")+"tv=1":""))}catch(_){return}
   poolWs.onopen=()=>{poolSync();setTimeout(poolSync,1500);setTimeout(poolSync,4000)};
   poolWs.onmessage=e=>{if(e.data==="pong")return;try{const m=JSON.parse(e.data);if(m.type==="rt"){poolRtMsg(m);return}if(m.type==="time"){const t1=Date.now(),t0=+m.id,rtt=t1-t0;if(rtt>=0&&rtt<poolRtt+30){poolRtt=Math.min(poolRtt,rtt);poolOff=m.now-(t0+t1)/2;poolSynced=true}return}if(m.type==="state")poolState(m)}catch(_){}};
@@ -4267,6 +4278,38 @@ function spkClick(e){const t=e.target.closest("button,input");if(!t)return;const
 document.addEventListener("keydown",e=>{if(!spkOn()||/INPUT|TEXTAREA/.test(e.target.tagName))return;const m={ArrowLeft:"-1",ArrowUp:"-1",ArrowRight:"1",ArrowDown:"1"}[e.key];if(m){e.preventDefault();const b=document.querySelector(`#spk [data-sm="${m}"]`);b&&b.click()}});
 try{const c=new URLSearchParams(location.search).get("spk");if(c&&/^\d{4,8}$/.test(c)){localStorage.setItem("sd-spk-code",c);history.replaceState(null,"",location.pathname+location.hash)}}catch(_){}
 if(location.hash==="#speaker")spkOpen();addEventListener("hashchange",()=>{if(location.hash==="#speaker"&&!spkOn())spkOpen()});
+
+/* ===== vitrine /e/demo : direct simulé dans la page + panneau « Personnalise » ===== */
+let DLS=null;
+function demoPub(){if(!DLS)return;const{hist,...rest}=DLS,ev=DLS.heat&&DLS.heat.event,h={};for(const k in hist||{})if(ev!=null&&hist[k].event===ev)h[k]=hist[k];poolState(JSON.parse(JSON.stringify({type:"state",now:Date.now(),...rest,hist:h})))}
+async function demoConnect(){if(poolWs)return;poolWs={readyState:1,send(){},close(){}};try{LCORE=LCORE||await import("/poolcore.js");DLS=DLS||LCORE.empty()}catch(_){}demoPub()}
+function demoFeed(l){if(!LCORE||!DLS)return;let ch=false;for(const e of l)try{if(LCORE.applyEvent(DLS,e,e.sent||Date.now()))ch=true}catch(_){}if(ch)demoPub()}
+if(DEMO){
+  const css=document.createElement("style");css.textContent=`.dm-fab{position:fixed;right:14px;bottom:14px;z-index:9000;border:0;border-radius:999px;padding:12px 18px;font:800 14px system-ui;background:var(--a,#c8102e);color:#fff;box-shadow:0 6px 18px #0005;cursor:pointer}.dm-pan{position:fixed;right:0;bottom:0;top:0;width:min(380px,100vw);z-index:9001;background:#fff;color:#1a1a2e;box-shadow:-8px 0 30px #0005;overflow:auto;padding:16px;font:14px system-ui;transform:translateX(105%);transition:transform .25s}.dm-pan.open{transform:none}.dm-pan h3{margin:16px 0 6px;font-size:15px}.dm-pan .row{display:flex;flex-wrap:wrap;gap:6px}.dm-pan button.c{border:1px solid #bbb;background:#f6f6f8;border-radius:999px;padding:7px 12px;font:600 13px system-ui;cursor:pointer;color:#1a1a2e}.dm-pan button.c.on{background:var(--a,#c8102e);color:#fff;border-color:transparent}.dm-pan input[type=text]{background:#fff;color:#111;width:100%;padding:8px;border:1px solid #bbb;border-radius:8px;font:14px system-ui}.dm-pan .x{float:right;border:0;background:none;font-size:22px;cursor:pointer}.dm-pan p{margin:4px 0;color:#555;font-size:13px}.dm-out{position:fixed;left:14px;top:14px;z-index:10000;border:0;border-radius:999px;padding:9px 14px;font:700 13px system-ui;background:#000a;color:#fff;cursor:pointer;display:none}body.tv .dm-out{display:block}body.tv .dm-fab,body.tv .dm-ban{display:none}.dm-ban{background:#fff6cf;color:#5a4600;text-align:center;font:600 13px system-ui;padding:7px 10px}`;document.head.appendChild(css);
+  const ban=document.createElement("div");ban.className="dm-ban";ban.textContent="🎬 Démo : compétition fictive, noms et clubs inventés. Touche « 🎨 Personnalise » pour tout essayer.";document.body.prepend(ban);
+  const fab=document.createElement("button");fab.className="dm-fab";fab.textContent="🎨 Personnalise";const pan=document.createElement("div");pan.className="dm-pan";document.body.append(fab,pan);
+  const THEMES=[["alsace","Alsace"],["ligue","Ligue"],["ffn","FFN"],["pirate","Pirate"],["interclubs","Interclubs"]];
+  const go=v=>{const b=document.querySelector(`[data-view=${v}]`);if(b&&!b.hidden)b.click();pan.classList.remove("open")};
+  const draw=()=>{const L=TVL();pan.innerHTML=`<button class="x" aria-label="Fermer">×</button><h2 style="margin:0">Personnalise ta compétition</h2><p>Tout ce qui se règle dans l'admin, essayé en direct. Rien n'est enregistré.</p>
+  <h3>🎨 Couleurs du site</h3><div class="row">${THEMES.map(([k,l])=>`<button class="c${state.theme===k?" on":""}" data-th="${k}">${l}</button>`).join("")}<label class="c" style="display:inline-flex;gap:6px;align-items:center">Libre <input type="color" id="dm-col" value="${state.color||"#7a2bb5"}"></label></div>
+  <h3>🏷 Organisateur affiché</h3><input type="text" id="dm-org" value="${esc(state.org||"")}" maxlength="60">
+  <h3>📺 Écran géant</h3><p>Animation entre les écrans</p><div class="row">${TV_TRANS.map(([k,l])=>`<button class="c${L.trans===k?" on":""}" data-tt="${k}">${l}</button>`).join("")}</div><p>Fond</p><div class="row">${TV_BG.filter(x=>x[0]!=="custom").map(([k,l])=>`<button class="c${L.bg===k?" on":""}" data-tb="${k}">${l}</button>`).join("")}</div>
+  <div class="row" style="margin-top:8px"><button class="c" data-act="run">▶ Lancer une course en direct</button><button class="c" data-act="tv">📺 Voir l'écran géant</button></div>
+  <h3>🚀 Ce que le site sait faire</h3><div class="row"><button class="c" data-go="live">⚡ Direct</button><button class="c" data-go="prog">📅 Programme</button><button class="c" data-go="res">⭐ Résultats et records perso</button><button class="c" data-go="pod">🏅 Podiums par catégorie</button><button class="c" data-go="rank">🏆 Classement des clubs</button><button class="c" data-go="part">👥 Nageurs et clubs (qualifications, récap PDF)</button></div>
+  <p style="margin-top:14px"><b>Records perso</b> : chaque temps est comparé au meilleur du nageur. <b>Qualifications</b> : badges « ✓ » selon les grilles. <b>Récap</b> : un PDF par nageur ou par club.</p>`;
+    pan.querySelector(".x").onclick=()=>pan.classList.remove("open");
+    pan.querySelectorAll("[data-th]").forEach(b=>b.onclick=()=>{state.theme=b.dataset.th;state.color="";if(state.org==null)state.org="";applyTheme();render();draw()});
+    pan.querySelector("#dm-col").oninput=e=>{state.theme="custom";state.color=e.target.value;applyTheme();render()};
+    pan.querySelector("#dm-org").oninput=e=>{state.org=e.target.value;applyTheme()};
+    pan.querySelectorAll("[data-tt]").forEach(b=>b.onclick=()=>{state.tvLook={...(state.tvLook||{}),trans:b.dataset.tt};draw()});
+    pan.querySelectorAll("[data-tb]").forEach(b=>b.onclick=()=>{state.tvLook={...(state.tvLook||{}),bg:b.dataset.tb};try{tvFit()}catch(_){}draw()});
+    pan.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+    pan.querySelector("[data-act=run]").onclick=()=>{try{const hs=simHeats();const i=Math.max(0,hs.findIndex(h=>/50 Nage Libre/.test(h.label)));simRun(i,1);go("live")}catch(e){console.log(e)}};
+    pan.querySelector("[data-act=tv]").onclick=()=>{state.view="live";document.body.classList.add("tv");pan.classList.remove("open");try{history.replaceState(null,"",location.pathname+"#tv")}catch(_){}try{render();tvRender()}catch(_){}try{simRun(Math.max(0,simHeats().findIndex(h=>/50 Nage Libre/.test(h.label))),1)}catch(_){}}};
+  const out=document.createElement("button");out.className="dm-out";out.textContent="✕ Quitter l'écran géant";out.onclick=()=>{document.body.classList.remove("tv");try{history.replaceState(null,"",location.pathname)}catch(_){}try{render()}catch(_){}};document.body.append(out);
+  fab.onclick=()=>{draw();pan.classList.add("open")};
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"){document.body.classList.remove("tv");pan.classList.remove("open");try{render()}catch(_){}}});
+}
 </script>
 <style>
 body.spk{overflow:hidden}body.spk>*:not(#spk){visibility:hidden}
