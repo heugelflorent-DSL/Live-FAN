@@ -213,6 +213,9 @@ class SplashDecoder:
     def t(v):
         # temps ARES en millièmes de seconde. Au-delà d'une heure, c'est une heure du jour (pas un temps de course) : non converti.
         return round(v / 1000, 2) if 0 < v < 3_600_000 else None
+    @staticmethod
+    def l50(n):  # longueurs ARES → nombre de 50 m (ce que le site attend, comme le Quantum)
+        return max(1, n * SPLASH_POOL // 50) if n else n
     def rt(self, v):
         # heure du jour (simulateur, et peut-être vrai boîtier) : temps = toucher − départ lu dans ARES
         if v >= 3_600_000 and self.start_tod is not None and 0 < v - self.start_tod < 3_600_000: return round((v - self.start_tod) / 1000, 2)
@@ -230,8 +233,8 @@ class SplashDecoder:
                 if (ev, rd, ht) != self.key:
                     if self.key: out += self.close()
                     self.key, self.seen, self.started, self.start_tod = (ev, rd, ht), {}, False, None
-                    out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.laps, "lanes": None})
-                out.append({"k": "heat", "msg": "SL", "event": ev, "heat": ht + 1, "heats": None, "laps": self.laps, "title": info.get("title") or "", "comp": "", "stat": "W",
+                    out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.l50(self.laps), "lanes": None})
+                out.append({"k": "heat", "msg": "SL", "event": ev, "heat": ht + 1, "heats": None, "laps": self.l50(self.laps), "title": info.get("title") or "", "comp": "", "stat": "W",
                             "lanes": [{"lane": x["lane"], "name": x.get("name", ""), "club": x.get("club", ""), "born": x.get("born", ""), "time": None, "rank": None, "stat": None, "sw": None} for x in info.get("lanes") or []]})
                 continue
             if block.startswith("-START"):
@@ -242,7 +245,7 @@ class SplashDecoder:
                 if (ev, rd, ht) != self.key:
                     if self.key: out += self.close()
                     self.key, self.laps = (ev, rd, ht), laps
-                    out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": laps, "lanes": None})
+                    out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.l50(laps), "lanes": None})
                 self.seen = {k: v for k, v in self.seen.items() if v[0] > st}  # nouveau départ : les touches d'avant ne comptent plus
                 self.start_tod = st
                 lt = time.localtime(ts); now_tod = ((lt.tm_hour * 60 + lt.tm_min) * 60 + lt.tm_sec) * 1000 + int((ts % 1) * 1000)
@@ -257,7 +260,7 @@ class SplashDecoder:
             if (ev, rd, ht) != self.key:
                 if self.key: out += self.close()
                 self.key, self.seen, self.laps, self.started, self.start_tod = (ev, rd, ht), {}, laps, False, None
-                out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": laps, "lanes": None})
+                out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.l50(laps), "lanes": None})
             for L in lines[1:]:
                 if not L.startswith("LSTRESULT;"): continue
                 f = [x.strip() for x in L.split(";")]
@@ -271,7 +274,9 @@ class SplashDecoder:
                 if self.start_tod is not None and raw >= 3_600_000 and raw <= self.start_tod: continue  # toucher d'une course précédente
                 self.seen[(lane, lap)] = (raw, rank)
                 kind = "finish" if self.laps and lap >= self.laps else "split"
-                e = {"k": kind, "lane": lane, "lap": lap, "t": self.rt(raw), "rank": rank or None, "edited": False}
+                dist = lap * SPLASH_POOL
+                if kind == "split" and dist % 50: continue  # bassin de 25 m : passages affichés tous les 50 m (comme le Quantum), pas à chaque longueur
+                e = {"k": kind, "lane": lane, "lap": max(1, dist // 50), "dist": dist, "t": self.rt(raw), "rank": rank or None, "edited": False}
                 if e["t"] is None: e["tod"] = raw
                 elif not self.started:
                     # Splash ne signale pas le départ : au premier toucher, départ recalculé (heure du toucher − temps) pour lancer le chrono
@@ -284,7 +289,7 @@ class SplashDecoder:
         last = {}
         for (lane, lap), (raw, rank) in self.seen.items():
             if lap >= last.get(lane, (0,))[0]: last[lane] = (lap, raw, rank)
-        out = [{"k": "finish", "lane": ln, "lap": lap, "t": self.rt(raw), "rank": rank or None, "edited": False} for ln, (lap, raw, rank) in sorted(last.items())]
+        out = [{"k": "finish", "lane": ln, "lap": max(1, lap * SPLASH_POOL // 50), "dist": lap * SPLASH_POOL, "t": self.rt(raw), "rank": rank or None, "edited": False} for ln, (lap, raw, rank) in sorted(last.items())]
         return out + [{"k": "end", "event": self.key[0], "heat": self.key[2] + 1}]
 
 
