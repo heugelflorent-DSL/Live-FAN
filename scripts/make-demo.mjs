@@ -24,7 +24,7 @@ out = out.replace(/"iuf":"?(\d+)"?/g, (m, i) => (m.includes('"iuf":"') ? `"iuf":
 for (const [c, f] of clubMap) out = out.split(`"${c}"`).join(`"${f}"`);
 const d = JSON.parse(out);
 const c = d.config;
-c.name = "Ta future compétition"; c.org = "Ton club · Ta ligue"; c.theme = "alsace"; c.color = ""; c.published = true; c.live = "bassin"; c.testMode = true; c.infos = []; delete c.progLogo; c.progLock = false;
+c.name = "Ta future compétition"; c.org = "Ton club · Ta ligue"; c.theme = "ffn"; c.color = ""; c.published = true; c.live = "bassin"; c.testMode = true; c.infos = []; delete c.progLogo; c.progLock = false;
 for (const x of Object.values(d.data.comps)) { x.meta = { ...x.meta, name: "Ta future compétition", city: "VILLE-SUR-BASSIN", date: "Samedi 21 et Dimanche 22 Novembre 2026" }; for (const e of Object.values(x.events || {})) delete e.heatsSrc; delete x.entryList; }
 d.data.queue = []; d.data.log = []; d.data.error = null; d.demo = true;
 /* records perso : clés « NOM Prénom|année » */
