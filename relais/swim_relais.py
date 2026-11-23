@@ -234,7 +234,7 @@ class SplashDecoder:
                     if self.key: out += self.close()
                     self.key, self.seen, self.started, self.start_tod, self.touch = (ev, rd, ht), {}, False, None, {}
                     out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.l50(self.laps), "lanes": None})
-                out.append({"k": "heat", "msg": "SL", "event": ev, "heat": ht + 1, "heats": None, "laps": self.l50(self.laps), "title": info.get("title") or "", "comp": "", "stat": "W",
+                out.append({"k": "heat", "msg": "SL", "event": ev, "heat": ht + 1, "heats": None, "laps": self.l50(self.laps), "title": info.get("title") or "", "comp": info.get("comp") or "", "stat": "W",
                             "lanes": [{"lane": x["lane"], "name": x.get("name", ""), "club": x.get("club", ""), "born": x.get("born", ""), "time": None, "rank": None, "stat": None, "sw": None} for x in info.get("lanes") or []]})
                 continue
             if block.startswith("-START"):
@@ -430,6 +430,10 @@ def splash_titles(data_dir):
     sty = {f[0]: f[1] for f in rows("LSTSTYLE.TXT") if len(f) > 1}
     cat = {f[1]: f[0] for f in rows("LSTCAT.TXT") if len(f) > 1}
     out = {}
+    comp = {}  # nom de la compétition par épreuve (LSTTITPR : épreuve;phase;"Meeting TEST";"400 NL Dam";…)
+    for f in rows("LSTTITPR.TXT"):
+        if len(f) > 2 and f[0].isdigit() and f[2]: comp[(int(f[0]), int(f[1] or 0))] = f[2]
+    out["_comp"] = comp
     for f in rows("LSTRACE.TXT"):
         if len(f) < 6 or not f[0].isdigit(): continue
         L = lg.get(f[3]); dist = (L[1] if L else "").replace(" ", " ")
@@ -514,7 +518,7 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         e, r, h, nl = (forced + (None,)) if forced else H[idx]
         if (e, r, h) != sent_heat:  # nouvelle série suivie : nom de l'épreuve et nageurs lus dans ARES → Swim Direct n'a pas besoin de la même numérotation
             sent_heat = (e, r, h)
-            info = {"title": titles.get((e, r), ""), "lanes": starts.get((e, r, h), [])}
+            info = {"title": titles.get((e, r), ""), "comp": titles.get("_comp", {}).get((e, r), ""), "lanes": starts.get((e, r, h), [])}
             yield f"#SPLASH-HEAT {e} {r} {h} {nl or ''}\n{json.dumps(info, ensure_ascii=False)}\n".encode("utf-8"), time.time()
         if st and st != last_start:
             yield f"#SPLASH-START {e} {r} {h} {nl or ''} {st}\n".encode("latin-1"), time.time()
@@ -536,7 +540,7 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
                 if j is not None: idx, forced = j, None
                 else: forced = (e, r, h)
                 if (e, r, h) != sent_heat:
-                    sent_heat = (e, r, h); switched = True; info = {"title": titles.get((e, r), ""), "lanes": starts.get((e, r, h), [])}
+                    sent_heat = (e, r, h); switched = True; info = {"title": titles.get((e, r), ""), "comp": titles.get("_comp", {}).get((e, r), ""), "lanes": starts.get((e, r, h), [])}
                     yield f"#SPLASH-HEAT {e} {r} {h} {nl or ''}\n{json.dumps(info, ensure_ascii=False)}\n".encode("utf-8"), time.time()
                 if k[3] != "START": continue
                 lt = time.localtime(k_at); tod = ((lt.tm_hour * 60 + lt.tm_min) * 60 + lt.tm_sec) * 1000 + int(k_at % 1 * 1000) - int(period * 500)
