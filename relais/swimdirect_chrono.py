@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.9.1"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.9.2"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -228,7 +228,7 @@ class Core:
                 self.st.update(linked=bool(j.get("linked")), name=j.get("name", ""), url=j.get("url", ""), bassin=j.get("bassin"), err="")
                 self.apply_sys(j.get("sys"))
                 if j.get("pool") in (25, 50):  # longueur du bassin réglée dans l'admin (compte des longueurs ARES)
-                    import swim_relais as _sr; _sr.SPLASH_POOL = j["pool"]
+                    import swim_relais as _sr; _sr.SPLASH_POOL = j["pool"]; _sr.SPLASH_PLATES = j.get("plates") or "both"
                 if self.st["linked"]: self.apply_opts(j.get("opts"), j.get("optsRev"))
                 # fiche envoyée par l'écran speaker du site : reprise sur l'écran local
                 spk = j.get("spk") if self.st["linked"] else None

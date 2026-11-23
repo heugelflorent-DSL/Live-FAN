@@ -263,7 +263,11 @@ class SplashDecoder:
                 f = [x.strip() for x in L.split(";")]
                 try: lap, lane, rank, raw = int(f[4]), int(f[5]), int(f[7] or 0), int(f[8] or 0)
                 except (ValueError, IndexError): continue
-                if not lane or self.seen.get((lane, lap)) == (raw, rank): continue
+                if not lane: continue
+                if SPLASH_PLATES == "one":  # plaques d'un seul côté : ARES numérote-t-il 1, 2, 3… (touches) ou 2, 4, 6… (longueurs) ? décidé à la 1re touche de la série
+                    if getattr(self, "odd", None) is None or getattr(self, "odd_key", None) != self.key: self.odd, self.odd_key = lap % 2 == 1, self.key
+                    if self.odd: lap *= 2  # numéro de touche → numéro de longueur
+                if self.seen.get((lane, lap)) == (raw, rank): continue
                 if self.start_tod is not None and raw >= 3_600_000 and raw <= self.start_tod: continue  # toucher d'une course précédente
                 self.seen[(lane, lap)] = (raw, rank)
                 kind = "finish" if self.laps and lap >= self.laps else "split"
@@ -285,6 +289,7 @@ class SplashDecoder:
 
 
 SPLASH_POOL = 25  # longueur du bassin (m) pour compter les longueurs quand ARES ne les donne pas (réglage « bassin » du logiciel)
+SPLASH_PLATES = "both"  # « one » : plaques d'un seul côté (une touche toutes les 2 longueurs)
 
 def splash_laps(data_dir):
     """Nombre de longueurs par distance (LSTLONG.TXT, colonne dont le nom contient « lap ») : {idLen: longueurs}."""
