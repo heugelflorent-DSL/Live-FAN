@@ -764,7 +764,7 @@ export default {
           for (const id of c.comps || []) { const cc = d.comps && d.comps[id]; if (!cc) continue; const dt0 = compDate(cc.meta);
             for (const r of cc.reunions || []) { const dt = compDate({ date: r.day }) || dt0; if (!dt) continue; const evs = (r.items || []).filter((i) => i.kind === "event" && i.time); const f0 = hToMin(evs[0]?.time); if (f0 == null) continue;
               const at = parisEpoch(dt.y, dt.m, dt.d) + f0 * 60e3, end = parisEpoch(dt.y, dt.m, dt.d) + ((hToMin(evs[evs.length - 1]?.time) ?? f0) + 120) * 60e3; if (end > Date.now() && (start == null || at < start)) start = at; } } } catch (e) {}
-        const spk = await env.KV.get("spkscr:" + pr.ev, "json"); return json({ linked: true, spk: spk && Date.now() - spk.at < 30 * 60e3 ? spk : null, opts: exeOpts(c.exeOpts), optsRev: c.exeOptsRev || 0, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", sys: pr.sys || c.chronoSys || "quantum", now: Date.now(), start });
+        const spk = await env.KV.get("spkscr:" + pr.ev, "json"); return json({ linked: true, spk: spk && Date.now() - spk.at < 30 * 60e3 ? spk : null, opts: exeOpts(c.exeOpts), optsRev: c.exeOptsRev || 0, ev: pr.ev, name: c.name || pr.ev, url: url.origin + "/e/" + pr.ev, bassin: c.live === "bassin", pool: +c.poolLen || 25, sys: pr.sys || c.chronoSys || "quantum", now: Date.now(), start });
       }
       if (!pr) return json({ error: "Clé pas encore reliée à un live." }, 409);
       const room = env.POOL.get(env.POOL.idFromName(pr.ev === "main" ? "bassin" : "bassin:" + pr.ev));
