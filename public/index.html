@@ -1061,7 +1061,7 @@ body.tv #kill-site{display:none}#kill-site{position:fixed;inset:0;z-index:99999;
 <header class="top">
   <div class="wrap">
     <div class="brand"><div class="logo" id="top-logo" role="img" aria-label="Drapeau de l'Alsace"></div>
-      <div class="brand-txt"><a class="allev" id="allev" href="/" hidden>‹ Toutes les compétitions</a><div class="app" id="pub-org">Swim Direct · Fédération Alsacienne de Natation</div><h1 id="pub-title"></h1><span class="ev-st" id="pub-status" hidden></span><div class="meta" id="pub-meta"></div><div class="upd" id="upd"></div></div></div>
+      <div class="brand-txt"><a class="allev" id="allev" href="/" hidden>‹ Toutes les compétitions</a><div class="app" id="pub-org">Swim Direct</div><script>try{const e=(location.pathname.match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/)||[])[1]||"_",t=JSON.parse(localStorage.getItem("sd-th:"+e)||"null");if(t&&t.o)document.getElementById("pub-org").textContent="Swim Direct · "+t.o}catch(_){}</script><h1 id="pub-title"></h1><span class="ev-st" id="pub-status" hidden></span><div class="meta" id="pub-meta"></div><div class="upd" id="upd"></div></div></div>
     <div class="legend" id="pub-legend"></div>
   </div>
 </header><script>try{const e=(location.pathname.match(/^\/e\/([a-z0-9][a-z0-9-]{0,39})/)||[])[1]||"_",l=JSON.parse(localStorage.getItem("sd-lg:"+e)||"null"),el=document.getElementById("top-logo");if(l&&el){el.classList.add("custom");if(l.bg!=="none")el.classList.add("w");el.innerHTML='<img src="'+l.img+'" alt="">'}}catch(_){}</script>
@@ -1781,7 +1781,7 @@ function applyTheme(){const cust=state.theme==="custom"&&/^#[0-9a-f]{6}$/i.test(
   let pal=null;if(cust){pal=customPalette(state.color);for(const[k,v]of Object.entries(pal.vars))de.style.setProperty(k,v)}else for(const k of Object.keys(BASE_PAL))de.style.removeProperty(k);
   const cm=$("#cc-msg");if(cm)cm.textContent=cust&&pal.adj?"Assombrie à "+pal.adj+" pour que le texte blanc reste lisible.":"";const cr=$("#cc-row");if(cr)cr.hidden=state.theme!=="custom";
   const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=cust?pal.vars["--a"]:THEME_COL[t];
-  try{localStorage.setItem("sd-th:"+(PICK?"_":EV),JSON.stringify({t,v:cust?pal.vars:null,m:cust?pal.vars["--a"]:THEME_COL[t]}))}catch(_){}const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
+  try{localStorage.setItem("sd-th:"+(PICK?"_":EV),JSON.stringify({t,v:cust?pal.vars:null,m:cust?pal.vars["--a"]:THEME_COL[t],o:state.org||""}))}catch(_){}const o=document.getElementById("pub-org");if(o)o.textContent="Swim Direct"+(state.org?" · "+state.org:"")}
 /* programme pas encore publié (épreuves provisoires) : aucun horaire estimé sur le live public (l'admin garde ses estimations) */
 function scheduleP(){if(!state.admin&&Object.values(EVENTS).some(e=>e.type==="event"&&e.provisional))return{};return schedule0()}
 let OFFK=null,OFFV=0,anchS=null;let CSD=0;/* retard estimé de la réunion : prochaine épreuve pas encore nagée, heure recalculée en direct − heure prévue (Live FFN) */
