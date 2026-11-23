@@ -1249,9 +1249,7 @@ body.tv #kill-site{display:none}#kill-site{position:fixed;inset:0;z-index:99999;
           <div class="grid2c"><label for="pool-sort">Classement de la série<select class="field" id="pool-sort"><option value="touch">dès que tous ont touché</option><option value="official">à la validation sur le Quantum</option></select></label>
           <label for="pool-hold">Ensuite, garder les résultats affichés<select class="field" id="pool-hold"><option value="0">jusqu'à la série suivante sur le Quantum (recommandé)</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="180">3 minutes</option></select></label>
           </div>
-          <div class="grid2c" id="ares-q"><p class="msg" style="grid-column:1/-1"><b>Omega ARES</b> : deux réglages pour compter les longueurs et reconnaître l'arrivée.</p>
-          <label for="pool-len">Longueur du bassin<select class="field" id="pool-len"><option value="25">25 m</option><option value="50">50 m</option></select></label>
-          <label for="pool-plates">Plaques de touche<select class="field" id="pool-plates"><option value="both">aux deux bouts du bassin</option><option value="one">seulement côté départ / arrivée</option></select></label></div>
+
           <p class="msg" id="relay-state"></p>
         </div>
       </details>
@@ -1261,6 +1259,9 @@ body.tv #kill-site{display:none}#kill-site{position:fixed;inset:0;z-index:99999;
           <div class="pairbox" style="margin-top:0">
             <div class="pb-head"><h4></h4><a class="btn small ghost" href="/chrono/SwimDirect-Chrono.exe" download>Télécharger le logiciel (Windows)</a></div>
             <label class="pb-sys">Ton chronométrage <select class="field" id="pair-sys"><option value="quantum">Swiss Timing Quantum</option><option value="ares">Omega ARES 21</option><option value="stramatel">Stramatel</option><option value="alge">ALGE TimeManager</option></select></label><p class="msg" id="pair-sys-hint"></p>
+            <div class="grid2c" id="ares-q"><p class="msg" style="grid-column:1/-1"><b>Omega ARES</b> : ces deux réglages sont envoyés tout seuls à Swim Direct · Chrono (passages et distances justes).</p>
+          <label for="pool-len">Longueur du bassin<select class="field" id="pool-len"><option value="25">25 m</option><option value="50">50 m</option></select></label>
+          <label for="pool-plates">Plaques de touche<select class="field" id="pool-plates"><option value="both">aux deux bouts</option><option value="one">côté départ seulement</option></select></label></div>
             <ol class="pb-steps"><li>Sur le PC du chrono, lance <b>SwimDirect-Chrono.exe</b>.</li><li>Copie la clé qu'il affiche (<code>SD-XXXX-XXXX-XXXX-XXXX</code>).</li><li>Colle-la ci-dessous puis « Relier » : tout ce que lit le chrono arrive sur ce live.</li></ol>
             <div class="pb-row"><input class="field" id="pair-in" placeholder="SD-XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false"><button class="btn small" id="pair-go" type="button">Relier</button></div>
             <p class="msg" id="pair-msg"></p>
@@ -2084,7 +2085,7 @@ function bindOrg(){const sv=$("#org-save"),dl=$("#org-del"),msg=$("#org-msg");if
   dl.onclick=async()=>{if(!confirm("Retirer l'accès organisateur de ce live ?"))return;try{await api("/api/admin/orgkey",{method:"PUT",body:JSON.stringify({pw:""})});msg.textContent="Accès organisateur retiré.";orgStatus()}catch(e){msg.textContent=e.message}}}
 
 /* ---------- chronométrage relié par clé ---------- */
-function setChronoSys(k,fromRow){if(!SYSN[k])return;state.chronoSys=k;const aq=$("#ares-q");if(aq){aq.hidden=k!=="ares";if(k==="ares"&&!aq.dataset.seen){aq.dataset.seen=1;setTimeout(()=>{aq.scrollIntoView({block:"center",behavior:"smooth"});aq.classList.add("flash")},300)}}const ps=$("#pair-sys");if(ps&&ps.value!==k){ps.value=k;const h=$("#pair-sys-hint");if(h)h.textContent=SYSH[k]}
+function setChronoSys(k,fromRow){if(!SYSN[k])return;state.chronoSys=k;const aq=$("#ares-q");if(aq){aq.hidden=k!=="ares";if(k==="ares"&&!aq.dataset.seen){aq.dataset.seen=1;setTimeout(()=>aq.classList.add("flash"),300)}}const ps=$("#pair-sys");if(ps&&ps.value!==k){ps.value=k;const h=$("#pair-sys-hint");if(h)h.textContent=SYSH[k]}
   if(!fromRow)document.querySelectorAll("#pair-list [data-sys]").forEach(sl=>{if(sl.value!==k){sl.value=k;sl.onchange()}});markDirty()}
 const SYSN={quantum:"Swiss Timing Quantum",ares:"Omega ARES 21",stramatel:"Stramatel",alge:"ALGE TimeManager"};
 const SYSH={quantum:"Dans Quantum, active la sortie « Sport In The Box ». Le logiciel la lit tout seul sur le même PC.",ares:"Installe le logiciel Swim Direct · Chrono sur le PC ARES : il lit ARES tout seul (interface Splash), sans câble. La 1re fois, ferme puis rouvre ARES Swimming. Règle ci-dessous la longueur du bassin et les plaques.",stramatel:"Relie la sortie série du Stramatel au PC (adaptateur USB-série), choisis le port COM dans le logiciel. Les données sont enregistrées ; l'affichage en direct arrive bientôt.",alge:"Relie la sortie « Vidéo » du TM-SWIM au PC (adaptateur USB-série, 19200 bauds), choisis le port COM dans le logiciel. Laisse SwimTime ouvert : il envoie l'épreuve et les noms des nageurs."};
