@@ -549,9 +549,10 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
             last, last_at = (e, r, h, txt), time.time()
             yield f"#SPLASH {e} {r} {h} {nl or ''}\n{txt}".encode("latin-1"), time.time()
         n += 1
-        if n % 5 == 0 and not forced and idx + 1 < len(H):  # la série suivante a commencé ?
+        if n % 5 == 0 and not forced and last_status is None and idx + 1 < len(H):  # la série suivante a commencé ? (seulement si ARES n'annonce pas ses séries : READY/START)
             e2, r2, h2, _ = H[idx + 1]; t2 = ask(e2, r2, h2)
-            if t2 and "LSTRESULT;" in t2: idx += 1; log(f"ARES : passage à l'épreuve {e2}, série {h2 + 1}")
+            new = [int(m.group(1)) for m in re.finditer(r"LSTRESULT;(?:[^;]*;){7}\s*(\d+)", t2 or "")]
+            if new and (not last_start or max(new) > last_start): idx += 1; log(f"ARES : passage à l'épreuve {e2}, série {h2 + 1}")  # temps d'avant le dernier départ = anciens essais : ignorés
         if n % 100 == 0:  # toutes les ~30 s : programme relu, et base suivie si une autre compétition a été chargée dans ARES
             d2 = splash_ini(ares_dir)[1]
             if d2 != data_dir: data_dir = d2; idx = 0; forced = None; sent_heat = None; log(f"ARES : nouvelle base {data_dir}")
