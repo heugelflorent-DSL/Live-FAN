@@ -221,6 +221,19 @@ class SplashDecoder:
         out = []
         for block in data.decode("latin-1", "replace").split("#SPLASH")[1:]:
             if block.startswith("-INFO"): continue
+            if block.startswith("-HEAT"):
+                hd, _, js = block[5:].partition("\n")
+                try:
+                    hf = hd.split(); ev, rd, ht = int(hf[0]), int(hf[1]), int(hf[2]); info = json.loads((js or "{}").encode("latin-1", "replace").decode("utf-8", "replace"))
+                    if len(hf) > 3 and hf[3].isdigit() and int(hf[3]) > 0: self.laps = int(hf[3])
+                except (ValueError, IndexError): continue
+                if (ev, rd, ht) != self.key:
+                    if self.key: out += self.close()
+                    self.key, self.seen, self.started, self.start_tod = (ev, rd, ht), {}, False, None
+                    out.append({"k": "ready", "event": ev, "heat": ht + 1, "laps": self.laps, "lanes": None})
+                out.append({"k": "heat", "msg": "SL", "event": ev, "heat": ht + 1, "heats": None, "laps": self.laps, "title": info.get("title") or "", "comp": "", "stat": "W",
+                            "lanes": [{"lane": x["lane"], "name": x.get("name", ""), "club": x.get("club", ""), "born": x.get("born", ""), "time": None, "rank": None, "stat": None, "sw": None} for x in info.get("lanes") or []]})
+                continue
             if block.startswith("-START"):
                 f = block[6:].split()
                 try: ev, rd, ht, st = int(f[0]), int(f[1]), int(f[2]), int(f[-1])
@@ -271,6 +284,8 @@ class SplashDecoder:
         return out + [{"k": "end", "event": self.key[0], "heat": self.key[2] + 1}]
 
 
+SPLASH_POOL = 25  # longueur du bassin (m) pour compter les longueurs quand ARES ne les donne pas (réglage « bassin » du logiciel)
+
 def splash_laps(data_dir):
     """Nombre de longueurs par distance (LSTLONG.TXT, colonne dont le nom contient « lap ») : {idLen: longueurs}."""
     out = {}
@@ -280,6 +295,11 @@ def splash_laps(data_dir):
         if col is not None:
             for f in rows[1:]:
                 if f and f[0].isdigit() and len(f) > col and f[col].isdigit(): out[int(f[0])] = int(f[col])
+        else:  # base de l'extraNat Pocket : « idLong;Longueur;Mlongueur;Relais » → longueurs = distance ÷ longueur du bassin
+            mc = next((i for i, h in enumerate(head) if h.startswith("mlong")), None)
+            if mc is not None:
+                for f in rows[1:]:
+                    if f and f[0].isdigit() and len(f) > mc and f[mc].isdigit() and int(f[mc]) % SPLASH_POOL == 0: out[int(f[0])] = int(f[mc]) // SPLASH_POOL
     except (OSError, IndexError): pass
     return out
 
@@ -389,6 +409,35 @@ def ares_start():
     if not found: return None
     hh, mm, ss, fr = found[-1]; return ((int(hh) * 60 + int(mm)) * 60 + int(ss)) * 1000 + int(fr.ljust(3, "0")[:3])
 
+def splash_titles(data_dir):
+    """Nom des épreuves d'ARES (LSTRACE + LSTLONG + LSTSTYLE + LSTCAT) : {(épreuve, phase): « 400 m Nage Libre Dames »}."""
+    def rows(name):
+        try: return [[x.strip().strip('"').strip() for x in L.split(";")] for L in open(os.path.join(data_dir, name), encoding="latin-1") if L.strip()][1:]
+        except OSError: return []
+    lg = {f[0]: f for f in rows("LSTLONG.TXT") if f and f[0].isdigit()}
+    sty = {f[0]: f[1] for f in rows("LSTSTYLE.TXT") if len(f) > 1}
+    cat = {f[1]: f[0] for f in rows("LSTCAT.TXT") if len(f) > 1}
+    out = {}
+    for f in rows("LSTRACE.TXT"):
+        if len(f) < 6 or not f[0].isdigit(): continue
+        L = lg.get(f[3]); dist = (L[1] if L else "").replace(" ", " ")
+        out[(int(f[0]), int(f[1] or 0))] = " ".join(x for x in [dist, sty.get(f[4], ""), cat.get(f[5], f[5])] if x)
+    return out
+
+def splash_starts(data_dir):
+    """Listes de départ d'ARES (LSTSTART + LSTCONC) : {(épreuve, phase, série): [{"lane", "name", "club", "born"}]}."""
+    conc, out = {}, {}
+    try:
+        for L in list(open(os.path.join(data_dir, "LSTCONC.TXT"), encoding="latin-1"))[1:]:
+            f = [x.strip().strip('"').strip() for x in L.split(";")]
+            if len(f) >= 8 and f[0].isdigit(): conc[f[0]] = {"name": f"{f[2]} {f[3]}".strip(), "club": f[7], "born": f[4]}
+        for L in list(open(os.path.join(data_dir, "LSTSTART.TXT"), encoding="latin-1"))[1:]:
+            f = [x.strip() for x in L.split(";")]
+            if len(f) >= 6 and f[0].isdigit() and f[3].isdigit() and f[5] in conc:
+                out.setdefault((int(f[0]), int(f[1] or 0), int(f[2] or 0)), []).append({"lane": int(f[3]), **conc[f[5]]})
+    except OSError: pass
+    return out
+
 def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, status=lambda s: None):
     """Interroge ARES Swimming en boucle par l'interface Splash et renvoie ses réponses (direct ~1 s, sans câble).
     Suit tout seul la série en cours : quand la série suivante reçoit des touchers, on passe dessus."""
@@ -402,7 +451,12 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
     races = splash_races(data_dir); idx, ht = 0, 0
     def heats():  # séries dans l'ordre : (épreuve, phase, série)
         return [(e, r, h, nl) for e, r, n, nl in races for h in range(n)]
+    pend = []  # messages qu'ARES écrit de lui-même (STATUS…START au départ), récupérés dans toutes les réponses
+    def grab(txt):
+        for m in re.finditer(r"STATUS;EVENT=(\d+);ROUND=(\d+);HEAT=(\d+);([A-Z]+)", txt or ""): pend.append((m.groups(), time.time()))
     def ask(e, r, h, timeout=3):
+        try: grab(open(rcv, encoding="latin-1").read())  # ce qu'ARES a pu écrire depuis la dernière lecture (sinon perdu à l'effacement)
+        except OSError: pass
         try: os.remove(rcv)
         except OSError: pass
         with open(snd, "w", encoding="latin-1", newline="") as f: f.write(f"ASK RESULTS;EVENT={e};ROUND={r};HEAT={h}\r\n")
@@ -411,9 +465,11 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
             if not os.path.exists(snd):
                 try: txt = open(rcv, encoding="latin-1").read()
                 except OSError: txt = ""
-                if "SEND RESULTS; END" in txt or "NOT FOUND" in txt: return txt
+                if "SEND RESULTS; END" in txt or "NOT FOUND" in txt: grab(txt); return txt
             time.sleep(0.05)
         return None
+    try: os.remove(rcv)  # au lancement : anciens messages d'ARES effacés (un vieux « START » ne doit pas lancer le chrono)
+    except OSError: pass
     n = 0; last, last_at = None, 0
     yield f"#SPLASH-INFO dossier={ares_dir} base={data_dir} séries={races}\n".encode("latin-1", "replace"), time.time()  # pour le journal
     # au démarrage : se placer sur la dernière série qui a déjà des temps (logiciel lancé en pleine compétition)
@@ -424,7 +480,8 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         t = ask(e, r, h, timeout=2)
         if t is None: break
         if "LSTRESULT;" in t: idx = i
-    last_start = None; active_at = time.time(); forced = None
+    last_start = None; active_at = time.time(); forced = None; sent_heat = None; last_status = None
+    titles, starts = splash_titles(data_dir), splash_starts(data_dir)
     while not stop():
         H = heats() or [(1, 0, 0, None)]
         idx = min(idx, len(H) - 1); e, r, h, nl = H[idx]
@@ -436,13 +493,17 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
             j = find()
             if j is None:  # série inconnue : ARES a peut-être changé de base (autre compétition chargée) → relire SWIMM.INI
                 d2 = splash_ini(ares_dir)[1]
-                if d2 != data_dir: data_dir = d2; races = splash_races(data_dir) or races; H = heats() or H; log(f"ARES : nouvelle base {data_dir} ({len(races)} épreuves)"); j = find()
+                if d2 != data_dir: data_dir = d2; races = splash_races(data_dir) or races; H = heats() or H; titles, starts = splash_titles(data_dir), splash_starts(data_dir); sent_heat = None; log(f"ARES : nouvelle base {data_dir} ({len(races)} épreuves)"); j = find()
             if j is not None:
                 forced = None
                 if j != idx: idx = j; log(f"ARES : série ouverte = épreuve {H[j][0]}, série {H[j][2] + 1}")
             elif forced != (race[0], 0, race[1] - 1):
                 forced = (race[0], 0, race[1] - 1); log(f"ARES : série ouverte = épreuve {race[0]}, série {race[1]} (absente du programme lu, suivie quand même)")
         e, r, h, nl = (forced + (None,)) if forced else H[idx]
+        if (e, r, h) != sent_heat:  # nouvelle série suivie : nom de l'épreuve et nageurs lus dans ARES → Swim Direct n'a pas besoin de la même numérotation
+            sent_heat = (e, r, h)
+            info = {"title": titles.get((e, r), ""), "lanes": starts.get((e, r, h), [])}
+            yield f"#SPLASH-HEAT {e} {r} {h} {nl or ''}\n{json.dumps(info, ensure_ascii=False)}\n".encode("utf-8"), time.time()
         if st and st != last_start:
             yield f"#SPLASH-START {e} {r} {h} {nl or ''} {st}\n".encode("latin-1"), time.time()
         last_start = st if st else last_start
@@ -452,6 +513,22 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
         txt = ask(e, r, h)
         if txt is None: status("ARES ne répond pas (ARES Swimming ouvert ? Splash activé ?)"); time.sleep(2); races = splash_races(data_dir); continue
         status(f"connecté (ARES Splash, épreuve {e} série {h + 1})")
+        while pend:  # ARES annonce lui-même le départ (et d'autres états)
+            k, k_at = pend.pop(0)
+            if k == last_status: continue
+            last_status = k; log(f"ARES : état {k[3]} (épreuve {k[0]}, série {int(k[2]) + 1})")
+            if k[3] == "START":
+                e, r, h = int(k[0]), int(k[1]), int(k[2]); nl = next((x[3] for x in H if x[:3] == (e, r, h)), nl)
+                j = next((i for i, x in enumerate(H) if x[:3] == (e, r, h)), None)
+                if j is not None: idx, forced = j, None
+                else: forced = (e, r, h)
+                if (e, r, h) != sent_heat:
+                    sent_heat = (e, r, h); info = {"title": titles.get((e, r), ""), "lanes": starts.get((e, r, h), [])}
+                    yield f"#SPLASH-HEAT {e} {r} {h} {nl or ''}\n{json.dumps(info, ensure_ascii=False)}\n".encode("utf-8"), time.time()
+                lt = time.localtime(k_at); tod = ((lt.tm_hour * 60 + lt.tm_min) * 60 + lt.tm_sec) * 1000 + int(k_at % 1 * 1000) - int(period * 500)
+                if not last_start or abs(tod - last_start) > 3000:  # pas déjà vu dans la fenêtre de course
+                    last_start = tod; splash_source._st, active_at = tod, time.time()
+                    yield f"#SPLASH-START {e} {r} {h} {nl or ''} {tod}\n".encode("latin-1"), time.time()
         # journal de suivi : seulement les réponses qui changent (+ un signe de vie toutes les 30 s), pas 3 copies par seconde
         if (e, r, h, txt) != last or time.time() - last_at > 30:
             last, last_at = (e, r, h, txt), time.time()
@@ -462,8 +539,8 @@ def splash_source(ares_dir="C:\\ARES\\SWIMM", period=0.3, stop=lambda: False, st
             if t2 and "LSTRESULT;" in t2: idx += 1; log(f"ARES : passage à l'épreuve {e2}, série {h2 + 1}")
         if n % 100 == 0:  # toutes les ~30 s : programme relu, et base suivie si une autre compétition a été chargée dans ARES
             d2 = splash_ini(ares_dir)[1]
-            if d2 != data_dir: data_dir = d2; idx = 0; forced = None; log(f"ARES : nouvelle base {data_dir}")
-            races = splash_races(data_dir) or races
+            if d2 != data_dir: data_dir = d2; idx = 0; forced = None; sent_heat = None; log(f"ARES : nouvelle base {data_dir}")
+            races = splash_races(data_dir) or races; titles, starts = splash_titles(data_dir) or titles, splash_starts(data_dir) or starts
         if (e, r, h, txt) != getattr(splash_source, "_prev", None): splash_source._prev, active_at = (e, r, h, txt), time.time()
         time.sleep(period)
 
