@@ -870,6 +870,8 @@ export default {
       const b = await req.json().catch(() => null);
       if (!b || !b.c) return json({ error: "Fichier illisible." }, 400);
       const { config, data } = await load(env, ev); const before = JSON.stringify(data);
+      // live encore vide (aucune compétition) : le fichier fixe sa compétition, sans lecture du Live FFN (pas de resynchronisation)
+      if (!config.comps.length) { config.comps = [String(b.c)]; await env.KV.put(kk("config", ev), JSON.stringify(config)); }
       if (!config.comps.map(String).includes(String(b.c))) return json({ error: `Ce fichier est celui de la compétition ${b.c}, qui n'est pas dans ce live.` }, 400);
       // L'extraNat donne le nom officiel long du club (« CERCLE DES NAGEURS DU FLORIVAL ») ; le Live FFN le nom court
       // (« C.N DU FLORIVAL GUEBWILLER »). On reprend le nom déjà connu dans le live, d'après les nageurs en commun.
