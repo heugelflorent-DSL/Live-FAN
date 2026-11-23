@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.9.5"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.9.6"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -559,7 +559,7 @@ def startup_update(cfg):
 def gui(cfg, demo=False, close_after=0):
     import tkinter as tk
     from tkinter import ttk, messagebox
-    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("920x740"); root.minsize(780, 600)
+    root = tk.Tk(); root.title(f"{APP} {VERSION}"); root.geometry("920x820"); root.minsize(780, 600)
     try:  # logo Swim Direct dans la barre des tâches et la fenêtre (au lieu de la plume Tk)
         _b = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
         if os.name == "nt":
@@ -702,14 +702,25 @@ def gui(cfg, demo=False, close_after=0):
     bcp = btn(tvb, "Copier", cp_main, "primary"); bcp.pack(side="left", fill="x", expand=True)
     btn(tvb, "Ouvrir ici", lambda: tvbig.cget("text") and webbrowser.open(tvbig.cget("text") + "/")).pack(side="left", fill="x", expand=True, padx=(6, 0))
     tvo = tk.Label(cTv.body, text="", bg=CARD, fg=GREY, font=(F, 8), anchor="w", justify="left", wraplength=200); tvo.pack(fill="x", pady=(6, 0))
-    spk = tk.Label(cTv.body, text="", bg=CARD, fg=INK, font=(F, 9, "bold"), anchor="w", justify="left", wraplength=220, cursor="hand2"); spk.pack(fill="x", pady=(6, 0))
-    spk.bind("<Button-1>", lambda e: spk.cget("text") and webbrowser.open(spk.cget("text").split(" : ", 1)[1]))
+    # bloc « Le speaker » : sa propre carte sous les trois étapes
+    spkc = tk.Frame(root, bg=CARD, highlightbackground=LINE, highlightthickness=1); spkc.pack(fill="x", padx=16, pady=(0, 12))
+    spkb = tk.Frame(spkc, bg=CARD); spkb.pack(fill="x", padx=14, pady=10)
+    tk.Label(spkb, text="🎙", bg=GOLD, fg=NAVY, font=(F, 11, "bold"), width=3).pack(side="left")
+    tk.Label(spkb, text="Le speaker", bg=CARD, fg=INK, font=(F, 12, "bold")).pack(side="left", padx=(8, 10))
+    spkbig = tk.Label(spkb, text="", bg=NAVY, fg="white", font=("Consolas", 12, "bold"), padx=8, pady=6, anchor="w", cursor="hand2"); spkbig.pack(side="left", fill="x", expand=True)
+    spkbig.bind("<Button-1>", lambda e: spkbig.cget("text") and webbrowser.open(spkbig.cget("text")))
+    def cp_spk():
+        u = spkbig.cget("text")
+        if u: root.clipboard_clear(); root.clipboard_append(u); bspk.config(text="Copié ✓"); root.after(1500, lambda: bspk.config(text="Copier"))
+    bspk = btn(spkb, "Copier", cp_spk, "primary"); bspk.pack(side="left", padx=(8, 0))
+    btn(spkb, "Ouvrir ici", lambda: spkbig.cget("text") and webbrowser.open(spkbig.cget("text"))).pack(side="left", padx=(6, 0))
+    spk = spkbig
     def tv_rows():
         ips = core.screen.ips or ([core.screen.ip] if core.screen.ip else [])
         urls = [f"http://{a}:{core.screen.port}" for a in ips] + ([f"http://{socket.gethostname()}:{core.screen.port}"] if ips else [])
         tvbig.config(text=urls[0] if urls and core.screen.ok else "")
         tvo.config(text=("Autres adresses : " + " · ".join(u.replace("http://", "") for u in urls[1:])) if len(urls) > 1 else "")
-        spk.config(text=("🎙 Écran speaker (même sans Internet) : " + urls[0] + "/speaker") if urls and core.screen.ok else "")
+        spkbig.config(text=(urls[0] + "/speaker") if urls and core.screen.ok else "")
 
     # ---- ce qu'affiche l'écran géant (et le direct du site) : choisi ici, « Normal » rend la main au direct
     scr = tk.Frame(root, bg=CARD, highlightbackground=LINE, highlightthickness=1); scr.pack(fill="x", padx=16, pady=(0, 12))
@@ -955,7 +966,7 @@ AIDE = [
         ("p", "La console et les boutons de ce logiciel sont synchronisés : on peut piloter depuis l'un ou l'autre."),
         ("h", "Écran speaker"),
         ("p", "Un écran pour le speaker, sans animation : composition de chaque série avec temps d'engagement, record perso, temps final, passages et qualifications ; résultats de l'épreuve avec les qualifiés en finale ; podiums pour les cérémonies (marqués « Non officiel » tant que les résultats officiels ne sont pas publiés)."),
-        ("p", "1. Sur le PC ou la tablette du speaker (même réseau que ce PC), ouvre dans Chrome l'adresse affichée dans « Écran speaker » (par exemple http://192.168.1.4:8765/speaker). Clique dessus dans ce logiciel pour l'ouvrir ici. Cette adresse locale marche même si Internet tombe : le programme déjà chargé reste en mémoire et les temps arrivent directement du chronométrage (Quantum, ARES…)."),
+        ("p", "1. Sur le PC ou la tablette du speaker (même réseau que ce PC), ouvre dans Chrome l'adresse affichée dans le bloc « Le speaker » (par exemple http://192.168.1.4:8765/speaker). Clique dessus dans ce logiciel pour l'ouvrir ici. Cette adresse locale marche même si Internet tombe : le programme déjà chargé reste en mémoire et les temps arrivent directement du chronométrage (Quantum, ARES…)."),
         ("p", "2. Avec Internet, il peut aussi ouvrir l'adresse du live suivie de #speaker (par exemple https://swim-direct.swim-direct.workers.dev/e/nom-du-live#speaker), ou le bouton « Ouvrir l'écran speaker » de l'admin."),
         ("p", "3. Le speaker passe lui-même d'une série à l'autre (liste à gauche, boutons ou flèches du clavier). Un bandeau jaune l'avertit quand une nouvelle série part ; « Y aller » l'y emmène. La case « Suivre le direct » le fait suivre automatiquement."),
         ("h", "Plein écran automatique (mode kiosque)"),
