@@ -2184,7 +2184,7 @@ async function loadLogos(){try{const r=await fetch("/api/logos");if(r.ok){const 
   // logos déjà enregistrés avec un fond blanc : on l'efface à l'affichage (bords seulement), pour un rendu propre à côté des noms
   const ks=Object.keys(L);await Promise.all(ks.map(async k=>{try{L[k]=await clearWhite(L[k])}catch(_){}}));LOGOS=L;LOGON=null;render()}}catch(_){}}
 function compBadge(id){const c=comp(id);return`<span class="badge k${c.k}"><i></i>${esc(c.name)}</span>`}
-function renderHead(){{const al=$("#allev");if(al)al.hidden=PICK||!(Array.isArray(PUBEV)&&PUBEV.length>1);}
+function renderHead(){{const al=$("#allev");if(al)al.hidden=PICK||!DEMO&&!(Array.isArray(PUBEV)&&PUBEV.length>1);}
   $("#pub-title").textContent=state.name||(state.comps[0]&&!state.comps[0].loading?state.comps[0].name:"Swim Direct");
   try{const st=evStatus(),el=$("#pub-status");if(el){el.hidden=!st;if(st){el.className="ev-st "+st.k;el.innerHTML=(st.k==="live"?'<i aria-hidden="true"></i>':"")+esc(st.t)}}}catch(_){}
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
