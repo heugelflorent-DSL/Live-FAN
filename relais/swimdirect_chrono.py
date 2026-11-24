@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.9.9"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.9.10"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.fr"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -34,6 +34,7 @@ def load_cfg():
     if not c.get("token"):
         c["token"] = "SD-" + "-".join("".join(random.SystemRandom().choice(ALPHA) for _ in range(4)) for _ in range(4))
     c.setdefault("source", "127.0.0.1:26700"); c.setdefault("mode", "reseau"); c.setdefault("port", ""); c.setdefault("serial", "9600,7,E,1"); c.setdefault("site", SITE); c.setdefault("forward", "")
+    if "swim-direct.swim-direct.workers.dev" in str(c.get("site", "")): c["site"] = SITE  # ancienne adresse du site : bascule automatique vers swim-direct.fr
     # PC ARES : si ARES Swimming est installé ici et que rien d'autre n'a été réglé, on le lit tout seul (interface Splash, sans câble)
     ad = ares_find()
     if ad and not c.get("ares_auto") and (not c.get("sys") or (c.get("sys") == "ares" and not c.get("port"))):
