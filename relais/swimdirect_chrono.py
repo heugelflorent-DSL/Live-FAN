@@ -15,8 +15,8 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.9.8"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
-SITE = "https://swim-direct.swim-direct.workers.dev"
+VERSION = "1.9.9"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+SITE = "https://swim-direct.fr"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
 os.makedirs(HOME, exist_ok=True)
@@ -968,7 +968,7 @@ AIDE = [
         ("h", "Écran speaker"),
         ("p", "Un écran pour le speaker, sans animation : composition de chaque série avec temps d'engagement, record perso, temps final, passages et qualifications ; résultats de l'épreuve avec les qualifiés en finale ; podiums pour les cérémonies (marqués « Non officiel » tant que les résultats officiels ne sont pas publiés)."),
         ("p", "1. Sur le PC ou la tablette du speaker (même réseau que ce PC), ouvre dans Chrome l'adresse affichée dans le bloc « Le speaker » (par exemple http://192.168.1.4:8765/speaker). Clique dessus dans ce logiciel pour l'ouvrir ici. Cette adresse locale marche même si Internet tombe : le programme déjà chargé reste en mémoire et les temps arrivent directement du chronométrage (Quantum, ARES…)."),
-        ("p", "2. Avec Internet, il peut aussi ouvrir l'adresse du live suivie de #speaker (par exemple https://swim-direct.swim-direct.workers.dev/e/nom-du-live#speaker), ou le bouton « Ouvrir l'écran speaker » de l'admin."),
+        ("p", "2. Avec Internet, il peut aussi ouvrir l'adresse du live suivie de #speaker (par exemple https://swim-direct.fr/e/nom-du-live#speaker), ou le bouton « Ouvrir l'écran speaker » de l'admin."),
         ("p", "3. Le speaker passe lui-même d'une série à l'autre (liste à gauche, boutons ou flèches du clavier). Un bandeau jaune l'avertit quand une nouvelle série part ; « Y aller » l'y emmène. La case « Suivre le direct » le fait suivre automatiquement."),
         ("h", "Plein écran automatique (mode kiosque)"),
         ("p", "Crée un raccourci sur le bureau du PC de l'écran avec pour cible :\n\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --kiosk \"http://ADRESSE:8765/\"\nAlt + F4 pour en sortir."),

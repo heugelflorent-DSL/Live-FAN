@@ -37,7 +37,7 @@ def _install_ssl():
 try: _install_ssl()
 except Exception: pass
 
-SITE = "https://swim-direct.swim-direct.workers.dev"
+SITE = "https://swim-direct.fr"
 SOH, STX, EOT, BS, LF, DC2, DC4 = b"\x01", b"\x02", b"\x04", b"\x08", b"\x0a", b"\x12", b"\x14"
 ALIVE = SOH + DC2 + b"9" + DC4 + b"TP" + EOT
 HEAD = SOH + STX + BS

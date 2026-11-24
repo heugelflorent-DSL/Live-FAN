@@ -1,7 +1,7 @@
 # Swim Direct — notes pour Claude
 
 Projet de Florent (et Mat), signé « © Mat-et-Flo ». Résultats et direct de natation à partir du Live FFN et du chronométrage électronique.
-Site : https://swim-direct.swim-direct.workers.dev (Cloudflare Worker `swim-direct`). Travailler **en français**.
+Site : https://swim-direct.fr (ancienne adresse https://swim-direct.swim-direct.workers.dev, toujours active : les exes déjà installés l'utilisent) (Cloudflare Worker `swim-direct`). Travailler **en français**.
 
 ## Règles de travail (impératives)
 - **Push : gros changements = attendre un « go » explicite de Florent** (« go », « push », « push tout », « tu peux déployer ») ; nouvelle fonctionnalité, refonte, changement visible ou risqué = gros. **Simples corrections (bug, coquille, petit ajustement sans risque) : push direct sans demander**, après les vérifications habituelles, et le dire ensuite. En cas de doute, c'est un gros changement. Regrouper les changements. Si un hook signale des commits non poussés après un gros changement : expliquer qu'on attend le go, ne pas pousser.

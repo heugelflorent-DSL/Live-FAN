@@ -25,7 +25,7 @@ async function vapidAuth(env, endpoint) {
   const pub = ub64(env.VAPID_PUBLIC), d = env.VAPID_PRIVATE;
   const key = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", d, x: b64u(pub.slice(1, 33)), y: b64u(pub.slice(33, 65)), ext: true }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
   const head = b64u(te.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
-  const body = b64u(te.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: env.VAPID_SUB || "https://swim-direct.swim-direct.workers.dev" })));
+  const body = b64u(te.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: env.VAPID_SUB || "https://swim-direct.fr" })));
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, te.encode(head + "." + body));
   return `vapid t=${head}.${body}.${b64u(sig)}, k=${env.VAPID_PUBLIC}`;
 }

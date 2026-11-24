@@ -1265,7 +1265,10 @@ async function audience(env, url, ev = "main") {
   if (env.STATS) { try { const r = await env.STATS.get(env.STATS.idFromName("stats")).fetch(new Request(`https://stats/q?from=${iso(f)}&to=${iso(t)}${evOnly ? "&ev=" + encodeURIComponent(evOnly) : ""}`)); if (r.ok) own = await r.json(); } catch (e) {} }
   if (!env.CF_API_TOKEN) return json({ setup: true, own });
   const host = url.hostname;
-  const filter = `{datetime_geq: "${start.toISOString()}", datetime_leq: "${end.toISOString()}", requestHost: "${host}"${evOnly ? `, requestPath_like: "/e/${evOnly}%"` : ""}}`;
+  // le site répond sur swim-direct.fr et sur l'ancienne adresse workers.dev : les deux sont comptées ensemble (repli sur l'adresse de la page si Cloudflare refuse le filtre multiple)
+  const HOSTS = ["swim-direct.fr", "www.swim-direct.fr", "swim-direct.swim-direct.workers.dev"];
+  const mkFilter = (hostCond) => `{datetime_geq: "${start.toISOString()}", datetime_leq: "${end.toISOString()}", ${hostCond}${evOnly ? `, requestPath_like: "/e/${evOnly}%"` : ""}}`;
+  let filter = HOSTS.includes(host) ? mkFilter(`requestHost_in: [${HOSTS.map((x) => `"${x}"`).join(", ")}]`) : mkFilter(`requestHost: "${host}"`);
   const block = (alias, dim, order, ds = "rumPageloadEventsAdaptiveGroups") => `${alias}: ${ds}(limit: 500, filter: ${filter}, orderBy: [${order}]) { count sum { visits } dimensions { ${dim} } }`;
   const gql = async (inner) => {
     const query = `query { viewer { accounts(filter: {accountTag: "${env.CF_ACCOUNT_ID}"}) { ${inner} } } }`;
@@ -1283,7 +1286,18 @@ async function audience(env, url, ev = "main") {
     ${block("countries", "countryName", "count_DESC")}
     ${block("browsers", "userAgentBrowser", "count_DESC")}
     ${block("referers", "refererHost", "count_DESC")}`);
-  } catch (e) { return json({ error: e.message, own }, 502); }
+  } catch (e) {
+    if (!HOSTS.includes(host)) return json({ error: e.message, own }, 502);
+    filter = mkFilter(`requestHost: "${host}"`);
+    try {
+      a = await gql(`${block("total", "date", "date_ASC")}
+    ${block("hours", timeDim, timeDim + "_ASC")}
+    ${block("devices", "deviceType", "count_DESC")}
+    ${block("countries", "countryName", "count_DESC")}
+    ${block("browsers", "userAgentBrowser", "count_DESC")}
+    ${block("referers", "refererHost", "count_DESC")}`);
+    } catch (e2) { return json({ error: e2.message, own }, 502); }
+  }
   // compléments : si Cloudflare refuse un champ, le reste des statistiques s'affiche quand même
   const extra = await Promise.allSettled([
     gql(block("paths", "requestPath", "count_DESC")),
