@@ -1127,7 +1127,7 @@ body.tv #kill-site{display:none}#kill-site{position:fixed;inset:0;z-index:99999;
         <div class="step-body">
           <label for="ev-name">Nom de l'événement<input class="field" id="ev-name"></label>
           <label class="chk"><input type="checkbox" id="ev-masters"> Compétition maîtres <small>(les grilles de qualification proposées deviennent les grilles maîtres)</small></label>
-          <div class="inline ffx"><label class="btn small ghost ffx-up">📥 Importer le fichier extraNat (ffnex)<input type="file" id="ffx-file" accept=".zip,.xml" hidden></label><span class="msg" id="ffx-msg">Programme, séries et engagés d'une compétition, sans lire le Live FFN (le Live FFN reste la référence et complète ensuite).</span></div><div id="ffx-log" class="ffxlog"></div>
+          <div class="inline ffx"><label class="btn small ghost ffx-up">📥 Importer le fichier extraNat (ffnex)<input type="file" id="ffx-file" accept=".zip,.xml,.lxf,.lef" hidden></label><span class="msg" id="ffx-msg">Programme, séries et engagés d'une compétition, sans lire le Live FFN (le Live FFN reste la référence et complète ensuite).</span></div><div id="ffx-log" class="ffxlog"></div>
           <div class="grid2c"><label for="ev-engend">Fin des engagements<input class="field" type="date" id="ev-engend"></label>
           <input type="hidden" id="ev-progdate"></div>
           <div class="inline"><input class="field" id="link-in" placeholder="Coller un lien liveffn.com…competition=…" aria-label="Lien Live FFN"><button class="btn" id="link-add">Ajouter</button><button class="btn ghost" id="link-replace" title="Retire les autres compétitions et suit uniquement celle-ci">Remplacer tout</button></div>
@@ -3536,7 +3536,7 @@ function docSys(){const z=state.chronoSys||"quantum",D=document.getElementById("
 const FFX_EPR={1:"50 Nage Libre",2:"100 Nage Libre",3:"200 Nage Libre",4:"400 Nage Libre",5:"800 Nage Libre",6:"1500 Nage Libre",9:"10x50 Nage Libre",11:"50 Dos",12:"100 Dos",13:"200 Dos",21:"50 Brasse",22:"100 Brasse",23:"200 Brasse",31:"50 Papillon",32:"100 Papillon",33:"200 Papillon",40:"100 4 Nages",41:"200 4 Nages",42:"400 4 Nages",43:"4x100 Nage Libre",44:"4x200 Nage Libre",46:"4x100 4 Nages",47:"4x50 Nage Libre",48:"4x50 4 Nages"};
 function ffxEvName(id){id=+id;const d=id>=50&&id<100?"Messieurs":id<50?"Dames":"";const b=FFX_EPR[id>=50&&id<100?id-50:id];return b?b+" "+d:"Épreuve "+id}
 function ffxTime(v){const x=parseFloat(v);if(!x||x>=59.59)return null;/* 59.5999 = sans temps d'engagement */const m=Math.floor(x),r=Math.round((x-m)*10000);return +(m*60+r/100).toFixed(2)}
-async function ffxRead(file){let txt;if(/\.zip$/i.test(file.name)){const buf=new Uint8Array(await file.arrayBuffer());txt=await unzipFind(buf,/\.xml$/i);if(!txt)throw new Error("pas de fichier .xml dans le zip")}else txt=await file.text();return txt}
+async function ffxRead(file){let txt;if(/\.(zip|lxf)$/i.test(file.name)){const buf=new Uint8Array(await file.arrayBuffer());txt=await unzipFind(buf,/\.(xml|lef)$/i);if(!txt)throw new Error("pas de fichier .xml dans le zip")}else txt=await file.text();return txt}
 /* zip minimal (méthodes 0 et 8) via DecompressionStream */
 async function unzipFind(u8,re){const dv=new DataView(u8.buffer);let i=0;while(i+30<u8.length&&dv.getUint32(i,true)===0x04034b50){const meth=dv.getUint16(i+8,true),csz=dv.getUint32(i+18,true),nl=dv.getUint16(i+26,true),xl=dv.getUint16(i+28,true);const name=new TextDecoder().decode(u8.subarray(i+30,i+30+nl));const st=i+30+nl+xl,data=u8.subarray(st,st+csz);
   if(re.test(name)){if(meth===0)return new TextDecoder().decode(data);const ds=new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));return await new Response(ds).text()}i=st+csz}return null}
@@ -3577,6 +3577,37 @@ function ffxParse(xml){const D=new DOMParser().parseFromString(xml,"application/
         (events[key]=events[key]||{}).results={title:name,when:hh(A(E,"datetime")),rows:out,complete:done.length===rows.length}}});
     reunions.push(R)});
   return{c:A(M,"id"),meta,reunions,events,teams,roster:Object.values(sw).map(w=>({iuf:w.iuf,name:w.name,year:w.year,club:w.club})),nSw:Object.keys(sw).length,nEv:Object.keys(events).length}}
+/* import Lenex (.lef / .lxf) d'une compétition terminée (hors FFN) : programme, séries, résultats (classement général = la catégorie d'âge la plus fournie), temps de passage */
+function lenexParse(xml){const D=new DOMParser().parseFromString(xml,"application/xml"),M=D.querySelector("MEET");if(!M)throw new Error("ce n'est pas un fichier Lenex");
+  const A=(e,k)=>e.getAttribute(k)||"",days=["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"],mois=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const dayOf=s=>{const d=new Date(String(s).slice(0,10)+"T12:00:00");return isNaN(d)?"":`${days[d.getDay()]} ${d.getDate()} ${mois[d.getMonth()]} ${d.getFullYear()}`},hh=s=>{const m=String(s).match(/(\d{2}):(\d{2})/);return m?m[1]+"h"+m[2]:""};
+  const tm=v=>{const m=String(v||"").match(/^(\d+):(\d{2}):(\d{2})\.(\d{1,2})$/);if(!m)return null;const x=+m[1]*3600+ +m[2]*60+ +m[3]+ +("0."+m[4]);return x>0?Math.round(x*100)/100:null};
+  const ST={FREE:"Nage Libre",BACK:"Dos",BREAST:"Brasse",FLY:"Papillon",MEDLEY:"4 Nages"},GN={M:"Messieurs",F:"Dames",X:"Mixte"};
+  const nm=(a)=>A(a,"lastname").toUpperCase()+" "+A(a,"firstname");
+  const heatNo={};M.querySelectorAll("HEAT").forEach(h=>heatNo[A(h,"heatid")]=+A(h,"number")||1);
+  const byEv={},roster=[];let nSw=0;
+  M.querySelectorAll("CLUB").forEach(C=>{const club=A(C,"name");C.querySelectorAll(":scope > ATHLETES > ATHLETE").forEach(a=>{nSw++;const w={name:nm(a),year:+A(a,"birthdate").slice(0,4)||null,club,iuf:A(a,"license")||A(a,"swrid")||""};roster.push({iuf:w.iuf,name:w.name,year:w.year,club});
+    a.querySelectorAll(":scope > RESULTS > RESULT").forEach(r=>{const o={id:A(r,"resultid"),w,heat:heatNo[A(r,"heatid")]||1,lane:+A(r,"lane")||0,t:tm(A(r,"swimtime")),st:A(r,"status"),pts:+A(r,"points")||0,sp:[]};
+      r.querySelectorAll(":scope > SPLITS > SPLIT").forEach(s=>{const v=tm(A(s,"swimtime"));if(v)o.sp.push(+A(s,"distance"),v)});(byEv[A(r,"eventid")]=byEv[A(r,"eventid")]||[]).push(o)})})});
+  const reunions=[],events={};let nEv=0;
+  M.querySelectorAll("SESSION").forEach(S=>{const Rn={n:+A(S,"number"),day:dayOf(A(S,"date")),doors:"",items:[]};
+    [...S.querySelectorAll(":scope > EVENTS > EVENT")].sort((a,b)=>(+A(a,"number"))-(+A(b,"number"))).forEach(E=>{const sty=E.querySelector("SWIMSTYLE");if(!sty||+A(sty,"relaycount")>1)return;
+      const fin=A(E,"round")==="FIN",typ=fin?13:60,epr=1000+(+A(E,"number")),key=String(epr)+(fin?"-13":""),name=`${A(sty,"distance")} ${ST[A(sty,"stroke")]||A(sty,"stroke")} ${GN[A(E,"gender")]||""}`.trim();
+      const rows=byEv[A(E,"eventid")]||[];
+      let best=null;E.querySelectorAll(":scope > AGEGROUPS > AGEGROUP").forEach(g=>{const rk=[...g.querySelectorAll("RANKING")];if(!best||rk.length>best.length)best=rk});
+      const place={};(best||[]).forEach(k=>place[A(k,"resultid")]=+A(k,"place")||0);
+      const byH={};rows.forEach(r=>(byH[r.heat]=byH[r.heat]||[]).push(r));const hs=Object.keys(byH).map(Number).sort((a,b)=>a-b);
+      const heats=hs.map(h=>({n:h,of:hs.length,time:hh(A(E,"daytime")),lanes:byH[h].map(r=>({lane:r.lane,name:r.w.name,year:String(r.w.year||""),club:r.w.club,iuf:r.w.iuf})).sort((a,b)=>a.lane-b.lane)}));
+      Rn.items.push({kind:"event",epr,cat:0,typ,num:Rn.items.filter(x=>x.kind==="event").length,time:hh(A(E,"daytime")),name,round:fin?"Finale":"Séries",alias:"",category:"",fin:"",key,nSeries:hs.length,nPart:rows.length});
+      if(heats.length)events[key]={heats};
+      const done=rows.filter(r=>r.t||r.st);
+      if(done.length){nEv++;const out=done.map(r=>JSON.parse(JSON.stringify({place:r.t&&!r.st?place[r.id]||undefined:undefined,time:r.st?undefined:r.t||undefined,status:r.st?(/^DSQ/.test(r.st)?"DSQ":/DNS/.test(r.st)?"Forf. nd":/DNF|ABD/.test(r.st)?"ABD":r.st):undefined,points:r.pts||undefined,sp:r.sp.length?r.sp:undefined,name:r.w.name,iuf:+r.w.iuf||undefined,year:String(r.w.year||""),club:r.w.club})));
+        out.sort((a,b)=>(a.place||1e9)-(b.place||1e9)||(a.time||1e9)-(b.time||1e9));
+        if(!out.some(x=>x.place)){let p=0;out.forEach(x=>{if(x.time)x.place=++p})}
+        (events[key]=events[key]||{}).results={title:name,when:hh(A(E,"daytime")),rows:out,complete:true}}});
+    reunions.push(Rn)});
+  let h=0;const f1=M.querySelector("SESSION"),sid=A(M,"name")+"|"+A(M,"city")+"|"+(f1?A(f1,"date"):"");for(const ch of sid)h=(h*31+ch.charCodeAt(0))>>>0;
+  return{c:"lx"+h.toString(36),src:"lenex",meta:{name:A(M,"name"),city:A(M,"city"),pool:{LCM:"50 m",SCM:"25 m"}[A(M,"course")]||"",date:dayOf(f1?A(f1,"date"):"")},reunions,events,teams:{},roster,nSw,nEv}}
 /* fiches de course : même format que les fiches extraNat (4 par page A4), une par nageur ou relais et par série, avec la compétition bien visible.
    Rangées par course ou par couloir (une pile par couloir), réunion par réunion. */
 function raceCards(){const sch=schedule(),C=[];const t2=sec=>hm(sec);
@@ -3672,7 +3703,7 @@ function ffxLogRender(){const el=$("#ffx-log");if(!el)return;const F=(RAW&&RAW.f
     H.push(`<details class="ffxl" data-c="${esc(c.id)}"${wasOpen.has(String(c.id))?" open":""}><summary><span class="cdot k${c.k}"><i></i></span> Journal des imports · ${esc(c.name)} <small>(${lg.length})</small></summary>${lg.map((x,i)=>`<div class="ffxe"><b>${new Date(x.at).toLocaleString("fr-FR",{weekday:"short",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}${i?"":" · dernier import"}</b><ul>${(x.lines||[]).map(l=>`<li>${esc(l)}</li>`).join("")}</ul></div>`).join("")}</details>`)}
   el.innerHTML=H.join("")}
 document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-file")return;const f=e.target.files[0],m=$("#ffx-msg");if(!f)return;m.textContent="Lecture du fichier…";
-  try{const P=ffxParse(await ffxRead(f));m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
+  try{const tx=await ffxRead(f),P=/<LENEX[\s>]/.test(tx.slice(0,2000))?lenexParse(tx):ffxParse(tx);m.textContent=`Envoi : ${P.meta.name} · ${P.nEv} épreuves · ${P.nSw} nageurs…`;delete P.nSw;delete P.nEv;
     const j=await api("/api/admin/ffnex",{method:"POST",body:JSON.stringify(P)});m.textContent=`✓ Importé : ${j.prog?"programme mis à jour · ":""}${j.heats} épreuve(s) avec séries · ${j.res?j.res+" épreuve(s) avec résultats · ":""}${j.roster} nageur(s) ajouté(s) aux engagés. Détail des changements ci-dessous.`;if(RAW){RAW.ffxLog=RAW.ffxLog||{};RAW.ffxLog[P.c]=[{at:Date.now(),lines:j.log||[]},...(RAW.ffxLog[P.c]||[])]}ffxLogRender();try{refresh&&refresh()}catch(_){}}
   catch(err){m.textContent="Import impossible : "+err.message}e.target.value=""});
 function render(){try{docSys()}catch(_){}if(DEEP)setTimeout(deepApply,0);setTimeout(()=>{try{alertTick()}catch(_){}},0);if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history[RV&&RV!==state.view&&!POPPING?"pushState":"replaceState"](null,"",location.pathname+location.search+want)}catch(_){}RV=state.view}

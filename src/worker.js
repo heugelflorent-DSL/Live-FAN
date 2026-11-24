@@ -180,6 +180,7 @@ export function plan(cfg, data, now, live, LI = {}) {
   const tasks = [];
   for (const id of cfg.comps) {
     const c = data.comps[id];
+    if (c?.src === "lenex") continue; // compétition importée d'un fichier Lenex : rien à lire sur le Live FFN
     // programme importé à la main (fichier FFNex) : on ne le relit pas sur le Live FFN (évite les 403) ; une synchro manuelle « programme » reprend la main
     if (c?.progSrc !== "ffnex" && (!c || !c.progAt || now - c.progAt > progEvery(c, now) || progDue(c, now))) tasks.push({ t: "prog", c: id });
     if (!c) continue;
@@ -872,12 +873,15 @@ export default {
       const { config, data } = await load(env, ev); const before = JSON.stringify(data);
       // live encore vide (aucune compétition) : le fichier fixe sa compétition, sans lecture du Live FFN (pas de resynchronisation)
       if (!config.comps.length) { config.comps = [String(b.c)]; await env.KV.put(kk("config", ev), JSON.stringify(config)); }
+      // fichier Lenex (compétition hors FFN, terminée) : elle s'ajoute au live, sans jamais être relue sur le Live FFN
+      if (b.src === "lenex" && !config.comps.map(String).includes(String(b.c))) { config.comps.push(String(b.c)); await env.KV.put(kk("config", ev), JSON.stringify(config)); }
       if (!config.comps.map(String).includes(String(b.c))) return json({ error: `Ce fichier est celui de la compétition ${b.c}, qui n'est pas dans ce live.` }, 400);
       // L'extraNat donne le nom officiel long du club (« CERCLE DES NAGEURS DU FLORIVAL ») ; le Live FFN le nom court
       // (« C.N DU FLORIVAL GUEBWILLER »). On reprend le nom déjà connu dans le live, d'après les nageurs en commun.
       const alias = ffxAlias(b, data.comps);
       const c = (data.comps[b.c] = data.comps[b.c] || {}); const now = Date.now(); const n = { prog: 0, heats: 0, roster: 0 };
       const log = ffxDiff(c, b, alias);
+      if (b.src === "lenex") c.src = "lenex";
       if (b.meta && !c.meta) c.meta = b.meta;
       if (Array.isArray(b.reunions) && b.reunions.length) {
         // horaires déjà paramétrés : l'import ne les change jamais (heure de chaque épreuve, ouverture des portes, jour)
