@@ -3592,16 +3592,16 @@ function lenexParse(xml){const D=new DOMParser().parseFromString(xml,"applicatio
   const reunions=[],events={};let nEv=0;
   M.querySelectorAll("SESSION").forEach(S=>{const Rn={n:+A(S,"number"),day:dayOf(A(S,"date")),doors:"",items:[]};
     [...S.querySelectorAll(":scope > EVENTS > EVENT")].sort((a,b)=>(+A(a,"number"))-(+A(b,"number"))).forEach(E=>{const sty=E.querySelector("SWIMSTYLE");if(!sty||+A(sty,"relaycount")>1)return;
-      const fin=A(E,"round")==="FIN",typ=fin?13:60,epr=1000+(+A(E,"number")),key=String(epr)+(fin?"-13":""),name=`${A(sty,"distance")} ${ST[A(sty,"stroke")]||A(sty,"stroke")} ${GN[A(E,"gender")]||""}`.trim();
+      const rd=A(E,"round"),fin=rd==="FIN",typ={FIN:13,TIM:61,FHT:62,EXTRAHEATS:63,SOP:64}[rd]||60,epr=1000+(+A(E,"number")),key=String(epr)+(typ!==60?"-"+typ:""),name=`${A(sty,"distance")} ${ST[A(sty,"stroke")]||A(sty,"stroke")} ${GN[A(E,"gender")]||""}`.trim();
       const rows=byEv[A(E,"eventid")]||[];
       let best=null;E.querySelectorAll(":scope > AGEGROUPS > AGEGROUP").forEach(g=>{const rk=[...g.querySelectorAll("RANKING")];if(!best||rk.length>best.length)best=rk});
       const place={};(best||[]).forEach(k=>place[A(k,"resultid")]=+A(k,"place")||0);
       const byH={};rows.forEach(r=>(byH[r.heat]=byH[r.heat]||[]).push(r));const hs=Object.keys(byH).map(Number).sort((a,b)=>a-b);
       const heats=hs.map(h=>({n:h,of:hs.length,time:hh(A(E,"daytime")),lanes:byH[h].map(r=>({lane:r.lane,name:r.w.name,year:String(r.w.year||""),club:r.w.club,iuf:r.w.iuf})).sort((a,b)=>a.lane-b.lane)}));
-      Rn.items.push({kind:"event",epr,cat:0,typ,num:Rn.items.filter(x=>x.kind==="event").length,time:hh(A(E,"daytime")),name,round:fin?"Finale":"Séries",alias:"",category:"",fin:"",key,nSeries:hs.length,nPart:rows.length});
+      Rn.items.push({kind:"event",epr,cat:0,typ,num:Rn.items.filter(x=>x.kind==="event").length,time:hh(A(E,"daytime")),name,round:fin?"Finale":rd==="SOP"?"Barrage":typ===60?"Séries":"",alias:"",category:"",fin:"",key,nSeries:hs.length,nPart:rows.length});
       if(heats.length)events[key]={heats};
-      const done=rows.filter(r=>r.t||r.st);
-      if(done.length){nEv++;const out=done.map(r=>JSON.parse(JSON.stringify({place:r.t&&!r.st?place[r.id]||undefined:undefined,time:r.st?undefined:r.t||undefined,status:r.st?(/^DSQ/.test(r.st)?"DSQ":/DNS/.test(r.st)?"Forf. nd":/DNF|ABD/.test(r.st)?"ABD":r.st):undefined,points:r.pts||undefined,sp:r.sp.length?r.sp:undefined,name:r.w.name,iuf:+r.w.iuf||undefined,year:String(r.w.year||""),club:r.w.club})));
+      const BAD=/^(DSQ|DNS|DNF|ABD|SICK|WDR)/;rows.forEach(r=>{if(!BAD.test(r.st))r.st=""});const done=rows.filter(r=>r.t||r.st);
+      if(done.length){nEv++;const out=done.map(r=>JSON.parse(JSON.stringify({place:r.t&&!r.st?place[r.id]||undefined:undefined,time:r.st?undefined:r.t||undefined,status:r.st?(/^DSQ/.test(r.st)?"DSQ":/DNF|ABD/.test(r.st)?"ABD":"Forf. nd"):undefined,points:r.pts||undefined,sp:r.sp.length?r.sp:undefined,name:r.w.name,iuf:+r.w.iuf||undefined,year:String(r.w.year||""),club:r.w.club})));
         out.sort((a,b)=>(a.place||1e9)-(b.place||1e9)||(a.time||1e9)-(b.time||1e9));
         if(!out.some(x=>x.place)){let p=0;out.forEach(x=>{if(x.time)x.place=++p})}
         (events[key]=events[key]||{}).results={title:name,when:hh(A(E,"daytime")),rows:out,complete:true}}});
