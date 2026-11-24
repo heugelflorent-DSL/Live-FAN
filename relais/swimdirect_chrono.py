@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.9.7"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.9.8"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.swim-direct.workers.dev"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -924,6 +924,7 @@ AIDE = [
     ("Quantum", [
         ("h", "Swiss Timing Quantum AQ"),
         ("p", "Dans Quantum, active la sortie réseau « Sport In The Box » (format tableau écran). Le logiciel la cherche par défaut sur le port 26700."),
+        ("p", "Si « SCB Sport In The Box » n'existe pas dans la liste des périphériques du Quantum : copier les deux fichiers de langue Lang.Cust et Lang.fr-CH (fournis par Swiss Timing) dans le dossier C:\\SwissTiming\\DRC64App\\Quantum\\Swimming\\Lang, puis redémarrer le Quantum."),
         ("p", "Ici, Réglages : système « Swiss Timing Quantum », connexion réseau. Adresse : 127.0.0.1:26700 si Quantum tourne sur ce PC, sinon l'adresse IP du PC Quantum suivie de :26700."),
         ("h", "Deux compétitions dans Quantum"),
         ("p", "Tu peux passer d'une compétition à l'autre dans Quantum : Swim Direct retrouve la bonne épreuve grâce au nom de la compétition, au nom de l'épreuve et à l'horaire. Garde l'ordre du bassin figé dans l'admin (Programme et horaires)."),
