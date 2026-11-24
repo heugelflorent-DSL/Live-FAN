@@ -24,9 +24,11 @@ export class StatsRoom {
   async fetch(req) {
     const url = new URL(req.url); const now = Date.now();
     if (url.pathname === "/hit" && req.method === "POST") {
-      const { day, ev, k, v } = await req.json();
+      const { day, ev, k, v, s } = await req.json();
       if (!day || !ev || !k) return new Response("bad", { status: 400 });
       const tab = TABS.has(v) ? v : null;
+      // scans de QR code (?src=tv écran géant, ?src=qr QR partagé) : un visiteur par jour et par source, sans rien d'autre
+      if (s === "tv" || s === "qr") { const qm = (this.qrm = this.qrm || new Set()); const qk = day + "|" + s + "|" + k; if (!qm.has(qk)) { qm.add(qk); if (qm.size > 20000) qm.clear(); this.sql("INSERT OR IGNORE INTO u (day, ev, k) VALUES (?, ?, ?)", day, "~qr-" + s, k); } }
       // Économie d'écritures (quota gratuit de 100 000 lignes / jour) :
       // « connectés en ce moment » et le pic restent en mémoire ; seul ce qui doit durer va dans la base,
       // et une seule fois par visiteur et par jour (sauf le temps passé, mis à jour au plus toutes les 10 min).

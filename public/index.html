@@ -2614,7 +2614,7 @@ function screenOv(){let sc=POOL&&POOL.screen;const age=sc?Date.now()+(poolOff||0
   if(sc.mode==="msg")return`<div class="session"><div class="card lv-card mf-card pwait msg-card"><div class="mf-head"><h2 class="mf-title">${esc(sc.title||"")}</h2></div></div></div>`;
   return""}
 /* écran « pub » : suivre la compétition sur Swim Direct (QR code vers la page publique, même depuis l'écran local) */
-function pubUrl(){const o=window.SD_LOCAL||/^(\d+\.){3}\d+$|localhost/.test(location.hostname)?"https://swim-direct.swim-direct.workers.dev":location.origin;return o+(EV&&EV!=="main"?"/e/"+EV:"/")}
+function pubUrl(){const o=window.SD_LOCAL||/^(\d+\.){3}\d+$|localhost/.test(location.hostname)?"https://swim-direct.swim-direct.workers.dev":location.origin;return o+(EV&&EV!=="main"?"/e/"+EV:"/")+"?src=tv"}
 let PUBQR={u:"",svg:""};
 function pubQr(){const u=pubUrl();if(PUBQR.u===u&&PUBQR.svg)return PUBQR.svg;if(window.qrcode){try{const q=qrcode(0,"M");q.addData(u);q.make();const n=q.getModuleCount();let d="";for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c} ${r}h1v1h-1z`;PUBQR={u,svg:`<svg viewBox="-2 -2 ${n+4} ${n+4}" shape-rendering="crispEdges"><rect x="-2" y="-2" width="${n+4}" height="${n+4}" fill="#fff"/><path d="${d}" fill="#0b1e3f"/></svg>`};return PUBQR.svg}catch(_){}}else loadQr().then(()=>{try{render()}catch(_){}}).catch(()=>{});return""}
 function pubHtml(){const u=pubUrl(),short=u.replace(/^https?:\/\//,"").replace(/\/.*$/,""),qr=pubQr();
@@ -3359,7 +3359,7 @@ function audRange(){const t=new Date();t.setHours(0,0,0,0);const add=n=>{const d
   if(AUD.per==="yday")return[add(-1),add(-1)];if(AUD.per==="7")return[add(-6),t];if(AUD.per==="30")return[add(-29),t];
   if(AUD.per==="comp"){let a=null,b=null;for(const c of state.comps){const d=pickDates(c.date);if(!d)continue;if(!a||d.start<a)a=d.start;if(!b||d.end>b)b=d.end}if(a)return[a,b>t?t:b]}
   return[t,t]}
-function evLabel(k){if(k==="~accueil")return"Accueil";if(k==="~archives")return"Archives";if(k==="*")return"Tout le site";const e=(EVLIST||[]).find(x=>x.id===k);return e&&e.name?e.name:"/e/"+k}
+function evLabel(k){if(k==="~qr-tv")return"📺 Scans du QR de l'écran géant";if(k==="~qr-qr")return"📱 Scans du QR partagé / imprimé";if(k==="~accueil")return"Accueil";if(k==="~archives")return"Archives";if(k==="*")return"Tout le site";const e=(EVLIST||[]).find(x=>x.id===k);return e&&e.name?e.name:"/e/"+k}
 function renderAudience(){
   const box=$("#aud");if(!box)return;
   const d=AUD.data;const hasComp=state.comps.some(c=>pickDates(c.date));
@@ -3896,9 +3896,9 @@ if(location.hash==="#tv"){state.view="live";document.body.classList.add("tv")}
 if(window.SD_LOCAL){const b=document.createElement("button");b.className="sd-tvback";b.textContent="📺 Écran géant";b.onclick=()=>{state.view="live";document.body.classList.add("tv");try{history.replaceState(null,"","#tv")}catch(e){}render()};document.body.appendChild(b)}
 addEventListener("hashchange",()=>{if(location.hash==="#tv"&&!document.body.classList.contains("tv")){state.view="live";document.body.classList.add("tv");render()}});
 if(location.hash==="#live"){state.view="live";setTimeout(()=>{const b=document.querySelector("[data-view=live]");b&&!b.hidden&&b.click()},800)}
-let LASTHIT=0,LASTV="";
+let LASTHIT=0,LASTV="";const HSRC=(()=>{try{const x=new URLSearchParams(location.search).get("src");return x==="tv"||x==="qr"?x:""}catch(_){return""}})();
 function statHit(force){if(state.admin)return;if(document.hidden&&!force)return;const v=PICK?(ARCH?"archives":"pick"):state.view;LASTHIT=Date.now();LASTV=v;
-  try{fetch("/api/hit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname,v})}).catch(()=>{})}catch(_){}}
+  try{fetch("/api/hit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({p:location.pathname,v,s:HSRC})}).catch(()=>{})}catch(_){}}
 statHit();setInterval(()=>statHit(),5*60e3);
 // onglet changé (au plus une fois toutes les 20 s), retour sur la page, départ (pour le temps passé)
 setInterval(()=>{if(!PICK&&!state.admin&&!document.hidden&&state.view!==LASTV&&Date.now()-LASTHIT>20e3)statHit()},5e3);
@@ -4096,10 +4096,11 @@ async function recapImg(R,D,lgSrc,msg){const W=1080,H=1350;const cv=document.cre
 /* ---------- QR code de la page de la compétition (à afficher, imprimer ou partager) ---------- */
 function loadQr(){if(window.qrcode)return Promise.resolve();return new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";s.onload=ok;s.onerror=()=>ko(new Error("bibliothèque QR non chargée (connexion ?)"));document.head.appendChild(s)})}
 function pageUrl(){return location.origin+(EV&&EV!=="main"?"/e/"+EV:"/")}
+function qrPageUrl(){return pageUrl()+"?src=qr"}
 async function qrOpen(){let el=document.getElementById("qr-bg");if(!el){el=document.createElement("div");el.id="qr-bg";el.className="sheet-bg";document.body.appendChild(el)}
   el.innerHTML=`<div class="sheet" role="dialog" aria-label="QR code de la page"><div class="detail-head"><div><h3>QR code de la page</h3><div class="meta">À afficher au bord du bassin, imprimer ou partager</div></div><button class="btn small ghost" data-qr="close">Fermer</button></div><p class="msg" id="qr-msg">Préparation…</p></div>`;
   el.onclick=e=>{if(e.target===el||e.target.dataset.qr==="close")el.remove()};
-  try{await loadQr();const url=pageUrl(),name=state.name||"Swim Direct";const q=qrcode(0,"M");q.addData(url);q.make();
+  try{await loadQr();const url=pageUrl(),name=state.name||"Swim Direct";const q=qrcode(0,"M");q.addData(qrPageUrl());q.make();
     const n=q.getModuleCount(),W=1000,pad=90,cell=Math.floor((W-2*pad)/n),qs=cell*n,H=W+170;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d");
     g.fillStyle="#fff";g.fillRect(0,0,W,H);g.fillStyle="#111";const ox=(W-qs)/2;for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(ox+c*cell,pad+r*cell,cell,cell);
     const F="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif";g.textAlign="center";g.fillStyle="#111";let fz=46;g.font=`800 ${fz}px ${F}`;while(g.measureText(name).width>W-80&&fz>30){fz-=2;g.font=`800 ${fz}px ${F}`}let t=name;while(g.measureText(t).width>W-80&&t.length>4)t=t.slice(0,-2);if(t!==name)t=t.trimEnd()+"…";g.fillText(t,W/2,pad+qs+80);
