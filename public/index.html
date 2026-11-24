@@ -4203,7 +4203,7 @@ function spkPodHtml(ev,vis){let ok=(hasFinals(ev)?mergedRanking(ev):(ev.results|
     return badge+G.map((g,gi)=>{const t=g.list.slice(0,3),blk=k=>{const w=t[k];if(!w)return`<div class="pv pv${k+1} pv0"></div>`;const nm=splitName(relay?(w.club||w.name):w.name);return`<div class="pv pv${k+1}"><div class="pv-who"><b>${esc(nm.last)}</b><span>${esc(nm.first||"")}</span><small>${esc(relay?"":w.club||"")}</small><em>${fmt(w.res)}</em></div><button type="button" class="spk-tvb pv-tv${SPK.podR&&SPK.podR.key===ev.name+"|"+g.name&&SPK.podR.set.has(k+1)&&spkTvSc()?" on":""}" data-podsw="${gi}:${k}" title="Afficher le podium avec seulement ce nageur sur l'écran géant">📺</button><div class="pv-step">${k+1}</div></div>`};
       return`<div class="spk-podv"><div class="pv-h"><h3>${esc(g.name)}</h3><button type="button" class="spk-tvb" data-podtv="${gi}" title="Afficher ce podium sur l'écran géant">📺 Écran géant</button></div><div class="pv-row">${blk(1)}${blk(0)}${blk(2)}</div></div>`}).join("")}
   return badge+groups.filter(g=>g.list.length).map(g=>`<div class="spk-pod"><h3>${esc(g.name)}</h3>${g.list.slice(0,3).map((w,i)=>`<div class="p${i+1}"><span>${i+1}</span><b>${esc(relay?(w.club||w.name):w.name)}</b><small>${relay?"":(w.year||"")+" · "}${esc(relay?"":w.club||"")}</small><em class="mono">${fmt(w.res)}</em></div>`).join("")}</div>`).join("")}
-function spkRender(){if(!spkOn())return;try{if(state.live==="bassin"&&(!PHAT||Date.now()-PHAT>5000))loadPHist(true)}catch(_){}let el=document.getElementById("spk");if(!el){el=document.createElement("div");el.id="spk";document.body.appendChild(el);el.addEventListener("click",spkClick)}
+function spkRender(){if(!spkOn())return;if(SPK&&SPK.queue){const b=spkBusy();if(!b){const Q=SPK.queue;SPK.queue=null;spkSend(Q.ev)}else if(b.k==="run"&&!SPK.queue.run){SPK.queue=null;SPK.msg="✂ Demande annulée : la course suivante est partie"}}try{if(state.live==="bassin"&&(!PHAT||Date.now()-PHAT>5000))loadPHist(true)}catch(_){}let el=document.getElementById("spk");if(!el){el=document.createElement("div");el.id="spk";document.body.appendChild(el);el.addEventListener("click",spkClick)}
   const H=spkHeats(),L=spkLive();
   /* nouvelle série partie : alerte seulement, le speaker reste où il est (sauf mode « suivre ») */
   if(L){if(SPK.seen&&SPK.seen!==L.id){SPK.alert=L;if(SPK.follow){SPK.sel={k:L.k,n:L.n};SPK.alert=null}}SPK.seen=L.id}
@@ -4228,9 +4228,21 @@ addEventListener("resize",()=>{if(spkOn())spkFit()});
 /* ===== le speaker prend la main sur l'écran géant : fiche d'un nageur (finalistes…), puis « Rendre le direct » ===== */
 function spkTvSc(){const sc=POOL&&POOL.screen;if(!(sc&&sc.mode==="fiche"&&sc.card&&Date.now()+(poolOff||0)-sc.at<30*60e3))return null;const rl=(sc.card.lines||[]).find(l=>/^§res\|/.test(l)),re=rl&&EVENTS[rl.slice(5)];if(rl){const n=re?spkRankList(re).list.length:0;if(Date.now()+(poolOff||0)-sc.at>=Math.ceil(n/8)*2000)return null}return sc}
 function spkOnTv(w){const sc=spkTvSc();return!!(sc&&norm(sc.card.name)===norm(w.name))}
-function spkTvBar(){const sc=spkTvSc(),m=SPK.msg?`<span class="spk-tvm">${esc(SPK.msg)}</span>`:"";
-  return`<div class="spk-tv${sc?" on":""}"><b>📺 Écran géant :</b> ${sc?`fiche de <b>${esc(sc.card.name)}</b> <button type="button" data-tvnext>Fiche suivante ▶</button><button type="button" data-tvlive class="lv">↩ Rendre le direct</button>`:`direct <small>(clique 📺 devant un nageur pour afficher sa fiche)</small>`}${m}${window.SD_LOCAL?"":`<button type="button" data-spkcode class="cd" title="Changer le code speaker">🔑</button>`}</div>`}
+/* ce que montre vraiment l'écran géant, vu du speaker : course > résultats de la série qui vient de finir > demande du speaker */
+function spkGiant(){const h=POOL&&POOL.heat,now=Date.now()+(poolOff||0);if(!h||!h.start)return h&&h.heat?{k:"ready",h}:{k:"idle"};
+  if(h.status==="running"&&!poolAllIn(h))return{k:"run",h};const key=[h.event,h.heat,h.start].join("|");SPK.fin=SPK.fin||{};if(!SPK.fin[key])SPK.fin[key]=Date.now();const done=h.doneAt?h.doneAt-(poolOff||0):SPK.fin[key];
+  let until=done+(typeof TVHOLD!=="undefined"?TVHOLD:30000);try{const ev=poolEvent(h);if(ev&&(ev.series||[]).length&&+h.heat>=ev.series.length&&state.tvAutoRes!==false){const n=spkRankList(ev).list.length;if(n)until=Math.max(until,done+10000+Math.ceil(n/8)*2000)}}catch(_){}
+  return Date.now()<until?{k:"res",h,left:Math.ceil((until-Date.now())/1000)}:{k:"after",h}}
+function spkBusy(){const g=spkGiant();return g.k==="run"||g.k==="res"?g:null}
+function spkTvBar(){const sc=spkTvSc(),g=spkGiant(),m=SPK.msg?`<span class="spk-tvm">${esc(SPK.msg)}</span>`:"",Q=SPK.queue;
+  /* le départ a coupé l'affichage du speaker */
+  if(SPK.wasSc&&!sc&&g.k==="run"&&!SPK.msg){SPK.msg="✂ Coupé par le départ";setTimeout(()=>{SPK.msg="";spkRender()},6000)}SPK.wasSc=!!sc;
+  const what=sc?((sc.card.lines||[]).some(l=>/^§res\|/.test(l))?`résultats de <b>${esc(sc.card.ev)}</b>`:cardPod(sc.card)?`podium <b>${esc(sc.card.ev)}</b>`:`fiche de <b>${esc(sc.card.name)}</b>`):g.k==="run"?`<b class="spk-live">● course en cours</b>`:g.k==="res"?`résultats de la série <small>(encore ${g.left} s)</small>`:g.k==="ready"||g.k==="after"?"liste de départ / direct":"direct";
+  const ev=SPK.sel&&EVENTS[SPK.sel.k],fin=ev&&(ev.fin||ev.typ===61||/finale/i.test(ev.name||""));
+  return`<div class="spk-tv${sc?" on":""}"><b>📺 Écran géant :</b> ${what}${sc?` <button type="button" data-tvnext>Fiche suivante ▶</button><button type="button" data-tvlive class="lv">↩ Rendre le direct</button>`:ev?` <button type="button" data-present>🎙 Présenter ${fin?"les finalistes":"les nageurs"}</button>`:""}${Q?`<span class="spk-q-w">⏳ ${esc(Q.label)} — s'affichera ${g.k==="run"?"après la course et ses résultats":"après les résultats"}</span><button type="button" data-qnow>Afficher maintenant</button><button type="button" data-qx>Annuler</button>`:""}${m}${window.SD_LOCAL?"":`<button type="button" data-spkcode class="cd" title="Changer le code speaker">🔑</button>`}</div>`}
 function spkCode(force){let c="";try{c=localStorage.getItem("sd-spk-code")||""}catch(_){}if(c&&!force)return c;c=(prompt("Code speaker (donné par l'organisateur, dans l'admin du live) :")||"").replace(/\D/g,"");if(c)try{localStorage.setItem("sd-spk-code",c)}catch(_){}return c}
+/* demande pendant une course ou ses résultats : mise en attente, envoyée toute seule quand l'écran est libre */
+function spkSendQ(ev,label,force){if(ev.mode!=="normal"&&!force&&spkBusy()){SPK.queue={ev,label,run:spkBusy().k==="run"};spkRender();return}SPK.queue=null;spkSend(ev)}
 async function spkSend(ev){SPK.msg="Envoi…";spkRender();try{
     if(window.SD_LOCAL){const r=await fetch("/local/cmd",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({act:"fiche",ev})});if(!r.ok)throw new Error("le logiciel chrono a refusé")}
     else if(ADMIN_KEY)await api("/api/pool/event",{method:"POST",body:JSON.stringify([ev])});
@@ -4245,7 +4257,7 @@ function spkCard(ev,n,w){const relay=/^\d+ ?x/i.test(ev.name),base=(ev.name||"")
   const B=relay?null:bestOf(w,ev);if(B&&B.t!=null)lines.push(`Record personnel ${fmt(B.t)}`);
   const lab=fin?(/finale/i.test(ev.name)?(ev.name.split(" · ").slice(1).join(" · ")||"Finale"):(ev.roundLabel||"Finale")):`Série ${n}`;
   return{ev:base,head:`${lab} · Couloir ${w.lane}`,name:relay?(w.club||w.name):w.name,club:relay?"":(w.club||""),year:relay?"":String(w.year||""),lane:String(w.lane),lines}}
-function spkFiche(ev,n,lane){const se=(ev.series||[]).find(z=>+z.n===+n)||ev.series[n-1],w=se&&se.swimmers.find(x=>+x.lane===+lane);if(!w)return;SPK.tvLane=+lane;spkSend({k:"screen",mode:"fiche",title:"",auto:true,card:spkCard(ev,n,w),ts:Date.now()})}
+function spkFiche(ev,n,lane){const se=(ev.series||[]).find(z=>+z.n===+n)||ev.series[n-1],w=se&&se.swimmers.find(x=>+x.lane===+lane);if(!w)return;SPK.tvLane=+lane;spkSendQ({k:"screen",mode:"fiche",title:"",auto:true,card:spkCard(ev,n,w),ts:Date.now()},"fiche de "+w.name)}
 function spkFicheNext(){const s=SPK.sel,ev=s&&EVENTS[s.k];if(!ev)return;const se=(ev.series||[]).find(z=>+z.n===+s.n)||ev.series[s.n-1];if(!se)return;const L=se.swimmers.map(x=>+x.lane).sort((a,b)=>a-b),sc=spkTvSc(),cur=sc?+sc.card.lane:0,nx=L.find(x=>x>cur);if(nx==null){spkSend({k:"screen",mode:"normal",ts:Date.now()});return}spkFiche(ev,s.n,nx)}
 /* souris : la molette fait glisser les passages ; cliquer-glisser aussi (le trackpad glisse déjà tout seul, sans « page précédente » en butée) */
 document.addEventListener("wheel",e=>{const b=e.target.closest&&e.target.closest("#spk .spk-sb");if(!b)return;if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){if(b.scrollWidth<=b.clientWidth)return;e.preventDefault();b.style.scrollBehavior="auto";b.scrollLeft+=e.deltaY;b.style.scrollBehavior=""}},{passive:false});
@@ -4261,15 +4273,18 @@ function spkClick(e){const t=e.target.closest("button,input");if(!t)return;const
   else if(t.dataset.sa){if(t.dataset.sa==="go"&&SPK.alert)SPK.sel={k:SPK.alert.k,n:SPK.alert.n};SPK.alert=null}
   else if(t.dataset.sf!=null)SPK.follow=t.checked;
   else if(t.dataset.snav!=null){SPK.navOff=!SPK.navOff;try{localStorage.setItem("sd-spk-nav",SPK.navOff?"0":"1")}catch(_){}spkRender();setTimeout(spkFit,50);return}
-  else if(t.dataset.restv!=null){const e=SPK.sel&&EVENTS[SPK.sel.k];if(e)spkSend({k:"screen",mode:"fiche",title:"",auto:true,card:{ev:e.name,head:"Résultats",name:"",club:"",year:"",lane:"",lines:["§res|"+e.key]},ts:Date.now()});return}
+  else if(t.dataset.restv!=null){const e=SPK.sel&&EVENTS[SPK.sel.k];if(e)spkSendQ({k:"screen",mode:"fiche",title:"",auto:true,card:{ev:e.name,head:"Résultats",name:"",club:"",year:"",lane:"",lines:["§res|"+e.key]},ts:Date.now()},"résultats de "+e.name);return}
   else if(t.dataset.podtv!=null||t.dataset.podsw!=null){const[gs,ks]=String(t.dataset.podtv!=null?t.dataset.podtv:t.dataset.podsw).split(":"),P=SPK.podG,g=P&&P.G[+gs],only=ks!=null?+ks:null;
     /* podium entier, ou un seul nageur (les marches restent, les autres noms sont cachés) */
     if(!g)return;/* 1 clic sur un nageur : il apparaît (et reste) ; 2e clic : il disparaît. Bouton du podium entier : tout le monde */
     const key=P.ev+"|"+g.name;let R=SPK.podR&&SPK.podR.key===key?SPK.podR.set:null;if(only==null)R=new Set(g.top.map((_,k)=>k+1));else{R=new Set(R||[]);R.has(only+1)?R.delete(only+1):R.add(only+1)}SPK.podR={key,set:R};
     const all=R.size===g.top.length,first=[...R].sort()[0];
-    spkSend({k:"screen",mode:"fiche",title:"",auto:true,card:{ev:P.ev,head:(g.name==="Scratch"?"Podium":"Podium · "+g.name)+(P.off?"":" (non officiel)"),name:first&&g.top[first-1]?g.top[first-1].name:(g.top[0]?g.top[0].name:""),club:"",year:"",lane:"",lines:[...g.top.map((w,k)=>["§"+(k+1),w.name,w.club,w.t].join("|").slice(0,90)),...(all?[]:["§r|"+([...R].sort().join(",")||"0")])],pod:g.top},ts:Date.now()});return}
+    spkSendQ({k:"screen",mode:"fiche",title:"",auto:true,card:{ev:P.ev,head:(g.name==="Scratch"?"Podium":"Podium · "+g.name)+(P.off?"":" (non officiel)"),name:first&&g.top[first-1]?g.top[first-1].name:(g.top[0]?g.top[0].name:""),club:"",year:"",lane:"",lines:[...g.top.map((w,k)=>["§"+(k+1),w.name,w.club,w.t].join("|").slice(0,90)),...(all?[]:["§r|"+([...R].sort().join(",")||"0")])],pod:g.top},ts:Date.now()},"podium "+g.name);return}
   else if(t.dataset.fiche!=null){const e=SPK.sel&&EVENTS[SPK.sel.k];if(e)spkFiche(e,SPK.sel.n,+t.dataset.fiche);return}
   else if(t.dataset.tvnext!=null){spkFicheNext();return}
+  else if(t.dataset.present!=null){const e=SPK.sel&&EVENTS[SPK.sel.k],se=e&&((e.series||[]).find(z=>+z.n===+SPK.sel.n)||e.series[SPK.sel.n-1]);if(se&&se.swimmers.length)spkFiche(e,SPK.sel.n,Math.min(...se.swimmers.map(x=>+x.lane)));return}
+  else if(t.dataset.qnow!=null){const Q=SPK.queue;if(Q)spkSendQ(Q.ev,Q.label,true);return}
+  else if(t.dataset.qx!=null){SPK.queue=null;spkRender();return}
   else if(t.dataset.tvlive!=null){SPK.podR=null;spkSend({k:"screen",mode:"normal",ts:Date.now()});return}
   else if(t.dataset.spkcode!=null){try{localStorage.removeItem("sd-spk-code")}catch(_){}spkCode(true);return}
   else if(t.dataset.sx!=null){document.body.classList.remove("spk");try{history.replaceState(null,"",location.pathname+location.search)}catch(_){}render();return}
@@ -4347,6 +4362,7 @@ body.spk{overflow:hidden}body.spk>*:not(#spk){visibility:hidden}
 #spk .spk-rp{color:#16a34a}#spk .spk-q{display:inline-block;margin:0 4px 3px 0;padding:2px 8px;border-radius:99px;background:#dcfce7;color:#166534;font:700 12px system-ui}#spk .spk-q.f{background:#13285a;color:#fff}
 #spk .spk-rk{background:#fff;border-radius:12px;padding:10px 10px 10px 40px}#spk .spk-rk li{padding:3px 0}
 #spk .spk-nav[hidden]{display:none}#spk [data-snav]{font-size:18px!important}
+#spk .spk-q-w{font-weight:700;color:#7a4a05;background:#fff3c4;padding:4px 8px;border-radius:8px}#spk .spk-tv.on .spk-q-w{color:#7a4a05}
 #spk .spk-tv{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px;padding:6px 10px;border-radius:10px;background:#eef2f8;font:500 14px system-ui;color:#13285a}#spk .spk-tv.on{background:#13285a;color:#fff}#spk .spk-tv small{color:#6b7891}#spk .spk-tv button{font:700 14px system-ui;padding:6px 12px;border-radius:8px;border:1px solid #c9d4e8;background:#fff;color:#13285a;cursor:pointer}#spk .spk-tv button.lv{background:#dc2626;border-color:#dc2626;color:#fff}#spk .spk-tv .cd{margin-left:auto;padding:4px 8px}#spk .spk-tvm{font-weight:700}
 #spk .spk-tvb{border:1px solid #c9d4e8;background:#f3f7fd;border-radius:7px;padding:1px 5px;margin-right:6px;font-size:.8em;cursor:pointer;vertical-align:middle}#spk tr.ontv td{background:#fff7d6}#spk tr.ontv .spk-tvb{background:#f5c542;border-color:#f5c542}
 #spk .spk-off{display:inline-block;margin:0 0 12px;padding:6px 12px;border-radius:10px;background:#fff3c4;color:#7a4a05;font:700 15px system-ui}#spk .spk-off.ok{background:#dcfce7;color:#166534}#spk .spk-pod{background:#fff;border-radius:12px;padding:10px 14px;margin-bottom:12px}#spk .spk-pod h3{margin:0 0 6px}
