@@ -15,7 +15,7 @@ import argparse, gzip, io, json, os, queue, random, re, socket, sys, threading, 
 from datetime import datetime
 
 APP = "Swim Direct · Chrono"
-VERSION = "1.9.10"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
+VERSION = "1.9.11"  # à augmenter à chaque nouvelle version (affichée dans le logiciel et dans l'admin du live)
 SITE = "https://swim-direct.fr"
 ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 HOME = os.path.join(os.environ.get("APPDATA") or os.path.expanduser("~"), "SwimDirect-Chrono")
@@ -816,16 +816,16 @@ def gui(cfg, demo=False, close_after=0):
                     else: show(c["mode"])
                 elif a == "fiche":  # écran speaker : fiche d'un nageur, ou retour au direct
                     e = c.get("ev") if isinstance(c.get("ev"), dict) else {}
-                    md = e.get("mode") if e.get("mode") in ("fiche", "normal") else None
+                    md = e.get("mode") if e.get("mode") in ("fiche", "normal", "count", "cer", "pause", "spons", "pub", "evac", "msg") else None
                     if md:
-                        ev = {"k": "screen", "mode": md, "title": "", "auto": True, "card": e.get("card") if md == "fiche" else None, "ts": time.time()}
+                        ev = {"k": "screen", "mode": md, "title": str(e.get("title") or "")[:120], "auto": md == "fiche", "card": e.get("card") if md == "fiche" else None, "ts": time.time()}
                         try: core.screen.push(ev)
                         except Exception: pass
                         if not c.get("site"):
                             try: core.q.put_nowait(ev)
                             except Exception: pass
-                        core.screen.state.update(mode=md, title=""); smode["v"] = md
-                        core.log("Écran géant (speaker) : " + ("fiche de " + str((e.get("card") or {}).get("name") or "?") if md == "fiche" else "retour au direct"))
+                        core.screen.state.update(mode=md, title=ev["title"]); smode["v"] = md
+                        core.log("Écran géant (speaker) : " + ("fiche de " + str((e.get("card") or {}).get("name") or "?") if md == "fiche" else "retour au direct" if md == "normal" else md))
                 elif a == "fmt" and c.get("f") in fbtns: set_fmt(c["f"])
                 elif a == "spons": spv.set(bool(c.get("on"))); set_spons()
                 elif a == "auto": autov.set(bool(c.get("on"))); set_auto()

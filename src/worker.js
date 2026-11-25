@@ -602,6 +602,7 @@ async function tooManyFails(req, ok) {
   if (!ok) await caches.default.put(key, new Response(String(n + 1), { headers: { "cache-control": "max-age=900" } }));
   return false;
 }
+const SPK_MODES = ["count", "cer", "pause", "spons", "pub", "evac", "msg"];
 function publicConfig(cfg) { const { scrape, exeOpts, exeOptsRev, ...rest } = cfg; return { ...rest, tvAutoRes: !(exeOpts && exeOpts.autores === false) }; }
 // options du logiciel chrono pilotées à distance par l'administrateur (liste fermée : affichage de l'écran géant et sortie réseau, jamais la liaison avec le chronométrage)
 const EXE_BOOL = ["big", "rev", "light", "spons", "pub", "auto", "qout", "autores"];
@@ -792,7 +793,9 @@ export default {
           const code = await env.KV.get("spkcode:" + rid);
           if (!code || SC !== code) { await tooManyFails(req, false); return json({ error: "Code speaker incorrect." }, 401); }
           let evs; try { evs = JSON.parse(await req.text()); } catch (_) { evs = null; }
-          if (!Array.isArray(evs) || !evs.length || evs.length > 3 || !evs.every((x) => x && x.k === "screen" && (x.mode === "fiche" || x.mode === "normal"))) return json({ error: "Le speaker peut seulement afficher une fiche ou rendre le direct." }, 403);
+          const scr = (await env.KV.get("spkscreen:" + rid)) === "1"; // l'organisateur autorise le speaker à piloter l'écran géant (cérémonie, pause, évacuation…)
+          const okMode = (m) => m === "fiche" || m === "normal" || (scr && SPK_MODES.includes(m));
+          if (!Array.isArray(evs) || !evs.length || evs.length > 3 || !evs.every((x) => x && x.k === "screen" && okMode(x.mode))) return json({ error: scr ? "Commande d'écran inconnue." : "Le speaker peut seulement afficher une fiche ou rendre le direct (piloter l'écran géant n'est pas autorisé dans l'admin)." }, 403);
           if ((await killOf(env, rid)).pool) return json({ ok: true, paused: true, applied: 0 });
           await env.KV.put("spkscr:" + rid, JSON.stringify({ at: Date.now(), ev: evs[evs.length - 1] })); // repris par le logiciel chrono pour son écran local
           return room.fetch(new Request("https://pool/event", { method: "POST", body: JSON.stringify(evs) }));
@@ -805,10 +808,14 @@ export default {
       /* code speaker de ce live : affiché dans l'admin (créé à la demande, « nouveau » le change) */
       if (p === "/api/pool/spkcode") {
         if (!CAN) return json({ error: "Réservé à l'organisateur." }, 401);
+        let body = null; if (req.method === "POST") { try { body = JSON.parse(await req.text()); } catch (_) { body = null; } }
+        if (body && typeof body.screen === "boolean") await env.KV.put("spkscreen:" + rid, body.screen ? "1" : "0");
         let code = await env.KV.get("spkcode:" + rid);
-        if (!code || req.method === "POST") { code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); await env.KV.put("spkcode:" + rid, code); }
-        return json({ code });
+        if (!code || (req.method === "POST" && !(body && typeof body.screen === "boolean"))) { code = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)); await env.KV.put("spkcode:" + rid, code); }
+        return json({ code, screen: (await env.KV.get("spkscreen:" + rid)) === "1" });
       }
+      /* ce que le speaker a le droit de faire (lu par l'écran speaker, aussi via l'écran local) */
+      if (p === "/api/pool/spkperm") return json({ screen: (await env.KV.get("spkscreen:" + rid)) === "1" });
       if (config.live !== "bassin" && !CAN && !(p === "/api/pool/ws" && url.searchParams.get("tv"))) return json({ error: "Direct bassin non activé." }, 404); // l'écran géant écoute toujours (fiches du speaker)
       if (p === "/api/pool/ws") return room.fetch(new Request("https://pool/ws", req));
       if (p === "/api/pool/state") return room.fetch(new Request("https://pool/state"));
