@@ -1947,12 +1947,14 @@ async function loadEvents(){if(ROLE==="org"){EVLIST=[];const u=evUrl(EV);const e
   sel.innerHTML=EVLIST.map(e=>`<option value="${e.id}">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.published?"":" · hors ligne"}</option>`).join("");sel.value=EV;
   $("#ev-del").hidden=EV==="main";const u=evUrl(EV);{const sl=$("#ev-slug");if(sl&&document.activeElement!==sl)sl.value=EV==="main"?"":EV}$("#ev-link").innerHTML=`Lien public : <a href="${u}" target="_blank" rel="noopener">${esc(u)}</a>`}
 /* arrivé dans l'admin depuis le portail : liste des lives pour choisir celui à gérer (une seule fois ; rien pour un organisateur) */
-function adminPickLive(){let go=false;try{go=sessionStorage.getItem("sd-pickadm")==="1";sessionStorage.removeItem("sd-pickadm")}catch(_){}
+function adminPickLive(){let go=false;try{const t=+sessionStorage.getItem("sd-pickadm");go=t>0&&Date.now()-t<120000;if(!go||ROLE==="org"||Array.isArray(EVLIST)&&EVLIST.length<2)sessionStorage.removeItem("sd-pickadm")}catch(_){}
+  /* le repère n'est effacé qu'au choix ou à la fermeture : une redirection de page au même moment ne le fait pas perdre */
   if(!go||ROLE==="org"||!Array.isArray(EVLIST)||EVLIST.length<2||document.getElementById("pick-live"))return;
+  const done=()=>{try{sessionStorage.removeItem("sd-pickadm")}catch(_){}};
   const d=document.createElement("div");d.id="pick-live";d.setAttribute("role","dialog");d.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px";
   d.innerHTML=`<div style="background:var(--card,#fff);color:var(--ink,#222);border-radius:16px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:18px 18px 14px;box-shadow:0 20px 60px rgba(0,0,0,.4)"><h2 style="margin:0 0 4px;font-size:18px">Quel live veux-tu gérer ?</h2><p style="margin:0 0 12px;font-size:13px;opacity:.7">Tu pourras en changer ensuite avec le sélecteur « Événement ».</p>${EVLIST.map(e=>`<button type="button" data-pl="${esc(e.id)}" style="display:block;width:100%;text-align:left;margin:0 0 8px;padding:12px 14px;border-radius:12px;border:1px solid rgba(128,128,128,.35);background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer">${esc(e.name||(e.id==="main"?"Événement principal":e.id))}${e.published?"":' <small style="font-weight:400;opacity:.7">· hors ligne</small>'}${e.id===EV?' <small style="font-weight:400;opacity:.7">· ouvert</small>':""}</button>`).join("")}</div>`;
-  d.addEventListener("click",async x=>{const b=x.target.closest("[data-pl]");if(b){d.remove();if(b.dataset.pl!==EV)await switchEvent(b.dataset.pl);return}if(x.target===d)d.remove()});
-  document.addEventListener("keydown",function k(x){if(x.key==="Escape"){d.remove();document.removeEventListener("keydown",k)}});document.body.appendChild(d)}
+  d.addEventListener("click",async x=>{const b=x.target.closest("[data-pl]");if(b){done();d.remove();if(b.dataset.pl!==EV)await switchEvent(b.dataset.pl);return}if(x.target===d){done();d.remove()}});
+  document.addEventListener("keydown",function k(x){if(x.key==="Escape"){done();d.remove();document.removeEventListener("keydown",k)}});document.body.appendChild(d)}
 async function switchEvent(id){await saveNow();EV=id;history.replaceState(null,"","/e/"+id);LIVE={};POOL=null;try{poolWs&&poolWs.close()}catch(_){}await loadAdmin();await loadEvents()}
 function mppLink(){const i=$("#mpp-link");if(i)i.value=location.origin+"/api/records.csv?e="+encodeURIComponent(EV);return i}
 document.addEventListener("click",async e=>{if(e.target.closest("#mpp-copy")){const i=mppLink();const m=$("#mpp-copied");try{await navigator.clipboard.writeText(i.value);m.textContent="Copié !"}catch(_){i.select();m.textContent="Sélectionné : fais Copier"}setTimeout(()=>{m.textContent=""},3000)}if(e.target.closest("details")&&$("#mpp-link"))mppLink()},true);
@@ -3726,7 +3728,7 @@ $("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]"
 $("#admin-btn").onclick=()=>openAdmin();
 /* l'adresse garde #admin : un rechargement de la page reste dans l'admin */
 function adminHash(on){try{if(on&&location.hash!=="#admin")history.replaceState(null,"",location.pathname+location.search+"#admin");else if(!on&&location.hash==="#admin")history.replaceState(null,"",location.pathname+location.search)}catch(_){}}
-async function openAdmin(){if(PICK){try{sessionStorage.setItem("sd-pickadm","1")}catch(_){}location.href="/e/main#admin";return}adminHash(true);
+async function openAdmin(){if(PICK){try{sessionStorage.setItem("sd-pickadm",String(Date.now()))}catch(_){}/* l'événement principal a pu changer d'adresse (/e/main → /e/<nom>) : on y va directement, sans passer par la redirection */let to="";try{const j=await (await fetch("/api/moved")).json();to=j&&j.to||""}catch(_){}location.href="/e/"+(to||"main")+"#admin";return}adminHash(true);
   if(ADMIN_KEY){try{state.admin=true;await loadAdmin();loadEvents().then(adminPickLive);window.scrollTo(0,0);return}catch(e){if(e.status!==401){alertLogin(e.message);return}ADMIN_KEY=null}}
   state.login=true;$("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-login").hidden=false;$("#login-pw").focus()}
 function alertLogin(m){$("#login-msg").textContent=m;$("#login-msg").className="msg err"}
