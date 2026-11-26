@@ -3077,11 +3077,18 @@ function epGroup(ev){return ev.epr==null?[ev]:Object.values(EVENTS).filter(x=>x.
 // 800/1500 : « premières séries » + « série finale » = un seul classement (publié une fois, rattaché aux deux tours)
 function dupSF(ev){return ev.typ===61&&epGroup(ev).some(x=>x.typ===62)}
 function hasFinals(ev){return ev.epr!=null&&epGroup(ev).some(x=>x.fin)}
-function finalsDone(ev,done){done=done||doneSet();const f=epGroup(ev).filter(x=>x.fin);return f.length>0&&f.every(x=>done.has(x.key))}
-function mergedRanking(ev){const g=epGroup(ev);if(!g.some(x=>x.fin))return ranking(ev);
-  const order=[...g.filter(x=>x.fin).sort((a,b)=>a.fin.localeCompare(b.fin)||((b.ffnSec||0)-(a.ffnSec||0))),...g.filter(x=>!x.fin)];
+/* ordre de priorité des finales (réglé dans le module Finales) : « 1 » = la plus prioritaire ; sans réglage, ordre alphabétique A, B, C… */
+const finKey=e=>(e.fin||"")+"|"+(e.category||"");
+function finPrio(e){const v=(((state.finals||{})[e.comp]||{}).prio||{})[finKey(e)];return v!==undefined&&v!==""&&!isNaN(+v)?+v:100+(e.fin||"Z").charCodeAt(0)}
+const finStrict=comp=>((state.finals||{})[comp]||{}).strict!==false;
+/* finales prises en compte par un podium (réglage « podium établi à l'issue de… ») : vide = toutes */
+const finSelOK=(rule,e)=>!rule||!Array.isArray(rule.finSel)||!rule.finSel.length||rule.finSel.includes(finKey(e));
+function finalsDone(ev,done,rule){done=done||doneSet();const f=epGroup(ev).filter(x=>x.fin&&finSelOK(rule,x));return f.length>0&&f.every(x=>done.has(x.key))}
+function mergedRanking(ev,rule){const g=epGroup(ev);if(!g.some(x=>x.fin))return ranking(ev);const sel=rule&&Array.isArray(rule.finSel)&&rule.finSel.length;
+  const order=[...g.filter(x=>x.fin&&finSelOK(rule,x)).sort((a,b)=>finPrio(a)-finPrio(b)||a.fin.localeCompare(b.fin)||((b.ffnSec||0)-(a.ffnSec||0))),...(sel?[]:g.filter(x=>!x.fin))];
   const seen=new Set(),out=[];
   for(const e of order)for(const w of ranking(e).filter(w=>!w.dsq&&w.res!=null).sort((a,b)=>a.res-b.res)){const id=w.iuf||w.name;if(seen.has(id))continue;seen.add(id);out.push({...w,round:e.roundLabel||"Séries"})}
+  /* finale supérieure non prioritaire : classement au temps, toutes finales confondues */if(!finStrict(ev.comp))out.sort((a,b)=>(a.res??1e9)-(b.res??1e9));
   return out.map((w,i)=>({...w,rank:i+1}))}
 function renum(l,keep){return keep?l.map((w,i)=>({...w,rank:i+1})):rerank(l)}
 // âges d'une finale d'après son libellé (« U15 et moins », « U16 : 10-16 ans », « 15 ans », « U17 »)
@@ -3098,13 +3105,17 @@ function probables(ser){const g=epGroup(ser).filter(x=>x.fin).sort((a,b)=>a.fin.
 /* numéros des modules fixes : identiques pour l'admin et les gestionnaires de live (un module réservé à l'admin garde sa place, sans décaler les suivants) */
 function numSteps(){let n=0;document.querySelectorAll("#view-admin details.step").forEach(d=>{if(d.hidden)return;n++;const e=d.querySelector(":scope>summary .n");if(e)e.dataset.n=n})}
 document.addEventListener("DOMContentLoaded",numSteps);setTimeout(numSteps,0);
+/* classement de podium : finales qui le déterminent (rien de coché = toutes les finales ; le podium sort dès que les finales cochées sont nagées) */
+function finSelUi(r){const m={};for(const ev of Object.values(EVENTS))if(ev.type==="event"&&ev.fin&&(r.comps||[]).includes(ev.comp))m[finKey(ev)]=ev;const ks=Object.keys(m).sort((a,b)=>finPrio(m[a])-finPrio(m[b])||a.localeCompare(b));if(!ks.length)return"";
+  return`<div class="rule" style="margin-top:8px"><b>Podium établi à l'issue de…</b><p class="msg" style="margin:2px 0 6px">Coche les finales dont les nageurs comptent pour ce podium ; il s'affiche dès qu'elles sont nagées. Rien de coché : toutes les finales (podium après la dernière). Exemple : « Toutes catégories » = finale A seule.</p><div class="checks">${ks.map(k=>`<label class="chk"><input type="checkbox" data-fsr="${r.id}" data-fsk="${esc(k)}" ${(r.finSel||[]).includes(k)?"checked":""}> Finale ${esc(m[k].fin)}${m[k].category?" · "+esc(m[k].category):""}</label>`).join("")}</div></div>`}
 function renderFinRules(){const el=$("#fin-rules"),st=$("#fin-step");if(!el)return;const byComp={};
   for(const ev of Object.values(EVENTS))if(ev.type==="event"&&ev.fin){const k=ev.fin+"|"+(ev.category||"");(byComp[ev.comp]=byComp[ev.comp]||{})[k]=ev}
   const ids=Object.keys(byComp);st.hidden=!ids.length;numSteps();if(!ids.length){el.innerHTML="";return}
   el.innerHTML=ids.map(id=>{const r=(state.finals||{})[id]||{};return`<div class="card" style="padding:10px 12px;margin:8px 0"><b>${esc(comp(id).name)}</b>
     <div class="grid2c"><label>Nageurs par finale<input class="field" type="number" min="4" max="10" data-fr="${id}|places" value="${+r.places||""}" placeholder="${compLanes(id)}"><span class="msg" style="font-weight:400">Vide = nombre de lignes d'eau du bassin (${compLanes(id)}, d'après les listes de départ)</span></label>
 </div>
-    <table class="sptab"><thead><tr><th>Finale</th><th>Âge mini</th><th>Âge maxi</th></tr></thead><tbody>${Object.entries(byComp[id]).sort().map(([k,ev])=>{const c=((r.cats||{})[k])||catAges(ev.category);return`<tr><td>Finale ${esc(ev.fin)}${ev.category?" · "+esc(ev.category):""}</td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|min" value="${c.min}" placeholder="—"></td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|max" value="${c.max}" placeholder="—"></td></tr>`}).join("")}</tbody></table></div>`}).join("");
+    <table class="sptab"><thead><tr><th>Finale</th><th>Âge mini</th><th>Âge maxi</th><th title="1 = la plus prioritaire ; vide = ordre alphabétique après les finales numérotées">Priorité</th></tr></thead><tbody>${Object.entries(byComp[id]).sort().map(([k,ev])=>{const c=((r.cats||{})[k])||catAges(ev.category);return`<tr><td>Finale ${esc(ev.fin)}${ev.category?" · "+esc(ev.category):""}</td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|min" value="${c.min}" placeholder="—"></td><td><input class="field" style="width:70px" type="number" data-fr="${id}|cat|${esc(k)}|max" value="${c.max}" placeholder="—"></td><td><input class="field" style="width:70px" type="number" min="1" max="99" data-fpid="${id}" data-fpk="${esc(k)}" value="${((r.prio||{})[k])??""}" placeholder="${Object.keys(byComp[id]).sort().indexOf(k)+1}"></td></tr>`}).join("")}</tbody></table>
+    <label class="chk" style="margin-top:6px"><input type="checkbox" data-fstrict="${id}" ${r.strict===false?"":"checked"}> Une finale supérieure est toujours prioritaire : un nageur de la finale A est classé devant tous ceux de la finale B, même s'ils ont nagé plus vite. Décoché : classement au temps, toutes finales confondues.</label><p class="msg" style="margin:4px 0 0">Ce classement sert aux podiums (par catégorie d'âge ou toutes catégories) et au speaker. Le numéro de priorité règle l'ordre des finales ; il est aussi utilisé quand les finales portent un nom de catégorie (U15, U17…).</p></div>`}).join("");
   $("#h-fin").textContent=plural(ids.length,"compétition")+" à finales"}
 function rerank(l){return l.filter(w=>w.rank!=null).sort((a,b)=>a.res-b.res).map((w,i)=>({...w,rank:i+1}))}
 // Trophée Elite (classement national des clubs, Championnats de France) : 14 pts par nageur engagé + 400…144 pts pour les 16 premiers
@@ -3204,7 +3215,7 @@ function renderPod(){
   const groups=[];const byName={};const PRv=provRes();for(const k of done)if(EVENTS[k]&&offFull(EVENTS[k]))delete PRv[k];
   const seenEp=new Set();
   for(const k of allKeys()){const ev=EVENTS[k];const fx=hasFinals(ev);
-    if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois toutes les finales nagées
+    if(fx){const id=ev.comp+"|"+ev.epr;if(seenEp.has(id)||!finalsDone(ev,done,rule)||!rule.comps.includes(ev.comp))continue;seenEp.add(id)} // finales : un seul podium par épreuve, une fois les finales du podium nagées (toutes, ou celles choisies dans le classement)
     else if((!done.has(k)&&!PRv[k])||!rule.comps.includes(ev.comp)||dupSF(ev))continue;
     else if(ev.typ===62){const sf=epGroup(ev).find(x=>x.typ===61);if(sf&&(sfEarly(sf)||(!done.has(sf.key)&&!PRv[sf.key])))continue} // séries lentes du matin : podium seulement après la série rapide du soir
     const gn=fx||ev.typ===62?(ev.base||ev.name):ev.name;
@@ -3226,7 +3237,7 @@ function renderPod(){
     // épreuve pas encore publiée : podium provisoire d'après les séries terminées du direct
     const provL=k=>{const ev=EVENTS[k];return PRv[k].rows.filter(w=>w.time!=null).map(w=>({name:w.name,club:w.club,year:yr4(w,ev),res:w.time,rank:w.place,iuf:swId(w.name,yr4(w,ev))}))};
     const prov=g.keys.filter(k=>PRv[k]);const provTxt=prov.length?prov.map(k=>PRv[k].n+(PRv[k].of?"/"+PRv[k].of:"")).join(" + ")+" séries":"";
-    const all0=K?mergedRanking(EVENTS[g.keys[0]]):rerank(g.keys.flatMap(k=>PRv[k]?provL(k):ranking(EVENTS[k])));
+    const all0=K?mergedRanking(EVENTS[g.keys[0]],rule):rerank(g.keys.flatMap(k=>PRv[k]?provL(k):ranking(EVENTS[k])));
     // règle « N étrangers maximum par podium » : les étrangers au-delà sont retirés du podium, les Français suivants remontent (le classement de la course ne change pas)
     const all=rule.foreign!=null&&!relay?(()=>{let n=0;const l=all0.filter(w=>{if(!w.nat||/^fra$/i.test(w.nat))return true;n++;return n<=rule.foreign});
       // podium français complet (3 Français médaillés 1-2-3) + les étrangers admis, à leur place réelle dans la course
@@ -3494,7 +3505,7 @@ function renderAdmin(){try{momApply()}catch(_){}renderLogos();renderFinRules();r
       <label>Catégories<select class="field" data-rf="mode" data-rid="${r.id}"><option value="scratch" ${r.mode==="scratch"?"selected":""}>Toutes catégories</option><option value="year" ${r.mode==="year"?"selected":""}>Par année de naissance</option><option value="age" ${r.mode==="age"?"selected":""}>Catégories d'âge</option></select></label>
       <label>Places affichées<input class="field" type="number" min="1" max="10" data-rf="places" data-rid="${r.id}" value="${r.places}"></label>
       ${r.type!=="team"?`<label>Étrangers max. par podium<input class="field" type="number" min="0" max="10" placeholder="sans limite" data-rf="foreign" data-rid="${r.id}" value="${r.foreign??""}"></label>`:""}
-    </div>${r.mode==="year"?`<label class="chk"><input type="checkbox" data-rf="upOpen" data-rid="${r.id}" ${r.upOpen?"checked":""}> Surclassement : un nageur plus jeune assez rapide monte aussi sur les podiums des catégories plus âgées</label>`:""}`}
+    </div>${r.type!=="team"?finSelUi(r):""}${r.mode==="year"?`<label class="chk"><input type="checkbox" data-rf="upOpen" data-rid="${r.id}" ${r.upOpen?"checked":""}> Surclassement : un nageur plus jeune assez rapide monte aussi sur les podiums des catégories plus âgées</label>`:""}`}
     ${r.type!=="team"&&r.mode==="age"?`<div class="agebox"><b>Catégories d'âge</b>
       <p class="msg">Âge = année de référence − année de naissance. Par défaut, l'année de la compétition (saisons FFN en année civile). Les relais ne comptent pas dans les classements par âge.</p>
       <label>Année de référence<input class="field" type="number" data-rf="refYear" data-rid="${r.id}" value="${r.refYear||refYearDefault()}" style="max-width:160px"></label>
@@ -3907,6 +3918,10 @@ $("#info-add").onclick=()=>{state.infos.push({id:"i"+Date.now(),title:"",text:""
 document.addEventListener("change",e=>{const t=e.target;const i=t.dataset.iid&&state.infos.find(x=>x.id===t.dataset.iid);if(!i)return;i[t.dataset.if]=t.type==="checkbox"?t.checked:t.value;$("#h1b").textContent=plural(state.infos.length,"information");scheduleSave()});
 document.addEventListener("click",e=>{const t=e.target;if(t.dataset.idel){state.infos=state.infos.filter(x=>x.id!==t.dataset.idel);render()}
   if(t.dataset.imv){const a=state.infos,i=a.findIndex(x=>x.id===t.dataset.imv),j=i+ +t.dataset.d;if(j>=0&&j<a.length){[a[i],a[j]]=[a[j],a[i]];render()}}});
+document.addEventListener("change",e=>{const t=e.target,d=t&&t.dataset;if(!d)return;
+  if(d.fpid){const r=(state.finals=state.finals||{})[d.fpid]=state.finals[d.fpid]||{};r.prio=r.prio||{};if(t.value==="")delete r.prio[d.fpk];else r.prio[d.fpk]=Math.max(1,Math.min(99,+t.value||1));scheduleSave();render()}
+  else if(d.fstrict){const r=(state.finals=state.finals||{})[d.fstrict]=state.finals[d.fstrict]||{};r.strict=t.checked;scheduleSave();render()}
+  else if(d.fsr){const r=state.podRules.find(x=>x.id===d.fsr);if(!r)return;const a=new Set(r.finSel||[]);t.checked?a.add(d.fsk):a.delete(d.fsk);r.finSel=[...a];scheduleSave();render()}});
 document.addEventListener("click",e=>{const t=e.target,d=t.dataset||{};const rid=d.rid||d.catadd||d.catffn||d.catmast;const r=rid&&state.podRules.find(x=>x.id===rid);if(!r)return;
   if(d.catadd){(r.cats=r.cats||[]).push({name:"",min:"",max:""});render()}
   if(d.catdel!=null&&d.catdel!==undefined&&t.matches("[data-catdel]")){r.cats.splice(+d.catdel,1);render()}
