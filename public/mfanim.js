@@ -341,7 +341,7 @@ function sceneWait(t){
   return o;
 }
 /* ---------- LECTEUR SWIM DIRECT ---------- */
-window.MFA={render(svg,mode,P,t,w,h){const r=w/h||1.6;
+window.MFA_T=window.MFA_T||{};window.MFA_T.mf=window.MFA={render(svg,mode,P,t,w,h){const r=w/h||1.6;
   if(r<1.6){VW=1280;VH=1280/r;VX=0;VY=(800-VH)*.6}else{VH=800;VW=800*r;VY=0;VX=(1280-VW)/2}
   X0=VX+24;X1=VX+VW-24;WB=VY+VH-24;
   if(mode==="wait"){WB=715;let H=1280*h/w,W2=1280;if(H<330){H=330;W2=330*w/h}VX=(1280-W2)/2;VW=W2;VY=739-H;VH=H;X0=VX-10;X1=VX+VW+10;svg.setAttribute("preserveAspectRatio","xMidYMax meet");svg.setAttribute("viewBox",`${f(VX)} ${f(VY)} ${f(VW)} ${f(VH)}`);svg.innerHTML=sceneWait(t%3600);return}
