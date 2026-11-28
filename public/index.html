@@ -746,7 +746,13 @@ body.pick{background:#e9f4f8;background-image:none}
 .co-times{font-size:26px;font-weight:300;color:var(--muted);line-height:1}.sp-l.co{height:88px;padding:10px 14px}.sp-l.co img{max-width:220px}.sp-l.co.nobg{padding:4px}
 .co-cap{flex:0 0 100%;text-align:center;font-size:13px;font-weight:600;color:var(--muted);margin-top:2px}
 @media (max-width:700px){.foot .sigw.has-sp .cobrand{order:-1;flex:0 0 100%}.foot .sigw.has-sp .cobrand .sig{order:0;flex:0 0 auto;width:72px;height:72px}.sp-l.co{height:72px}.sp-l.co img{max-width:150px}}
-.live-band{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border-radius:10px;color:#fff;font-weight:700;background:hsl(var(--lh,210) 55% 32%);box-shadow:0 2px 8px rgba(0,0,0,.25)}.live-band small{font-weight:500;opacity:.85}.live-band a{color:#fff;margin-left:auto;font-weight:600;text-decoration:underline}.live-band:empty{display:none}@media(max-width:600px){.live-band small{display:none}}
+/* admin : thème neutre, indépendant du live (couleurs, fond, bandeau du haut) */
+html[data-theme] body.adm{--a:#1f5fbf;--a0:#0b4ea2;--a-d:#0a438c;--a-d2:#093a78;--a-dd:#072f63;--a-rgb:11,78,162;--l-rgb:20,50,110;--l2-rgb:0,30,90;--s-rgb:0,20,60;--c1:12,26,58;--c2:18,36,78;--ink-d:#0b1d3a;--ink-d2:#08162e;--t1:#e1eafb;--t2:#e4edfc;--t3:#cbdcf7;--t4:#f7f9fe;--t5:#f6f8fd;--t6:#f5f8fd;--m1:#4c5a70;--m2:#7f8ca3;--m3:#4a5466;--m4:#6a788f;--mu:#d3e0f5;--fa:#a5bde3;--g0:#0b4ea2;--g1:#3a73c0;--g2:#7ba2d8;--g3:#b9cdeb;--g4:#dfe8f6;--g5:#f3f6fc;--bg:#f6f8fd;background:#0b1e33 !important;background-image:none !important}
+html[data-theme] body.adm::after{display:none !important}
+html[data-theme] body.adm .top,html[data-theme] body.adm .sea,html[data-theme] body.adm .navbar{display:none !important}
+body.adm #view-login{color:#e8f0f8}
+html[data-theme] body.adm .foot,html[data-theme] body.adm .foot *{color:#9db4cc !important}
+.live-band{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border-radius:10px;color:#fff;font-weight:700;background:hsl(var(--lh,210) 62% 38%);box-shadow:0 2px 8px rgba(0,0,0,.25)}.live-band small{font-weight:500;opacity:.85}.live-band a{color:#fff;margin-left:auto;font-weight:600;text-decoration:underline}.live-band:empty{display:none}@media(max-width:600px){.live-band small{display:none}}
 .foot{justify-content:center}.foot p{flex:0 0 100%;max-width:none;text-align:center}.foot #admin-btn{margin:4px 3px 0}
 body.org .admin-only{display:none!important}.org-only{display:none}body.org .org-only{display:block}
 .pb-sys{display:flex;gap:8px;align-items:center;font-weight:600;flex-wrap:wrap}.pb-sys select{width:auto}.pairrow select{width:auto;margin-left:auto;margin-right:8px}
@@ -3808,7 +3814,7 @@ document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ffx-fi
 function render(){try{docSys()}catch(_){}if(DEEP)setTimeout(deepApply,0);setTimeout(()=>{try{alertTick()}catch(_){}},0);if(!state.admin&&!PICK&&location.hash!=="#admin"){const want=state.view==="home"?"":"#"+state.view;if(location.hash!==want)try{history[RV&&RV!==state.view&&!POPPING?"pushState":"replaceState"](null,"",location.pathname+location.search+want)}catch(_){}RV=state.view}
   if(PTOUCH&&!state.admin&&state.view==="live"){PPEND=1;return}document.body.classList.toggle("v-live",!state.admin&&state.view==="live");const nb=$("#navbar");if(nb)document.documentElement.style.setProperty("--navh",nb.offsetHeight+"px");/* écran du mot de passe ouvert : les rafraîchissements du direct ne doivent pas le refermer */
   if(state.login&&!state.admin){$("#view-public").hidden=true;$("#navbar").hidden=true;$("#admin-btn").hidden=true;$("#view-admin").hidden=true;$("#view-login").hidden=false;return}
-  $("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
+  document.body.classList.toggle("adm",!!state.admin);$("#view-public").hidden=state.admin;$("#view-admin").hidden=!state.admin;$("#admin-btn").hidden=state.admin;$("#view-login").hidden=true;renderHead();if(state.admin){renderAdmin();scheduleSave()}else renderPublic()}
 
 /* ---------- interactions ---------- */
 document.addEventListener("click",e=>{const g=e.target.closest&&e.target.closest("[data-goview]");if(!g)return;const b=document.querySelector('#subnav [data-view="'+g.dataset.goview+'"]');if(b)b.click()});
@@ -3816,7 +3822,7 @@ $("#subnav").addEventListener("scroll",navEdge,{passive:true});addEventListener(
 $("#subnav").addEventListener("click",e=>{const b=e.target.closest("[data-view]");if(!b)return;state.view=b.dataset.view;state.reu=null;state.sel=null;state.selFrom=null;state.admin=false;adminHash(false);$("#search").value="";render();if(state.view==="live"){loadLive();poolConnect()}else if(["res","pod","home"].includes(state.view))loadLive()});
 $("#admin-btn").onclick=()=>openAdmin();
 /* l'adresse garde #admin : un rechargement de la page reste dans l'admin */
-const ADMIN_PATH=/^\/admin(\/|$)/.test(location.pathname),ADMIN_HUB=/^\/admin\/?$/.test(location.pathname);
+const ADMIN_PATH=/^\/admin(\/|$)/.test(location.pathname),ADMIN_HUB=/^\/admin\/?$/.test(location.pathname);if(ADMIN_PATH||location.hash==="#admin")document.body.classList.add("adm");
 /* adresse fixe de l'admin : /admin (accueil des lives) et /admin/<live> (un seul live) ; /e/<live>#admin reste valable et bascule vers /admin/<live> */
 function adminHash(on){try{if(on){if(EV!=="main"&&!location.pathname.startsWith("/admin/"))history.replaceState(null,"","/admin/"+EV+location.search);else if(EV==="main"&&!ADMIN_PATH&&location.hash!=="#admin")history.replaceState(null,"",location.pathname+location.search+"#admin");else if(location.hash==="#admin"&&location.pathname.startsWith("/admin"))history.replaceState(null,"",location.pathname+location.search)}else{if(location.pathname.startsWith("/admin"))history.replaceState(null,"","/e/"+(EV==="main"?"main":EV)+location.search);else if(location.hash==="#admin")history.replaceState(null,"",location.pathname+location.search)}}catch(_){}}
 async function openAdmin(){if(PICK){location.href="/admin";return}adminHash(true);
