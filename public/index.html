@@ -1071,6 +1071,7 @@ body.tv #kill-site{display:none}#kill-site{position:fixed;inset:0;z-index:99999;
       <button data-view="live" aria-selected="false" hidden><span class="livedot"></span>Direct</button>
       <button data-view="prog" aria-selected="false">Programme</button>
       <button data-view="res" aria-selected="false">Résultats</button>
+      <button data-view="replay" aria-selected="false" hidden>▶ Revoir</button>
       <button data-view="pod" aria-selected="false">Podiums</button>
       <button data-view="rank" aria-selected="false" hidden>Classement</button>
       <button data-view="part" aria-selected="false">Nageurs & clubs</button>
@@ -1946,9 +1947,17 @@ function rpRes(ev,w){const B=refOf(ev,w);if(!B)return"";
   if(B.self)return`<span class="rpb" title="Record perso établi lors de cette compétition (FFN Extranat)">RECORD PERSO</span>`;const d=Math.round((w.res-B.t)*100)/100;return d<0?`<span class="rpb" title="Par rapport au record perso connu avant la course (FFN Extranat)">RECORD PERSO ${rpSg(d)}</span>`:d===0?`<span class="dif">= record perso</span>`:`<span class="dif up" title="Écart avec le record perso">${rpSg(d)} RP</span>`}
 function diffHtml(res,entry){if(!res||!entry)return"";const d=Math.round((res-entry)*100)/100;if(!isFinite(d))return"";const t=gapTxt(d);return d<0?`<span class="dif dn" title="Plus rapide que le temps d'engagement">−${t}</span>`:d>0?`<span class="dif up" title="Plus lent que le temps d'engagement">+${t}</span>`:`<span class="dif">=</span>`}
 /* vidéos des séries (AquaBox) : liste compétition Live FFN + épreuve + série → MP4, relue toutes les 60 s ; le bouton reste grisé tant que la vidéo n'est pas en ligne */
-let REPL=null,REPLT=0;function loadReplays(){if(REPLT)return;const go=()=>fetch("/api/replays").then(r=>r.json()).then(j=>{const m={};for(const[c,e,h,u]of j.list||[])m[c+"|"+e+"|"+h]=u;const ch=JSON.stringify(m)!==JSON.stringify(REPL||{});REPL=m;if(ch&&!state.admin)try{renderPublic()}catch(_){}}).catch(()=>{});go();REPLT=setInterval(()=>{if(state.replays&&!document.hidden)go()},60e3)}
+let REPL=null,REPLT=0;function loadReplays(){if(REPLT)return;const go=()=>fetch("/api/replays").then(r=>r.json()).then(j=>{const m={};for(const[c,e,h,u]of j.list||[])m[c+"|"+e+"|"+h]=u;const ch=JSON.stringify(m)!==JSON.stringify(REPL||{});REPL=m;if(ch&&!state.admin)try{render()}catch(_){}}).catch(()=>{});go();REPLT=setInterval(()=>{if(state.replays&&!document.hidden)go()},60e3)}
 function heatOfW(ev,w){if(!ev||!w)return 0;if(+w.heat)return +w.heat;const id=w.iuf,n=norm(w.name||"");for(const s of ev.series||[])for(const x of s.swimmers||[])if(id&&x.iuf===id||norm(x.name||"")===n)return +(x.heat||s.n)||0;return 0}
 function replayBtn(ev,w){if(!state.replays||!ev||!ev.comp||!ev.epr||w.res==null&&w.time==null)return"";const h=heatOfW(ev,w);if(!h)return"";const u=REPL&&REPL[ev.comp+"|"+ev.epr+"|"+h];return u?`<a class="spbtn vdbtn" href="${esc(u)}" target="_blank" rel="noopener" title="Revoir la série ${h}">▶ Revoir</a>`:`<span class="spbtn vdbtn off" title="La vidéo de la série ${h} arrive quelques minutes après la course">Vidéo bientôt</span>`}
+/* onglet « Revoir » : toutes les vidéos des séries, dans l'ordre du programme */
+function replayOn(){return !!(state.replays&&REPL&&allKeys().some(k=>{const e=EVENTS[k];return Object.keys(REPL).some(x=>x.startsWith(e.comp+"|"+e.epr+"|"))}))}
+function renderReplay(){const out=[];for(const s of Object.keys(state.order)){const rows=[];
+  for(const k of state.order[s]){const ev=EVENTS[k];if(!ev||ev.type!=="event"||!ev.comp||!ev.epr)continue;const pre=ev.comp+"|"+ev.epr+"|";const hs=Object.keys(REPL||{}).filter(x=>x.startsWith(pre)).map(x=>+x.split("|")[2]);if(!hs.length)continue;
+    const n=Math.max((ev.series||[]).length,...hs);rows.push(`<li class="rp-ev"><b>${evA(k,ev.name,1)}</b><span class="rp-hs">${Array.from({length:n},(_,i)=>{const u=REPL[pre+(i+1)];return u?`<a class="spbtn vdbtn" href="${esc(u)}" target="_blank" rel="noopener">▶ Série ${i+1}</a>`:`<span class="spbtn vdbtn off" title="Vidéo pas encore en ligne">Série ${i+1}</span>`}).join("")}</span></li>`)}
+  if(rows.length)out.push(`<div class="session">${secTitle(esc(/^\d+$/.test(s)?"Réunion "+s:s),rows.length+" épreuve"+(rows.length>1?"s":""))}<div class="card"><ul class="rp-list">${rows.join("")}</ul></div></div>`)}
+  $("#pub-body").innerHTML=out.length?out.join(""):`<p class="msg">Aucune vidéo en ligne pour l'instant : elles arrivent quelques minutes après chaque série.</p>`}
+document.head.insertAdjacentHTML("beforeend",`<style>.rp-list{list-style:none;margin:0;padding:0}.rp-ev{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--line)}.rp-ev:last-child{border-bottom:0}.rp-hs{display:flex;flex-wrap:wrap;gap:6px}.rp-hs .spbtn{margin:0;font-size:12.5px;padding:6px 10px;border-radius:8px;text-decoration:none;white-space:nowrap}</style>`);
 function rkBtns(a,b){return a||b?`<span class="rk-btns">${a}${b}</span>`:"<span></span>"}
 function ranking(ev){return ev.results.filter(x=>!(x.status&&/forf|dns|np/i.test(x.status)))}
 
@@ -2231,18 +2240,18 @@ function renderHead(){{const al=$("#allev");if(al)al.hidden=PICK||!DEMO&&!(Array
   const c0=state.comps[0];$("#pub-meta").textContent=c0?`Piscine de ${c0.city.charAt(0)+c0.city.slice(1).toLowerCase()} · bassin ${c0.bassin}`:"";
   $("#pub-legend").innerHTML=state.comps.map(c=>compBadge(c.id)).join("");
   const sel=$("#filter-comp");const cur=sel.value;sel.innerHTML=`<option value="">Toutes les compétitions</option>`+state.comps.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");sel.value=state.comps.find(c=>c.id===cur)?cur:"";
-  const hasLive=liveOn();$('[data-view=live]').hidden=!hasLive;if(!hasLive&&state.view==="live")state.view="home";const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;{/* onglet Podiums : nom du classement quand il n'y en a qu'un (« Podiums Plot Avenirs ») */const pr=state.podRules.filter(r=>r.type!=="team"&&r.comps.some(c=>comp(c))),pb=$('[data-view=pod]');if(pb)pb.textContent=pr.length===1&&String(pr[0].name||"").trim()?pr[0].name.trim():"Podiums"}{const tr=teamRules(),rb=$('[data-view=rank]');if(rb)rb.textContent=((t=>t&&!(/^podiums?$/i.test(t)&&state.podRules.some(r=>r.type!=="team"))?t:"")((state.rankTab||"").trim()))||(tr.length===1?tr[0].name||"Classement":"Classements")}if(!hasTeam&&state.view==="rank")state.view="home";const hasPod=state.podRules.some(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));$('[data-view=pod]').hidden=!hasPod;if(!hasPod&&state.view==="pod")state.view="home";
-  sel.hidden=state.comps.length<2||state.view==="pod"||state.view==="rank";$("#filters").hidden=state.view==="home"||state.view==="live";
+  {const hr=replayOn();$('[data-view=replay]').hidden=!hr;if(!hr&&state.view==="replay")state.view="home"}const hasLive=liveOn();$('[data-view=live]').hidden=!hasLive;if(!hasLive&&state.view==="live")state.view="home";const hasTeam=!!teamRules().length;$('[data-view=rank]').hidden=!hasTeam;{/* onglet Podiums : nom du classement quand il n'y en a qu'un (« Podiums Plot Avenirs ») */const pr=state.podRules.filter(r=>r.type!=="team"&&r.comps.some(c=>comp(c))),pb=$('[data-view=pod]');if(pb)pb.textContent=pr.length===1&&String(pr[0].name||"").trim()?pr[0].name.trim():"Podiums"}{const tr=teamRules(),rb=$('[data-view=rank]');if(rb)rb.textContent=((t=>t&&!(/^podiums?$/i.test(t)&&state.podRules.some(r=>r.type!=="team"))?t:"")((state.rankTab||"").trim()))||(tr.length===1?tr[0].name||"Classement":"Classements")}if(!hasTeam&&state.view==="rank")state.view="home";const hasPod=state.podRules.some(r=>r.type!=="team"&&r.comps.some(c=>comp(c)));$('[data-view=pod]').hidden=!hasPod;if(!hasPod&&state.view==="pod")state.view="home";
+  sel.hidden=state.comps.length<2||state.view==="pod"||state.view==="rank";$("#filters").hidden=state.view==="home"||state.view==="live"||state.view==="replay";
   document.querySelectorAll("#subnav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===state.view));
   navFit();
   $("#navbar").hidden=state.admin;
-  $("#search").placeholder={rank:"Rechercher une équipe",home:"",live:"Rechercher un nageur ou un club",prog:"Rechercher un nageur ou un club",pod:"Rechercher un nageur ou un club",res:"Rechercher un nageur ou un club",part:"Rechercher un nageur ou un club",club:"Rechercher un club"}[state.view];
+  $("#search").placeholder={rank:"Rechercher une équipe",home:"",live:"Rechercher un nageur ou un club",prog:"Rechercher un nageur ou un club",pod:"Rechercher un nageur ou un club",res:"Rechercher un nageur ou un club",part:"Rechercher un nageur ou un club",club:"Rechercher un club",replay:""}[state.view];
 }
 function renderPublic(){
   const vis=state.published||state.preview;renderHead();$("#pub-unpub").hidden=vis;$("#navbar").hidden=!vis;$(".legend").hidden=!vis;
   let pv=$("#pub-preview");if(!pv){pv=document.createElement("p");pv.id="pub-preview";pv.className="preview-band";pv.textContent="Aperçu privé : cette compétition est en brouillon, invisible du public.";$("#pub-body").before(pv)}pv.hidden=!(state.preview&&!state.published);
   if(!vis){$("#pub-body").innerHTML="";return}
-  ({live:renderLive,rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,part:renderPart,club:renderClub})[state.view]();
+  ({live:renderLive,rank:renderRank,home:renderHome,prog:renderProg,res:renderRes,pod:renderPod,replay:renderReplay,part:renderPart,club:renderClub})[state.view]();
 }
 function nl(t){return esc(t).replace(/\n/g,"<br>")}
 /* mise en forme des informations : **gras**, _italique_, ++souligné++, ~~barré~~, [grand]…[/grand], [rouge]…[/rouge], liens cliquables */
