@@ -603,6 +603,7 @@ async function tooManyFails(req, ok) {
   return false;
 }
 const SPK_MODES = ["count", "cer", "pause", "spons", "pub", "evac", "msg"];
+const REPLAYS_URL = "https://replays.natvision.org/aquabox/replays.json";
 function publicConfig(cfg) { const { scrape, exeOpts, exeOptsRev, ...rest } = cfg; return { ...rest, tvAutoRes: !(exeOpts && exeOpts.autores === false) }; }
 // options du logiciel chrono pilotées à distance par l'administrateur (liste fermée : affichage de l'écran géant et sortie réseau, jamais la liaison avec le chronométrage)
 const EXE_BOOL = ["big", "rev", "light", "spons", "pub", "auto", "qout", "autores"];
@@ -692,6 +693,13 @@ export default {
     const edge = (res) => { if (edgeKey && res.ok) ctx.waitUntil(caches.default.put(edgeKey, res.clone())); return res; };
 
     // ancienne adresse /e/main : où le live a été déplacé
+    if (p === "/api/replays") { // vidéos des séries (AquaBox) : liste relue au plus toutes les 60 s, mise en cache au bord du réseau
+      const cache = caches.default, ck = new Request(url.origin + "/api/replays?c=1"); const hit = await cache.match(ck); if (hit) return hit;
+      let list = [];
+      try { const r = await fetch(REPLAYS_URL, { cf: { cacheTtl: 60 } }); if (r.ok) { const j = await r.json(); const raw = Array.isArray(j) ? j : [...(j.replays || []), ...(j.meets || []).flatMap((m) => m.replays || [])];
+        list = raw.filter((x) => x && +x.liveffn && +x.epreuve && +x.serie && /^https:\/\//.test(x.url || "")).map((x) => [+x.liveffn, +x.epreuve, +x.serie, String(x.url)]); } } catch (_) {}
+      const res = json({ at: Date.now(), list }, 200, { "cache-control": "public, max-age=60" }); ctx.waitUntil(cache.put(ck, res.clone())); return res;
+    }
     if (p === "/api/moved") { const c = (await env.KV.get(kk("config", "main"), "json")) || {}; return json({ to: c.published ? "" : c.movedTo || "" }); }
     // liste publique des événements (pour l'accueil et le partage)
     if (p === "/api/events" && req.method === "GET") {
