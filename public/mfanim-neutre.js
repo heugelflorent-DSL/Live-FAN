@@ -328,8 +328,20 @@ function sceneWait(t){
   o+=`<g clip-path="url(#cw)">`+crawler(sw[0].x,DECK+36,'#ffd23f',t,sw[0].dir,1.1)+crawler(sw[1].x,DECK+70,'#ff7a2f',t+1,sw[1].dir,0.9)+crawler(sw[2].x,DECK+102,'#3fd1c7',t+2,sw[2].dir,1.25)+`</g>`;
   return o;
 }
+/* ---------- DÉCOR DES FICHES (finaliste / podium), dessin de Mat, en 1600×900 ---------- */
+function decoFiche(t,mode){const DK=770,CX0=40,CX1=1560,CBOT=860,DARK0='#0b1f55',CREAM0='#f7f5ec';
+  const wp=(y0,amp,k,w,x0,x1,bottom,ph=0)=>{let d=`M${x0},${bottom} L${x0},${f(y0+amp*Math.sin(k*x0+t*w+ph))}`;for(let x=x0;x<=x1;x+=16)d+=` L${x},${f(y0+amp*Math.sin(k*x+t*w+ph))}`;return d+` L${x1},${bottom} Z`};
+  const sb=x=>`<g transform="translate(${x} ${DK}) scale(1.15)"><rect x="-27" y="-52" width="54" height="52" fill="#f3dfae" stroke="${DARK0}" stroke-width="3"/><path d="M-27,-52 L27,0 M27,-52 L-27,0" stroke="${DARK0}" stroke-width="2.6"/><path d="M-34,-57 L32,-65 L32,-56 L-34,-48 Z" fill="#2f60d4" stroke="${DARK0}" stroke-width="2.6" stroke-linejoin="round"/></g>`;
+  let o=`<defs><clipPath id="fcc"><rect x="${CX0}" y="40" width="${CX1-CX0}" height="${CBOT-40}" rx="34"/></clipPath></defs>`;
+  o+=`<rect x="-800" y="-600" width="3200" height="2100" fill="#0a1a45"/><rect x="${CX0}" y="40" width="${CX1-CX0}" height="${CBOT-40}" rx="34" fill="${CREAM0}"/>`;
+  o+=`<g clip-path="url(#fcc)"><rect x="${CX0}" y="${DK+8}" width="${CX1-CX0}" height="${CBOT-DK}" fill="#2a79d6"/><path d="${wp(DK+22,6,0.011,1.6,CX0,CX1,CBOT)}" fill="#52b6ee"/><path d="${wp(DK+38,5,0.013,-1.8,CX0,CX1,CBOT,1.3)}" fill="#2f86de"/><path d="${wp(DK+62,4,0.010,1.2,CX0,CX1,CBOT,2.1)}" fill="#1b4fb6"/>`;
+  o+=`<path d="M${f(260+30*Math.sin(t))} ${DK+52} q14,-8 28,0 t28,0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".9"/><path d="M${f(1150+25*Math.sin(t*.8+2))} ${DK+70} q14,-8 28,0 t28,0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".9"/></g>`;
+  o+=`<path d="M${CX0},${DK-1} H${CX1}" stroke="${DARK0}" stroke-width="3"/><path d="M${CX0},${DK+6} H${CX1}" stroke="#c9b27a" stroke-width="3"/>`;
+  if(mode==='1'){o+=sb(250)+sb(1350);o+=MAT({x:150,y:DK,s:.95,t,pose:'stand',dir:1,head:Math.sin(t*2)*3,clap:Math.sin(t*.7)>.92});o+=FLO({x:1450,y:DK,s:1.15,t,pose:'stand',dir:-1,head:Math.sin(t*1.7+1)*3,clap:Math.sin(t*.6+2)>.93})}
+  else{o+=MAT({x:105,y:DK,s:.6,t,pose:'stand',dir:1,head:Math.sin(t*2)*3,clap:true});o+=FLO({x:1495,y:DK,s:.7,t,pose:'stand',dir:-1,head:Math.sin(t*1.7+1)*3,clap:true})}
+  return o}
 /* ---------- LECTEUR SWIM DIRECT ---------- */
-window.MFA_T=window.MFA_T||{};window.MFA_T.neutre={render(svg,mode,P,t,w,h){const r=w/h||1.6;
+window.MFA_T=window.MFA_T||{};window.MFA_T.neutre={render(svg,mode,P,t,w,h){if(mode==="fiche1"||mode==="fiche2"){svg.setAttribute("viewBox","0 0 1600 900");svg.innerHTML=decoFiche(t,mode.slice(5));return}const r=w/h||1.6;
   if(r<1.6){VW=1280;VH=1280/r;VX=0;VY=(800-VH)*.6}else{VH=800;VW=800*r;VY=0;VX=(1280-VW)/2}
   X0=VX+24;X1=VX+VW-24;WB=VY+VH-24;
   if(mode==="wait"){WB=715;let H=1280*h/w,W2=1280;if(H<330){H=330;W2=330*w/h}VX=(1280-W2)/2;VW=W2;VY=739-H;VH=H;X0=VX-10;X1=VX+VW+10;svg.setAttribute("preserveAspectRatio","xMidYMax meet");svg.setAttribute("viewBox",`${f(VX)} ${f(VY)} ${f(VW)} ${f(VH)}`);svg.innerHTML=sceneWait(t%3600);return}
